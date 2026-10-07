@@ -99,3 +99,33 @@ test('all-in confirmation is private, actor-bound, version-checked and single-us
   await Promise.all(ctx.tasks);
  } finally {globalThis.fetch=savedFetch;}
 });
+
+test('private hand panel supports betting and modal, refreshes in place, and cannot expose cards publicly',async(t)=>{
+ const ctx=context(),table=new PokerTable(ctx,{BOT_TOKEN:'test'}),patches=[];
+ const savedFetch=globalThis.fetch;globalThis.fetch=async(url,opts)=>{if(opts?.method==='PATCH')patches.push(JSON.parse(opts.body));return Response.json({});};t.after(()=>{globalThis.fetch=savedFetch;});
+ let serial=0;
+ const call=async(type,data,id='1',message={id:'999'})=>(await table.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:{id:String(++serial),type,guild_id:'3',channel_id:'2',member:{user:{id},permissions:'0'},message,data}})}))).json();
+ const key=a=>`h:${ctx.map.get('table').epoch}:${ctx.map.get('table').version}:${a}`;
+ const click=a=>call(3,{custom_id:key(a)});
+ const privateClick=a=>call(3,{custom_id:key(`p~1~${a}`)},'1',{id:'888',flags:64});
+ await call(2,{name:'德州',options:[{name:'创建'}]});await call(3,{custom_id:key('join')},'4');await click('start');
+ const opened=await click('hand');assert.equal(opened.type,4);assert.equal(opened.data.flags,64);const handTitle=opened.data.embeds[0].title;
+ const forbidden=await call(3,{custom_id:key('p~1~hand')},'4',{id:'888',flags:64});assert.equal(forbidden.data.flags,64);assert(!JSON.stringify(forbidden).includes(handTitle));
+ const publicSpoof=await click('p~1~hand');assert.equal(publicSpoof.type,4);assert.equal(publicSpoof.data.flags,64);assert(!JSON.stringify(publicSpoof).includes(handTitle));
+ const hidden=await privateClick('hide');assert.equal(hidden.type,7);assert.deepEqual(hidden.data.embeds,[]);
+ const refreshed=await privateClick('hand');assert.equal(refreshed.type,7);assert.equal(refreshed.data.embeds[0].title,handTitle);
+ const staleKey=key('p~1~call');
+ const modal=await privateClick('raise');assert.equal(modal.type,9);assert(modal.data.custom_id.endsWith('p~1~submit'));
+ const raised=await call(5,{custom_id:modal.data.custom_id,components:[{components:[{custom_id:'amount',value:'40'}]}]},'1',{id:'888',flags:64});
+ assert.equal(raised.type,7);assert.equal(raised.data.embeds[0].title,handTitle);assert.equal(ctx.map.get('table').currentBet,40);assert.equal(ctx.map.get('table').messageId,'999');
+ const before=structuredClone(ctx.map.get('table'));
+ const stale=await call(3,{custom_id:staleKey},'1',{id:'888',flags:64});assert(stale.data.content.includes('未执行'));assert.deepEqual(ctx.map.get('table'),before);
+ await call(3,{custom_id:key('call')},'4');await call(3,{custom_id:key('check')},'4');
+ const prompt=await privateClick('allin');assert.equal(prompt.type,7);assert(prompt.data.content.includes('确认投入'));assert.equal(prompt.data.embeds[0].title,handTitle);
+ const cancel=await privateClick('cancel');assert.equal(cancel.data.embeds[0].title,handTitle);assert.equal(ctx.map.get('table').players[0].stack,1960);
+ const allin=await privateClick('yesallin');assert.equal(allin.type,7);assert.equal(ctx.map.get('table').players[0].stack,0);
+ await Promise.all(ctx.tasks);assert(patches.length>0);assert(patches.every(p=>p.embeds[0].title==='♠ Aliceneko · 德州扑克'));
+ // A modal without an attached private message must create an ephemeral reply.
+ const missingMessage=await call(5,{custom_id:staleKey.replace('call','submit'),components:[]},'1',undefined);
+ assert.equal(missingMessage.type,4);assert.equal(missingMessage.data.flags,64);
+});

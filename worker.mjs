@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import * as game from './engine.mjs';
 import { computerTurn } from './computer.mjs';
-import { board, quickRaises, confirmation } from './ui.mjs';
+import { board, quickRaises, confirmation, handPanel, panelAction, button, row } from './ui.mjs';
 const COMMAND_VERSION='holdem-v1.0.1-beta.1'; // Command schema unchanged in beta.2
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
@@ -55,27 +55,36 @@ export class PokerTable extends DurableObject {
       if(!t||t.phase==='closed')return json(privateReply('牌桌已关闭，请重新创建。'));
       const parts=(i.data?.custom_id||'').split(':');
       if(parts.length!==4||parts[0]!=='h'||parts[1]!==t.epoch)return json(privateReply('这是旧牌桌的按钮，请打开当前牌桌。'));
-      const action=parts[3];
+      const panelMatch=parts[3].match(/^p~(\d+)~(.+)$/);
+      const isPanel=!!panelMatch,privateMessage=!!(Number(i.message?.flags)&64);
+      if(isPanel&&i.type===5&&panelMatch[2]!=='submit')return json(privateReply('无效的面板表单。'));
+      if(isPanel&&(panelMatch[1]!==id||(i.type===3&&!privateMessage)))return json(privateReply('请重新点击公共牌桌上的「手牌 / 操作」。'));
+      let action=isPanel?panelMatch[2]:parts[3];
+      if(isPanel&&action==='yesallin')action=`yesallin~${id}`;
+      const panelReply=(notice='')=>({type:privateMessage?7:4,data:{...handPanel(t,id,notice),...(privateMessage?{}:{flags:64})}});
+      if(isPanel&&!t.players.some(p=>p.id===id&&!p.bot))return json(privateReply('你已离开这张牌桌。'));
+      if(isPanel&&action==='hide')return json({type:7,data:{content:'底牌已收起。',embeds:[],components:[row(button(t,panelAction(id,'hand'),'展开手牌',1))]}});
+
       const confirmAction=action.match(/^(yesallin|yesclose)~(\d+)$/);
-      if(action==='cancel')return json({type:7,data:{content:'已取消。',embeds:[],components:[]}});
+      if(action==='cancel')return json(isPanel?panelReply('已取消，尚未全下。'):{type:7,data:{content:'已取消。',embeds:[],components:[]}});
       if(confirmAction&&confirmAction[2]!==id)return json(privateReply('这不是你的确认按钮。'));
       if(action==='refresh')return json({type:7,data:board(t)});
       if(action==='help')return json(privateReply(help));
       if(action==='hand'){
-        const p=t.players.find(p=>p.id===id);if(!p)return json(privateReply('你没有加入这张牌桌。'));
-        return json(privateReply(p.cards.length?`第 ${t.handNo} 手，你的底牌：**${game.cardsText(p.cards)}**${p.folded?'（已弃牌）':t.turn===id?`\n**轮到你** · ${game.legal(t,id).call?`需跟注 ${Math.min(p.stack,game.legal(t,id).call)}`:'可以过牌'} · 剩余 ${p.stack} 筹码`:'\n等待其他玩家行动'}`:'还没发牌，请等待桌主开始。'));
+        if(!t.players.some(p=>p.id===id&&!p.bot))return json(privateReply('你没有加入这张牌桌。'));
+        return json(isPanel?panelReply():{type:4,data:{...handPanel(t,id),flags:64}});
       }
-      if(!confirmAction&&t.messageId&&i.message?.id&&i.message.id!==t.messageId)return json(privateReply('请使用原牌桌消息的按钮。'));
-      if(Number(parts[2])!==t.version&&confirmAction?.[1]!=='yesclose'){if(confirmAction){this.ctx.waitUntil(this.syncBoard(t));return json({type:7,data:{content:'牌局已变化，未执行操作。请回牌桌重新选择。',components:[],embeds:[]}});}return json({type:7,data:{...board(t),content:'牌桌刚刚更新，请按最新金额重新选择操作。'}});}
+      if(!isPanel&&!confirmAction&&t.messageId&&i.message?.id&&i.message.id!==t.messageId)return json(privateReply('请使用原牌桌消息的按钮。'));
+      if(Number(parts[2])!==t.version&&confirmAction?.[1]!=='yesclose'){if(isPanel)return json(panelReply('牌局已更新，刚才的操作未执行。请按最新金额选择。'));if(confirmAction){this.ctx.waitUntil(this.syncBoard(t));return json({type:7,data:{content:'牌局已变化，未执行操作。请回牌桌重新选择。',components:[],embeds:[]}});}return json({type:7,data:{...board(t),content:'牌桌刚刚更新，请按最新金额重新选择操作。'}});}
       // Process expired turns before accepting a player's late action.
-      if(t.deadline&&Date.now()>=t.deadline&&confirmAction?.[1]!=='yesclose'){game.timeout(t);t.version++;await this.save(t);if(confirmAction){this.ctx.waitUntil(this.syncBoard(t));return json({type:7,data:{content:'回合已超时，未执行确认操作。',components:[],embeds:[]}});}return json({type:7,data:board(t)});}
+      if(t.deadline&&Date.now()>=t.deadline&&confirmAction?.[1]!=='yesclose'){game.timeout(t);t.version++;await this.save(t);if(isPanel){this.ctx.waitUntil(this.syncBoard(t));return json(panelReply('回合已超时，已自动处理。'));}if(confirmAction){this.ctx.waitUntil(this.syncBoard(t));return json({type:7,data:{content:'回合已超时，未执行确认操作。',components:[],embeds:[]}});}return json({type:7,data:board(t)});}
       const seen=await this.ctx.storage.get('recentInteractions')||[];if(seen.includes(i.id))return json(privateReply('这次操作已经处理。'));
       try{
-        if(action==='allin'){const l=game.legal(t,id);if(!l.canRaise&&l.maxTotal>t.currentBet)throw Error('本轮未重新开放加注权，只能跟注或弃牌。');return json(confirmation(t,id,'allin',`确认投入剩余 **${l.p.stack}** 筹码全下？本轮总下注将为 **${l.maxTotal}**。`));}
+        if(action==='allin'){const l=game.legal(t,id);if(!l.canRaise&&l.maxTotal>t.currentBet)throw Error('本轮未重新开放加注权，只能跟注或弃牌。');const prompt=confirmation(t,id,'allin',`确认投入剩余 **${l.p.stack}** 筹码全下？本轮总下注将为 **${l.maxTotal}**。`);if(isPanel){const data=handPanel(t,id,prompt.data.content);data.components=[row(button(t,panelAction(id,'yesallin'),'确认全下',4),button(t,panelAction(id,'cancel'),'返回手牌'))];return json({type:7,data});}return json(prompt);}
         if(action==='close'){if(id!==t.owner&&!admin)throw Error('只有桌主或管理员可以关闭牌桌。');return json(confirmation(t,id,'close','确认关闭整张牌桌？未完成手牌的下注会退回。'));}
         if(action==='raise'&&i.type===3){
           const limits=game.legal(t,id);if(!limits.canRaise)throw Error('本轮尚未重新开放你的加注权。');
-          return json({type:9,data:{custom_id:`h:${t.epoch}:${t.version}:submit`,title:t.currentBet?'加注 · 本轮总下注':'下注 · 本轮总下注',components:[{type:1,components:[{type:4,custom_id:'amount',label:limits.maxTotal<limits.minTotal?`仅可全下：${limits.maxTotal}`:`本轮总额 ${limits.minTotal}～${limits.maxTotal}`,style:1,required:true,min_length:1,max_length:8,value:String(Math.min(limits.minTotal,limits.maxTotal)),placeholder:`已下 ${limits.p.round}，填本轮总额`}]}]}});
+          return json({type:9,data:{custom_id:`h:${t.epoch}:${t.version}:${isPanel?panelAction(id,'submit'):'submit'}`,title:t.currentBet?'加注 · 本轮总下注':'下注 · 本轮总下注',components:[{type:1,components:[{type:4,custom_id:'amount',label:limits.maxTotal<limits.minTotal?`仅可全下：${limits.maxTotal}`:`本轮总额 ${limits.minTotal}～${limits.maxTotal}`,style:1,required:true,min_length:1,max_length:8,value:String(Math.min(limits.minTotal,limits.maxTotal)),placeholder:`已下 ${limits.p.round}，填本轮总额`}]}]}});
         }
         if(action==='join')game.join(t,id);
         else if(action==='leave')game.leave(t,id);
@@ -89,9 +98,10 @@ export class PokerTable extends DurableObject {
         else if(action==='submit'&&i.type===5){const value=i.data.components?.flatMap(r=>r.components||[]).find(c=>c.custom_id==='amount')?.value?.trim();if(!/^\d{1,8}$/.test(value||''))throw Error('请输入正整数。');game.act(t,id,'raise',Number(value));}
         else if(['fold','check','call','allin'].includes(action)&&i.type===3)game.act(t,id,action);
         else throw Error('未知操作。');
-      }catch(error){return json(privateReply(error.message));}
-      t.version++;t.lastActive=Date.now();if(!t.messageId&&i.message?.id)t.messageId=i.message.id;
+      }catch(error){return json(isPanel?panelReply(error.message):privateReply(error.message));}
+      t.version++;t.lastActive=Date.now();if(!isPanel&&!confirmAction&&!t.messageId&&i.message?.id)t.messageId=i.message.id;
       await this.save(t);await this.ctx.storage.put('recentInteractions',[...seen.slice(-99),i.id]);
+      if(isPanel){this.ctx.waitUntil(this.syncBoard(t));return json(panelReply('操作已执行。'));}
       if(confirmAction){this.ctx.waitUntil(this.syncBoard(t));return json({type:7,data:{content:confirmAction[1]==='yesclose'?'牌桌已关闭。':'已全下，请回牌桌查看。',components:[],embeds:[]}});}
       return json({type:7,data:board(t)});
     });
