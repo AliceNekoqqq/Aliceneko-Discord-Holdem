@@ -100,4 +100,4 @@
 - 99 项测试全通过，包括 2–10 席位边界无重叠、同人数同手牌数隐私不变、全部可见状态使缓存变化、抢出到期恢复行动框、等待/关闭与 Unicode 昵称容错。2v2 和10人桌PNG已目视检查。真人手机端待用户试玩。
 - 原命令 schema/version games-v1.0.1-beta.11 保留，无需重新注册指令；原 Worker、Secret、SQLite namespace、cron、compatibility date 保留。
 
-- beta.12 部署状态：源码已完成并通过99项测试；替换Cloudflare现有Worker的PUT被自动审批拒绝，理由为缺少明确线上部署授权。线上仍为beta.11，等待用户批准部署beta.12。
+- beta.12 部署状态：用户明确允许后已于2026-10-08部署成功，Cloudflare API返回200，设置读回版本v1.0.1-beta.12；保留原Secret和牌桌namespace，无指令变更。用户随后确认保留按实际人数排列的原设计，固定十座空位草稿已撤回。
