@@ -1,7 +1,8 @@
+import {prepareNicknameFont} from './nickname-font.mjs';
 import {avatarKey,normalizedProfile,ACCENTS} from './uno-profile.mjs';
 import {emojiBitmap,paintEmoji} from './emoji-art.mjs';
 import {wearsCrown} from './uno-rankings.mjs';
-import { Canvas, encodePNG } from './card-image.mjs';
+import { Canvas,textWidth, encodePNG } from './card-image.mjs';
 import { glyphs } from './card-glyphs.mjs';
 import {EMOTES,activeEmote} from './uno-social.mjs';
 import * as game from './uno-engine.mjs';
@@ -78,12 +79,13 @@ function arrow(c,x,y,angle,color){const a=13;line(c,Math.round(x-Math.cos(angle)
 }
 // Nicknames may use any script or emoji. The compact atlas cannot represent all
 // of them; retain an unambiguous seat label and the full name in the embed/alt text.
-function imageName(seat){const name=[...seat.name].slice(0,11).join('');return [...name].every(ch=>glyphs[ch])?name:`玩家 ${seat.seat}`;}
+export function imageName(seat){return [...seat.name].slice(0,11).map(ch=>glyphs[ch]?ch:'?').join('');}
 function fitText(c,text,x,y,size,maxWidth,color,center=false){
- const width=[...text].reduce((n,ch)=>n+glyphs[ch][2]*size/48,0);
+ const width=textWidth(text,size);
  c.text(text,x,y,Math.min(size,size*maxWidth/Math.max(1,width)),color,center);
 }
 export async function renderTableImage(model){
+ await prepareNicknameFont(model.seats.map(s=>s.name));
  const art=new Map(await Promise.all([...new Set([...model.seats.map(s=>s.avatar||'butterfly'),...model.seats.filter(s=>s.winner&&s.victory&&s.victory!=='none').map(s=>s.victory),...(model.seats.some(s=>s.crown)?['crown']:[])])].map(async key=>[key,await emojiBitmap(key)]))); 
  const c=new Canvas(960,820),positions=seatLayout(model.seats.length),active=model.phase==='active';
  c.rect(18,18,924,62,[37,34,53],15);c.text('UNO',38,34,29,pink);
@@ -125,7 +127,7 @@ export async function renderTableImage(model){
 }
 export async function boardImageMessage(t,data,existing){
  if(t.phase==='closed'||!t.players?.length)return {body:{...data,attachments:[]},signature:null};
- const model=publicTableSnapshot(t),signature=JSON.stringify(model),filename='uno-table.png',body=withImage(data,filename);
+ const model=publicTableSnapshot(t),signature='nickname-v1/'+JSON.stringify(model),filename='uno-table.png',body=withImage(data,filename);
  if(existing?.signature===signature&&existing.id){body.attachments=[{id:existing.id,filename}];return {body,signature};}
  const seats=model.seats.map(s=>`${s.seat}号 ${s.name}，形象 ${s.avatar}，${s.count}张${s.surrendered?'，已认输':''}${s.crown?'，UNO 大王':''}${model.turn===s.id?model.jumping?'，抢出后下一位':'，当前行动者':''}${s.team!==null?`，${s.team===0?'红':'蓝'}队`:''}`).join('；');
  const reaction=model.social?`互动：${model.seats.find(s=>s.id===model.social.actor)?.name}对${model.seats.find(s=>s.id===model.social.target)?.name}说${EMOTES[model.social.key].emoji}${EMOTES[model.social.key].text}。`:'';

@@ -4,12 +4,13 @@ import { cardsText } from './engine.mjs';
 const WIDTH=760,HEIGHT=520;
 const C={background:[23,29,43],private:[45,34,51],shared:[27,43,54],white:[255,252,245],ink:[32,39,53],red:[184,48,76],muted:[156,174,192],pink:[240,181,207],blue:[167,215,235],back:[45,62,78],border:[84,109,128]};
 const decoded=new Map();
-function glyph(char){if(!decoded.has(char)){const [w,h,advance,b64]=glyphs[char];decoded.set(char,{w,h,advance,data:Uint8Array.from(atob(b64),c=>c.charCodeAt(0))});}return decoded.get(char);}
+function glyph(char){if(!decoded.has(char)){const [w,h,advance,b64,unit=48]=glyphs[char]||glyphs['?'];if(decoded.size>=512)decoded.delete(decoded.keys().next().value);decoded.set(char,{w,h,advance,unit,data:Uint8Array.from(atob(b64),c=>c.charCodeAt(0))});}return decoded.get(char);}
+export const textWidth=(value,size)=>[...value].reduce((sum,c)=>sum+glyph(c).advance*size/glyph(c).unit,0);
 export class Canvas {
   constructor(width=WIDTH,height=HEIGHT){this.width=width;this.height=height;this.pixels=new Uint8Array(width*height*3);this.rect(0,0,width,height,C.background);}
   pixel(x,y,color,alpha=255){if(x<0||y<0||x>=this.width||y>=this.height)return;const index=(y*this.width+x)*3;for(let i=0;i<3;i++)this.pixels[index+i]=Math.round((color[i]*alpha+this.pixels[index+i]*(255-alpha))/255);}
   rect(x,y,w,h,color,radius=0){for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++){if(radius){const dx=Math.max(x+radius-i,0,i-(x+w-radius-1)),dy=Math.max(y+radius-j,0,j-(y+h-radius-1));if(dx*dx+dy*dy>radius*radius)continue;}this.pixel(i,j,color);}}
-  text(value,x,y,size,color,center=false,rotate=false){const scale=size/48,characters=[...value];const width=characters.reduce((sum,c)=>sum+glyph(c).advance*scale,0);if(center)x-=width/2;let cursor=0;for(const char of characters){const g=glyph(char),w=Math.ceil(g.w*scale),h=Math.ceil(g.h*scale);for(let j=0;j<h;j++)for(let i=0;i<w;i++){const alpha=g.data[Math.min(g.h-1,Math.floor(j/scale))*g.w+Math.min(g.w-1,Math.floor(i/scale))];const px=Math.round(x+cursor+i),py=Math.round(y+j);this.pixel(rotate?Math.round(x-cursor-i):px,rotate?Math.round(y-j):py,color,alpha);}cursor+=g.advance*scale;}return width;}
+  text(value,x,y,size,color,center=false,rotate=false){const characters=[...value];const width=textWidth(value,size);if(center)x-=width/2;let cursor=0;for(const char of characters){const g=glyph(char),scale=size/g.unit,w=Math.ceil(g.w*scale),h=Math.ceil(g.h*scale);for(let j=0;j<h;j++)for(let i=0;i<w;i++){const alpha=g.data[Math.min(g.h-1,Math.floor(j/scale))*g.w+Math.min(g.w-1,Math.floor(i/scale))];const px=Math.round(x+cursor+i),py=Math.round(y+j);this.pixel(rotate?Math.round(x-cursor-i):px,rotate?Math.round(y-j):py,color,alpha);}cursor+=g.advance*scale;}return width;}
   card(card,x,y,w,h){
     this.rect(x+2,y+4,w,h,[12,18,28],10);
     if(card==null){this.rect(x,y,w,h,C.border,10);this.rect(x+2,y+2,w-4,h-4,C.back,9);this.rect(x+9,y+9,w-18,h-18,C.border,5);this.rect(x+11,y+11,w-22,h-22,C.back,4);for(let j=y+18;j<y+h-16;j+=13)for(let i=x+18;i<x+w-16;i+=13)this.rect(i,j,3,3,[68,89,105]);return;}
