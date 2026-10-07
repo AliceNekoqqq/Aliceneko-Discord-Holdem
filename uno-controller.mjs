@@ -21,7 +21,7 @@ export class UnoController {
    if(t&&t.phase!=='closed')return json(privateReply(`当前频道已有${t.game==='uno'?' UNO':'德州'}牌桌，请使用「牌桌」指令。`));
    if(await this.ctx.storage.get('createdInteraction')===i.id)return json(privateReply('本次创建已处理。'));
    const options=i.data.options[0].options||[];
-   try{t=game.newTable(id,i.channel_id,i.guild_id,options.find(o=>o.name==='模式')?.value||'round');if(sub==='测试')game.addComputers(t,id,options.find(o=>o.name==='电脑数量')?.value??2);}catch(e){return json(privateReply(e.message));}
+   try{t=game.newTable(id,i.channel_id,i.guild_id,options.find(o=>o.name==='模式')?.value||'round');if(sub==='测试')game.addComputers(t,id,options.find(o=>o.name==='电脑数量')?.value??(t.mode==='teams'?3:2));}catch(e){return json(privateReply(e.message));}
    if(displayName)t.players[0].name=displayName;await this.host.save(t);await this.ctx.storage.put('createdInteraction',i.id);return json({type:4,data:board(t),bindEpoch:t.epoch});
   }
   if(t?.game!=='uno'||t.phase==='closed')return json(privateReply('UNO 牌桌已关闭，请重新创建。'));
@@ -36,7 +36,7 @@ export class UnoController {
   if(action==='help')return json(privateReply(HELP));
   if(action==='manage')return json({type:4,data:{...management(t,id,admin),flags:64}});
   if(action==='refresh'){await this.host.syncBoard(t);return json({type:6});}
-  if(action==='hand'||action==='locate'||action.startsWith('page~')){
+  if(action==='hand'||action==='jumpmenu'||action==='locate'||action.startsWith('page~')){
    if(!seated)return json(privateReply('请先加入牌桌。'));
    if(action.startsWith('page~')){const page=Number(action.slice(5));if(!panel||!Number.isInteger(page)||page<0||page>10)return json(privateReply('无效页码。'));t.pages??={};t.pages[id]=page;await this.ctx.storage.put('table',t);}
    if(action==='locate'){if(!panel)return json(privateReply('请从自己的手牌操作。'));const p=t.players.find(p=>p.id===id),card=game.legalCards(t,id)[0];if(card!==undefined){t.pages??={};t.pages[id]=Math.floor(sortedCards(p).indexOf(card)/PAGE_SIZE);await this.ctx.storage.put('table',t);}}
@@ -45,13 +45,15 @@ export class UnoController {
   }
   if(action==='close'){if(id!==t.owner&&!admin)return json(privateReply('只有桌主或管理员可关桌。'));return json({type:4,data:{content:'确认关闭 UNO 牌桌？未完成本局不计分。',flags:64,components:[row(button(t,`yesclose~${id}`,'确认关桌',4))],allowed_mentions:{parse:[]}}});}
   if(!panel&&!manager&&!prompt&&t.messageId&&i.message?.id!==t.messageId)return json(privateReply('请使用当前公共牌桌。'));
-  if(Number(parts[2])!==t.version&&prompt?.[1]!=='yesclose')return json(panel?panelReply('牌局已更新，刚才操作未执行，请按当前手牌选择。'):privateReply('牌局已更新，操作未执行，请回牌桌重新选择。'));
+  if(Number(parts[2])!==t.version&&prompt?.[1]!=='yesclose'&&!(panel&&action.startsWith('jump~')))return json(panel?panelReply('牌局已更新，刚才操作未执行，请按当前手牌选择。'):privateReply('牌局已更新，操作未执行，请回牌桌重新选择。'));
   if(t.idleDeadline&&Date.now()>=t.idleDeadline){game.close(t,t.owner,true);t.version++;await this.host.save(t);await this.host.syncBoard(t);return json(privateReply('牌桌已因长时间无人操作关闭。'));}
   if(t.deadline&&Date.now()>=t.deadline&&prompt?.[1]!=='yesclose'){game.timeout(t);t.version++;await this.host.save(t);await this.host.queuePanels(t);await this.host.syncBoard(t);return json(panel?panelReply('回合超时，已自动处理。'):privateReply('回合超时，请查看当前牌桌。'));}
   const seen=await this.ctx.storage.get('recentInteractions')||[];if(seen.includes(i.id))return json(privateReply('本次操作已处理。'));
   let reveal=null;
   try{
    if(action==='join'){game.join(t,id);if(displayName)t.players.find(p=>p.id===id).name=displayName;}else if(action==='leave')game.leave(t,id);else if(action==='start')game.start(t,id);
+   else if(action.startsWith('rule~')&&manager){const [,key,value]=action.split('~');game.configure(t,id,key,key==='jumpIn'?(value==='true'?true:value==='false'?false:null):value);}
+   else if(action.startsWith('jump~')&&panel){const [,key,value]=action.split('~');if(!/^\d{1,3}$/.test(value||''))throw Error('无效抢出牌。');game.jump(t,id,Number(value),key);}
    else if(action==='addbot')game.addComputers(t,id);else if(action==='removebots')game.removeComputers(t,id);
    else if(action==='draw'&&panel)game.draw(t,id);else if(action==='pass'&&panel)game.pass(t,id);
    else if(action==='uno')game.declareUno(t,id);else if(action==='catch')game.catchUno(t,id);
@@ -65,7 +67,7 @@ export class UnoController {
   }catch(e){return json(panel&&seated?panelReply(e.message):privateReply(e.message));}
   t.version++;t.lastActive=Date.now();if(t.phase!=='closed')t.idleDeadline=Date.now()+(t.phase==='lobby'?600000:900000);
   await this.host.save(t);await this.ctx.storage.put('recentInteractions',[...seen.slice(-99),i.id]);await this.host.syncBoard(t);
-  if(reveal)return json({type:4,data:{flags:64,content:`**质疑${reveal.success?'成功':'失败'}**\n+4 出牌者出牌前的手牌（仅你可见）：\n${reveal.cards.map(game.cardName).join('、')}\n当时颜色：${game.COLOR_NAMES[reveal.previousColor]}。${reveal.success?'对方摸 4 张，你继续行动。':'你摸 6 张并跳过。'}`,allowed_mentions:{parse:[]}}});
+  if(reveal)return json({type:4,data:{flags:64,content:`**质疑${reveal.success?'成功':'失败'}**\n+4 出牌者出牌前的手牌（仅你可见）：\n${reveal.cards.map(game.cardName).join('、')}\n当时颜色：${game.COLOR_NAMES[reveal.previousColor]}。${reveal.success?`对方摸累计 ${reveal.penalty} 张，你继续行动。`:`你摸 ${reveal.total} + 2 = ${reveal.penalty} 张并跳过。`}`,allowed_mentions:{parse:[]}}});
   if(prompt)return json({type:7,data:{content:prompt[1]==='yesclose'?'UNO 牌桌已关闭。':'已出牌，请查看自动更新的手牌。',embeds:[],components:[],attachments:[]}});
   if(panel&&t.phase!=='closed'&&seated)return json(panelReply('操作已执行。'));
   if(manager)return json({type:7,data:t.players.some(p=>p.id===id)&&t.phase!=='closed'?management(t,id,admin):{content:t.phase==='closed'?'牌桌已关闭。':'你已离桌。',components:[],embeds:[],attachments:[]}});
@@ -74,6 +76,8 @@ export class UnoController {
  async alarm(t){const now=Date.now();let changed=false;
   if(t.idleDeadline&&t.idleDeadline<=now){game.close(t,t.owner,true);changed=true;}
   else if(t.deadline&&t.deadline<=now)changed=game.timeout(t);
+  else if(game.expireJump(t,now))changed=true;
+  else if(t.computerJumpDue&&t.computerJumpDue<=now)changed=game.computerJump(t);
   else if(t.computerDue&&t.computerDue<=now)changed=game.computerTurn(t);
   if(changed){t.version++;await this.host.save(t);await this.host.queuePanels(t);await this.host.syncBoard(t);}
   if((await this.ctx.storage.get('privateExpiry'))<=now){await this.host.panels.prune(t);await this.host.armAlarm(t);return true;}
