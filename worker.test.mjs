@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-const source=(await readFile(new URL('./worker.mjs',import.meta.url),'utf8')).replace("import { DurableObject } from 'cloudflare:workers';","class DurableObject {constructor(ctx,env){this.ctx=ctx;this.env=env;}}").replace("'./engine.mjs'",JSON.stringify(new URL('./engine.mjs',import.meta.url).href)).replace("'./computer.mjs'",JSON.stringify(new URL('./computer.mjs',import.meta.url).href)).replace("'./ui.mjs'",JSON.stringify(new URL('./ui.mjs',import.meta.url).href));
+const source=(await readFile(new URL('./worker.mjs',import.meta.url),'utf8')).replace("import { DurableObject } from 'cloudflare:workers';","class DurableObject {constructor(ctx,env){this.ctx=ctx;this.env=env;}}").replace("'./engine.mjs'",JSON.stringify(new URL('./engine.mjs',import.meta.url).href)).replace("'./computer.mjs'",JSON.stringify(new URL('./computer.mjs',import.meta.url).href)).replace("'./ui.mjs'",JSON.stringify(new URL('./ui.mjs',import.meta.url).href)).replace("'./private-panels.mjs'",JSON.stringify(new URL('./private-panels.mjs',import.meta.url).href));
 const {default:worker,PokerTable}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
-function context(){const map=new Map();const storage={sql:{exec:()=>({one:()=>({ok:1})})},get:async k=>structuredClone(map.get(k)),put:async(k,v)=>map.set(k,structuredClone(v)),setAlarm:async v=>map.set('alarm',v),deleteAlarm:async()=>map.delete('alarm')};storage.transaction=async fn=>fn(storage);const tasks=[];return {storage,map,tasks,blockConcurrencyWhile:fn=>fn(),waitUntil:p=>tasks.push(p)};}
+function context(){const map=new Map();const storage={sql:{exec:()=>({one:()=>({ok:1})})},get:async k=>structuredClone(map.get(k)),delete:async k=>map.delete(k),put:async(k,v)=>map.set(k,structuredClone(v)),setAlarm:async v=>map.set('alarm',v),deleteAlarm:async()=>map.delete('alarm')};storage.transaction=async fn=>fn(storage);const tasks=[];return {storage,map,tasks,blockConcurrencyWhile:fn=>fn(),waitUntil:p=>tasks.push(p)};}
 test('signed Discord flow, private cards, stale click, duplicate, modal, timeout and safe routes',async()=>{
  const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);const env={BOT_TOKEN:'test-secret-not-real',DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex')};
  const instances=new Map();env.TABLES={idFromName:n=>n,get:n=>{if(!instances.has(n)){const ctx=context();instances.set(n,{ctx,do:new PokerTable(ctx,env)});}return {fetch:(url,init)=>instances.get(n).do.fetch(new Request(url,init))};}};
@@ -128,4 +128,30 @@ test('private hand panel supports betting and modal, refreshes in place, and can
  // A modal without an attached private message must create an ephemeral reply.
  const missingMessage=await call(5,{custom_id:staleKey.replace('call','submit'),components:[]},'1',undefined);
  assert.equal(missingMessage.type,4);assert.equal(missingMessage.data.flags,64);
+});
+
+test('table alarms deliver consecutive hands and update private cards after computer actions',async(t)=>{
+ const ctx=context(),table=new PokerTable(ctx,{BOT_TOKEN:'fake-key',DISCORD_APPLICATION_ID:'123'}),sent=[];
+ const oldFetch=globalThis.fetch;let messageSerial=7000;
+ globalThis.fetch=async(url,opts)=>{sent.push({url,method:opts.method,body:JSON.parse(opts.body||'{}')});return Response.json({id:opts.method==='POST'?String(++messageSerial):url.split('/').at(-1)});};t.after(()=>{globalThis.fetch=oldFetch;});
+ let serial=0;
+ const interaction=async(type,data)=>(await table.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:{type,data,id:String(++serial),token:`continuation-${serial}`,guild_id:'3',channel_id:'2',member:{user:{id:'1'},permissions:'0'},message:{id:'999'}}})}))).json();
+ const click=a=>interaction(3,{custom_id:`h:${ctx.map.get('table').epoch}:${ctx.map.get('table').version}:${a}`});
+ const flush=async()=>{if(ctx.map.has('privateSyncAt')){await ctx.storage.put('privateSyncAt',Date.now()-1);await table.alarm();}};
+ await interaction(2,{name:'德州',options:[{name:'测试'}]});await flush();assert.equal(sent.filter(r=>r.method==='POST').length,1);
+ await click('start');await flush();let posts=sent.filter(r=>r.method==='POST');assert.equal(posts.length,2);assert.equal(posts[1].body.flags,64);assert(posts[1].body.content.includes('第 1 手'));
+ assert(sent.some(r=>r.method==='PATCH'&&r.body.content?.includes('这张手牌卡已结束')));
+ let moves=0;
+ while(ctx.map.get('table').turn){
+  assert(++moves<100);const state=ctx.map.get('table');
+  if(state.computerDue){state.computerDue=Date.now()-1;await ctx.storage.put('table',state);await table.alarm();}
+  else {await click('call');}
+  await flush();
+ }
+ assert.equal(sent.filter(r=>r.method==='POST').length,2);
+ const cards=sent.filter(r=>r.method==='PATCH'&&r.body.embeds?.[0]?.title?.includes('你的两张底牌'));
+ assert(cards.length>0);assert(cards.at(-1).body.embeds[0].fields.some(f=>f.name==='本手净筹码变化'));
+ let state=ctx.map.get('table');if(state.players[0].stack===0)await click('rebuy');
+ await click('start');await flush();posts=sent.filter(r=>r.method==='POST');assert.equal(posts.length,3);assert(posts.at(-1).body.content.includes('第 2 手'));
+ const atRest=JSON.stringify([...ctx.map]);assert(!atRest.includes('continuation-'));assert(!atRest.includes('fake-key'));
 });

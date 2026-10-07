@@ -63,7 +63,7 @@ export function start(t,id,deck=shuffledDeck(),now=Date.now()) {
   if(t.players.filter(p=>p.stack>0).length<2) fail('至少需要 2 位有筹码的玩家。');
   if(deck.length!==52||new Set(deck).size!==52||deck.some(c=>!Number.isInteger(c)||c<0||c>51)) fail('牌组不完整。');
   t.deck=[...deck];t.board=[];t.pot=0;t.result=[];t.showdown=[];t.handNo++;t.phase='preflop';t.currentBet=20;t.minRaise=20;
-  for(const p of t.players) Object.assign(p,{inHand:p.stack>0,folded:false,round:0,total:0,cards:[],actedAt:null,pending:p.stack>0});
+  for(const p of t.players) Object.assign(p,{startStack:p.stack,inHand:p.stack>0,folded:false,round:0,total:0,cards:[],actedAt:null,pending:p.stack>0});
   t.dealer=nextSeat(t,t.dealer,p=>p.inHand);
   const sb=live(t).length===2?t.dealer:nextSeat(t,t.dealer,p=>p.inHand);
   const bb=nextSeat(t,sb,p=>p.inHand);

@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import * as game from './engine.mjs';
 import { computerTurn } from './computer.mjs';
+import { PrivatePanels } from './private-panels.mjs';
 import { board, quickRaises, confirmation, handPanel, panelAction, button, row } from './ui.mjs';
 const COMMAND_VERSION='holdem-v1.0.1-beta.1'; // Command schema unchanged in beta.2
 const json = (body,status=200)=>Response.json(body,{status});
@@ -17,14 +18,32 @@ async function discordApi(env,path,method,body,timeoutMs=6000){
   return fetch(`https://discord.com/api/v10${path}`,{method,headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
 }
 export class PokerTable extends DurableObject {
+  get panels(){return this.privatePanels??=new PrivatePanels(this.ctx.storage,this.env);}
+  async armAlarm(t){
+    const dates=[t?.computerDue,t?.deadline,await this.ctx.storage.get('privateSyncAt'),await this.ctx.storage.get('privateExpiry')].filter(n=>Number.isFinite(n)&&n>0);
+    if(dates.length)await this.ctx.storage.setAlarm(Math.max(Date.now()+1,Math.min(...dates)));else await this.ctx.storage.deleteAlarm();
+  }
+  async queuePanels(t){if(!await this.ctx.storage.get('privatePanels'))return;await this.ctx.storage.put('privateSyncAt',Date.now()+350);await this.armAlarm(t);}
   async save(t){
     t.computerDue=t.players.some(p=>p.id===t.turn&&p.bot)?Date.now()+1500:null;
-    await this.ctx.storage.transaction(async txn=>{await txn.put('table',t);if(t.computerDue||t.deadline)await txn.setAlarm(t.computerDue||t.deadline);else await txn.deleteAlarm();});
+    await this.ctx.storage.put('table',t);await this.armAlarm(t);
   }
   async syncBoard(t){if(t.messageId&&this.env.BOT_TOKEN){try{const r=await discordApi(this.env,`/channels/${t.channel}/messages/${t.messageId}`,'PATCH',board(t),2000);return r.ok;}catch{return false;}}return false;}
   async fetch(request){
     return this.ctx.blockConcurrencyWhile(async()=>{
       const payload=await request.json();
+      const before=payload.op==='interaction'?await this.ctx.storage.get('table'):null;
+      const response=await this.dispatch(payload);
+      if(payload.op==='interaction'){
+        const t=await this.ctx.storage.get('table');
+        if(t){const reply=await response.clone().json();const remembered=await this.panels.remember(t,payload.interaction,reply);
+          if(remembered||before?.version!==t.version||before?.epoch!==t.epoch)await this.queuePanels(t);
+        }
+      }
+      return response;
+    });
+  }
+  async dispatch(payload){
       if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true});}
       if(payload.op==='register'){
         if(!this.env.BOT_TOKEN)return json({registered:false});
@@ -104,13 +123,21 @@ export class PokerTable extends DurableObject {
       if(isPanel){this.ctx.waitUntil(this.syncBoard(t));return json(panelReply('操作已执行。'));}
       if(confirmAction){this.ctx.waitUntil(this.syncBoard(t));return json({type:7,data:{content:confirmAction[1]==='yesclose'?'牌桌已关闭。':'已全下，请回牌桌查看。',components:[],embeds:[]}});}
       return json({type:7,data:board(t)});
-    });
   }
   async alarm(){
-    await this.ctx.blockConcurrencyWhile(async()=>{const t=await this.ctx.storage.get('table');if(!t||!t.deadline)return;
-      if(t.computerDue){if(Date.now()<t.computerDue){await this.ctx.storage.setAlarm(t.computerDue);return;}if(computerTurn(t)){t.version++;await this.save(t);await this.syncBoard(t);return;}}
-      if(Date.now()<t.deadline){await this.ctx.storage.setAlarm(t.deadline);return;}
-      if(game.timeout(t)){t.version++;await this.save(t);await this.syncBoard(t);}
+    await this.ctx.blockConcurrencyWhile(async()=>{
+      const t=await this.ctx.storage.get('table');if(!t)return;
+      const now=Date.now();
+      if((await this.ctx.storage.get('privateExpiry'))<=now)await this.panels.prune(t);
+      if(t.deadline&&t.deadline<=now&&game.timeout(t)){
+        t.version++;await this.save(t);await this.queuePanels(t);await this.syncBoard(t);return;
+      }
+      if(t.computerDue&&t.computerDue<=now&&computerTurn(t)){
+        t.version++;await this.save(t);await this.queuePanels(t);await this.syncBoard(t);return;
+      }
+      const syncAt=await this.ctx.storage.get('privateSyncAt');
+      if(syncAt&&syncAt<=now){await this.ctx.storage.delete('privateSyncAt');if(await this.panels.sync(t))await this.ctx.storage.put('privateSyncAt',Date.now()+3000);}
+      await this.armAlarm(t);
     });
   }
 }
