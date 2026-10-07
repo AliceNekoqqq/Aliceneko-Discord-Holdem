@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-const source=(await readFile(new URL('./worker.mjs',import.meta.url),'utf8')).replace("import { DurableObject } from 'cloudflare:workers';","class DurableObject {constructor(ctx,env){this.ctx=ctx;this.env=env;}}").replace("'./engine.mjs'",JSON.stringify(new URL('./engine.mjs',import.meta.url).href));
+const source=(await readFile(new URL('./worker.mjs',import.meta.url),'utf8')).replace("import { DurableObject } from 'cloudflare:workers';","class DurableObject {constructor(ctx,env){this.ctx=ctx;this.env=env;}}").replace("'./engine.mjs'",JSON.stringify(new URL('./engine.mjs',import.meta.url).href)).replace("'./computer.mjs'",JSON.stringify(new URL('./computer.mjs',import.meta.url).href));
 const {default:worker,PokerTable}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
 function context(){const map=new Map();const storage={sql:{exec:()=>({one:()=>({ok:1})})},get:async k=>structuredClone(map.get(k)),put:async(k,v)=>map.set(k,structuredClone(v)),setAlarm:async v=>map.set('alarm',v),deleteAlarm:async()=>map.delete('alarm')};storage.transaction=async fn=>fn(storage);const tasks=[];return {storage,map,tasks,blockConcurrencyWhile:fn=>fn(),waitUntil:p=>tasks.push(p)};}
 test('signed Discord flow, private cards, stale click, duplicate, modal, timeout and safe routes',async()=>{
@@ -33,4 +33,44 @@ test('signed Discord flow, private cards, stale click, duplicate, modal, timeout
  const last=instance.ctx.map.get('table');assert.equal(last.players.reduce((s,p)=>s+p.stack,0),4000);
  const scheduled=context();await worker.scheduled({},env,scheduled);await Promise.all(scheduled.tasks);
  }finally{globalThis.fetch=oldFetch;}
+});
+
+test('solo practice flow schedules computer alarms, protects hands, refills and closes',async()=>{
+ const ctx=context(),env={BOT_TOKEN:'test-secret-not-real',DISCORD_APPLICATION_ID:'123'},table=new PokerTable(ctx,env);
+ const oldFetch=globalThis.fetch;const updates=[];
+ globalThis.fetch=async(url,opts)=>{if(opts?.method==='PATCH')updates.push(JSON.parse(opts.body));return Response.json({id:'999'});};
+ try {
+  let serial=0;
+  const interaction=async(data)=>{const i={id:String(++serial),guild_id:'3',channel_id:'2',member:{user:{id:'1'},permissions:'0'},message:{id:'999'},...data};const r=await table.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:i})}));return r.json();};
+  let reply=await interaction({type:2,data:{name:'德州',options:[{name:'测试'}]}});
+  assert.equal(reply.type,4);assert.equal(ctx.map.get('table').players.length,3);
+  await table.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'bind',epoch:reply.bindEpoch,messageId:'999'})}));
+  const click=action=>interaction({type:3,data:{custom_id:`h:${ctx.map.get('table').epoch}:${ctx.map.get('table').version}:${action}`}});
+  const outsiders=await interaction({type:3,member:{user:{id:'4'},permissions:'0'},data:{custom_id:`h:${ctx.map.get('table').epoch}:0:removebots`}});
+  assert.equal(outsiders.data.flags,64);assert.equal(ctx.map.get('table').players.length,3);
+  reply=await click('start');assert.equal(reply.type,7);
+  let state=ctx.map.get('table');assert.equal(state.turn,'1');reply=await click('call');state=ctx.map.get('table');assert(state.computerDue);assert.equal(ctx.map.get('alarm'),state.computerDue);
+  const hidden=await click('hand');assert.equal(hidden.data.flags,64);
+  assert(!JSON.stringify(reply).includes('<@cpu:'));
+  assert(!JSON.stringify(reply).includes('cpu:1'));
+  for(const p of state.players.filter(p=>p.bot))assert(!JSON.stringify(reply).includes((await import('./engine.mjs')).cardsText(p.cards)));
+  let count=0;
+  while(ctx.map.get('table').turn) {
+   assert(++count<300);state=ctx.map.get('table');
+   if(state.computerDue) {
+    const version=state.version;state.computerDue=Date.now()-1;await ctx.storage.put('table',state);await table.alarm();
+    assert.equal(ctx.map.get('table').version,version+1);
+   } else {reply=await click('call');assert.equal(reply.type,7);}
+  }
+  state=ctx.map.get('table');assert.equal(state.phase,'settled');assert.equal(state.players.reduce((s,p)=>s+p.stack,0),6000);assert(!ctx.map.has('alarm'));assert(updates.length>0);
+  // Recreate a minimal one-computer lobby to test human timeout -> computer alarm.
+  reply=await click('close');assert.equal(reply.type,7);
+  reply=await interaction({type:2,data:{name:'德州',options:[{name:'测试',options:[{name:'电脑数量',value:1}]}]}});
+  assert.equal(ctx.map.get('table').players.length,2);
+  state=ctx.map.get('table');state.players[1].stack=0;await ctx.storage.put('table',state);
+  reply=await click('start');assert.equal(reply.type,7);assert.equal(ctx.map.get('table').players[1].stack,1980);
+  state=ctx.map.get('table');assert.equal(state.turn,'1');state.deadline=Date.now()-1;await ctx.storage.put('table',state);await table.alarm();assert.equal(ctx.map.get('table').phase,'settled');
+  await click('start');await click('close');assert.equal(ctx.map.get('table').phase,'closed');assert(!ctx.map.has('alarm'));
+  assert(!JSON.stringify([...ctx.map]).includes(env.BOT_TOKEN));
+ } finally {globalThis.fetch=oldFetch;}
 });

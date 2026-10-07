@@ -9,7 +9,20 @@ export function newTable(owner, channel, guild, epoch = crypto.randomUUID()) {
   return {owner,channel,guild,epoch,version:0,players:[player(owner)],phase:'lobby',handNo:0,dealer:-1,board:[],pot:0,currentBet:0,minRaise:20,turn:null,deadline:null,messageId:null,log:['牌桌已创建'],result:[],lastActive:Date.now()};
 }
 function player(id) { return {id,stack:BUYIN,inHand:false,folded:false,round:0,total:0,cards:[],actedAt:null,pending:false}; }
+export const playerLabel = (t,id) => t.players.find(p=>p.id===id)?.bot ? `🤖 电脑${id.split(':')[1]}` : `<@${id}>`;
 function note(t,text) { t.log.push(text); t.log=t.log.slice(-5); }
+export function addComputers(t,id,count=1) {
+  if(id!==t.owner) fail('只有桌主可以添加电脑玩家。');
+  if(!['lobby','settled'].includes(t.phase)) fail('请等本手结束后再添加电脑。');
+  if(!Number.isInteger(count)||count<1||count>8||t.players.length+count>9) fail('牌桌最多 9 个座位，请减少电脑数量。');
+  for(let n=0;n<count;n++) {let seat=1;while(t.players.some(p=>p.id===`cpu:${seat}`))seat++;t.players.push({...player(`cpu:${seat}`),bot:true});}
+  note(t,`添加 ${count} 位电脑陪练`);
+}
+export function removeComputers(t,id) {
+  if(id!==t.owner) fail('只有桌主可以移除电脑玩家。');
+  if(!['lobby','settled'].includes(t.phase)) fail('请等本手结束后再移除电脑。');
+  t.players=t.players.filter(p=>!p.bot);t.dealer=-1;note(t,'电脑玩家已离桌');
+}
 export function join(t,id) {
   if(t.phase==='closed') fail('牌桌已关闭，请重新创建。');
   if(t.players.some(p=>p.id===id)) fail('你已经在牌桌上。');
@@ -21,13 +34,13 @@ export function leave(t,id) {
   if(!['lobby','settled'].includes(t.phase)) fail('请等本手结束后再离桌。');
   if(!t.players.some(p=>p.id===id)) fail('你没有加入牌桌。');
   t.players=t.players.filter(p=>p.id!==id);t.dealer=-1;
-  if(t.owner===id) t.owner=t.players[0]?.id||null;
-  if(!t.players.length) t.phase='closed';note(t,`<@${id}> 离桌`);
+  if(t.owner===id) t.owner=t.players.find(p=>!p.bot)?.id||null;
+  if(!t.players.some(p=>!p.bot)) close(t,t.owner);note(t,`<@${id}> 离桌`);
 }
 export function rebuy(t,id) {
   if(!['lobby','settled'].includes(t.phase)) fail('本手结束后才能补充筹码。');
   const p=t.players.find(p=>p.id===id);if(!p) fail('请先加入牌桌。');
-  if(p.stack!==0) fail('筹码耗尽后才能免费补充。');p.stack=BUYIN;note(t,`<@${id}> 补充 ${BUYIN} 筹码`);
+  if(p.stack!==0) fail('筹码耗尽后才能免费补充。');p.stack=BUYIN;note(t,`${playerLabel(t,id)} 补充 ${BUYIN} 筹码`);
 }
 export function close(t,id,admin=false) {
   if(id!==t.owner&&!admin) fail('只有桌主或管理员可以关闭牌桌。');
@@ -57,7 +70,7 @@ export function start(t,id,deck=shuffledDeck(),now=Date.now()) {
   for(let round=0;round<2;round++) {let seat=t.dealer;for(let count=0;count<live(t).length;count++){seat=nextSeat(t,seat,p=>p.inHand);t.players[seat].cards.push(t.deck.pop());}}
   pay(t,t.players[sb],10);pay(t,t.players[bb],20);
   for(const p of t.players) if(p.stack===0) p.pending=false;
-  note(t,`第 ${t.handNo} 手 · 小盲 <@${t.players[sb].id}> / 大盲 <@${t.players[bb].id}>`);
+  note(t,`第 ${t.handNo} 手 · 小盲 ${playerLabel(t,t.players[sb].id)} / 大盲 ${playerLabel(t,t.players[bb].id)}`);
   advance(t,bb,now);
 }
 export function legal(t,id) {
@@ -68,26 +81,26 @@ export function legal(t,id) {
 }
 export function act(t,id,kind,target,now=Date.now()) {
   const {p,call,canRaise,minTotal,maxTotal}=legal(t,id);const seat=t.players.indexOf(p);
-  if(kind==='fold') {p.folded=true;p.pending=false;note(t,`<@${id}> 弃牌`);}
+  if(kind==='fold') {p.folded=true;p.pending=false;note(t,`${playerLabel(t,id)} 弃牌`);}
   else if(kind==='check'||kind==='call') {
     if(kind==='check'&&call>0) fail('需要跟注，不能过牌。');
-    const amount=pay(t,p,call);p.pending=false;p.actedAt=t.currentBet;note(t,`<@${id}> ${amount?'跟注 '+amount:'过牌'}`);
+    const amount=pay(t,p,call);p.pending=false;p.actedAt=t.currentBet;note(t,`${playerLabel(t,id)} ${amount?'跟注 '+amount:'过牌'}`);
   } else if(kind==='raise'||kind==='allin') {
     const to=kind==='allin'?maxTotal:target;
     if(!Number.isSafeInteger(to)||to<=p.round||to>maxTotal) fail('加注金额必须是可用筹码范围内的整数。');
-    if(to<=t.currentBet) {if(kind!=='allin')fail('加注总额必须高于当前下注。');pay(t,p,to-p.round);p.pending=false;p.actedAt=t.currentBet;note(t,`<@${id}> 全下跟注`);}
+    if(to<=t.currentBet) {if(kind!=='allin')fail('加注总额必须高于当前下注。');pay(t,p,to-p.round);p.pending=false;p.actedAt=t.currentBet;note(t,`${playerLabel(t,id)} 全下跟注`);}
     else {
       if(!canRaise) fail('这次短全下未重新开放你的加注权，只能跟注或弃牌。');
       if(to<minTotal&&to!==maxTotal) fail(`本轮总下注至少 ${minTotal}；不足时只能全下。`);
       const increase=to-t.currentBet,full=increase>=t.minRaise;pay(t,p,to-p.round);t.currentBet=to;if(full)t.minRaise=increase;
       for(const other of movable(t)) if(other!==p&&(full||other.round<t.currentBet))other.pending=true;
-      p.pending=false;p.actedAt=to;note(t,`<@${id}> ${kind==='allin'?'全下':'加注至'} ${to}`);
+      p.pending=false;p.actedAt=to;note(t,`${playerLabel(t,id)} ${kind==='allin'?'全下':'加注至'} ${to}`);
     }
   } else fail('未知操作。');
   advance(t,seat,now);
 }
 function advance(t,seat,now) {
-  if(live(t).length===1) {const p=live(t)[0];p.stack+=t.pot;t.result=[`<@${p.id}> 收下底池 ${t.pot}（其他玩家弃牌）`];finish(t);return;}
+  if(live(t).length===1) {const p=live(t)[0];p.stack+=t.pot;t.result=[`${playerLabel(t,p.id)} 收下底池 ${t.pot}（其他玩家弃牌）`];finish(t);return;}
   const active=movable(t);
   // Nobody can bet into a dry side pot. The last player still owes a call, if any.
   if(active.length===1&&active[0].round>=t.currentBet) active[0].pending=false;
@@ -127,7 +140,7 @@ export function showdown(t) {
     let best=null;for(const p of eligible){const rank=ranks.get(p.id);if(!best||compare(rank,best)>0)best=rank;}
     const winners=eligible.filter(p=>compare(ranks.get(p.id),best)===0).sort((a,b)=>((t.players.indexOf(a)-t.dealer-1+t.players.length)%t.players.length)-((t.players.indexOf(b)-t.dealer-1+t.players.length)%t.players.length));
     const share=Math.floor(amount/winners.length);let remainder=amount%winners.length;
-    for(const p of winners){const chips=share+(remainder-->0?1:0);p.stack+=chips;t.result.push(`<@${p.id}> 获得 ${chips}（${HAND_NAMES[best[0]]}）`);}
+    for(const p of winners){const chips=share+(remainder-->0?1:0);p.stack+=chips;t.result.push(`${playerLabel(t,p.id)} 获得 ${chips}（${HAND_NAMES[best[0]]}）`);}
   }
   t.showdown=live(t).map(p=>({id:p.id,cards:[...p.cards],rank:HAND_NAMES[ranks.get(p.id)[0]]}));finish(t);
 }
