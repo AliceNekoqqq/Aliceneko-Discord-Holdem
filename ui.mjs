@@ -38,7 +38,7 @@ export function handPanel(t,id,notice='') {
   const navigation=[privateButton('hand','刷新手牌',1),privateButton('hide','收起底牌')];
   if(t.messageId)navigation.push({type:2,style:5,label:'回到公共牌桌',url:`https://discord.com/channels/${t.guild}/${t.channel}/${t.messageId}`});
   components.push(row(...navigation));
-  return {content:`**第 ${t.handNo} 手 · 你的底牌**${notice?`\n${notice}`:''}`,embeds:[{title:`🃏 ${cards}`,description:`**${status}** · ${phase}`,color:yourTurn?0x4E9975:0xB26486,fields,footer:{text:'仅你可见 · 自己操作后同步 · 他人行动后点「刷新手牌」'}}],components,allowed_mentions:{parse:[]}};
+  return {content:`**第 ${t.handNo} 手 · 你的底牌**${notice?`\n${notice}`:''}`,embeds:[{title:cards,description:`**${status}** · ${phase}`,color:yourTurn?0x4E9975:0xB26486,fields,footer:{text:'仅你可见 · 自己操作后同步 · 他人行动后点「刷新手牌」'}}],components,allowed_mentions:{parse:[]}};
 }
 export function board(t) {
   const running=!['lobby','settled','closed'].includes(t.phase);
@@ -59,10 +59,10 @@ export function board(t) {
     if(humanTurn) {
       components.push(...bettingRows(t,t.turn));
     } else components.push(row(button(t,'wait','电脑正在行动…',2,true)));
-    components.push(row(button(t,'hand','🃏 手牌 / 操作',1),button(t,'refresh','刷新牌桌'),button(t,'help','玩法'),button(t,'close','关桌')));
+    components.push(row(button(t,'hand','手牌 / 操作',1),button(t,'refresh','刷新牌桌'),button(t,'help','玩法'),button(t,'close','关桌')));
   } else if(t.phase!=='closed') {
     const funded=t.players.filter(p=>p.stack>0||p.bot).length;
-    components.push(row(button(t,'join','加入牌桌',3,t.players.length>=9),button(t,'start',t.handNo?'开始下一手':'开始发牌',1,funded<2),button(t,'hand','🃏 手牌 / 操作')));
+    components.push(row(button(t,'join','加入牌桌',3,t.players.length>=9),button(t,'start',t.handNo?'开始下一手':'开始发牌',1,funded<2),button(t,'hand','手牌 / 操作')));
     components.push(row(button(t,'rebuy','补充筹码',2,!t.players.some(p=>!p.bot&&p.stack===0)),button(t,'leave','离桌'),button(t,'addbot','添加电脑',2,t.players.length>=9),button(t,'removebots','移除电脑',2,!t.players.some(p=>p.bot))));
     components.push(row(button(t,'refresh','刷新牌桌'),button(t,'help','玩法'),button(t,'close','关桌')));
   }
