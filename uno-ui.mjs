@@ -1,3 +1,4 @@
+import {wearsCrown} from './uno-rankings.mjs';
 import * as game from './uno-engine.mjs';
 import {EMOTES,activeEmote} from './uno-social.mjs';
 export const PAGE_SIZE=10;
@@ -5,14 +6,14 @@ export const row=(...components)=>({type:1,components});
 export const panelAction=(id,action)=>`p~${id}~${action}`;
 export const button=(t,action,label,style=2,disabled=false)=>({type:2,custom_id:`u:${t.epoch}:${t.version}:${action}`,label,style,disabled});
 export const colorEmoji={red:'🔴',yellow:'🟡',green:'🟢',blue:'🔵'};
-export const label=(t,id)=>{const p=t.players.find(p=>p.id===id);return p?.name?p.name.replace(/[\\`*_~>|\[\]]/g,''): /^\d+$/.test(id||'')?`<@${id}>`:'玩家';};
+export const label=(t,id)=>{const p=t.players.find(p=>p.id===id);const name=p?.name?p.name.replace(/[\\`*_~>|\[\]]/g,''): /^\d+$/.test(id||'')?`<@${id}>`:'玩家';return wearsCrown(t,id)?`${name} 👑 UNO 大王`:name;};
 export const sortedCards=p=>[...p.cards].sort((a,b)=>a-b);
 export function pageCards(t,id){const p=t.players.find(p=>p.id===id),cards=sortedCards(p),pages=Math.max(1,Math.ceil(cards.length/PAGE_SIZE)),page=Math.max(0,Math.min(t.pages?.[id]||0,pages-1));return {page,pages,cards:cards.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE)};}
-export const HELP="🦋 **Aliceneko · UNO 牌桌小剧场**\n\n🪑 **坐好，准备开牌！**\n2–10 人，经典 108 张，每人 7 张。同色、同数字或同功能符号可出；万能牌先选颜色。`/uno 创建` 和朋友开桌，`/uno 测试` 找电脑陪练。德州与 UNO 共用每频道一桌。\n\n🎴 **你的回合，你做主**\n点「我的手牌 / 出牌」操作。绿框可出，金框可抢出；没牌可出就摸 1 张，也可自愿摸牌。摸后只能出刚摸到的牌，或保留结束。双人反转相当于跳过。\n\n🎁 **加牌礼包，谁来收？**\n默认混合升档：+2 接 +2/+4，+4 仅接 +4，每回合接一张。接受累计罚牌后跳过；末张加牌先清算再结算。牌桌会标出加码者、承受者和累计张数。\n\n🕵️ **+4 真出牌，还是虚张声势？**\n正常只能在没有当前颜色牌时出 +4。下家可质疑最新 +4：成功，出牌者摸全部累计罚牌，你继续行动；失败，你摸累计罚牌再加 2 张并跳过。继续叠加即放弃质疑上一张；质疑快照仅质疑者可见。\n\n⚡ **抢出，手快有戏！**\n数字 1–9 落桌后有 5 秒窗口，同色同数字可回合外抢出；先通过服务器校验者成功，从抢出者下家继续。0、功能牌和开局牌不抢出。剩单张自动喊 UNO；抢出王与回合截胡记录在结算揭晓。\n\n📣 **UNO 要喊，别被抓包！**\n剩两张时先喊 UNO，再出牌；漏喊可立即补喊。其他人可在下一次出牌/摸牌前抓漏喊，罚摸 2 张。\n\n💬 **对着座位来一句**\n公共桌面点「💬 互动」，选玩家，再选「轮到你了」「接招吧」「谢谢你呀」「盯上你了」「这波漂亮」。展示 8 秒，每人冷却 8 秒，全桌间隔 1.5 秒；不会改变牌局规则，也不续延关桌时间。\n\n🤝 **2v2，一起赢！**\n独立组队模式，恰好四人，1/3 号红队、2/4 号蓝队相对而坐。一人出完，全队获胜，只计对手剩余牌分；各自手牌仍私密。\n\n🏆 **赢牌也赢节目效果**\n数字按面值、功能牌 20、万能牌 50；可选单局或 500 分积分赛。本局趣事卡展示抢出、截胡和加牌接力。\n\n⏰ **别让牌桌等太久**\n普通回合 60 秒，抢出窗口结束后开始计时。超时自动摸牌保留或接受罚牌；等待开局 10 分钟、结算后 15 分钟、游玩中连续 15 分钟无人有效操作自动关桌。看牌、刷新和表情不续时。\n";
+export const HELP="🦋 **Aliceneko · UNO 牌桌小剧场**\n\n🪑 **坐好，准备开牌！**\n2–10 人，经典 108 张，每人 7 张。同色、同数字或同功能符号可出；万能牌先选颜色。`/uno 创建` 和朋友开桌，`/uno 测试` 找电脑陪练。德州与 UNO 共用每频道一桌。\n\n🎴 **你的回合，你做主**\n点「我的手牌 / 出牌」操作。绿框可出，金框可抢出；没牌可出就摸 1 张，也可自愿摸牌。摸后只能出刚摸到的牌，或保留结束。双人反转相当于跳过。\n\n🎁 **加牌礼包，谁来收？**\n默认混合升档：+2 接 +2/+4，+4 仅接 +4，每回合接一张。接受累计罚牌后跳过；末张加牌先清算再结算。牌桌会标出加码者、承受者和累计张数。\n\n🕵️ **+4 真出牌，还是虚张声势？**\n正常只能在没有当前颜色牌时出 +4。下家可质疑最新 +4：成功，出牌者摸全部累计罚牌，你继续行动；失败，你摸累计罚牌再加 2 张并跳过。继续叠加即放弃质疑上一张；质疑快照仅质疑者可见。\n\n⚡ **抢出，手快有戏！**\n数字 1–9 落桌后有 5 秒窗口，同色同数字可回合外抢出；先通过服务器校验者成功，从抢出者下家继续。0、功能牌和开局牌不抢出。剩单张自动喊 UNO；抢出王与回合截胡记录在结算揭晓。\n\n📣 **UNO 要喊，别被抓包！**\n剩两张时先喊 UNO，再出牌；漏喊可立即补喊。其他人可在下一次出牌/摸牌前抓漏喊，罚摸 2 张。\n\n💬 **对着座位来一句**\n公共桌面点「💬 互动」，选玩家，再选「轮到你了」「接招吧」「谢谢你呀」「盯上你了」「这波漂亮」。展示 8 秒，每人冷却 8 秒，全桌间隔 1.5 秒；不会改变牌局规则，也不续延关桌时间。\n\n🤝 **2v2，一起赢！**\n独立组队模式，恰好四人，1/3 号红队、2/4 号蓝队相对而坐。一人出完，全队获胜，只计对手剩余牌分；各自手牌仍私密。\n\n🏆 **赢牌也赢节目效果**\n数字按面值、功能牌 20、万能牌 50；可选单局或 500 分积分赛。本局趣事卡展示抢出、截胡和加牌接力。\n\n🏳️ **想歇会儿也可以**\n在牌桌管理选择「本局认输」并确认，退出本局轮转，罚牌先收下。其他玩家继续，2v2 队友仍可出牌；认输本人计负场。下一局可重新参战。\n\n👑 **冲榜，当 UNO 大王！**\n`/uno 排行榜` 查看本服务器真人对局胜场；含电脑的局不计入，取消的局不计入。每局结算一次，2v2 未认输的胜队成员各获一胜。胜场相同按胜率、较早达成该胜场排序。`/uno 称号` 让第一名自选称号或同名身份组；易主自动收回。榜单从本版本开始累计。\n\n⏰ **别让牌桌等太久**\n普通回合 60 秒，抢出窗口结束后开始计时。超时自动摸牌保留或接受罚牌；等待开局 10 分钟、结算后 15 分钟、游玩中连续 15 分钟无人有效操作自动关桌。看牌、刷新和表情不续时。\n";
 export const command={name:'uno',description:'UNO 彩色卡牌 · 2–10 人或电脑陪练',type:1,integration_types:[0],contexts:[0],options:[
  {type:1,name:'创建',description:'创建 UNO 牌桌',options:[{type:3,name:'模式',description:'单局、500 分积分赛或四人组队',choices:[{name:'单局休闲',value:'round'},{name:'500 分积分赛',value:'match'},{name:'双人组队 · 2v2',value:'teams'}]}]},
  {type:1,name:'测试',description:'创建电脑陪练 UNO 桌',options:[{type:4,name:'电脑数量',description:'个人赛默认2位，组队默认3位；组队最多3位',min_value:1,max_value:9},{type:3,name:'模式',description:'游戏模式',choices:[{name:'单局休闲',value:'round'},{name:'500 分积分赛',value:'match'},{name:'双人组队 · 2v2',value:'teams'}]}]},
- {type:1,name:'帮助',description:'查看 UNO 规则与按钮说明'},{type:1,name:'牌桌',description:'定位当前频道牌桌'}]};
+ {type:1,name:'排行榜',description:'查看本服务器真人 UNO 胜场排行'},{type:1,name:'称号',description:'第一名选择 UNO 大王称号或身份组'},{type:1,name:'帮助',description:'查看 UNO 规则与按钮说明'},{type:1,name:'牌桌',description:'定位当前频道牌桌'}]};
 const hex={red:0xDE4D6E,yellow:0xEFB93A,green:0x39AC87,blue:0x4787D4};
 export const ruleSummary=t=>`${{none:'基础不叠加',same:'同类叠加',mixed:'混合升档叠加'}[game.rulesOf(t).stacking]} · 抢出${game.rulesOf(t).jumpIn?'开':'关'}`;
 export const teamLabel=(t,id)=>game.teamOf(t,id)===0?'🔴 红队':'🔵 蓝队';
@@ -31,7 +32,8 @@ export function actionText(t,e){
   case 'uno':return `📣 ${who} ${t.armed===e.actor?'准备出牌并喊':'喊了'} UNO！`;
   case 'timeout':return `⏰ ${who} 行动超时，已自动处理；下一棒继续！`;
   case 'color':return `🌈 ${who} 选择了 ${colorEmoji[e.color]}${game.COLOR_NAMES[e.color]}色`;
-  case 'settle':return `🏆 ${who} 出完手牌，${t.mode==='teams'?game.teamName(e.team)+'获胜，获得':'获得'} **${e.points} 分**`;
+  case 'surrender':return `🏳️ ${who} 认输：这局先歇会儿，下局再战！`;
+  case 'settle':return `🏆 ${who} ${e.reason==='surrender'?'坚持到最后获胜':'出完手牌'}，${t.mode==='teams'?game.teamName(e.team)+'获胜，获得':'获得'} **${e.points} 分**`;
   default:return '🔄 牌桌已更新，精彩继续！';
  }
 }
@@ -51,6 +53,7 @@ export function publicStep(t){
  return '🎴 打开「我的手牌 / 出牌」，轮到你就直接点牌';
 }
 export function turnHint(t,id){
+ if(t.phase==='active'&&t.players.find(p=>p.id===id)?.surrendered)return '🏳️ 本局已认输，先看戏，下一局重新参战。';
  if(t.phase!=='active')return status(t);
  if(game.jumpCards(t,id).length)return '⚡ 抢出机会来了！点按钮夺取轮次，剩单张时自动喊 UNO。';
  if(game.jumpOpen(t))return `⚡ 抢出响应窗口中；结束后轮到 ${label(t,t.turn)}。`;
@@ -80,8 +83,8 @@ export function board(t){
  if(game.jumpOpen(t))fields.push({name:'⚡ 全员抢出窗口',value:`手里有 **${cardLabel(t.jumpWindow.card)}** 同色同数字牌即可抢出，不必等自己的回合。\n先通过校验者成功 · <t:${Math.ceil(t.jumpWindow.until/1000)}:R> 结束`});
  if(t.pending?.chain?.length)fields.push({name:`🔥 加牌接力 · 累计 +${game.penaltyCount(t)}`,value:t.pending.chain.map(e=>`${label(t,e.actor)} +${e.amount}`).join(' → ').slice(0,900)+`\n承受者：**${label(t,t.pending.victim)}**${t.pending.finisher?' · 已有玩家出完，先清算罚牌':''}`});
  if(t.mode==='teams')fields.push({name:'🤝 队友与队伍积分',value:[0,1].map(team=>`${team===0?'🔴':'🔵'} **${game.teamName(team)}**：${t.players.filter(p=>game.teamOf(t,p.id)===team).map(p=>label(t,p.id)).join(' + ')} · ${t.teamScores?.[team]||0} 分`).join('\n')});
- fields.push({name:'座次与剩余手牌',value:t.players.map((p,n)=>`${t.phase==='active'&&t.turn===p.id?(game.jumpOpen(t)?'⏳':'▶'):'▫️'} ${n+1}. ${label(t,p.id)}${t.mode==='teams'?' · '+teamLabel(t,p.id):''}${p.id===t.owner?' · 桌主':''}　**${p.cards.length} 张**${p.cards.length===1?' ⚠️':''}${t.mode==='match'?` · ${p.score} 分`:''}`).join('\n')||'无玩家'});
- if(t.winner)fields.push({name:'🏆 本局结算',value:`${label(t,t.winner)} 出完手牌，${t.mode==='teams'?`**${game.teamName(t.winningTeam)}全队获胜**，获得`:'获得'} **${t.roundPoints} 分**${t.matchWinner?'，赢得积分赛':''}`});
+ fields.push({name:'座次与剩余手牌',value:t.players.map((p,n)=>`${t.phase==='active'&&t.turn===p.id?(game.jumpOpen(t)?'⏳':'▶'):'▫️'} ${n+1}. ${label(t,p.id)}${t.mode==='teams'?' · '+teamLabel(t,p.id):''}${p.id===t.owner?' · 桌主':''}　**${p.cards.length} 张**${p.surrendered?' · 🏳️ 已认输':p.cards.length===1?' ⚠️':''}${t.mode==='match'?` · ${p.score} 分`:''}`).join('\n')||'无玩家'});
+ if(t.winner)fields.push({name:'🏆 本局结算',value:`${label(t,t.winner)} ${t.finishReason==='surrender'?'坚持到最后获胜':'出完手牌'}，${t.mode==='teams'?`**${game.teamName(t.winningTeam)}全队获胜**，获得`:'获得'} **${t.roundPoints} 分**${t.matchWinner?'，赢得积分赛':''}`});
  if(t.unoOpportunity)fields.push({name:'⚠️ 漏喊 UNO 窗口',value:`${label(t,t.unoOpportunity.player)}还未喊 UNO；本人可补喊，其他玩家可抓漏喊。`});
  const reaction=activeEmote(t);if(reaction)fields.push({name:'💬 牌桌互动',value:`${label(t,reaction.actor)} → **${label(t,reaction.target)}**：${EMOTES[reaction.key].emoji} ${EMOTES[reaction.key].text}`});
  const moments=roundHighlights(t);if(t.phase==='settled'&&moments)fields.push({name:'🎬 本局趣事卡',value:moments});
@@ -89,7 +92,7 @@ export function board(t){
  if(recent.length)fields.push({name:'最近行动',value:recent.map(e=>actionText(t,e)).join('\n').slice(0,1000)});
  else if(!t.events?.length&&t.log?.length)fields.push({name:'最近行动',value:t.log.slice(-2).join('\n')});
  const closed=t.phase==='closed',caption=t.lastPlay?`${t.lastPlay.jump?'⚡⚡ 抢出成功！':'🃏'} ${actionText(t,t.lastPlay)}\n${t.phase==='active'?`▶ **${status(t)}**`:status(t)}`:`🦋 **UNO · ${status(t)}**`;
- return {content:caption,embeds:[{title:`第 ${t.handNo} 局 · ${modeName(t)}`,color:t.lastPlay?.jump?0xFFD166:hex[t.color]||0xD9688D,description:closed?'未完成局不计分。':`**当前颜色：${t.color?colorEmoji[t.color]+' '+game.COLOR_NAMES[t.color]+'色':'待选择'}** · ${t.direction===1?'顺时针 ↻':'逆时针 ↺'} · ${t.players.length}/${game.seatLimit(t)} 人\n玩法：**${ruleSummary(t)}**`,fields,footer:{text:'beta.13 · 座位顺时针编号 · 绿框行动 / 金框下一位或胜者'}}],components:rows,allowed_mentions:{parse:[]}};
+ return {content:caption,embeds:[{title:`第 ${t.handNo} 局 · ${modeName(t)}`,color:t.lastPlay?.jump?0xFFD166:hex[t.color]||0xD9688D,description:closed?'未完成局不计分。':`**当前颜色：${t.color?colorEmoji[t.color]+' '+game.COLOR_NAMES[t.color]+'色':'待选择'}** · ${t.direction===1?'顺时针 ↻':'逆时针 ↺'} · ${t.players.length}/${game.seatLimit(t)} 人\n玩法：**${ruleSummary(t)}**`,fields,footer:{text:'beta.14 · 座位顺时针编号 · 绿框行动 / 金框下一位或胜者'}}],components:rows,allowed_mentions:{parse:[]}};
 }
 export function handPanel(t,id,notice=''){
  const p=t.players.find(p=>p.id===id&&!p.bot);if(!p)throw Error('你没有加入这张 UNO 桌。');
@@ -108,7 +111,7 @@ export function handPanel(t,id,notice=''){
    rows.push(row(...(penalty?penaltyButtons():[b('draw',legal.length?'自愿摸 1 张':'摸 1 张',1,t.drawn!==null),...(t.drawn!==null?[b('pass','保留并结束')]:[])]),...unoButtons()));
   }
  }
- if(t.unoOpportunity)rows.push(row(t.unoOpportunity.player===id?b('uno','📣 立即补喊 UNO',3):b('catch',`抓 ${plainName(t,t.unoOpportunity.player)}漏喊`,4)));
+ if(t.unoOpportunity&&!p.surrendered)rows.push(row(t.unoOpportunity.player===id?b('uno','📣 立即补喊 UNO',3):b('catch',`抓 ${plainName(t,t.unoOpportunity.player)}漏喊`,4)));
  const nav=[b('hand','更新手牌')];if(page.pages>1)nav.push(b(`page~${page.page-1}`,'上一页',2,page.page===0),b(`page~${page.page+1}`,'下一页',2,page.page>=page.pages-1));
  if(own&&legal.length&&!page.cards.some(c=>legal.includes(c)))nav.push(b('locate','定位可出牌',1));
  if(t.messageId)nav.push({type:2,style:5,label:'回公共牌桌',url:`https://discord.com/channels/${t.guild}/${t.channel}/${t.messageId}`});rows.push(row(...nav));
@@ -122,7 +125,7 @@ export function plainName(t,id){const p=t.players.find(p=>p.id===id);return p?.n
 export function management(t,id,admin=false){const owner=id===t.owner,waiting=['lobby','settled'].includes(t.phase),adjustable=waiting&&!(t.mode==='match'&&t.handNo),rules=game.rulesOf(t),rows=[];
  if(owner&&waiting)rows.push(row(button(t,`m~${id}~start`,t.handNo?'🎴 开始下一局':'🎴 开始发牌',1,t.players.length<2||t.mode==='teams'&&t.players.length!==4||!!t.matchWinner),button(t,`m~${id}~addbot`,'添加电脑',2,t.players.length>=game.seatLimit(t)||!!(t.mode==='match'&&t.handNo)),button(t,`m~${id}~removebots`,'移除电脑',2,!t.players.some(p=>p.bot)||!!(t.mode==='match'&&t.handNo))));
  if(owner&&adjustable){rows.push(row(...[['mixed','混合升档'],['same','同类叠加'],['none','不叠加']].map(([value,text])=>button(t,`m~${id}~rule~stacking~${value}`,text+(rules.stacking===value?' ✓':''),rules.stacking===value?3:2,rules.stacking===value))));rows.push(row(button(t,`m~${id}~rule~jumpIn~${!rules.jumpIn}`,rules.jumpIn?'关闭数字抢出':'开启数字抢出',rules.jumpIn?2:1)));}
- if(t.players.some(p=>p.id===id&&!p.bot))rows.push(row(button(t,`m~${id}~leave`,'离开牌桌',2,!waiting)));
+ if(t.players.some(p=>p.id===id&&!p.bot))rows.push(row(button(t,`m~${id}~leave`,'离开牌桌',2,!waiting),...(!waiting?[button(t,`m~${id}~surrender`,'🏳️ 本局认输',4,t.phase!=='active'||!!t.players.find(p=>p.id===id)?.surrendered)]:[])));
  if(owner||admin)rows.push(row(button(t,`m~${id}~close`,'关闭整桌',4)));
  return {content:`**UNO 牌桌管理 · ${modeName(t)}**\n桌主：${label(t,t.owner)}\n当前玩法：**${ruleSummary(t)}**\n混合：+2 接 +2/+4，+4 仅接 +4；同类只接同种加牌。\n数字落桌有 5 秒抢出窗口，功能牌不抢出。${t.mode==='teams'?'\n2v2 恰好四人，1/3 号红队、2/4 号蓝队；队友相对而坐。':''}${!waiting?'\n本局进行中，规则固定；请在结算后调整。':t.mode==='match'&&t.handNo?'\n积分赛已开始，规则固定。':''}`,components:rows,allowed_mentions:{parse:[]}};
 }

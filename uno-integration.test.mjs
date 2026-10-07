@@ -119,3 +119,11 @@ test('directed social controls bind private actor and round, preserve game versi
  state=ctx.map.get('table');state.social.until=Date.now()-1;await ctx.storage.put('table',state);await table.alarm();assert.equal(ctx.map.get('table').social,null);assert.equal(ctx.map.get('table').version,before.version);
  state=ctx.map.get('table');state.handNo++;await ctx.storage.put('table',state);const stale=await call(3,{custom_id:say},'1',true);assert(stale.data.content.includes('换局'));assert(!ctx.map.get('table').social);
 });
+
+test('surrender confirmation is private, player- and hand-bound, survives same-hand version changes and cannot replay',async t=>{
+ const {ctx,call,click}=setup(t);await call(2,{name:'uno',options:[{name:'创建'}]});await click('join','4');await click('start');let state=ctx.map.get('table');state.turn='1';state.pending=null;state.deadline=Date.now()+60000;await ctx.storage.put('table',state);
+ const prompt=await click('surrender','4',true);assert.equal(prompt.data.flags,64);const custom=prompt.data.components[0].components[0].custom_id;
+ assert((await call(3,{custom_id:custom},'1',true)).data.content.includes('自己的'));assert((await call(3,{custom_id:custom},'4')).data.content.includes('自己的'));
+ state=ctx.map.get('table');state.version++;await ctx.storage.put('table',state);const reply=await call(3,{custom_id:custom},'4',true);assert.equal(reply.type,7);state=ctx.map.get('table');assert.equal(state.phase,'settled');assert.equal(state.winner,'1');assert.equal(state.players[1].surrendered,true);const before=structuredClone(state);await call(3,{custom_id:custom},'4',true);assert.deepEqual(ctx.map.get('table'),before);
+ await click('start');const old=await call(3,{custom_id:custom},'4',true);assert(old.data.content.includes('换局'));assert(!ctx.map.get('table').players[1].surrendered);
+});

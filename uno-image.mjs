@@ -1,3 +1,4 @@
+import {wearsCrown} from './uno-rankings.mjs';
 import { Canvas, encodePNG } from './card-image.mjs';
 import { glyphs } from './card-glyphs.mjs';
 import {EMOTES,activeEmote} from './uno-social.mjs';
@@ -58,8 +59,8 @@ export function publicTableSnapshot(t,now=Date.now()){
   social:activeEmote(t,now),
   focus:active&&['draw2','draw4'].includes(t.pending?.kind)?{kind:'penalty',actor:t.pending.offender,target:t.pending.victim,value:game.penaltyCount(t)}:t.lastPlay?.jump?{kind:'jump',actor:t.lastPlay.actor,target:t.lastPlay.from===t.lastPlay.actor?null:t.lastPlay.from,value:0}:null,
   seats:t.players.map((p,i)=>({id:p.id,seat:i+1,name:p.name||`玩家 ${i+1}`,count:p.cards.length,
-   team:t.mode==='teams'?i%2:null,owner:p.id===t.owner,bot:!!p.bot,
-   winner:t.phase==='settled'&&(t.mode==='teams'?i%2===t.winningTeam:p.id===t.winner)}))};
+   surrendered:!!p.surrendered,crown:wearsCrown(t,p.id),team:t.mode==='teams'?i%2:null,owner:p.id===t.owner,bot:!!p.bot,
+   winner:!p.surrendered&&t.phase==='settled'&&(t.mode==='teams'?i%2===t.winningTeam:p.id===t.winner)}))};
 }
 export function seatLayout(count){
  if(!Number.isInteger(count)||count<0||count>10)throw Error('Invalid seat count');
@@ -101,7 +102,7 @@ export async function renderTableImage(model){
    stroke=s.winner?gold:current?(model.jumping?gold:mint):s.team!==null?palette[s.team===0?'red':'blue']:[72,92,111];
   const reacting=model.social&&(model.social.actor===s.id||model.social.target===s.id);if(reacting)c.rect(x-9,y-9,192,120,[140,222,237],20);
   c.rect(x-5,y-5,184,112,stroke,17);c.rect(x,y,174,102,current?[30,64,59]:[29,39,54],13);
-  const title=s.winner?'胜者':current?(model.jumping?'下一位':model.penalty?'处理罚牌':'行动中'):s.owner?'桌主':s.bot?'电脑':s.team===0?'红队':s.team===1?'蓝队':'玩家';
+  const title=s.surrendered?'已认输':s.crown?'UNO 大王':s.winner?'胜者':current?(model.jumping?'下一位':model.penalty?'处理罚牌':'行动中'):s.owner?'桌主':s.bot?'电脑':s.team===0?'红队':s.team===1?'蓝队':'玩家';
   c.text(String(s.seat),x+12,y+10,22,stroke);c.text(title,x+48,y+12,18,current||s.winner?stroke:muted);
   fitText(c,imageName(s),cx,y+39,22,150,white,true);
   c.text(model.phase==='lobby'?'等待':`${s.count} 张${s.count===1?' UNO':''}`,cx,y+73,19,s.count===1?gold:muted,true);
@@ -118,7 +119,7 @@ export async function boardImageMessage(t,data,existing){
  if(t.phase==='closed'||!t.players?.length)return {body:{...data,attachments:[]},signature:null};
  const model=publicTableSnapshot(t),signature=JSON.stringify(model),filename='uno-table.png',body=withImage(data,filename);
  if(existing?.signature===signature&&existing.id){body.attachments=[{id:existing.id,filename}];return {body,signature};}
- const seats=model.seats.map(s=>`${s.seat}号 ${s.name}，${s.count}张${model.turn===s.id?model.jumping?'，抢出后下一位':'，当前行动者':''}${s.team!==null?`，${s.team===0?'红':'蓝'}队`:''}`).join('；');
+ const seats=model.seats.map(s=>`${s.seat}号 ${s.name}，${s.count}张${s.surrendered?'，已认输':''}${s.crown?'，UNO 大王':''}${model.turn===s.id?model.jumping?'，抢出后下一位':'，当前行动者':''}${s.team!==null?`，${s.team===0?'红':'蓝'}队`:''}`).join('；');
  const reaction=model.social?`互动：${model.seats.find(s=>s.id===model.social.actor)?.name}对${model.seats.find(s=>s.id===model.social.target)?.name}说${EMOTES[model.social.key].emoji}${EMOTES[model.social.key].text}。`:'';
  const alt=`${reaction}UNO 座次：${seats}。${model.direction===1?'顺':'逆'}时针；${model.jumping?'全桌抢出窗口；':''}${model.card!==null?`公共牌 ${game.cardName(model.card)}，当前${game.COLOR_NAMES[model.color]||'待选'}色。`:''}`;
  try{return {body:upload(body,await renderTableImage(model),filename,alt.slice(0,1024)),signature};}

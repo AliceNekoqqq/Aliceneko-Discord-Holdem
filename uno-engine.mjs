@@ -35,7 +35,8 @@ const waiting=t=>{if(!['lobby','settled'].includes(t.phase))throw Error('请等�
 export const playerLabel=(t,id)=>{const p=t.players.find(p=>p.id===id);return p?.bot?p.name:/^\d+$/.test(id||'')?`<@${id}>`:'玩家';};
 function event(t,kind,actor,details={}){const item={kind,actor,...details,seq:(t.eventSeq||0)+1,hand:t.handNo,at:Date.now()};t.eventSeq=item.seq;t.events=[...(t.events||[]),item].slice(-6);t.lastAction=item;if(kind==='play')t.lastPlay=item;recordRoundInteraction(t,item);return item;}
 const note=(t,message)=>{t.log.push(message);t.log=t.log.slice(-6);};
-const next=(t,id=t.turn,steps=1)=>{const i=t.players.findIndex(p=>p.id===id);return t.players[(i+t.direction*steps+t.players.length*4)%t.players.length].id;};
+const survivors=t=>t.players.filter(p=>!p.surrendered);
+const next=(t,id=t.turn,steps=1)=>{let i=t.players.findIndex(p=>p.id===id);for(let n=0;n<steps;n++){let guard=0;do{i=(i+t.direction+t.players.length)%t.players.length;if(++guard>t.players.length)throw Error('没有可行动玩家。');}while(t.players[i].surrendered);}return t.players[i].id;};
 function setTurn(t,id){t.turn=id;t.drawn=null;t.armed=null;t.selectedWild=null;t.deadline=Date.now()+TURN_MS;}
 function take(t,id,count){const p=player(t,id),out=[];for(let i=0;i<count;i++){
   if(!t.deck.length){const top=t.discard.pop();t.deck=shuffle(t.discard.splice(0));if(top!==undefined)t.discard.push(top);}
@@ -47,7 +48,7 @@ export function addComputers(t,id,count=1){waiting(t);if(id!==t.owner)throw Erro
 export function removeComputers(t,id){waiting(t);if(id!==t.owner)throw Error('只有桌主可移除电脑。');if(t.mode==='match'&&t.handNo)throw Error('积分赛开始后不能更换参赛者。');t.players=t.players.filter(p=>!p.bot);resetTeamScore(t);}
 export function start(t,id){waiting(t);if(id!==t.owner)throw Error('只有桌主可开始。');if(t.mode==='teams'&&t.players.length!==4)throw Error('2v2 组队需要恰好四位玩家，可添加电脑。');if(t.players.length<2)throw Error('至少需要 2 人，可添加电脑陪练。');if(t.matchWinner)throw Error('积分赛已结束，请关桌后创建新赛。');
   t.rules??={...DEFAULT_RULES};t.handNo++;t.dealer=t.handNo===1?shuffle(t.players.map((_,i)=>i))[0]:(t.dealer+1)%t.players.length;t.deck=shuffle(Array.from({length:108},(_,i)=>i));t.discard=[];t.direction=1;t.color=null;t.pending=null;t.drawn=null;t.armed=null;t.unoOpportunity=null;t.winner=null;t.winningTeam=null;t.roundPoints=0;t.log=[];t.events=[];t.lastAction=null;t.lastPlay=null;t.lastJump=null;t.jumpWindow=null;t.computerJumpDue=null;t.jumpSerial=0;t.pages={};t.selectedWild=null;t.social=null;t.roundInteractions=null;t.phase='active';
-  for(const p of t.players)p.cards=[];for(let n=0;n<7;n++)for(let j=1;j<=t.players.length;j++)take(t,t.players[(t.dealer+j)%t.players.length].id,1);
+  t.finishReason=null;t.rankedResult=null;for(const p of t.players){p.cards=[];p.surrendered=false;}for(let n=0;n<7;n++)for(let j=1;j<=t.players.length;j++)take(t,t.players[(t.dealer+j)%t.players.length].id,1);
   let top=t.deck.pop();while(face(top).value==='draw4'){t.deck.unshift(top);shuffle(t.deck);top=t.deck.pop();}t.discard.push(top);const f=face(top);t.color=f.color;setTurn(t,t.players[(t.dealer+1)%t.players.length].id);
   if(f.value==='reverse'){t.direction=-1;setTurn(t,t.players[t.dealer].id);}
   else if(f.value==='skip')setTurn(t,next(t));
@@ -55,15 +56,16 @@ export function start(t,id){waiting(t);if(id!==t.owner)throw Error('只有桌主
   else if(f.value==='wild')t.pending={kind:'openingColor',victim:t.turn};
   note(t,`第 ${t.handNo} 局开始；每人 7 张。`);event(t,'start',id,{card:top,color:t.color});
 }
-function requireTurn(t,id){player(t,id);if(t.phase!=='active'||t.turn!==id)throw Error('还没轮到你。');}
+function requireTurn(t,id){if(player(t,id).surrendered)throw Error('🏳️ 本局已认输，下一局再战。');if(t.phase!=='active'||t.turn!==id)throw Error('还没轮到你。');}
 function beginAction(t){t.unoOpportunity=null;t.selectedWild=null;}
 export function stackable(t,id,card){const p=t.players.find(p=>p.id===id),pending=t.pending,mode=rulesOf(t).stacking;
- if(t.phase!=='active'||t.turn!==id||pending?.victim!==id||!['draw2','draw4'].includes(pending?.kind)||pending.finisher||mode==='none'||!p?.cards.includes(card))return false;
+ if(t.phase!=='active'||t.turn!==id||pending?.victim!==id||!['draw2','draw4'].includes(pending?.kind)||pending.finisher||mode==='none'||(p?.surrendered||!p?.cards.includes(card)))return false;
  const value=face(card).value;return mode==='same'?value===pending.kind:pending.kind==='draw2'?['draw2','draw4'].includes(value):value==='draw4';
 }
-export function playable(t,id,card){const p=t.players.find(p=>p.id===id);if(t.phase!=='active'||t.turn!==id||jumpOpen(t)||!p?.cards.includes(card)||(t.drawn!==null&&t.drawn!==card))return false;if(t.pending)return stackable(t,id,card);const f=face(card),top=face(t.discard.at(-1));return !f.color||f.color===t.color||f.value===top.value;}
+export function playable(t,id,card){const p=t.players.find(p=>p.id===id);if(t.phase!=='active'||t.turn!==id||jumpOpen(t)||(p?.surrendered||!p?.cards.includes(card))||(t.drawn!==null&&t.drawn!==card))return false;if(t.pending)return stackable(t,id,card);const f=face(card),top=face(t.discard.at(-1));return !f.color||f.color===t.color||f.value===top.value;}
 export function legalCards(t,id){return (t.players.find(p=>p.id===id)?.cards||[]).filter(c=>playable(t,id,c));}
 export function jumpCards(t,id,now=Date.now()){
+ if(t.players.find(p=>p.id===id)?.surrendered)return [];
  if(!rulesOf(t).jumpIn||!jumpOpen(t,now)||t.pending||t.jumpWindow.card!==t.discard.at(-1))return [];const top=face(t.discard.at(-1));if(typeof top.value!=='number')return [];
  return (t.players.find(p=>p.id===id)?.cards||[]).filter(c=>{const f=face(c);return f.color===top.color&&f.value===top.value;});
 }
@@ -74,17 +76,19 @@ function openJump(t,card){clearJump(t);if(!rulesOf(t).jumpIn||t.phase!=='active'
 export function expireJump(t,now=Date.now()){if(!t.jumpWindow||t.jumpWindow.until>now)return false;clearJump(t);return true;}
 export function jump(t,id,card,key){player(t,id);if(t.jumpWindow?.key!==key||!jumpCards(t,id).includes(card))throw Error('抢出窗口已变化或结束，刚才抢出未执行。');const from=t.turn,declared=player(t,id).cards.length===2;clearJump(t);t.turn=id;t.drawn=null;t.armed=declared?id:null;t.pending=null;play(t,id,card,undefined,{jump:true,from});}
 export function computerJump(t){if(!jumpOpen(t))return false;for(const p of t.players){if(!p.bot)continue;const card=jumpCards(t,p.id)[0];if(card!==undefined){jump(t,p.id,card,t.jumpWindow.key);return true;}}return false;}
-function settle(t,id){const p=player(t,id);t.phase='settled';t.winner=id;t.winningTeam=teamOf(t,id);t.roundPoints=t.players.filter(x=>t.mode==='teams'?teamOf(t,x.id)!==t.winningTeam:x.id!==id).reduce((s,x)=>s+x.cards.reduce((a,c)=>a+points(c),0),0);
+function settle(t,id,reason='cards'){const p=player(t,id);t.phase='settled';t.finishReason=reason;t.winner=id;t.winningTeam=teamOf(t,id);t.roundPoints=t.players.filter(x=>t.mode==='teams'?teamOf(t,x.id)!==t.winningTeam:x.id!==id).reduce((s,x)=>s+x.cards.reduce((a,c)=>a+points(c),0),0);
  if(t.mode==='teams'){t.teamScores??=[0,0];t.teamScores[t.winningTeam]+=t.roundPoints;}else p.score+=t.roundPoints;
- if(t.mode==='match'&&p.score>=500)t.matchWinner=id;t.turn=null;t.pending=null;t.drawn=null;t.armed=null;t.unoOpportunity=null;t.deadline=null;clearJump(t);t.idleDeadline=Date.now()+900000;note(t,`${playerLabel(t,id)} 出完手牌，${t.mode==='teams'?teamName(t.winningTeam):'本人'}获得 ${t.roundPoints} 分。`);event(t,'settle',id,{points:t.roundPoints,team:t.winningTeam});}
+ if(t.mode==='match'&&p.score>=500)t.matchWinner=id;t.turn=null;t.pending=null;t.drawn=null;t.armed=null;t.unoOpportunity=null;t.deadline=null;clearJump(t);t.idleDeadline=Date.now()+900000;note(t,`${playerLabel(t,id)} ${reason==='surrender'?'成为最后的胜者':'出完手牌'}，${t.mode==='teams'?teamName(t.winningTeam):'本人'}获得 ${t.roundPoints} 分。`);event(t,'settle',id,{points:t.roundPoints,team:t.winningTeam,reason});
+ t.rankedResult={id:`${t.epoch}:${t.handNo}`,guild:t.guild,at:Date.now(),mode:t.mode,players:t.players.map(x=>({id:x.id,name:x.name||'玩家',bot:!!x.bot,surrendered:!!x.surrendered,won:!x.surrendered&&(t.mode==='teams'?teamOf(t,x.id)===t.winningTeam:x.id===id)}))};
+}
 export function play(t,id,card,color,options={}){requireTurn(t,id);if(!playable(t,id,card))throw Error('这张牌现在不能出；摸牌后只能出刚摸到的牌。');const p=player(t,id),f=face(card);if(!f.color&&!COLORS.includes(color))throw Error('请选择后续颜色。');
   const previousPenalty=t.pending,declared=t.armed===id,oldColor=t.color,handBefore=[...p.cards],illegal=f.value==='draw4'&&p.cards.some(c=>face(c).color===oldColor);
   clearJump(t);beginAction(t);p.cards.splice(p.cards.indexOf(card),1);t.discard.push(card);t.color=f.color||color;t.drawn=null;t.armed=null;
   if(p.cards.length===1&&!declared)t.unoOpportunity={player:id};note(t,`${playerLabel(t,id)}打出 ${cardName(card)}${declared?' · UNO!':''}`);
   if(f.value==='reverse')t.direction*=-1;
-  let target=next(t,id);if(f.value==='skip'||(f.value==='reverse'&&t.players.length===2))target=next(t,id,2);
+  let target=next(t,id);if(f.value==='skip'||(f.value==='reverse'&&survivors(t).length===2))target=next(t,id,2);
   const amount=f.value==='draw2'?2:f.value==='draw4'?4:0,total=amount+(previousPenalty?penaltyCount(t):0);
-  const played=event(t,'play',id,{card,color:t.color,uno:declared,jump:!!options.jump,from:options.from||null,stacked:!!previousPenalty,stackTotal:total||null,target:target,relayId:amount?(previousPenalty?.relayId||(t.eventSeq||0)+1):null,respondingTo:previousPenalty?.offender||null,skipped:f.value==='skip'||(f.value==='reverse'&&t.players.length===2)?next(t,id):null});
+  const played=event(t,'play',id,{card,color:t.color,uno:declared,jump:!!options.jump,from:options.from||null,stacked:!!previousPenalty,stackTotal:total||null,target:target,relayId:amount?(previousPenalty?.relayId||(t.eventSeq||0)+1):null,respondingTo:previousPenalty?.offender||null,skipped:f.value==='skip'||(f.value==='reverse'&&survivors(t).length===2)?next(t,id):null});
   if(options.jump)t.lastJump=played;
   if(f.value==='draw2'||f.value==='draw4'){
     target=next(t,id);t.pending={kind:f.value,count:total,relayId:played.relayId,chain:[...(previousPenalty?.chain||[]),{actor:id,card,amount}],offender:id,victim:target,illegal,handBefore: f.value==='draw4'?handBefore:undefined,previousColor:oldColor,finisher:p.cards.length===0?id:null};setTurn(t,target);return;
@@ -100,10 +104,24 @@ export function challenge(t,id){requireTurn(t,id);const p=t.pending;if(p?.kind!=
  else{take(t,id,penalty);note(t,`${playerLabel(t,id)}质疑失败，摸 ${penalty} 张并跳过回合。`);event(t,'challenge',id,{success:false,target:p.offender,count:penalty,relayId:p.relayId});if(p.finisher)settle(t,p.finisher);else setTurn(t,next(t,id));}
  return {success:p.illegal,cards:revealed,previousColor:p.previousColor,penalty,total:count};
 }
-export function declareUno(t,id){const p=player(t,id);if(t.phase!=='active')throw Error('本局尚未进行。');if(t.unoOpportunity?.player===id&&p.cards.length===1){t.unoOpportunity=null;note(t,`${playerLabel(t,id)}补喊 UNO！`);event(t,'uno',id);return;}
+export function declareUno(t,id){const p=player(t,id);if(p.surrendered)throw Error('🏳️ 本局已认输。');if(t.phase!=='active')throw Error('本局尚未进行。');if(t.unoOpportunity?.player===id&&p.cards.length===1){t.unoOpportunity=null;note(t,`${playerLabel(t,id)}补喊 UNO！`);event(t,'uno',id);return;}
   if(t.turn!==id||p.cards.length!==2||(t.pending&&!legalCards(t,id).length))throw Error('请在轮到自己且剩两张时宣告，或在漏喊后立即补喊。');t.armed=id;note(t,`${playerLabel(t,id)}已准备 UNO 宣告。`);event(t,'uno',id);
 }
-export function catchUno(t,id){player(t,id);const o=t.unoOpportunity;if(t.phase!=='active'||!o||o.player===id||player(t,o.player).cards.length!==1)throw Error('目前没有可抓的漏喊 UNO。');take(t,o.player,2);t.unoOpportunity=null;note(t,`${playerLabel(t,id)}抓到 ${playerLabel(t,o.player)}漏喊 UNO，罚摸 2 张。`);event(t,'catch',id,{target:o.player,count:2});}
+export function catchUno(t,id){if(player(t,id).surrendered)throw Error('🏳️ 本局已认输。');const o=t.unoOpportunity;if(t.phase!=='active'||!o||o.player===id||player(t,o.player).cards.length!==1)throw Error('目前没有可抓的漏喊 UNO。');take(t,o.player,2);t.unoOpportunity=null;note(t,`${playerLabel(t,id)}抓到 ${playerLabel(t,o.player)}漏喊 UNO，罚摸 2 张。`);event(t,'catch',id,{target:o.player,count:2});}
+// Keep seats and remaining cards for scoring; only remove the player from rotation.
+export function surrender(t,id){
+ const p=player(t,id);if(t.phase!=='active'||p.surrendered)throw Error('🏳️ 只能在进行中的本局认输一次。');
+ if(t.pending?.finisher&&t.pending.victim!==id)throw Error('⏳ 已进入末张罚牌结算，请先等结算完成。');
+ const wasTurn=t.turn===id;
+ // Resolve the victim's existing penalty before forfeiting, including a last-card finish.
+ if(wasTurn&&['draw2','draw4'].includes(t.pending?.kind))accept(t,id);
+ p.surrendered=true;clearJump(t);if(t.unoOpportunity?.player===id)t.unoOpportunity=null;if(t.armed===id)t.armed=null;if(t.selectedWild?.id===id)t.selectedWild=null;
+ note(t,`🏳️ ${playerLabel(t,id)}认输，本局休息，下局再战。`);event(t,'surrender',id);
+ if(t.phase==='settled'){const r=t.rankedResult?.players.find(x=>x.id===id);if(r){r.surrendered=true;r.won=false;}return;}
+ const alive=survivors(t),won=t.mode==='teams'?new Set(alive.map(x=>teamOf(t,x.id))).size===1:alive.length===1;
+ if(won){if(t.pending&&['draw2','draw4'].includes(t.pending.kind))take(t,t.pending.victim,penaltyCount(t));settle(t,alive[0].id,'surrender');return;}
+ if(wasTurn&&t.turn===id){if(t.pending?.kind==='openingColor'){t.color=bestColor(p.cards);t.pending=null;}setTurn(t,next(t,id));}
+}
 export function close(t,id,admin=false){if(id!==t.owner&&!admin)throw Error('只有桌主或管理员可关桌。');t.phase='closed';t.turn=null;t.deadline=null;t.idleDeadline=null;t.pending=null;clearJump(t);t.deck=[];t.discard=[];for(const p of t.players)p.cards=[];t.armed=null;t.unoOpportunity=null;}
 export function timeout(t){if(t.phase!=='active'||!t.deadline||Date.now()<t.deadline)return false;const id=t.turn;
   if(t.pending?.kind==='openingColor')chooseOpeningColor(t,id,bestColor(player(t,id).cards));else if(t.pending)accept(t,id);else if(t.drawn!==null)pass(t,id);else {draw(t,id);if(t.turn===id&&t.drawn!==null)pass(t,id);}note(t,`${playerLabel(t,id)}超时，已自动处理。`);event(t,'timeout',id);return true;}

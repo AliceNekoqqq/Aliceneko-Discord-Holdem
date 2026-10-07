@@ -34,6 +34,9 @@ export class UnoController {
   if(manager&&(manager[1]!==id||!isPrivate))return json(privateReply('请打开自己的牌桌管理。'));
   const seated=t.players.some(p=>p.id===id&&!p.bot);
   const panelReply=(notice='')=>({type:6,panelData:handPanel(t,id,notice)});
+  const forfeiture=action.match(/^giveup~(\d+)~(\d+)$/);
+  if(forfeiture&&(forfeiture[1]!==id||!isPrivate))return json(privateReply('请使用自己的认输确认。'));
+  if(forfeiture&&Number(forfeiture[2])!==t.handNo)return json(privateReply('🔄 已经换局，旧认输确认未执行。'));
   const prompt=action.match(/^(color|yesclose)~(\d+)(?:~(\d+)~(red|yellow|green|blue))?$/);
   if(prompt&&(prompt[2]!==id||!isPrivate))return json(privateReply('这不是你的操作提示。'));
   if(action==='social'||social){
@@ -60,9 +63,10 @@ export class UnoController {
    if(panel)return json(panelReply());
    return json({type:4,data:{...handPanel(t,id),flags:64}});
   }
+  if(action==='surrender'){if(!seated||t.phase!=='active'||t.players.find(p=>p.id===id).surrendered)return json(privateReply('🏳️ 只能在进行中的本局认输。'));return json({type:4,data:{content:'🏳️ **这局先歇会儿？**\n认输后本局不能继续出牌，已收到的罚牌会先收下，其他玩家继续。全真人对局完成后计一次负场；2v2 队友仍可继续，你本人不获得胜场。下一局可重新参战。',flags:64,components:[row(button(t,`giveup~${id}~${t.handNo}`,'🏳️ 确认本局认输',4))],allowed_mentions:{parse:[]}}});}
   if(action==='close'){if(id!==t.owner&&!admin)return json(privateReply('只有桌主或管理员可关桌。'));return json({type:4,data:{content:'🌙 准备收摊吗？确认关闭 UNO 牌桌，未完成本局不计分。',flags:64,components:[row(button(t,`yesclose~${id}`,'确认关桌',4))],allowed_mentions:{parse:[]}}});}
-  if(!panel&&!manager&&!prompt&&t.messageId&&i.message?.id!==t.messageId)return json(privateReply('请使用当前公共牌桌。'));
-  if(Number(parts[2])!==t.version&&prompt?.[1]!=='yesclose'&&!(panel&&action.startsWith('jump~')))return json(panel?panelReply('🔄 牌局跑在前面啦：刚才操作未执行，请按当前手牌选择。'):privateReply('🔄 牌局已更新，操作未执行，请回牌桌重新选择。'));
+  if(!panel&&!manager&&!prompt&&!forfeiture&&t.messageId&&i.message?.id!==t.messageId)return json(privateReply('请使用当前公共牌桌。'));
+  if(Number(parts[2])!==t.version&&prompt?.[1]!=='yesclose'&&!forfeiture&&!(panel&&action.startsWith('jump~')))return json(panel?panelReply('🔄 牌局跑在前面啦：刚才操作未执行，请按当前手牌选择。'):privateReply('🔄 牌局已更新，操作未执行，请回牌桌重新选择。'));
   if(t.idleDeadline&&Date.now()>=t.idleDeadline){game.close(t,t.owner,true);t.version++;await this.host.save(t);await this.host.syncBoard(t);return json(privateReply('牌桌已因长时间无人操作关闭。'));}
   if(t.deadline&&Date.now()>=t.deadline&&prompt?.[1]!=='yesclose'){game.timeout(t);t.version++;await this.host.save(t);await this.host.queuePanels(t);await this.host.syncBoard(t);return json(panel?panelReply('⏰ 回合超时，已自动处理，下一棒继续！'):privateReply('⏰ 回合超时啦，请查看当前牌桌。'));}
   const seen=await this.ctx.storage.get('recentInteractions')||[];if(seen.includes(i.id))return json(privateReply('本次操作已处理。'));
@@ -71,6 +75,7 @@ export class UnoController {
    if(action==='join'){game.join(t,id);if(displayName)t.players.find(p=>p.id===id).name=displayName;}else if(action==='leave')game.leave(t,id);else if(action==='start')game.start(t,id);
    else if(action.startsWith('rule~')&&manager){const [,key,value]=action.split('~');game.configure(t,id,key,key==='jumpIn'?(value==='true'?true:value==='false'?false:null):value);}
    else if(action.startsWith('jump~')&&panel){const [,key,value]=action.split('~');if(!/^\d{1,3}$/.test(value||''))throw Error('无效抢出牌。');game.jump(t,id,Number(value),key);}
+   else if(forfeiture)game.surrender(t,id);
    else if(action==='addbot')game.addComputers(t,id);else if(action==='removebots')game.removeComputers(t,id);
    else if(action==='draw'&&panel)game.draw(t,id);else if(action==='pass'&&panel)game.pass(t,id);
    else if(action==='uno')game.declareUno(t,id);else if(action==='catch')game.catchUno(t,id);
@@ -85,6 +90,7 @@ export class UnoController {
   t.version++;t.lastActive=Date.now();if(t.phase!=='closed')t.idleDeadline=Date.now()+(t.phase==='lobby'?600000:900000);
   await this.host.save(t);await this.ctx.storage.put('recentInteractions',[...seen.slice(-99),i.id]);await this.host.syncBoard(t);
   if(reveal)return json({type:4,data:{flags:64,content:`🕵️ **质疑${reveal.success?'成功':'失败'}**\n+4 出牌者出牌前的手牌（仅你可见）：\n${reveal.cards.map(game.cardName).join('、')}\n当时颜色：${game.COLOR_NAMES[reveal.previousColor]}。${reveal.success?`对方摸累计 ${reveal.penalty} 张，你继续行动。`:`你摸 ${reveal.total} + 2 = ${reveal.penalty} 张并跳过。`}`,allowed_mentions:{parse:[]}}});
+  if(forfeiture)return json({type:7,data:{content:'🏳️ 已认输，本局休息，下一局再来！',components:[],embeds:[],attachments:[],allowed_mentions:{parse:[]}}});
   if(prompt)return json({type:7,data:{content:prompt[1]==='yesclose'?'🌙 UNO 牌桌已关闭，下次再战！':'🎴 已出牌，去看看自动更新的手牌吧！',embeds:[],components:[],attachments:[]}});
   if(panel&&t.phase!=='closed'&&seated)return json(panelReply('✅ 操作已执行，精彩继续！'));
   if(manager)return json({type:7,data:t.players.some(p=>p.id===id)&&t.phase!=='closed'?management(t,id,admin):{content:t.phase==='closed'?'牌桌已关闭。':'你已离桌。',components:[],embeds:[],attachments:[]}});

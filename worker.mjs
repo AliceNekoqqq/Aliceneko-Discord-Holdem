@@ -1,3 +1,5 @@
+import { UnoRankings, rankingInteraction, finishRanking } from './uno-rankings.mjs';
+import { UnoRankBridge } from './uno-rank-bridge.mjs';
 import { DurableObject } from 'cloudflare:workers';
 import * as game from './engine.mjs';
 import { jumpCards, jumpOpen } from './uno-engine.mjs';
@@ -8,7 +10,7 @@ import { BoardSync } from './board-sync.mjs';
 import { PrivatePanels } from './private-panels.mjs';
 import { initializeLifecycle, nextLifecycleAlarm, automaticCloseReason, idleWarning, takeoverAt, canTakeover, touchOwner, effectiveHumanAction } from './lifecycle.mjs';
 import { board, quickRaises, confirmation, handPanel, management, panelAction, button, row } from './ui.mjs';
-const COMMAND_VERSION='games-v1.0.1-beta.11'; // Includes the independent 2v2 UNO mode.
+const COMMAND_VERSION='games-v1.0.1-beta.14'; // Guild rankings and the optional UNO king title/role.
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。点「准备下一手」，所有参与真人准备后 5 秒自动发牌；人员变化会取消全部准备。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；连续 2 次超时会在本手结束后暂离，保留筹码；在牌桌管理恢复参与。全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码；游玩中可预约本手结束后离桌，并随时取消。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。\n未发牌空闲 5 分钟、结算后空闲 10 分钟自动关桌，提前 1 分钟提醒；刷新和查看手牌不延长计时。\n游玩中 10 分钟无人有效操作且仍可行动真人均已超时时，取消本手并退回下注。\n等待发牌或结算时，桌主 2 分钟未交互，其他已入座真人可接管。只供娱乐，无充值或兑换。';
@@ -23,11 +25,13 @@ async function discordApi(env,path,method,body,timeoutMs=6000){
   return fetch(`https://discord.com/api/v10${path}`,{method,headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
 }
 export class PokerTable extends DurableObject {
+  get rankings(){return this.unoRankings??=new UnoRankings(this.ctx.storage,this.env);}
+  get rankBridge(){return this.unoRankBridge??=new UnoRankBridge(this);}
   get boards(){return this.boardSync??=new BoardSync(this.ctx.storage,this.env);}
   get uno(){return this.unoController??=new UnoController(this);}
   get panels(){return this.privatePanels??=new PrivatePanels(this.ctx.storage,this.env);}
   async armAlarm(t){
-    const dates=[t?.social?.until,t?.computerDue,t?.computerJumpDue,t?.jumpWindow?.until,t?.deadline,t?.readyDue,await this.ctx.storage.get('boardSyncAt'),t?.game==='uno'?t.idleDeadline:t?nextLifecycleAlarm(t):null,await this.ctx.storage.get('privateSyncAt'),await this.ctx.storage.get('privateExpiry')].filter(n=>Number.isFinite(n)&&n>0);
+    const dates=[await this.ctx.storage.get('unoRankSyncAt'),t?.social?.until,t?.computerDue,t?.computerJumpDue,t?.jumpWindow?.until,t?.deadline,t?.readyDue,await this.ctx.storage.get('boardSyncAt'),t?.game==='uno'?t.idleDeadline:t?nextLifecycleAlarm(t):null,await this.ctx.storage.get('privateSyncAt'),await this.ctx.storage.get('privateExpiry')].filter(n=>Number.isFinite(n)&&n>0);
     if(dates.length)await this.ctx.storage.setAlarm(Math.max(Date.now()+1,Math.min(...dates)));else await this.ctx.storage.deleteAlarm();
   }
   async queuePanels(t){if(!await this.ctx.storage.get('privatePanels'))return;await this.ctx.storage.put('privateSyncAt',Date.now()+350);await this.armAlarm(t);}
@@ -36,7 +40,7 @@ export class PokerTable extends DurableObject {
     t.computerDue=t.players.some(p=>p.id===t.turn&&p.bot)?Math.max(Date.now(),t.game==='uno'?t.jumpWindow?.until||0:0)+1500:null;
     if(t.game==='uno'){if(jumpOpen(t)&&t.players.some(p=>p.bot&&jumpCards(t,p.id).length)){if(t.computerJumpKey!==t.jumpWindow.key){t.computerJumpKey=t.jumpWindow.key;t.computerJumpDue=Date.now()+2500;}}else {t.computerJumpDue=null;t.computerJumpKey=null;}}
     if(t.game==='uno')focusHandPage(t);
-    await this.ctx.storage.put('table',t);await this.boards.queue(t);await this.armAlarm(t);
+    await this.ctx.storage.put('table',t);await this.rankBridge.capture(t);await this.boards.queue(t);await this.armAlarm(t);
   }
   async syncBoard(t){await this.boards.queue(t);await this.armAlarm(t);return true;}
   async expireTable(t,now=Date.now()){
@@ -56,6 +60,7 @@ export class PokerTable extends DurableObject {
     return this.ctx.blockConcurrencyWhile(async()=>{
       const payload=await request.json();
       const before=payload.op==='interaction'?await this.ctx.storage.get('table'):null;
+      if(before?.rankedResult)await this.rankBridge.capture(before);
       let response=await this.dispatch(payload);
       if(payload.op==='interaction'){
         const t=await this.ctx.storage.get('table');
@@ -67,6 +72,7 @@ export class PokerTable extends DurableObject {
     });
   }
   async dispatch(payload){
+      if(payload.op==='unoRank'){try{return json(await this.rankings.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true});}
       if(payload.op==='register'){
         if(!this.env.BOT_TOKEN)return json({registered:false});
@@ -167,7 +173,8 @@ export class PokerTable extends DurableObject {
   }
   async alarm(){
     await this.ctx.blockConcurrencyWhile(async()=>{
-      const t=await this.ctx.storage.get('table');if(!t)return;
+      const guild=await this.ctx.storage.get('rankGuild');if(guild){await this.rankings.reconcile(guild);return;}
+      const t=await this.ctx.storage.get('table');await this.rankBridge.flush(t);if(!t){await this.armAlarm(null);return;}
       const now=Date.now();
       if(t.game==='uno'){const privateWork=await this.uno.alarm(t);if(!privateWork)await this.boards.flush(t,now);await this.armAlarm(t);return;}
       if((await this.ctx.storage.get('privateExpiry'))<=now){await this.panels.prune(t);await this.armAlarm(t);return;}
@@ -210,6 +217,7 @@ async function handle(request,env,ctx){
   if(i?.type===1)return json({type:1});
   if(i?.application_id!==env.DISCORD_APPLICATION_ID)return new Response('Wrong application',{status:403});
   if(![2,3,5].includes(i.type)||!/^\d+$/.test(i.channel_id||'')||!/^\d+$/.test(i.guild_id||''))return json(privateReply('请在服务器文字频道内使用。'));
+  if(rankingInteraction(i)){if(!i.member?.user?.id)return json(privateReply('请在服务器内使用。'));ctx.waitUntil(finishRanking(env,i));return json({type:5,data:{flags:64}});}
   const stub=env.TABLES.get(env.TABLES.idFromName(`table:${i.guild_id}:${i.channel_id}`));
   const response=await stub.fetch('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:i})});
   const reply=await response.json();if(reply.bindEpoch){const epoch=reply.bindEpoch;delete reply.bindEpoch;ctx.waitUntil(bindOriginal(env,stub,i,epoch));}return json(reply);
