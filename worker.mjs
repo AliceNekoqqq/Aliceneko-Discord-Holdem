@@ -27,7 +27,7 @@ export class PokerTable extends DurableObject {
   get uno(){return this.unoController??=new UnoController(this);}
   get panels(){return this.privatePanels??=new PrivatePanels(this.ctx.storage,this.env);}
   async armAlarm(t){
-    const dates=[t?.computerDue,t?.computerJumpDue,t?.jumpWindow?.until,t?.deadline,t?.readyDue,await this.ctx.storage.get('boardSyncAt'),t?.game==='uno'?t.idleDeadline:t?nextLifecycleAlarm(t):null,await this.ctx.storage.get('privateSyncAt'),await this.ctx.storage.get('privateExpiry')].filter(n=>Number.isFinite(n)&&n>0);
+    const dates=[t?.social?.until,t?.computerDue,t?.computerJumpDue,t?.jumpWindow?.until,t?.deadline,t?.readyDue,await this.ctx.storage.get('boardSyncAt'),t?.game==='uno'?t.idleDeadline:t?nextLifecycleAlarm(t):null,await this.ctx.storage.get('privateSyncAt'),await this.ctx.storage.get('privateExpiry')].filter(n=>Number.isFinite(n)&&n>0);
     if(dates.length)await this.ctx.storage.setAlarm(Math.max(Date.now()+1,Math.min(...dates)));else await this.ctx.storage.deleteAlarm();
   }
   async queuePanels(t){if(!await this.ctx.storage.get('privatePanels'))return;await this.ctx.storage.put('privateSyncAt',Date.now()+350);await this.armAlarm(t);}

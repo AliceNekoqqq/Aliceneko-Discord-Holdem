@@ -16,7 +16,7 @@ args = parser.parse_args()
 cjk = ImageFont.truetype(args.cjk_font, 48)
 glyphs = {}
 fixed = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ._!?/#+-♠♥♦♣你的底牌仅可见桌面公共所有人用翻转河手绿框出灰等候行动本局结束当前颜色红黄蓝最近点击编号第页剩余张可跳过反变金抢成功玩家座位顺时针逆队主电脑等待加入发中罚累计胜者全桌窗口下一轮到刚了桌固定绿框金框粉条方向箭头关闭无未'
-source = (Path(__file__).resolve().parents[1] / 'uno-image.mjs').read_text()
+source = ''.join((Path(__file__).resolve().parents[1] / name).read_text() for name in ['uno-image.mjs','uno-social.mjs'])
 for char in dict.fromkeys(fixed + ''.join(re.findall('[\u4e00-\u9fff]', source))):
     face = cjk if ord(char) > 0x4e00 else font
     box = face.getbbox(char)

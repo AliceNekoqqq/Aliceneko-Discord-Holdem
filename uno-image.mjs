@@ -1,5 +1,6 @@
 import { Canvas, encodePNG } from './card-image.mjs';
 import { glyphs } from './card-glyphs.mjs';
+import {EMOTES,activeEmote} from './uno-social.mjs';
 import * as game from './uno-engine.mjs';
 import { pageCards, PAGE_SIZE } from './uno-ui.mjs';
 const palette={red:[222,77,110],yellow:[239,185,58],green:[57,172,135],blue:[71,135,212]},white=[255,251,246],ink=[27,34,49],pink=[242,173,209];
@@ -54,6 +55,8 @@ export function publicTableSnapshot(t,now=Date.now()){
   card:t.discard?.at(-1)??null,color:t.color||null,jumping,
   turn:active?t.turn:null,penalty:active?game.penaltyCount(t):0,
   last:t.lastPlay?{actor:t.lastPlay.actor,jump:!!t.lastPlay.jump}:null,
+  social:activeEmote(t,now),
+  focus:active&&['draw2','draw4'].includes(t.pending?.kind)?{kind:'penalty',actor:t.pending.offender,target:t.pending.victim,value:game.penaltyCount(t)}:t.lastPlay?.jump?{kind:'jump',actor:t.lastPlay.actor,target:t.lastPlay.from===t.lastPlay.actor?null:t.lastPlay.from,value:0}:null,
   seats:t.players.map((p,i)=>({id:p.id,seat:i+1,name:p.name||`玩家 ${i+1}`,count:p.cards.length,
    team:t.mode==='teams'?i%2:null,owner:p.id===t.owner,bot:!!p.bot,
    winner:t.phase==='settled'&&(t.mode==='teams'?i%2===t.winningTeam:p.id===t.winner)}))};
@@ -80,7 +83,7 @@ function fitText(c,text,x,y,size,maxWidth,color,center=false){
 export async function renderTableImage(model){
  const c=new Canvas(960,820),positions=seatLayout(model.seats.length),active=model.phase==='active';
  c.rect(18,18,924,62,[37,34,53],15);c.text('UNO',38,34,29,pink);
- c.text(`第 ${model.hand} 局`,136,35,24,white);c.text(model.mode==='teams'?'2v2 组队':'公共牌桌',704,35,24,muted);
+ c.text(`第 ${model.hand} 局`,136,35,24,white);if(model.social){const e=EMOTES[model.social.key],a=model.seats.find(s=>s.id===model.social.actor),b=model.seats.find(s=>s.id===model.social.target);if(a&&b)fitText(c,`${a.seat}号对${b.seat}号 ${e.short}`,462,37,21,226,[140,222,237]);}c.text(model.mode==='teams'?'2v2 组队':'公共牌桌',704,35,24,muted);
  ellipse(c,480,430,407,317,[65,82,93]);ellipse(c,480,430,399,309,[17,44,48]);ellipse(c,480,430,386,296,[23,56,58]);
  for(let i=0;i<positions.length;i++){const a=positions[i].angle+Math.PI/Math.max(1,positions.length),x=480+355*Math.cos(a),y=430+274*Math.sin(a);arrow(c,Math.round(x),Math.round(y),a+model.direction*Math.PI/2,muted);}
  const status=model.jumping?'全桌抢出窗口':active?model.penalty?`累计罚牌 +${model.penalty}`:'等待出牌':model.phase==='lobby'?'等待加入发牌':'本局结束';
@@ -96,11 +99,14 @@ export async function renderTableImage(model){
  for(let i=0;i<model.seats.length;i++){
   const s=model.seats[i],{x:cx,y:cy}=positions[i],x=cx-87,y=cy-51,current=active&&model.turn===s.id,
    stroke=s.winner?gold:current?(model.jumping?gold:mint):s.team!==null?palette[s.team===0?'red':'blue']:[72,92,111];
+  const reacting=model.social&&(model.social.actor===s.id||model.social.target===s.id);if(reacting)c.rect(x-9,y-9,192,120,[140,222,237],20);
   c.rect(x-5,y-5,184,112,stroke,17);c.rect(x,y,174,102,current?[30,64,59]:[29,39,54],13);
   const title=s.winner?'胜者':current?(model.jumping?'下一位':model.penalty?'处理罚牌':'行动中'):s.owner?'桌主':s.bot?'电脑':s.team===0?'红队':s.team===1?'蓝队':'玩家';
   c.text(String(s.seat),x+12,y+10,22,stroke);c.text(title,x+48,y+12,18,current||s.winner?stroke:muted);
   fitText(c,imageName(s),cx,y+39,22,150,white,true);
   c.text(model.phase==='lobby'?'等待':`${s.count} 张${s.count===1?' UNO':''}`,cx,y+73,19,s.count===1?gold:muted,true);
+  if(reacting){paintReaction(c,cx+62,y+20,EMOTES[model.social.key].tone,model.social.target===s.id);}
+  if(model.focus?.actor===s.id||model.focus?.target===s.id){const receiving=model.focus.target===s.id;c.rect(x+10,y-27,154,23,receiving?[96,64,42]:[79,43,67],7);fitText(c,model.focus.kind==='penalty'?receiving?`接力累计 +${model.focus.value}`:'反手加码':receiving?'回合被抢走':'抢出成功',cx,y-24,17,145,receiving?gold:pink,true);}
   if(s.team!==null)c.rect(x+153,y+12,9,17,palette[s.team===0?'red':'blue'],3);
   if(model.last?.actor===s.id)c.rect(x+15,y+101,144,5,model.last.jump?gold:pink,2);
  }
@@ -113,7 +119,19 @@ export async function boardImageMessage(t,data,existing){
  const model=publicTableSnapshot(t),signature=JSON.stringify(model),filename='uno-table.png',body=withImage(data,filename);
  if(existing?.signature===signature&&existing.id){body.attachments=[{id:existing.id,filename}];return {body,signature};}
  const seats=model.seats.map(s=>`${s.seat}号 ${s.name}，${s.count}张${model.turn===s.id?model.jumping?'，抢出后下一位':'，当前行动者':''}${s.team!==null?`，${s.team===0?'红':'蓝'}队`:''}`).join('；');
- const alt=`UNO 座次：${seats}。${model.direction===1?'顺':'逆'}时针；${model.jumping?'全桌抢出窗口；':''}${model.card!==null?`公共牌 ${game.cardName(model.card)}，当前${game.COLOR_NAMES[model.color]||'待选'}色。`:''}`;
+ const reaction=model.social?`互动：${model.seats.find(s=>s.id===model.social.actor)?.name}对${model.seats.find(s=>s.id===model.social.target)?.name}说${EMOTES[model.social.key].emoji}${EMOTES[model.social.key].text}。`:'';
+ const alt=`${reaction}UNO 座次：${seats}。${model.direction===1?'顺':'逆'}时针；${model.jumping?'全桌抢出窗口；':''}${model.card!==null?`公共牌 ${game.cardName(model.card)}，当前${game.COLOR_NAMES[model.color]||'待选'}色。`:''}`;
  try{return {body:upload(body,await renderTableImage(model),filename,alt.slice(0,1024)),signature};}
  catch{delete body.embeds[0].image;body.attachments=[];return {body,signature:null};}
+}
+
+// Small native bitmap reaction badges avoid runtime fonts or external image requests.
+function paintReaction(c,x,y,tone,receiving){
+ ellipse(c,x,y,16,16,receiving?[140,222,237]:[255,209,102]);
+ const dark=[27,34,49];if(tone==='watch'){ellipse(c,x-6,y,5,7,white);ellipse(c,x+6,y,5,7,white);c.rect(x-4,y-1,3,4,dark);c.rect(x+8,y-1,3,4,dark);return;}
+ if(tone==='next'){arrow(c,x-1,y,0,dark);return;}
+ c.rect(x-8,y-5,4,3,dark);c.rect(x+5,y-5,4,3,dark);
+ if(tone==='attack'){line(c,x-7,y+5,x+7,y+2,dark,2);}else{line(c,x-7,y+3,x-3,y+7,dark,2);line(c,x-3,y+7,x+3,y+7,dark,2);line(c,x+3,y+7,x+7,y+3,dark,2);}
+ if(tone==='thanks'){c.rect(x-11,y+1,4,3,pink);c.rect(x+9,y+1,4,3,pink);}
+ if(tone==='clap'){c.rect(x-19,y-9,2,7,white);c.rect(x+19,y-9,2,7,white);}
 }
