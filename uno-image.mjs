@@ -61,7 +61,7 @@ export function publicTableSnapshot(t,now=Date.now()){
   social:activeEmote(t,now),
   focus:active&&['draw2','draw4'].includes(t.pending?.kind)?{kind:'penalty',actor:t.pending.offender,target:t.pending.victim,value:game.penaltyCount(t)}:t.lastPlay?.jump?{kind:'jump',actor:t.lastPlay.actor,target:t.lastPlay.from===t.lastPlay.actor?null:t.lastPlay.from,value:0}:null,
   seats:t.players.map((p,i)=>({id:p.id,seat:i+1,name:p.name||`玩家 ${i+1}`,count:p.cards.length,
-   avatar:avatarKey(p),accent:normalizedProfile(p).accent,surrendered:!!p.surrendered,crown:wearsCrown(t,p.id,now),team:t.mode==='teams'?i%2:null,owner:p.id===t.owner,bot:!!p.bot,
+   victory:normalizedProfile(p).victory,avatar:avatarKey(p),accent:normalizedProfile(p).accent,surrendered:!!p.surrendered,crown:wearsCrown(t,p.id,now),team:t.mode==='teams'?i%2:null,owner:p.id===t.owner,bot:!!p.bot,
    winner:!p.surrendered&&t.phase==='settled'&&(t.mode==='teams'?i%2===t.winningTeam:p.id===t.winner)}))};
 }
 export function seatLayout(count){
@@ -84,7 +84,7 @@ function fitText(c,text,x,y,size,maxWidth,color,center=false){
  c.text(text,x,y,Math.min(size,size*maxWidth/Math.max(1,width)),color,center);
 }
 export async function renderTableImage(model){
- const art=new Map(await Promise.all([...new Set([...model.seats.map(s=>s.avatar||'butterfly'),...(model.seats.some(s=>s.crown)?['crown']:[])])].map(async key=>[key,await emojiBitmap(key)]))); 
+ const art=new Map(await Promise.all([...new Set([...model.seats.map(s=>s.avatar||'butterfly'),...model.seats.filter(s=>s.winner&&s.victory&&s.victory!=='none').map(s=>s.victory),...(model.seats.some(s=>s.crown)?['crown']:[])])].map(async key=>[key,await emojiBitmap(key)]))); 
  const c=new Canvas(960,820),positions=seatLayout(model.seats.length),active=model.phase==='active';
  c.rect(18,18,924,62,[37,34,53],15);c.text('UNO',38,34,29,pink);
  c.text(`第 ${model.hand} 局`,136,35,24,white);if(model.social){const e=EMOTES[model.social.key],a=model.seats.find(s=>s.id===model.social.actor),b=model.seats.find(s=>s.id===model.social.target);if(a&&b)fitText(c,`${a.seat}号对${b.seat}号 ${e.short}`,462,37,21,226,[140,222,237]);}c.text(model.mode==='teams'?'2v2 组队':'公共牌桌',704,35,24,muted);
@@ -115,6 +115,7 @@ export async function renderTableImage(model){
   c.text(model.phase==='lobby'?'等待':`${s.count} 张${s.count===1?' UNO':''}`,x+109,y+76,18,s.count===1?gold:muted,true);
   if(reacting){paintReaction(c,cx+62,y+20,EMOTES[model.social.key].tone,model.social.target===s.id);}
   if(model.focus?.actor===s.id||model.focus?.target===s.id){const receiving=model.focus.target===s.id;c.rect(x+10,y-27,154,23,receiving?[96,64,42]:[79,43,67],7);fitText(c,model.focus.kind==='penalty'?receiving?`接力累计 +${model.focus.value}`:'反手加码':receiving?'回合被抢走':'抢出成功',cx,y-24,17,145,receiving?gold:pink,true);}
+  if(s.winner&&s.victory&&s.victory!=='none')paintEmoji(c,art.get(s.victory),x+144,y+7,23);
   if(s.team!==null)c.rect(x+153,y+12,9,17,palette[s.team===0?'red':'blue'],3);
   if(model.last?.actor===s.id)c.rect(x+15,y+101,144,5,model.last.jump?gold:pink,2);
  }

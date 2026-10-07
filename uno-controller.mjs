@@ -23,7 +23,7 @@ export class UnoController {
    if(await this.ctx.storage.get('createdInteraction')===i.id)return json(privateReply('本次创建已处理。'));
    const options=i.data.options[0].options||[];
    try{t=game.newTable(id,i.channel_id,i.guild_id,options.find(o=>o.name==='模式')?.value||'round');if(sub==='测试')game.addComputers(t,id,options.find(o=>o.name==='电脑数量')?.value??(t.mode==='teams'?3:2));}catch(e){return json(privateReply(e.message));}
-   if(displayName)t.players[0].name=displayName;await this.host.save(t);await this.ctx.storage.put('createdInteraction',i.id);return json({type:4,data:board(t),bindEpoch:t.epoch});
+   t.players[0].entrancePending=true;if(displayName)t.players[0].name=displayName;await this.host.save(t);await this.ctx.storage.put('createdInteraction',i.id);return json({type:4,data:board(t),bindEpoch:t.epoch});
   }
   if(t?.game!=='uno'||t.phase==='closed')return json(privateReply('UNO 牌桌已关闭，请重新创建。'));
   const parts=(i.data?.custom_id||'').split(':');if(i.type!==3||parts.length!==4||parts[0]!=='u'||parts[1]!==t.epoch)return json(privateReply('旧牌桌按钮无效，请打开当前牌桌。'));
@@ -72,7 +72,7 @@ export class UnoController {
   const seen=await this.ctx.storage.get('recentInteractions')||[];if(seen.includes(i.id))return json(privateReply('本次操作已处理。'));
   let reveal=null;
   try{
-   if(action==='join'){game.join(t,id);if(displayName)t.players.find(p=>p.id===id).name=displayName;}else if(action==='leave')game.leave(t,id);else if(action==='start')game.start(t,id);
+   if(action==='join'){game.join(t,id);t.players.find(p=>p.id===id).entrancePending=true;if(displayName)t.players.find(p=>p.id===id).name=displayName;}else if(action==='leave')game.leave(t,id);else if(action==='start')game.start(t,id);
    else if(action.startsWith('rule~')&&manager){const [,key,value]=action.split('~');game.configure(t,id,key,key==='jumpIn'?(value==='true'?true:value==='false'?false:null):value);}
    else if(action.startsWith('jump~')&&panel){const [,key,value]=action.split('~');if(!/^\d{1,3}$/.test(value||''))throw Error('无效抢出牌。');game.jump(t,id,Number(value),key);}
    else if(forfeiture)game.surrender(t,id);
