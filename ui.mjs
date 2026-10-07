@@ -1,4 +1,5 @@
 import * as game from './engine.mjs';
+import { takeoverAt, idleWarning } from './lifecycle.mjs';
 
 export function button(t,action,label,style=2,disabled=false) {
   return {type:2,style,label,custom_id:`h:${t.epoch}:${t.version}:${action}`,disabled};
@@ -47,11 +48,14 @@ export function board(t) {
   const l=current?game.legal(t,t.turn):null;
   const humanTurn=current&&!current.bot;
   const phases={lobby:'等待入座',preflop:'翻牌前',flop:'翻牌',turn:'转牌',river:'河牌',settled:'本手结束',closed:'牌桌关闭'};
-  const players=t.players.map((p,i)=>`${t.turn===p.id?'▶ ':''}${game.playerLabel(t,p.id)}${i===t.dealer?' · 庄家':''}　**${p.stack}**${running?(p.inHand?(p.folded?' · 弃牌':p.stack===0?' · 全下':` · 已下 ${p.round}`):' · 旁观'):''}`).join('\n');
+  const players=t.players.map((p,i)=>`${t.turn===p.id?'▶ ':''}${game.playerLabel(t,p.id)}${p.id===t.owner?' · 桌主':''}${i===t.dealer?' · 庄家':''}　**${p.stack}**${running?(p.inHand?(p.folded?' · 弃牌':p.stack===0?' · 全下':` · 已下 ${p.round}`):' · 旁观'):''}`).join('\n');
   const turn=current?`\n\n**轮到 ${game.playerLabel(t,t.turn)}**${current.bot?' · 电脑思考中…':`\n${l.call?`跟注需 ${Math.min(l.call,current.stack)}${l.call>=current.stack?'（全下跟注）':''}`:'可以免费过牌'} · <t:${Math.floor(t.deadline/1000)}:R> 超时`}`:'';
   const hint=t.phase==='lobby'?'\n\n加入后由桌主开始；一人测试可添加电脑。':t.phase==='settled'?'\n\n桌主可开始下一手；筹码归零可免费补充。':'';
   const description=`${phases[t.phase]} · 第 ${t.handNo} 手 · ${t.players.length}/9 座 · 盲注 10/20\n\n**公共牌**\n${t.board.length?game.cardsText(t.board):'🂠  🂠  🂠  🂠  🂠'}\n\n**${running?'底池':'本手底池'} ${t.pot}**${running?` · 本轮下注 ${t.currentBet}`:''}\n\n${players}${turn}${hint}`;
   const fields=[];
+  const warning=idleWarning(t),takeover=takeoverAt(t);
+  if(warning)fields.push({name:'即将自动关桌',value:`<t:${Math.floor(warning.deadline/1000)}:R> ${warning.conditional?'若仍无人有效操作、且可行动真人均已超时，将取消本手并退回下注。':'若仍无人有效操作，将自动关闭。'}刷新或查看手牌不会延长时间。`});
+  if(t.phase==='closed'&&t.closeReason)fields.push({name:'关闭原因',value:t.closeReason});
   if(t.phase==='settled'&&t.result?.length)fields.push({name:'🏆 本手结算',value:t.result.join('\n').slice(0,1024)});
   if(t.phase==='settled'&&t.showdown?.length)fields.push({name:'摊牌',value:t.showdown.map(p=>`${game.playerLabel(t,p.id)}：${game.cardsText(p.cards)} · ${p.rank}`).join('\n').slice(0,1024)});
   if(t.log.length)fields.push({name:'最近操作',value:t.log.slice(-3).join('\n').slice(-1000)});
@@ -65,7 +69,7 @@ export function board(t) {
     const funded=t.players.filter(p=>p.stack>0||p.bot).length;
     components.push(row(button(t,'join','加入牌桌',3,t.players.length>=9),button(t,'start',t.handNo?'开始下一手':'开始发牌',1,funded<2),button(t,'hand','手牌 / 操作')));
     components.push(row(button(t,'rebuy','补充筹码',2,!t.players.some(p=>!p.bot&&p.stack===0)),button(t,'leave','离桌'),button(t,'addbot','添加电脑',2,t.players.length>=9),button(t,'removebots','移除电脑',2,!t.players.some(p=>p.bot))));
-    components.push(row(button(t,'refresh','刷新牌桌'),button(t,'help','玩法'),button(t,'close','关桌')));
+    components.push(row(button(t,'refresh','刷新牌桌'),button(t,'help','玩法'),button(t,'close','关桌'),...(takeover!==null&&takeover<=Date.now()?[button(t,'takeover','接管桌主',1)]:[])));
   }
-  return {content:'',embeds:[{title:'♠ Aliceneko · 德州扑克',description,color:humanTurn?0x4E9975:0xB26486,fields,footer:{text:'beta.6 · 虚拟筹码 · 发牌后自动送达手牌 · 未收到请点「手牌 / 操作」'}}],components,allowed_mentions:{parse:[]}};
+  return {content:'',embeds:[{title:'♠ Aliceneko · 德州扑克',description,color:humanTurn?0x4E9975:0xB26486,fields,footer:{text:'beta.7 · 虚拟筹码 · 手牌自动送达 · 空闲关桌：等待 5 分钟 / 结算后 10 分钟'}}],components,allowed_mentions:{parse:[]}};
 }

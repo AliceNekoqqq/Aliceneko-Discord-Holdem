@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-const source=(await readFile(new URL('./worker.mjs',import.meta.url),'utf8')).replace("import { DurableObject } from 'cloudflare:workers';","class DurableObject {constructor(ctx,env){this.ctx=ctx;this.env=env;}}").replace("'./engine.mjs'",JSON.stringify(new URL('./engine.mjs',import.meta.url).href)).replace("'./computer.mjs'",JSON.stringify(new URL('./computer.mjs',import.meta.url).href)).replace("'./ui.mjs'",JSON.stringify(new URL('./ui.mjs',import.meta.url).href)).replace("'./private-panels.mjs'",JSON.stringify(new URL('./private-panels.mjs',import.meta.url).href));
+const source=(await readFile(new URL('./worker.mjs',import.meta.url),'utf8')).replace("import { DurableObject } from 'cloudflare:workers';","class DurableObject {constructor(ctx,env){this.ctx=ctx;this.env=env;}}").replace("'./engine.mjs'",JSON.stringify(new URL('./engine.mjs',import.meta.url).href)).replace("'./computer.mjs'",JSON.stringify(new URL('./computer.mjs',import.meta.url).href)).replace("'./ui.mjs'",JSON.stringify(new URL('./ui.mjs',import.meta.url).href)).replace("'./private-panels.mjs'",JSON.stringify(new URL('./private-panels.mjs',import.meta.url).href)).replace("'./lifecycle.mjs'",JSON.stringify(new URL('./lifecycle.mjs',import.meta.url).href));
 const {default:worker,PokerTable}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const pokerState=t=>{const copy=structuredClone(t);delete copy.ownerSeenAt;delete copy.takeoverNoticeFor;return copy;};
 function context(){const map=new Map();const storage={sql:{exec:()=>({one:()=>({ok:1})})},get:async k=>structuredClone(map.get(k)),delete:async k=>map.delete(k),put:async(k,v)=>map.set(k,structuredClone(v)),setAlarm:async v=>map.set('alarm',v),deleteAlarm:async()=>map.delete('alarm')};storage.transaction=async fn=>fn(storage);const tasks=[];return {storage,map,tasks,blockConcurrencyWhile:fn=>fn(),waitUntil:p=>tasks.push(p)};}
 test('signed Discord flow, private cards, stale click, duplicate, modal, timeout and safe routes',async()=>{
  const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);const env={BOT_TOKEN:'test-secret-not-real',DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex')};
@@ -62,7 +63,7 @@ test('solo practice flow schedules computer alarms, protects hands, refills and 
     assert.equal(ctx.map.get('table').version,version+1);
    } else {reply=await click('call');assert.equal(reply.type,7);}
   }
-  state=ctx.map.get('table');assert.equal(state.phase,'settled');assert.equal(state.players.reduce((s,p)=>s+p.stack,0),6000);assert(!ctx.map.has('alarm'));assert(updates.length>0);
+  state=ctx.map.get('table');assert.equal(state.phase,'settled');assert.equal(state.players.reduce((s,p)=>s+p.stack,0),6000);assert(ctx.map.get('alarm')>Date.now());assert(updates.length>0);
   // Recreate a minimal one-computer lobby to test human timeout -> computer alarm.
   reply=await click('close');assert.equal(reply.type,4);const newer=ctx.map.get('table');newer.version++;await ctx.storage.put('table',newer);reply=await interaction({type:3,message:{id:'888'},data:{custom_id:reply.data.components[0].components[0].custom_id}});assert.equal(reply.type,7);
   reply=await interaction({type:2,data:{name:'德州',options:[{name:'测试',options:[{name:'电脑数量',value:1}]}]}});
@@ -83,19 +84,19 @@ test('all-in confirmation is private, actor-bound, version-checked and single-us
  const action=(a,id='1')=>call(3,{custom_id:`h:${ctx.map.get('table').epoch}:${ctx.map.get('table').version}:${a}`},id);
  await call(2,{name:'德州',options:[{name:'创建'}]});await action('join','4');await action('start');
  const before=structuredClone(ctx.map.get('table'));
- const prompt=await action('allin');assert.equal(prompt.type,4);assert.equal(prompt.data.flags,64);assert.deepEqual(ctx.map.get('table'),before);
+ const prompt=await action('allin');assert.equal(prompt.type,4);assert.equal(prompt.data.flags,64);assert.deepEqual(pokerState(ctx.map.get('table')),pokerState(before));
  const key=prompt.data.components[0].components[0].custom_id;
- const denied=await call(3,{custom_id:key},'4','888');assert.equal(denied.data.flags,64);assert.deepEqual(ctx.map.get('table'),before);
+ const denied=await call(3,{custom_id:key},'4','888');assert.equal(denied.data.flags,64);assert.deepEqual(pokerState(ctx.map.get('table')),pokerState(before));
  await action('call');const stale=await call(3,{custom_id:key},'1','888');assert(stale.data.content.includes('未执行'));assert.equal(ctx.map.get('table').players[0].stack,1980);
  // Opening a confirmation does not commit chips; only the affirmative control exists.
  const state=structuredClone(ctx.map.get('table'));const next=await action('allin','4');
- assert.equal(next.data.components[0].components.length,1);assert.deepEqual(ctx.map.get('table'),state);
+ assert.equal(next.data.components[0].components.length,1);assert.deepEqual(pokerState(ctx.map.get('table')),pokerState(state));
  const yes=next.data.components[0].components[0].custom_id;
  const savedFetch=globalThis.fetch;globalThis.fetch=async()=>Response.json({});
  try {
   const accepted=await call(3,{custom_id:yes},'4','888');assert(accepted.data.content.includes('已全下'));
   assert.equal(ctx.map.get('table').players[1].stack,0);
-  const after=structuredClone(ctx.map.get('table'));await call(3,{custom_id:yes},'4','888');assert.deepEqual(ctx.map.get('table'),after);
+  const after=structuredClone(ctx.map.get('table'));await call(3,{custom_id:yes},'4','888');assert.deepEqual(pokerState(ctx.map.get('table')),pokerState(after));
   await Promise.all(ctx.tasks);
  } finally {globalThis.fetch=savedFetch;}
 });
@@ -119,9 +120,9 @@ test('private hand panel supports betting and modal, refreshes in place, and can
  const raised=await call(5,{custom_id:modal.data.custom_id,components:[{components:[{custom_id:'amount',value:'40'}]}]},'1',{id:'888',flags:64});
  assert.equal(raised.type,7);assert.equal(raised.data.embeds[0].title,handTitle);assert.equal(ctx.map.get('table').currentBet,40);assert.equal(ctx.map.get('table').messageId,'999');
  const before=structuredClone(ctx.map.get('table'));
- const stale=await call(3,{custom_id:staleKey},'1',{id:'888',flags:64});assert(stale.data.content.includes('未执行'));assert.deepEqual(ctx.map.get('table'),before);
+ const stale=await call(3,{custom_id:staleKey},'1',{id:'888',flags:64});assert(stale.data.content.includes('未执行'));assert.deepEqual(pokerState(ctx.map.get('table')),pokerState(before));
  await call(3,{custom_id:key('call')},'4');await call(3,{custom_id:key('check')},'4');
- const state=structuredClone(ctx.map.get('table'));const prompt=await privateClick('allin');assert.equal(prompt.type,4);assert.equal(prompt.data.flags,64);assert(prompt.data.content.includes('确认投入'));assert.equal(prompt.data.components[0].components.length,1);assert.deepEqual(ctx.map.get('table'),state);
+ const state=structuredClone(ctx.map.get('table'));const prompt=await privateClick('allin');assert.equal(prompt.type,4);assert.equal(prompt.data.flags,64);assert(prompt.data.content.includes('确认投入'));assert.equal(prompt.data.components[0].components.length,1);assert.deepEqual(pokerState(ctx.map.get('table')),pokerState(state));
  // The original panel remains usable because the confirmation is a separate reply.
  const unchanged=await privateClick('hand');assert.equal(unchanged.data.embeds[0].title,handTitle);assert.equal(ctx.map.get('table').players[0].stack,1960);
  const allin=await call(3,{custom_id:prompt.data.components[0].components[0].custom_id},'1',{id:'777',flags:64});assert.equal(allin.type,7);assert.equal(ctx.map.get('table').players[0].stack,0);
@@ -156,4 +157,41 @@ test('table alarms deliver consecutive hands and update private cards after comp
  let state=ctx.map.get('table');if(state.players[0].stack===0)await click('rebuy');
  await click('start');await flush();posts=sent.filter(r=>r.method==='POST');assert.equal(posts.length,3);assert(posts.at(-1).body.content.includes('第 2 手'));
  const atRest=JSON.stringify([...ctx.map]);assert(!atRest.includes('continuation-'));assert(!atRest.includes('fake-key'));
+});
+
+test('lobby warnings, read-only activity, expiry and channel recreation work without real waits',async(t)=>{
+ const actualNow=Date.now;let now=1800000000000;Date.now=()=>now;t.after(()=>{Date.now=actualNow;});
+ const oldFetch=globalThis.fetch,updates=[];globalThis.fetch=async(url,opts)=>{updates.push({url,body:JSON.parse(opts.body)});return Response.json({id:'999'});};t.after(()=>{globalThis.fetch=oldFetch;});
+ const ctx=context(),table=new PokerTable(ctx,{BOT_TOKEN:'test',DISCORD_APPLICATION_ID:'123'});let serial=0;
+ const call=async(type,data,id='1',message={id:'999'})=>(await table.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:{id:String(++serial),type,data,guild_id:'3',channel_id:'2',member:{user:{id},permissions:'0'},message}})}))).json();
+ const key=a=>`h:${ctx.map.get('table').epoch}:${ctx.map.get('table').version}:${a}`;
+ await call(2,{name:'德州',options:[{name:'创建'}]});await call(3,{custom_id:key('join')},'4');
+ assert.equal(ctx.map.get('alarm'),now+120000);
+ now+=120000;await table.alarm();assert(updates.at(-1).body.components.flatMap(r=>r.components).some(b=>b.label==='接管桌主'));
+ now+=120000;await table.alarm();assert(updates.at(-1).body.embeds[0].fields.some(f=>f.name==='即将自动关桌'));
+ const lastActive=ctx.map.get('table').lastActive;await call(3,{custom_id:key('hand')});assert.equal(ctx.map.get('table').lastActive,lastActive);
+ const expiredKey=key('join');now+=60000;const late=await call(3,{custom_id:expiredKey},'8');assert(late.data.content.includes('已关闭'));assert.equal(ctx.map.get('table').phase,'closed');assert.equal(ctx.map.get('table').players.length,2);assert(!ctx.map.has('alarm'));await Promise.all(ctx.tasks);
+ assert.equal(updates.at(-1).body.components.length,0);assert(updates.at(-1).body.embeds[0].fields.some(f=>f.name==='关闭原因'));
+ const oldEpoch=ctx.map.get('table').epoch;const recreated=await call(2,{name:'德州',options:[{name:'创建'}]});assert.equal(recreated.type,4);assert.notEqual(ctx.map.get('table').epoch,oldEpoch);
+ const stale=await call(3,{custom_id:expiredKey},'4');assert(stale.data.content.includes('旧牌桌'));assert.equal(ctx.map.get('table').players.length,1);
+});
+
+test('takeover is revalidated, idle clocks reset on real operations and active expiry refunds chips',async(t)=>{
+ const actualNow=Date.now;let now=1800000000000;Date.now=()=>now;t.after(()=>{Date.now=actualNow;});
+ const oldFetch=globalThis.fetch;globalThis.fetch=async()=>Response.json({id:'999'});t.after(()=>{globalThis.fetch=oldFetch;});
+ const ctx=context(),table=new PokerTable(ctx,{BOT_TOKEN:'test'});let serial=0;
+ const call=async(type,data,id='1')=>(await table.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:{id:String(++serial),type,data,guild_id:'3',channel_id:'2',member:{user:{id},permissions:'0'},message:{id:'999'}}})}))).json();
+ const key=a=>`h:${ctx.map.get('table').epoch}:${ctx.map.get('table').version}:${a}`;
+ const click=(a,id='1')=>call(3,{custom_id:key(a)},id);
+ await call(2,{name:'德州',options:[{name:'创建'}]});await click('join','4');
+ now+=120000;let reply=await click('takeover','8');assert(reply.data.content.includes('已入座'));assert.equal(ctx.map.get('table').owner,'1');
+ await click('refresh','1');reply=await click('takeover','4');assert(reply.data.content.includes('2 分钟'));assert.equal(ctx.map.get('table').owner,'1');
+ now+=120000;reply=await click('takeover','4');assert.equal(reply.type,7);assert.equal(ctx.map.get('table').owner,'4');assert.equal(ctx.map.get('table').lastActive,now);
+ await click('start','4');assert.equal(ctx.map.get('table').phase,'preflop');reply=await click('takeover','1');assert(reply.data.content.includes('等待发牌'));
+ await click('call',ctx.map.get('table').turn);await click('check',ctx.map.get('table').turn);let state=ctx.map.get('table');assert.equal(state.phase,'flop');
+ const baseline=state.lastActive;now+=600000;state.players.forEach(p=>p.timedOutAt=baseline+60000);await ctx.storage.put('table',state);await table.alarm();await Promise.all(ctx.tasks);
+ state=ctx.map.get('table');assert.equal(state.phase,'closed');assert.deepEqual(state.players.map(p=>p.stack),[2000,2000]);assert(state.closeReason.includes('退回'));assert(!ctx.map.has('alarm'));
+ // Settlement gets a full ten-minute lease even after a long automatic runout.
+ await call(2,{name:'德州',options:[{name:'创建'}]});await click('join','4');await click('start');await click('fold',ctx.map.get('table').turn);
+ state=ctx.map.get('table');assert.equal(state.phase,'settled');const settledAt=state.settledAt;now=settledAt+599999;await table.alarm();assert.equal(ctx.map.get('table').phase,'settled');now++;await table.alarm();assert.equal(ctx.map.get('table').phase,'closed');
 });
