@@ -1,3 +1,5 @@
+import {avatarKey,normalizedProfile,ACCENTS} from './uno-profile.mjs';
+import {emojiBitmap,paintEmoji} from './emoji-art.mjs';
 import {wearsCrown} from './uno-rankings.mjs';
 import { Canvas, encodePNG } from './card-image.mjs';
 import { glyphs } from './card-glyphs.mjs';
@@ -59,7 +61,7 @@ export function publicTableSnapshot(t,now=Date.now()){
   social:activeEmote(t,now),
   focus:active&&['draw2','draw4'].includes(t.pending?.kind)?{kind:'penalty',actor:t.pending.offender,target:t.pending.victim,value:game.penaltyCount(t)}:t.lastPlay?.jump?{kind:'jump',actor:t.lastPlay.actor,target:t.lastPlay.from===t.lastPlay.actor?null:t.lastPlay.from,value:0}:null,
   seats:t.players.map((p,i)=>({id:p.id,seat:i+1,name:p.name||`玩家 ${i+1}`,count:p.cards.length,
-   surrendered:!!p.surrendered,crown:wearsCrown(t,p.id),team:t.mode==='teams'?i%2:null,owner:p.id===t.owner,bot:!!p.bot,
+   avatar:avatarKey(p),accent:normalizedProfile(p).accent,surrendered:!!p.surrendered,crown:wearsCrown(t,p.id,now),team:t.mode==='teams'?i%2:null,owner:p.id===t.owner,bot:!!p.bot,
    winner:!p.surrendered&&t.phase==='settled'&&(t.mode==='teams'?i%2===t.winningTeam:p.id===t.winner)}))};
 }
 export function seatLayout(count){
@@ -82,6 +84,7 @@ function fitText(c,text,x,y,size,maxWidth,color,center=false){
  c.text(text,x,y,Math.min(size,size*maxWidth/Math.max(1,width)),color,center);
 }
 export async function renderTableImage(model){
+ const art=new Map(await Promise.all([...new Set([...model.seats.map(s=>s.avatar||'butterfly'),...(model.seats.some(s=>s.crown)?['crown']:[])])].map(async key=>[key,await emojiBitmap(key)]))); 
  const c=new Canvas(960,820),positions=seatLayout(model.seats.length),active=model.phase==='active';
  c.rect(18,18,924,62,[37,34,53],15);c.text('UNO',38,34,29,pink);
  c.text(`第 ${model.hand} 局`,136,35,24,white);if(model.social){const e=EMOTES[model.social.key],a=model.seats.find(s=>s.id===model.social.actor),b=model.seats.find(s=>s.id===model.social.target);if(a&&b)fitText(c,`${a.seat}号对${b.seat}号 ${e.short}`,462,37,21,226,[140,222,237]);}c.text(model.mode==='teams'?'2v2 组队':'公共牌桌',704,35,24,muted);
@@ -102,16 +105,20 @@ export async function renderTableImage(model){
    stroke=s.winner?gold:current?(model.jumping?gold:mint):s.team!==null?palette[s.team===0?'red':'blue']:[72,92,111];
   const reacting=model.social&&(model.social.actor===s.id||model.social.target===s.id);if(reacting)c.rect(x-9,y-9,192,120,[140,222,237],20);
   c.rect(x-5,y-5,184,112,stroke,17);c.rect(x,y,174,102,current?[30,64,59]:[29,39,54],13);
-  const title=s.surrendered?'已认输':s.crown?'UNO 大王':s.winner?'胜者':current?(model.jumping?'下一位':model.penalty?'处理罚牌':'行动中'):s.owner?'桌主':s.bot?'电脑':s.team===0?'红队':s.team===1?'蓝队':'玩家';
+  const title=s.surrendered?'已认输':s.winner?'胜者':current?(model.jumping?'下一位':model.penalty?'处理罚牌':'行动中'):s.crown?'UNO 大王':s.owner?'桌主':s.bot?'电脑':s.team===0?'红队':s.team===1?'蓝队':'玩家';
   c.text(String(s.seat),x+12,y+10,22,stroke);c.text(title,x+48,y+12,18,current||s.winner?stroke:muted);
-  fitText(c,imageName(s),cx,y+39,22,150,white,true);
-  c.text(model.phase==='lobby'?'等待':`${s.count} 张${s.count===1?' UNO':''}`,cx,y+73,19,s.count===1?gold:muted,true);
+  const accent=ACCENTS[s.accent]||ACCENTS.rose;
+  c.rect(x+54,y+37,111,30,s.crown?[82,62,29]:accent.background,7);
+  fitText(c,imageName(s),x+109,y+42,21,102,s.crown?gold:accent.color,true);
+  paintEmoji(c,art.get(s.avatar||'butterfly'),x+6,y+46,44);
+  if(s.crown){paintEmoji(c,art.get('crown'),x+10,y+28,36);sparkle(c,x+5,y+63,gold);sparkle(c,x+47,y+84,gold);}
+  c.text(model.phase==='lobby'?'等待':`${s.count} 张${s.count===1?' UNO':''}`,x+109,y+76,18,s.count===1?gold:muted,true);
   if(reacting){paintReaction(c,cx+62,y+20,EMOTES[model.social.key].tone,model.social.target===s.id);}
   if(model.focus?.actor===s.id||model.focus?.target===s.id){const receiving=model.focus.target===s.id;c.rect(x+10,y-27,154,23,receiving?[96,64,42]:[79,43,67],7);fitText(c,model.focus.kind==='penalty'?receiving?`接力累计 +${model.focus.value}`:'反手加码':receiving?'回合被抢走':'抢出成功',cx,y-24,17,145,receiving?gold:pink,true);}
   if(s.team!==null)c.rect(x+153,y+12,9,17,palette[s.team===0?'red':'blue'],3);
   if(model.last?.actor===s.id)c.rect(x+15,y+101,144,5,model.last.jump?gold:pink,2);
  }
- c.text('绿框行动 / 金框下一位或胜者 / 粉条刚出牌',480,764,19,muted,true);
+ c.text('绿框行动 / 金框下一位或胜者 / 金名牌大王',480,764,19,muted,true);
  c.text('座位固定 / 玩家姓名见座次 / 箭头为出牌方向',480,790,17,muted,true);
  return encodePNG(c);
 }
@@ -119,7 +126,7 @@ export async function boardImageMessage(t,data,existing){
  if(t.phase==='closed'||!t.players?.length)return {body:{...data,attachments:[]},signature:null};
  const model=publicTableSnapshot(t),signature=JSON.stringify(model),filename='uno-table.png',body=withImage(data,filename);
  if(existing?.signature===signature&&existing.id){body.attachments=[{id:existing.id,filename}];return {body,signature};}
- const seats=model.seats.map(s=>`${s.seat}号 ${s.name}，${s.count}张${s.surrendered?'，已认输':''}${s.crown?'，UNO 大王':''}${model.turn===s.id?model.jumping?'，抢出后下一位':'，当前行动者':''}${s.team!==null?`，${s.team===0?'红':'蓝'}队`:''}`).join('；');
+ const seats=model.seats.map(s=>`${s.seat}号 ${s.name}，形象 ${s.avatar}，${s.count}张${s.surrendered?'，已认输':''}${s.crown?'，UNO 大王':''}${model.turn===s.id?model.jumping?'，抢出后下一位':'，当前行动者':''}${s.team!==null?`，${s.team===0?'红':'蓝'}队`:''}`).join('；');
  const reaction=model.social?`互动：${model.seats.find(s=>s.id===model.social.actor)?.name}对${model.seats.find(s=>s.id===model.social.target)?.name}说${EMOTES[model.social.key].emoji}${EMOTES[model.social.key].text}。`:'';
  const alt=`${reaction}UNO 座次：${seats}。${model.direction===1?'顺':'逆'}时针；${model.jumping?'全桌抢出窗口；':''}${model.card!==null?`公共牌 ${game.cardName(model.card)}，当前${game.COLOR_NAMES[model.color]||'待选'}色。`:''}`;
  try{return {body:upload(body,await renderTableImage(model),filename,alt.slice(0,1024)),signature};}
@@ -136,3 +143,5 @@ function paintReaction(c,x,y,tone,receiving){
  if(tone==='thanks'){c.rect(x-11,y+1,4,3,pink);c.rect(x+9,y+1,4,3,pink);}
  if(tone==='clap'){c.rect(x-19,y-9,2,7,white);c.rect(x+19,y-9,2,7,white);}
 }
+
+function sparkle(c,x,y,color){line(c,x-3,y,x+3,y,color,1);line(c,x,y-4,x,y+4,color,1);}

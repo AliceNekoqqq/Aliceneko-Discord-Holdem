@@ -42,7 +42,7 @@ export class UnoController {
   if(action==='social'||social){
    if(!seated)return json(privateReply('🪑 先加入牌桌，才能和大家互动哦。'));
    if(!social&&t.messageId&&i.message?.id!==t.messageId)return json(privateReply('请从当前公共牌桌打开互动。'));
-   if(action==='social')return json({type:4,data:{...socialMenu(t,id),flags:64}});
+   if(action==='social'){if(!t.players.some(p=>p.id!==id))return json(privateReply('🪑 牌桌现在只有你一位，等待其他玩家入座后就能互动啦！也可以在牌桌管理添加电脑陪练。'));return json({type:4,data:{...socialMenu(t,id),flags:64}});}
    const [kind,hand,target,key]=action.split('~');
    if(!/^\d+$/.test(hand||'')||Number(hand)!==t.handNo)return json(privateReply('🔄 已经换局啦，请重新打开互动菜单。'));
    if(kind==='target'){const selected=i.data.values?.[0];if(selected===id||!t.players.some(p=>p.id===selected))return json(privateReply('🎯 对方已离桌，请重新选择玩家。'));return json({type:7,data:socialMenu(t,id,selected)});}

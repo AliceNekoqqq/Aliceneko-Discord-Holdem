@@ -47,6 +47,8 @@ export class PrivatePanels {
     await this.write(records);
   }
   async remember(t,i,reply){
+    const action=i.data?.custom_id?.split(':')[3]||'';
+    if(t.game==='uno'&&(action==='social'||action.startsWith('s~')))return false;
     const id=i.member?.user?.id;
     if(!i.token||!this.env.BOT_TOKEN||!id||!t.players.some(p=>p.id===id&&!p.bot)||t.phase==='closed')return false;
     const records=await this.read();let s=records[id];

@@ -1,10 +1,11 @@
+import {UnoProfiles} from './uno-profile.mjs';
 // Guild-wide, durable and idempotent UNO standings. No private card data enters this store.
 const clean=s=>String(s||'玩家').replace(/[\x00-\x1f\\`*_~>|\[\]]/g,'').slice(0,24);
 const order='wins DESC, CAST(wins AS REAL)/played DESC, last_win ASC, id ASC';
-export const wearsCrown=(t,id)=>t.crown?.id===id&&t.crown?.choice==='title'&&t.crown.validUntil>Date.now();
+export const wearsCrown=(t,id,now=Date.now())=>t.crown?.id===id&&t.crown?.choice==='title'&&t.crown.validUntil>now;
 export function rankedRound(result){return !!result&&['round','match','teams'].includes(result.mode)&&Array.isArray(result.players)&&result.players.length>=2&&result.players.length<=10&&result.players.every(p=>!p.bot&&/^\d+$/.test(p.id))&&new Set(result.players.map(p=>p.id)).size===result.players.length&&result.players.some(p=>p.won&&!p.surrendered);}
 export class UnoRankings {
- constructor(storage,env){this.storage=storage;this.sql=storage.sql;this.env=env;
+ constructor(storage,env){this.storage=storage;this.sql=storage.sql;this.env=env;this.profiles=new UnoProfiles(this.sql);
   this.sql.exec('CREATE TABLE IF NOT EXISTS uno_results (id TEXT PRIMARY KEY, at INTEGER NOT NULL)');
   this.sql.exec("CREATE TABLE IF NOT EXISTS uno_stats (id TEXT PRIMARY KEY, name TEXT NOT NULL, wins INTEGER NOT NULL DEFAULT 0, played INTEGER NOT NULL DEFAULT 0, forfeits INTEGER NOT NULL DEFAULT 0, last_win INTEGER NOT NULL DEFAULT 0, choice TEXT NOT NULL DEFAULT 'none')");
  }
@@ -48,7 +49,7 @@ export class UnoRankings {
    state.error=null;state.blocked=false;state.retries=0;await this.storage.put('unoRole',state);await this.storage.deleteAlarm();
   }catch(e){state.error=e.message;state.blocked=!!e.permanent;state.retries=(state.retries||0)+1;await this.storage.put('unoRole',state);if(state.blocked)await this.storage.deleteAlarm();else await this.storage.setAlarm(Date.now()+Math.min(300000,5000*2**Math.min(state.retries,6)));}
  }
- async dispatch(payload){const {guild,action,id}=payload;if(!/^\d+$/.test(guild||''))throw Error('无效服务器。');await this.storage.put('rankGuild',guild);if(action==='record')return this.record(guild,payload.result);if(action==='crown')return {crown:this.crown()};if(action==='equip')return this.equip(guild,id,payload.choice);return this.view(id);}
+ async dispatch(payload){const {guild,action,id}=payload;if(!/^\d+$/.test(guild||''))throw Error('无效服务器。');await this.storage.put('rankGuild',guild);if(action==='record')return this.record(guild,payload.result);if(action==='crown')return {crown:this.crown(),profiles:this.profiles.forPlayers(payload.ids||[])};if(action==='profile'){const profile=payload.key==='open'?this.profiles.get(id):this.profiles.set(id,payload.key,payload.value);return {profile};}if(action==='equip')return this.equip(guild,id,payload.choice);return this.view(id);}
 }
 const mentions={parse:[]};
 const choiceText=choice=>({none:'暂不佩戴',title:'👑 游戏称号',role:'👑 Discord 身份组'})[choice]||'暂不佩戴';
