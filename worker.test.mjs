@@ -133,13 +133,14 @@ test('private hand panel supports betting and modal, refreshes in place, and can
 test('table alarms deliver consecutive hands and update private cards after computer actions',async(t)=>{
  const ctx=context(),table=new PokerTable(ctx,{BOT_TOKEN:'fake-key',DISCORD_APPLICATION_ID:'123'}),sent=[];
  const oldFetch=globalThis.fetch;let messageSerial=7000;
- globalThis.fetch=async(url,opts)=>{sent.push({url,method:opts.method,body:JSON.parse(opts.body||'{}')});return Response.json({id:opts.method==='POST'?String(++messageSerial):url.split('/').at(-1)});};t.after(()=>{globalThis.fetch=oldFetch;});
+ globalThis.fetch=async(url,opts)=>{const multipart=opts.body instanceof FormData;const body=JSON.parse(multipart?opts.body.get('payload_json'):opts.body||'{}');sent.push({url,method:opts.method,body,file:multipart?opts.body.get('files[0]'):null});return Response.json({id:opts.method==='POST'?String(++messageSerial):url.split('/').at(-1),attachments:body.attachments?.map(a=>({...a,id:a.id===0?String(++messageSerial):a.id}))||[]});};t.after(()=>{globalThis.fetch=oldFetch;});
  let serial=0;
  const interaction=async(type,data)=>(await table.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:{type,data,id:String(++serial),token:`continuation-${serial}`,guild_id:'3',channel_id:'2',member:{user:{id:'1'},permissions:'0'},message:{id:'999'}}})}))).json();
  const click=a=>interaction(3,{custom_id:`h:${ctx.map.get('table').epoch}:${ctx.map.get('table').version}:${a}`});
  const flush=async()=>{if(ctx.map.has('privateSyncAt')){await ctx.storage.put('privateSyncAt',Date.now()-1);await table.alarm();}};
  await interaction(2,{name:'德州',options:[{name:'测试'}]});await flush();assert.equal(sent.filter(r=>r.method==='POST').length,1);
  await click('start');await flush();let posts=sent.filter(r=>r.method==='POST');assert.equal(posts.length,2);assert.equal(posts[1].body.flags,64);assert(posts[1].body.content.includes('第 1 手'));
+ assert(posts[1].file);assert.equal(posts[1].body.attachments.length,1);assert(sent.filter(r=>r.file).every(r=>r.url.includes('/webhooks/')));
  assert(sent.some(r=>r.method==='PATCH'&&r.body.content?.includes('这张手牌卡已结束')));
  let moves=0;
  while(ctx.map.get('table').turn){

@@ -82,7 +82,7 @@ export class PokerTable extends DurableObject {
       if(isPanel&&action==='yesallin')action=`yesallin~${id}`;
       const panelReply=(notice='')=>({type:privateMessage?7:4,data:{...handPanel(t,id,notice),...(privateMessage?{}:{flags:64})}});
       if(isPanel&&!t.players.some(p=>p.id===id&&!p.bot))return json(privateReply('你已离开这张牌桌。'));
-      if(isPanel&&action==='hide')return json({type:7,data:{content:'底牌已收起。',embeds:[],components:[row(button(t,panelAction(id,'hand'),'展开手牌',1))]}});
+      if(isPanel&&action==='hide')return json({type:7,data:{content:'底牌已收起。',embeds:[],attachments:[],components:[row(button(t,panelAction(id,'hand'),'展开手牌',1))]}});
 
       const confirmAction=action.match(/^(yesallin|yesclose)~(\d+)$/);
       if(action==='cancel')return json(isPanel?panelReply('已取消，尚未全下。'):{type:7,data:{content:'已取消。',embeds:[],components:[]}});

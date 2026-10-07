@@ -1,7 +1,7 @@
 {
   "name": "aliceneko-discord-holdem",
-  "version": "1.0.1-beta.4",
+  "version": "1.0.1-beta.5",
   "private": true,
   "type": "module",
-  "scripts": {"test": "node --test engine.test.mjs computer.test.mjs ui.test.mjs private-panels.test.mjs worker.test.mjs"}
+  "scripts": {"test": "node --test engine.test.mjs computer.test.mjs ui.test.mjs private-panels.test.mjs worker.test.mjs card-image.test.mjs"}
 }
