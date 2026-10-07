@@ -1,7 +1,7 @@
 import { glyphs } from './card-glyphs.mjs';
 import { cardsText } from './engine.mjs';
 
-const WIDTH=760,HEIGHT=580;
+const WIDTH=760,HEIGHT=520;
 const C={background:[23,29,43],private:[45,34,51],shared:[27,43,54],white:[255,252,245],ink:[32,39,53],red:[184,48,76],muted:[156,174,192],pink:[240,181,207],blue:[167,215,235],back:[45,62,78],border:[84,109,128]};
 const decoded=new Map();
 function glyph(char){if(!decoded.has(char)){const [w,h,advance,b64]=glyphs[char];decoded.set(char,{w,h,advance,data:Uint8Array.from(atob(b64),c=>c.charCodeAt(0))});}return decoded.get(char);}
@@ -26,12 +26,12 @@ function chunk(name,bytes){const result=new Uint8Array(bytes.length+12),view=new
 export async function renderCardImage(hole,community=[]){
   if(!Array.isArray(hole)||hole.length!==2||!Array.isArray(community)||community.length>5||[...hole,...community].some(c=>!Number.isInteger(c)||c<0||c>=52)||new Set([...hole,...community]).size!==hole.length+community.length)throw Error('Invalid cards');
   const canvas=new Canvas();
-  canvas.rect(16,16,728,256,C.private,14);canvas.text('YOUR HAND',38,33,26,C.pink);canvas.text('PRIVATE',618,38,16,C.pink);
-  canvas.card(hole[0],225,72,136,184);canvas.card(hole[1],399,72,136,184);
-  canvas.text('1',205,74,20,C.pink);canvas.text('2',552,74,20,C.pink);
-  canvas.rect(16,284,728,280,C.shared,14);canvas.text('COMMUNITY',38,302,26,C.blue);canvas.text('SHARED',621,307,16,C.blue);
-  const positions=[61,191,321,451,581];for(let i=0;i<5;i++)canvas.card(community[i],positions[i],347,118,159);
-  canvas.text('FLOP',250,529,16,C.muted,true);canvas.text('TURN',510,529,16,C.muted,true);canvas.text('RIVER',640,529,16,C.muted,true);
+  canvas.rect(16,16,728,236,C.private,14);canvas.text('你的底牌',38,30,26,C.pink);canvas.text('仅你可见',638,34,18,C.pink);
+  canvas.card(hole[0],225,60,136,184);canvas.card(hole[1],399,60,136,184);
+  canvas.text('1',205,62,20,C.pink);canvas.text('2',552,62,20,C.pink);
+  canvas.rect(16,264,728,240,C.shared,14);canvas.text('桌面公共牌',38,282,26,C.blue);canvas.text('所有人共用',620,286,18,C.blue);
+  const positions=[64,194,324,454,584];for(let i=0;i<5;i++)canvas.card(community[i],positions[i],317,112,151);
+  canvas.text('翻牌',250,481,18,C.muted,true);canvas.text('转牌',510,481,18,C.muted,true);canvas.text('河牌',640,481,18,C.muted,true);
   return encodePNG(canvas);
 }
 export async function encodePNG(canvas){
@@ -47,9 +47,11 @@ export async function imageMessage(t,id,data,existing){
   const signature=imageSignature(t,id);if(!signature||!data.embeds?.length)return {body:{...data,attachments:[]},signature:null};
   const filename=`hand-${t.handNo}.png`,body=structuredClone(data);
   body.embeds[0].image={url:`attachment://${filename}`};
-  if(existing?.signature===signature&&existing.id){body.attachments=[{id:existing.id,filename}];return {body,signature};}
+  const compact=()=>{body.embeds[0].description=body.embeds[0].description.replace(/\n底牌：[^\n]*\n公共牌：[^\n]*/,'');};
+  if(existing?.signature===signature&&existing.id){compact();body.attachments=[{id:existing.id,filename}];return {body,signature};}
   const p=t.players.find(p=>p.id===id);let png;
   try{png=await renderCardImage(p.cards,t.board);}catch{delete body.embeds[0].image;body.attachments=[];return {body,signature:null};}
   body.attachments=[{id:0,filename,description:`上方仅你可见的底牌：${cardsText(p.cards)}；下方所有人共用的公共牌：${cardsText(t.board)||'尚未发出'}。`}];
+  compact();
   const form=new FormData();form.set('payload_json',JSON.stringify(body));form.set('files[0]',png,filename);return {body:form,signature};
 }

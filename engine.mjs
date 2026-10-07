@@ -8,45 +8,76 @@ export const cardsText = cards => cards.map(cardText).join(' ');
 export function newTable(owner, channel, guild, epoch = crypto.randomUUID()) {
   const now=Date.now();return {owner,channel,guild,epoch,version:0,players:[player(owner)],phase:'lobby',handNo:0,dealer:-1,board:[],pot:0,currentBet:0,minRaise:20,turn:null,deadline:null,messageId:null,log:['牌桌已创建'],result:[],lastActive:now,ownerSeenAt:now,settledAt:null};
 }
-function player(id) { return {id,stack:BUYIN,inHand:false,folded:false,round:0,total:0,cards:[],actedAt:null,pending:false}; }
+function player(id) { return {id,stack:BUYIN,inHand:false,folded:false,round:0,total:0,cards:[],actedAt:null,pending:false,timeoutStreak:0,away:false,ready:false,leaveAfterHand:false}; }
 export const playerLabel = (t,id) => t.players.find(p=>p.id===id)?.bot ? `🤖 电脑${id.split(':')[1]}` : `<@${id}>`;
 function note(t,text) { t.log.push(text); t.log=t.log.slice(-5); }
+export const participants=t=>t.players.filter(p=>!p.away&&!p.leaveAfterHand&&(p.stack>0||p.bot));
+export const canStart=t=>participants(t).length>=2&&participants(t).some(p=>!p.bot);
+export function resetReady(t){for(const p of t.players)p.ready=false;t.readyDue=null;}
+export function updateReady(t,now=Date.now()){
+  const eligible=participants(t),humans=eligible.filter(p=>!p.bot);
+  if(!['lobby','settled'].includes(t.phase)||eligible.length<2||!humans.length||humans.some(p=>!p.ready))t.readyDue=null;
+  else t.readyDue??=now+5000;
+}
+export function toggleReady(t,id,now=Date.now()){
+  if(!['lobby','settled'].includes(t.phase))fail('本手还没结束。');
+  const p=t.players.find(p=>p.id===id&&!p.bot);if(!p||p.away||p.stack<=0)fail('请先入座、恢复参与或补充筹码。');
+  p.ready=!p.ready;updateReady(t,now);note(t,`${playerLabel(t,id)} ${p.ready?'已准备':'取消准备'}`);
+}
+export function resume(t,id){
+  if(!['lobby','settled'].includes(t.phase))fail('本手结束后才能恢复参与。');
+  const p=t.players.find(p=>p.id===id&&!p.bot);if(!p?.away)fail('你目前没有暂离。');
+  p.away=false;p.awayAfterHand=false;p.timeoutStreak=0;resetReady(t);note(t,`${playerLabel(t,id)} 恢复参与`);
+}
+export function queueLeave(t,id){
+  const p=t.players.find(p=>p.id===id&&!p.bot);if(!p)fail('你没有加入牌桌。');
+  if(['lobby','settled'].includes(t.phase)){leave(t,id);return;}
+  if(t.phase==='closed')fail('牌桌已关闭。');
+  p.leaveAfterHand=!p.leaveAfterHand;note(t,`${playerLabel(t,id)} ${p.leaveAfterHand?'预约本手结束后离桌':'取消预约离桌'}`);
+}
+function removeSeats(t,ids,now=Date.now()){
+  const old=t.players,anchor=t.dealer;t.players=old.filter(p=>!ids.includes(p.id));
+  t.dealer=-1;
+  if(anchor>=0&&t.players.length)for(let n=0;n<old.length;n++){const p=old[(anchor-n+old.length)%old.length],index=t.players.indexOf(p);if(index>=0){t.dealer=index;break;}}
+  if(ids.includes(t.owner)){t.owner=t.players.find(p=>!p.bot)?.id||null;t.ownerSeenAt=now;t.takeoverNoticeFor=null;}
+  resetReady(t);
+}
 export function addComputers(t,id,count=1) {
   if(id!==t.owner) fail('只有桌主可以添加电脑玩家。');
   if(!['lobby','settled'].includes(t.phase)) fail('请等本手结束后再添加电脑。');
   if(!Number.isInteger(count)||count<1||count>8||t.players.length+count>9) fail('牌桌最多 9 个座位，请减少电脑数量。');
   for(let n=0;n<count;n++) {let seat=1;while(t.players.some(p=>p.id===`cpu:${seat}`))seat++;t.players.push({...player(`cpu:${seat}`),bot:true});}
+  resetReady(t);
   note(t,`添加 ${count} 位电脑陪练`);
 }
 export function removeComputers(t,id) {
   if(id!==t.owner) fail('只有桌主可以移除电脑玩家。');
   if(!['lobby','settled'].includes(t.phase)) fail('请等本手结束后再移除电脑。');
-  t.players=t.players.filter(p=>!p.bot);t.dealer=-1;note(t,'电脑玩家已离桌');
+  removeSeats(t,t.players.filter(p=>p.bot).map(p=>p.id));note(t,'电脑玩家已离桌');
 }
 export function join(t,id) {
   if(t.phase==='closed') fail('牌桌已关闭，请重新创建。');
   if(t.players.some(p=>p.id===id)) fail('你已经在牌桌上。');
   if(t.players.length>=9) fail('牌桌已满，最多 9 人。');
   if(!['lobby','settled'].includes(t.phase)) fail('请等本手结束后再加入。');
-  t.players.push(player(id));note(t,`<@${id}> 加入牌桌`);
+  t.players.push(player(id));resetReady(t);note(t,`<@${id}> 加入牌桌`);
 }
 export function leave(t,id) {
   if(!['lobby','settled'].includes(t.phase)) fail('请等本手结束后再离桌。');
   if(!t.players.some(p=>p.id===id)) fail('你没有加入牌桌。');
-  t.players=t.players.filter(p=>p.id!==id);t.dealer=-1;
-  if(t.owner===id) t.owner=t.players.find(p=>!p.bot)?.id||null;
+  removeSeats(t,[id]);
   if(!t.players.some(p=>!p.bot)) close(t,t.owner);note(t,`<@${id}> 离桌`);
 }
 export function rebuy(t,id) {
   if(!['lobby','settled'].includes(t.phase)) fail('本手结束后才能补充筹码。');
   const p=t.players.find(p=>p.id===id);if(!p) fail('请先加入牌桌。');
-  if(p.stack!==0) fail('筹码耗尽后才能免费补充。');p.stack=BUYIN;note(t,`${playerLabel(t,id)} 补充 ${BUYIN} 筹码`);
+  if(p.stack!==0) fail('筹码耗尽后才能免费补充。');p.stack=BUYIN;resetReady(t);note(t,`${playerLabel(t,id)} 补充 ${BUYIN} 筹码`);
 }
 export function close(t,id,admin=false) {
   if(id!==t.owner&&!admin) fail('只有桌主或管理员可以关闭牌桌。');
   // Return every uncompleted bet so closing cannot award a pot selectively.
   if(!['lobby','settled','closed'].includes(t.phase)) for(const p of t.players) {p.stack+=p.total;p.total=0;p.round=0;}
-  t.phase='closed';t.pot=0;t.turn=null;t.deadline=null;t.computerDue=null;t.deck=[];
+  t.phase='closed';t.pot=0;t.turn=null;t.deadline=null;t.computerDue=null;t.deck=[];resetReady(t);
   for(const p of t.players) p.cards=[];note(t,'牌桌已关闭；未完成手牌的下注已退回');
 }
 function nextSeat(t,from,predicate) {
@@ -60,13 +91,16 @@ export function shuffledDeck(random = () => {const a=new Uint32Array(1);crypto.g
 export function start(t,id,deck=shuffledDeck(),now=Date.now()) {
   if(id!==t.owner) fail('只有桌主可以开始下一手。');
   if(!['lobby','settled'].includes(t.phase)) fail('本手还没结束。');
-  if(t.players.filter(p=>p.stack>0).length<2) fail('至少需要 2 位有筹码的玩家。');
+  if(!canStart(t)) fail('至少需要 2 位参与玩家，其中至少一位有筹码的真人。');
   if(deck.length!==52||new Set(deck).size!==52||deck.some(c=>!Number.isInteger(c)||c<0||c>51)) fail('牌组不完整。');
-  t.deck=[...deck];t.board=[];t.pot=0;t.result=[];t.showdown=[];t.handNo++;t.phase='preflop';t.currentBet=20;t.minRaise=20;t.settledAt=null;
-  for(const p of t.players) Object.assign(p,{startStack:p.stack,inHand:p.stack>0,folded:false,round:0,total:0,cards:[],actedAt:null,pending:p.stack>0,timedOutAt:null});
+  for(const p of t.players)if(p.bot&&p.stack===0&&!p.away)p.stack=BUYIN;
+  resetReady(t);t.deck=[...deck];t.board=[];t.pot=0;t.result=[];t.pots=[];t.settlements=[];t.showdown=[];t.handNo++;t.phase='preflop';t.currentBet=20;t.minRaise=20;t.settledAt=null;
+  for(const p of t.players){const playing=p.stack>0&&!p.away&&!p.leaveAfterHand;Object.assign(p,{startStack:p.stack,inHand:playing,folded:false,round:0,total:0,cards:[],actedAt:null,pending:playing,timedOutAt:null,awayAfterHand:false});}
   t.dealer=nextSeat(t,t.dealer,p=>p.inHand);
+  t.dealerId=t.players[t.dealer].id;
   const sb=live(t).length===2?t.dealer:nextSeat(t,t.dealer,p=>p.inHand);
   const bb=nextSeat(t,sb,p=>p.inHand);
+  t.smallBlindId=t.players[sb].id;t.bigBlindId=t.players[bb].id;
   for(let round=0;round<2;round++) {let seat=t.dealer;for(let count=0;count<live(t).length;count++){seat=nextSeat(t,seat,p=>p.inHand);t.players[seat].cards.push(t.deck.pop());}}
   pay(t,t.players[sb],10);pay(t,t.players[bb],20);
   for(const p of t.players) if(p.stack===0) p.pending=false;
@@ -97,16 +131,16 @@ export function act(t,id,kind,target,now=Date.now(),automatic=false) {
       p.pending=false;p.actedAt=to;note(t,`${playerLabel(t,id)} ${kind==='allin'?'全下':'加注至'} ${to}`);
     }
   } else fail('未知操作。');
-  if(!p.bot&&!automatic){p.timedOutAt=null;t.lastActive=now;}
+  if(!p.bot&&!automatic){p.timedOutAt=null;p.timeoutStreak=0;p.awayAfterHand=false;t.lastActive=now;}
   advance(t,seat,now);
 }
 function advance(t,seat,now) {
-  if(live(t).length===1) {const p=live(t)[0];p.stack+=t.pot;t.result=[`${playerLabel(t,p.id)} 收下底池 ${t.pot}（其他玩家弃牌）`];finish(t,now);return;}
+  if(live(t).length===1) {awardPots(t,null);finish(t,now);return;}
   const active=movable(t);
   // Nobody can bet into a dry side pot. The last player still owes a call, if any.
   if(active.length===1&&active[0].round>=t.currentBet) active[0].pending=false;
   const next=nextSeat(t,seat,p=>p.inHand&&!p.folded&&p.stack>0&&p.pending);
-  if(next!==-1) {t.turn=t.players[next].id;t.deadline=now+TURN_MS;return;}
+  if(next!==-1) {t.turn=t.players[next].id;t.deadline=now+(t.players[next].awayAfterHand?0:TURN_MS);return;}
   if(t.phase==='river') {showdown(t,now);return;}
   t.deck.pop(); // burn before each street
   if(t.phase==='preflop') {t.board.push(t.deck.pop(),t.deck.pop(),t.deck.pop());t.phase='flop';}
@@ -131,19 +165,46 @@ export function rankFive(cards) {
   if(groups[0][1]===2)return [1,groups[0][0],...groups.slice(1).map(g=>g[0]).sort((a,b)=>b-a)];return [0,...ranks];
 }
 export function compare(a,b){for(let i=0;i<Math.max(a.length,b.length);i++){const diff=(a[i]||0)-(b[i]||0);if(diff)return diff;}return 0;}
-export function rankSeven(cards){let best=null;for(let a=0;a<cards.length-4;a++)for(let b=a+1;b<cards.length-3;b++)for(let c=b+1;c<cards.length-2;c++)for(let d=c+1;d<cards.length-1;d++)for(let e=d+1;e<cards.length;e++){const rank=rankFive([cards[a],cards[b],cards[c],cards[d],cards[e]]);if(!best||compare(rank,best)>0)best=rank;}return best;}
-export function showdown(t,now=Date.now()) {
-  const levels=[...new Set(t.players.map(p=>p.total).filter(n=>n>0))].sort((a,b)=>a-b);let previous=0;t.result=[];
-  const ranks=new Map(live(t).map(p=>[p.id,rankSeven([...p.cards,...t.board])]));
-  for(const level of levels){const contributors=t.players.filter(p=>p.total>=level);const amount=(level-previous)*contributors.length;previous=level;
-    const eligible=contributors.filter(p=>p.inHand&&!p.folded);if(!eligible.length)fail('底池没有有效玩家。');
-    if(contributors.length===1){contributors[0].stack+=amount;continue;} // unmatched overbet is returned
-    let best=null;for(const p of eligible){const rank=ranks.get(p.id);if(!best||compare(rank,best)>0)best=rank;}
-    const winners=eligible.filter(p=>compare(ranks.get(p.id),best)===0).sort((a,b)=>((t.players.indexOf(a)-t.dealer-1+t.players.length)%t.players.length)-((t.players.indexOf(b)-t.dealer-1+t.players.length)%t.players.length));
-    const share=Math.floor(amount/winners.length);let remainder=amount%winners.length;
-    for(const p of winners){const chips=share+(remainder-->0?1:0);p.stack+=chips;t.result.push(`${playerLabel(t,p.id)} 获得 ${chips}（${HAND_NAMES[best[0]]}）`);}
+export function bestSeven(cards){let best=null,chosen=null;for(let a=0;a<cards.length-4;a++)for(let b=a+1;b<cards.length-3;b++)for(let c=b+1;c<cards.length-2;c++)for(let d=c+1;d<cards.length-1;d++)for(let e=d+1;e<cards.length;e++){const five=[cards[a],cards[b],cards[c],cards[d],cards[e]],rank=rankFive(five);if(!best||compare(rank,best)>0){best=rank;chosen=five;}}return {rank:best,cards:chosen};}
+export const rankSeven=cards=>bestSeven(cards).rank;
+export function describeRank(rank){
+  const r=n=>['','','2','3','4','5','6','7','8','9','10','J','Q','K','A'][n],kick=values=>values.map(r).join('、');
+  switch(rank[0]){
+    case 0:return `高牌 ${r(rank[1])} · 比较 ${kick(rank.slice(1))}`;
+    case 1:return `一对 ${r(rank[1])} · 踢脚 ${kick(rank.slice(2))}`;
+    case 2:return `两对 ${r(rank[1])}/${r(rank[2])} · 踢脚 ${r(rank[3])}`;
+    case 3:return `三条 ${r(rank[1])} · 踢脚 ${kick(rank.slice(2))}`;
+    case 4:return `顺子 · ${r(rank[1])} 最大`;
+    case 5:return `同花 · 比较 ${kick(rank.slice(1))}`;
+    case 6:return `葫芦 · 三张 ${r(rank[1])} 带两张 ${r(rank[2])}`;
+    case 7:return `四条 ${r(rank[1])} · 踢脚 ${r(rank[2])}`;
+    case 8:return `同花顺 · ${r(rank[1])} 最大`;
   }
-  t.showdown=live(t).map(p=>({id:p.id,cards:[...p.cards],rank:HAND_NAMES[ranks.get(p.id)[0]]}));finish(t,now);
 }
-function finish(t,now){t.phase='settled';t.settledAt=now;t.turn=null;t.deadline=null;t.deck=[];for(const p of t.players){p.pending=false;p.round=0;p.total=0;}note(t,'本手结束，桌主可开始下一手');}
-export function timeout(t,now=Date.now()){if(t.turn&&t.deadline<=now){const {call,p}=legal(t,t.turn);if(!p.bot)p.timedOutAt=now;act(t,t.turn,call?'fold':'check',null,now,true);note(t,'上一位玩家行动超时，已自动处理');return true;}return false;}
+export function showdown(t,now=Date.now()) {
+  const hands=new Map(live(t).map(p=>[p.id,bestSeven([...p.cards,...t.board])]));
+  awardPots(t,hands);
+  t.showdown=live(t).map(p=>({id:p.id,label:playerLabel(t,p.id),cards:[...p.cards],best:[...hands.get(p.id).cards],rank:HAND_NAMES[hands.get(p.id).rank[0]],detail:describeRank(hands.get(p.id).rank)}));finish(t,now);
+}
+function awardPots(t,hands){
+  const levels=[...new Set(t.players.map(p=>p.total).filter(n=>n>0))].sort((a,b)=>a-b);let previous=0,index=0;t.result=[];t.pots=[];
+  for(const level of levels){const contributors=t.players.filter(p=>p.total>=level);const amount=(level-previous)*contributors.length;previous=level;
+    if(contributors.length===1){const p=contributors[0];p.stack+=amount;t.pots.push({name:'未跟注退回',amount,winners:[{id:p.id,label:playerLabel(t,p.id),amount}],reason:'超过其他玩家下注的部分原数退回'});continue;}
+    const eligible=contributors.filter(p=>p.inHand&&!p.folded);if(!eligible.length)fail('底池没有有效玩家。');
+    let best=null;if(hands)for(const p of eligible){const rank=hands.get(p.id).rank;if(!best||compare(rank,best)>0)best=rank;}
+    const winners=eligible.filter(p=>!hands||compare(hands.get(p.id).rank,best)===0).sort((a,b)=>((t.players.indexOf(a)-t.dealer-1+t.players.length)%t.players.length)-((t.players.indexOf(b)-t.dealer-1+t.players.length)%t.players.length));
+    const pot={name:index++===0?'主池':`边池 ${index-1}`,amount,winners:[],reason:hands?describeRank(best):'其余玩家弃牌',split:winners.length>1};
+    const share=Math.floor(amount/winners.length);let remainder=amount%winners.length;
+    for(const p of winners){const chips=share+(remainder-->0?1:0);p.stack+=chips;pot.winners.push({id:p.id,label:playerLabel(t,p.id),amount:chips});t.result.push(`${playerLabel(t,p.id)} 获得 ${chips}（${pot.name} · ${hands?HAND_NAMES[best[0]]:'其余玩家弃牌'}）`);}
+    t.pots.push(pot);
+  }
+}
+function finish(t,now){
+  t.phase='settled';t.settledAt=now;t.turn=null;t.deadline=null;t.deck=[];resetReady(t);
+  t.settlements=t.players.filter(p=>p.inHand).map(p=>({id:p.id,label:playerLabel(t,p.id),net:p.stack-(p.startStack??p.stack)}));
+  for(const p of t.players){p.pending=false;p.round=0;p.total=0;if(p.awayAfterHand&&!p.leaveAfterHand){p.away=true;note(t,`${playerLabel(t,p.id)} 连续超时，已暂离；恢复后才会参与下一手`);}}
+  const departing=t.players.filter(p=>p.leaveAfterHand).map(p=>p.id);if(departing.length){removeSeats(t,departing,now);note(t,'已执行预约离桌');}
+  if(!t.players.some(p=>!p.bot)){close(t,t.owner,true);t.closeReason='所有真人已离桌，牌桌自动关闭。';}
+  else note(t,'本手结束，准备后可自动开始下一手');
+}
+export function timeout(t,now=Date.now()){if(t.turn&&t.deadline<=now){const {call,p}=legal(t,t.turn);if(!p.bot){p.timedOutAt=now;p.timeoutStreak=(p.timeoutStreak||0)+1;if(p.timeoutStreak>=2)p.awayAfterHand=true;}act(t,t.turn,call?'fold':'check',null,now,true);note(t,'上一位玩家行动超时，已自动处理');return true;}return false;}

@@ -7,11 +7,11 @@ import { handPanel } from './ui.mjs';
 
 test('PNG is decodable, compact, deterministic and shows red/black cards with empty positions',async()=>{
  const blob=await renderCardImage([12,24],[38,39,8]),png=Buffer.from(await blob.arrayBuffer());
- assert.deepEqual([...png.subarray(0,8)],[137,80,78,71,13,10,26,10]);assert.equal(png.readUInt32BE(16),760);assert.equal(png.readUInt32BE(20),580);assert(png.length<60000);
+ assert.deepEqual([...png.subarray(0,8)],[137,80,78,71,13,10,26,10]);assert.equal(png.readUInt32BE(16),760);assert.equal(png.readUInt32BE(20),520);assert(png.length<60000);
  let pos=8;const compressed=[];while(pos<png.length){const length=png.readUInt32BE(pos),type=png.toString('ascii',pos+4,pos+8);if(type==='IDAT')compressed.push(png.subarray(pos+8,pos+8+length));pos+=length+12;}
- const rgb=inflateSync(Buffer.concat(compressed));assert.equal(rgb.length,(760*3+1)*580);
+ const rgb=inflateSync(Buffer.concat(compressed));assert.equal(rgb.length,(760*3+1)*520);
  const pixel=(x,y)=>[...rgb.subarray(y*(760*3+1)+1+x*3,y*(760*3+1)+4+x*3)];
- assert.deepEqual(pixel(290,162),[32,39,53]);assert.deepEqual(pixel(468,162),[184,48,76]);assert.deepEqual(pixel(495,401),[45,62,78]);
+ assert.deepEqual(pixel(290,150),[32,39,53]);assert.deepEqual(pixel(468,150),[184,48,76]);assert.deepEqual(pixel(495,380),[45,62,78]);
  assert.deepEqual(Buffer.from(await (await renderCardImage([12,24],[38,39,8])).arrayBuffer()),png);
  const changed=Buffer.from(await (await renderCardImage([11,24],[38,39,8])).arrayBuffer());assert.notDeepEqual(changed,png);
  await assert.rejects(renderCardImage([52,1]),/Invalid cards/);await assert.rejects(renderCardImage([0,1],[0]),/Invalid cards/);

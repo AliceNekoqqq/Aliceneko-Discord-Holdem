@@ -27,49 +27,52 @@ export function handPanel(t,id,notice='') {
   const p=t.players.find(p=>p.id===id&&!p.bot);
   if(!p)throw Error('你没有加入这张牌桌。');
   const active=!['lobby','settled','closed'].includes(t.phase),yourTurn=active&&t.turn===id;
-  const privateButton=(action,label,style=2)=>button(t,panelAction(id,action),label,style);
-  const phase={lobby:'等待发牌',preflop:'翻牌前',flop:'翻牌',turn:'转牌',river:'河牌',settled:'本手结束',closed:'牌桌关闭'}[t.phase];
-  const status=!p.cards.length?'已入座 · 等待桌主发牌':!active?'本手结束 · 等待下一手':p.folded?'你已弃牌 · 本手不用再操作':!p.stack?'你已全下 · 等待摊牌结算':yourTurn?'🟢 现在该你行动':`等待 ${game.playerLabel(t,t.turn)} 行动`;
-  const rank=p.cards.length&&t.board.length>=3?game.HAND_NAMES[game.rankSeven([...p.cards,...t.board])[0]]:null;
-  const cards=p.cards.length?game.cardsText(p.cards):'🂠　🂠';
-  const fields=[...(p.cards.length?[{name:'你的底牌 ①',value:`**${game.cardText(p.cards[0])}**`,inline:true},{name:'你的底牌 ②',value:`**${game.cardText(p.cards[1])}**`,inline:true}]:[]),{name:'桌面公共牌 · 所有人共用',value:[...t.board.map(game.cardText),...Array(5-t.board.length).fill('🂠')].join('　')},{name:'你的筹码',value:String(p.stack),inline:true},{name:'本轮已下',value:String(p.round),inline:true},{name:'底池',value:String(t.pot),inline:true}];
-  if(t.phase==='settled'&&Number.isSafeInteger(p.startStack)){const net=p.stack-p.startStack;fields.push({name:'本手净筹码变化',value:`${net>0?'+':''}${net} 筹码${net>0?' · 本手盈利':net<0?' · 本手亏损':' · 持平'}`});}
-  if(rank)fields.push({name:'你目前能组成的牌型',value:`${rank}（按你的底牌与已发公共牌计算）`});
-  if(yourTurn){const l=game.legal(t,id);fields.push({name:'现在可以操作',value:`${l.call?`跟注需 ${Math.min(l.call,p.stack)} 筹码`:'可以免费过牌'} · <t:${Math.floor(t.deadline/1000)}:R> 超时`});}
+  const control=(action,label,style=2,disabled=false)=>button(t,panelAction(id,action),label,style,disabled);
+  const status=p.away?'已暂离 · 筹码保留，恢复后才会发牌':active?(p.folded?'已弃牌 · 等待本手结束':!p.inHand?'本手旁观':!p.stack?'已全下 · 等待结算':yourTurn?'🟢 现在该你行动':`等待 ${game.playerLabel(t,t.turn)} 行动`):p.ready?'已准备 · 等待其他玩家':p.stack?'准备后自动发牌':'筹码归零 · 请补充筹码';
+  const rank=p.cards.length&&t.board.length>=3?game.describeRank(game.rankSeven([...p.cards,...t.board])):null;
+  const net=t.settlements?.find(s=>s.id===id)?.net;
+  const fields=[{name:'筹码 / 本轮已下 / 底池',value:`${p.stack} / ${p.round} / ${t.pot}`}];
+  if(rank)fields.push({name:t.phase==='settled'?'本手牌型':'目前牌型',value:rank});
+  if(Number.isSafeInteger(net)&&t.phase==='settled')fields.push({name:'本手净变化',value:`${net>0?'+':''}${net} 筹码`});
+  if(yourTurn){const l=game.legal(t,id);fields.push({name:'你的行动',value:`${l.call?`跟注 ${Math.min(l.call,p.stack)}`:'免费过牌'} · <t:${Math.floor(t.deadline/1000)}:R> 超时`});}
   const components=yourTurn?bettingRows(t,id).map(r=>({...r,components:r.components.map(b=>({...b,custom_id:`h:${t.epoch}:${t.version}:${panelAction(id,b.custom_id.split(':')[3])}`}))})):[];
-  const navigation=[privateButton('hand','刷新手牌',1)];
-  if(t.messageId)navigation.push({type:2,style:5,label:'回到公共牌桌',url:`https://discord.com/channels/${t.guild}/${t.channel}/${t.messageId}`});
+  if(!active&&t.phase!=='closed')components.push(row(...(p.away?[control('resume','恢复参与',3)]:p.stack?[control('ready',p.ready?'取消准备':'准备下一手',p.ready?2:3)]:[control('rebuy','补充筹码',3)])));
+  const navigation=[control('hand','刷新手牌'),control('manage','牌桌管理')];
+  if(t.messageId)navigation.push({type:2,style:5,label:'公共牌桌',url:`https://discord.com/channels/${t.guild}/${t.channel}/${t.messageId}`});
   components.push(row(...navigation));
-  return {content:`**第 ${t.handNo} 手 · 你的底牌**${notice?`\n${notice}`:''}`,embeds:[{title:`第 ${t.handNo} 手 · 你的两张底牌`,description:`${p.cards.length?`**${cards}**\n\n`:''}**${status}**\n${phase}`,color:yourTurn?0x4E9975:0xB26486,fields,footer:{text:'仅你可见 · 图中上方是你的底牌，下方是共用公共牌 · 自动更新'}}],attachments:[],components,allowed_mentions:{parse:[]}};
+  return {content:`${t.handNo?`**第 ${t.handNo} 手 · 你的底牌**`:'**已入座 · 发牌后自动送达手牌**'}${notice?`\n${notice}`:''}`,embeds:[{title:'你的手牌',description:`**${t.phase==='settled'?'本手结束 · ':''}${status}**${p.leaveAfterHand?'\n已预约本手结束后离桌，可在管理中取消。':''}${p.awayAfterHand?'\n连续两次超时，本手结束后自动暂离。':''}${t.readyDue?`\n<t:${Math.floor(t.readyDue/1000)}:R> 自动发牌`:''}\n底牌：${game.cardsText(p.cards)||'尚未发牌'}\n公共牌：${game.cardsText(t.board)||'尚未发出'}`,color:yourTurn?0x4E9975:0xB26486,fields,footer:{text:'仅你可见 · 上方底牌 / 下方公共牌 · 自动更新'}}],attachments:[],components,allowed_mentions:{parse:[]}};
 }
+export function management(t,id,admin=false,notice='') {
+  const p=t.players.find(p=>p.id===id&&!p.bot),waiting=['lobby','settled'].includes(t.phase),owner=id===t.owner;
+  const control=(action,label,style=2,disabled=false)=>button(t,`m~${id}~${action}`,label,style,disabled),components=[];
+  if(p)components.push(row(control('leave',p.leaveAfterHand?'取消预约离桌':waiting?'离开牌桌':'本手结束后离桌'),...(p.away?[control('resume','恢复参与',3,!waiting)]:[]),...(p.stack===0?[control('rebuy','补充筹码',3,!waiting)]:[])));
+  if(owner)components.push(row(control('start','手动发牌',1,!waiting||!game.canStart(t)),control('addbot','添加电脑',2,!waiting||t.players.length>=9),control('removebots','移除电脑',2,!waiting||!t.players.some(p=>p.bot))));
+  if(!owner&&canManageTakeover(t,id))components.push(row(control('takeover','接管桌主',1)));
+  if(owner||admin)components.push(row(control('close','关闭牌桌',4)));
+  components.push(row(control('manage','刷新管理')));
+  return {content:`**牌桌管理 · ${owner?'桌主':admin?'管理员':p?'玩家':'观众'}**${notice?`\n${notice}`:''}\n${waiting?'人员变化会取消全部准备，需要重新准备。':'预约离桌不影响当前下注与结算；本手结束后执行。'}${p?.away?'\n暂离期间保留筹码，不参与发牌与盲注。':''}`,components,allowed_mentions:{parse:[]}};
+}
+function canManageTakeover(t,id){const at=takeoverAt(t);return at!==null&&Date.now()>=at&&id!==t.owner&&t.players.some(p=>p.id===id&&!p.bot);}
 export function board(t) {
-  const running=!['lobby','settled','closed'].includes(t.phase);
-  const current=t.players.find(p=>p.id===t.turn);
-  const l=current?game.legal(t,t.turn):null;
-  const humanTurn=current&&!current.bot;
+  const running=!['lobby','settled','closed'].includes(t.phase),current=t.players.find(p=>p.id===t.turn),l=current?game.legal(t,t.turn):null,humanTurn=current&&!current.bot;
   const phases={lobby:'等待入座',preflop:'翻牌前',flop:'翻牌',turn:'转牌',river:'河牌',settled:'本手结束',closed:'牌桌关闭'};
-  const players=t.players.map((p,i)=>`${t.turn===p.id?'▶ ':''}${game.playerLabel(t,p.id)}${p.id===t.owner?' · 桌主':''}${i===t.dealer?' · 庄家':''}　**${p.stack}**${running?(p.inHand?(p.folded?' · 弃牌':p.stack===0?' · 全下':` · 已下 ${p.round}`):' · 旁观'):''}`).join('\n');
-  const turn=current?`\n\n**轮到 ${game.playerLabel(t,t.turn)}**${current.bot?' · 电脑思考中…':`\n${l.call?`跟注需 ${Math.min(l.call,current.stack)}${l.call>=current.stack?'（全下跟注）':''}`:'可以免费过牌'} · <t:${Math.floor(t.deadline/1000)}:R> 超时`}`:'';
-  const hint=t.phase==='lobby'?'\n\n加入后由桌主开始；一人测试可添加电脑。':t.phase==='settled'?'\n\n桌主可开始下一手；筹码归零可免费补充。':'';
-  const description=`${phases[t.phase]} · 第 ${t.handNo} 手 · ${t.players.length}/9 座 · 盲注 10/20\n\n**公共牌**\n${t.board.length?game.cardsText(t.board):'🂠  🂠  🂠  🂠  🂠'}\n\n**${running?'底池':'本手底池'} ${t.pot}**${running?` · 本轮下注 ${t.currentBet}`:''}\n\n${players}${turn}${hint}`;
-  const fields=[];
-  const warning=idleWarning(t),takeover=takeoverAt(t);
+  const players=t.players.map(p=>`${t.turn===p.id?'▶ ':''}${game.playerLabel(t,p.id)}${p.id===t.owner?' · 桌主':''}${p.id===t.dealerId?' · D':''}${p.id===t.smallBlindId?' · SB':''}${p.id===t.bigBlindId?' · BB':''}　**${p.stack}**${p.away?' · 暂离':p.leaveAfterHand?' · 结束后离桌':running?(p.inHand?(p.folded?' · 弃牌':p.stack===0?' · 全下':` · 已下 ${p.round}`):' · 旁观'):p.bot?' · 自动准备':p.ready?' · 已准备':p.stack?' · 未准备':' · 需补筹码'}`).join('\n');
+  const turn=current?`\n\n**轮到 ${game.playerLabel(t,t.turn)}**${current.bot?' · 电脑思考中…':`\n${l.call?`跟注 ${Math.min(l.call,current.stack)}${l.call>=current.stack?'（全下跟注）':''}`:'免费过牌'} · <t:${Math.floor(t.deadline/1000)}:R> 超时`}`:'';
+  const hint=!running&&t.phase!=='closed'?(t.readyDue?`\n\n所有参与玩家已准备，<t:${Math.floor(t.readyDue/1000)}:R> 自动发牌。取消准备可停止倒计时。`:'\n\n点「准备下一手」，所有参与真人准备后，5 秒自动发牌。暂离玩家不参与。'):'';
+  const description=`${phases[t.phase]} · 第 ${t.handNo} 手 · ${t.players.length}/9 座 · 盲注 10/20\n\n**公共牌**\n${[...t.board.map(game.cardText),...Array(5-t.board.length).fill('🂠')].join('  ')}\n\n**${running?'底池':'本手底池'} ${t.pot}**${running?` · 本轮下注 ${t.currentBet}`:''}\n\n${players}${turn}${hint}`;
+  const fields=[],warning=idleWarning(t);
   if(warning)fields.push({name:'即将自动关桌',value:`<t:${Math.floor(warning.deadline/1000)}:R> ${warning.conditional?'若仍无人有效操作、且可行动真人均已超时，将取消本手并退回下注。':'若仍无人有效操作，将自动关闭。'}刷新或查看手牌不会延长时间。`});
   if(t.phase==='closed'&&t.closeReason)fields.push({name:'关闭原因',value:t.closeReason});
-  if(t.phase==='settled'&&t.result?.length)fields.push({name:'🏆 本手结算',value:t.result.join('\n').slice(0,1024)});
-  if(t.phase==='settled'&&t.showdown?.length)fields.push({name:'摊牌',value:t.showdown.map(p=>`${game.playerLabel(t,p.id)}：${game.cardsText(p.cards)} · ${p.rank}`).join('\n').slice(0,1024)});
+  if(t.phase==='settled'){
+    if(t.pots?.length)for(const pot of t.pots)fields.push({name:`${pot.name} · ${pot.amount}${pot.split?' · 平分':''}`,value:`${pot.winners.map(w=>`${w.label} 获得 ${w.amount}`).join('；')}\n${pot.reason}${pot.split?'；余数按庄家左侧座位顺序分配':''}`});
+    else if(t.result?.length)fields.push({name:'🏆 本手结算',value:t.result.join('\n').slice(0,1024)});
+    if(t.showdown?.length)for(let i=0;i<t.showdown.length;i+=3)fields.push({name:`摊牌 · 最佳五张${t.showdown.length>3?' · '+(i/3+1):''}`,value:t.showdown.slice(i,i+3).map(p=>`${p.label||game.playerLabel(t,p.id)}：${game.cardsText(p.cards)}\n最佳：${game.cardsText(p.best||[])} · ${p.detail||p.rank}`).join('\n')});
+    if(t.settlements?.length)fields.push({name:'本手净筹码变化',value:t.settlements.map(p=>`${p.label} ${p.net>0?'+':''}${p.net}`).join(' · ')});
+  }
   if(t.log.length)fields.push({name:'最近操作',value:t.log.slice(-3).join('\n').slice(-1000)});
   const components=[];
-  if(running) {
-    if(humanTurn) {
-      components.push(...bettingRows(t,t.turn));
-    } else components.push(row(button(t,'wait','电脑正在行动…',2,true)));
-    components.push(row(button(t,'hand','手牌 / 操作',1),button(t,'refresh','刷新牌桌'),button(t,'help','玩法'),button(t,'close','关桌')));
-  } else if(t.phase!=='closed') {
-    const funded=t.players.filter(p=>p.stack>0||p.bot).length;
-    components.push(row(button(t,'join','加入牌桌',3,t.players.length>=9),button(t,'start',t.handNo?'开始下一手':'开始发牌',1,funded<2),button(t,'hand','手牌 / 操作')));
-    components.push(row(button(t,'rebuy','补充筹码',2,!t.players.some(p=>!p.bot&&p.stack===0)),button(t,'leave','离桌'),button(t,'addbot','添加电脑',2,t.players.length>=9),button(t,'removebots','移除电脑',2,!t.players.some(p=>p.bot))));
-    components.push(row(button(t,'refresh','刷新牌桌'),button(t,'help','玩法'),button(t,'close','关桌'),...(takeover!==null&&takeover<=Date.now()?[button(t,'takeover','接管桌主',1)]:[])));
-  }
-  return {content:'',embeds:[{title:'♠ Aliceneko · 德州扑克',description,color:humanTurn?0x4E9975:0xB26486,fields,footer:{text:'beta.8 · 虚拟筹码 · 手牌自动送达 · 空闲关桌：等待 5 分钟 / 结算后 10 分钟'}}],components,allowed_mentions:{parse:[]}};
+  if(running)components.push(...(humanTurn?bettingRows(t,t.turn):[row(button(t,'wait','电脑正在行动…',2,true))]));
+  else if(t.phase!=='closed')components.push(row(button(t,'join','加入牌桌',3,t.players.length>=9),button(t,'ready','准备 / 取消准备',3,!game.canStart(t)),button(t,'hand','手牌 / 操作',1)));
+  if(t.phase!=='closed')components.push(row(...(running?[button(t,'hand','手牌 / 操作',1)]:[]),button(t,'manage','牌桌管理'),button(t,'refresh','刷新牌桌'),button(t,'help','玩法')));
+  return {content:'',embeds:[{title:'♠ Aliceneko · 德州扑克',description,color:humanTurn?0x4E9975:0xB26486,fields,footer:{text:'beta.9 · 虚拟筹码 · D 庄家 / SB 小盲 / BB 大盲 · 等待 5 分钟 / 结算后 10 分钟空闲关桌'}}],components,allowed_mentions:{parse:[]}};
 }

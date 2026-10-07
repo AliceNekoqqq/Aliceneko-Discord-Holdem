@@ -58,11 +58,12 @@ export class PrivatePanels {
     if(panelReply&&privateReply){
       const sourceId=reply.type===7?i.message?.id:null;
       if(s.panel&&(!sourceId||(s.panel.id&&s.panel.id!==sourceId)))s.retire.push(s.panel);
-      s.panel={...s.send,ref:'@original',id:sourceId,hand:t.handNo,version:t.version};
+      const previous=s.panel;
+      s.panel={...s.send,ref:'@original',id:sourceId,hand:t.handNo,version:t.version,image:sourceId&&previous?.hand===t.handNo?previous.image:null};
       s.hidden=reply.data.content==='底牌已收起。';
       // Initial HTTP acknowledgements stay fast and text-only. Enrich that exact
       // private reply afterwards so a confirmation is never replaced by navigation.
-      if(!s.hidden&&(t.game==='uno'||t.players.find(p=>p.id===id).cards.length===2)){s.panel.pending=structuredClone(reply.data);delete s.panel.pending.flags;}
+      if(!s.hidden&&(reply.deferred||t.game==='uno'||t.players.find(p=>p.id===id).cards.length===2)){s.panel.pending=structuredClone(reply.data);delete s.panel.pending.flags;}
     }
     s.retire=s.retire.slice(-5);
     await this.write(records);return true;
@@ -71,10 +72,10 @@ export class PrivatePanels {
     if(!credential||credential.expires<=Date.now())return null;
     const path=`https://discord.com/api/v10/webhooks/${this.env.DISCORD_APPLICATION_ID}/${encodeURIComponent(credential.token)}${ref?`/messages/${ref}`:''}`;
     const multipart=body instanceof FormData;
-    try{let r=await fetch(path,{method,headers:multipart?{}:{'Content-Type':'application/json'},body:multipart?body:JSON.stringify(body),signal:AbortSignal.timeout(multipart?2000:1000)});
+    try{let r=await fetch(path,{method,headers:multipart?{}:{'Content-Type':'application/json'},body:multipart?body:JSON.stringify(body),signal:AbortSignal.timeout(multipart?1500:1000)});
       // Explicit file rejection is safe to retry as text. A timeout is ambiguous,
       // so never issue an immediate second POST in that case.
-      if(multipart&&[400,403,413,415].includes(r.status)){const fallback=JSON.parse(body.get('payload_json'));for(const embed of fallback.embeds||[])delete embed.image;fallback.attachments=[];r=await fetch(path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(fallback),signal:AbortSignal.timeout(1000)});}
+      if(multipart&&[400,403,413,415].includes(r.status)){const fallback=JSON.parse(body.get('payload_json'));const description=fallback.attachments?.[0]?.description;for(const embed of fallback.embeds||[])delete embed.image;if(description&&fallback.embeds?.[0])fallback.embeds[0].description+='\n'+description;fallback.attachments=[];r=await fetch(path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(fallback),signal:AbortSignal.timeout(1000)});}
       if(!r.ok)return null;return r.status===204?{}:await r.json();}catch{return null;}
   }
   async sync(t){
@@ -107,3 +108,4 @@ export class PrivatePanels {
     await this.write(records);return retry;
   }
 }
+

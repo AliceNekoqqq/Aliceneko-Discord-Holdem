@@ -23,7 +23,7 @@ export function board(t){
  if(t.winner)fields.push({name:'🏆 结算',value:`${label(t,t.winner)} 出完手牌，获得 **${t.roundPoints} 分**${t.matchWinner?' · 达到 500 分，赢得积分赛':''}`});
  if(t.unoOpportunity)fields.push({name:'UNO 宣告窗口',value:'有人剩下一张牌，尚未宣告 UNO。可补喊或抓漏喊，直到下一次出牌/摸牌。'});
  if(t.log.length)fields.push({name:'最近操作',value:t.log.slice(-4).join('\n')});
- return {content:'',embeds:[{title:'🦋 Aliceneko · UNO',color:0xD9688D,description:`${t.mode==='match'?'500 分积分赛':'单局休闲'} · 第 ${t.handNo} 局 · ${t.players.length}/10 人\n\n**桌面：${top}**\n当前颜色：${t.color?colorEmoji[t.color]+' '+game.COLOR_NAMES[t.color]:'待选择'} · ${t.direction===1?'顺时针 ↻':'逆时针 ↺'}\n\n**${status(t)}**\n${t.pending&&t.pending.kind!=='openingColor'?'下家请打开私密手牌接受罚牌'+(t.pending.kind==='draw4'?'或质疑 +4':'')+'。':''}`,fields,footer:{text:'beta.8 · 自动私密手牌 · 默认不叠加 · 空闲自动关桌'}}],components:rows,allowed_mentions:{parse:[]}};
+ return {content:'',embeds:[{title:'🦋 Aliceneko · UNO',color:0xD9688D,description:`${t.mode==='match'?'500 分积分赛':'单局休闲'} · 第 ${t.handNo} 局 · ${t.players.length}/10 人\n\n**桌面：${top}**\n当前颜色：${t.color?colorEmoji[t.color]+' '+game.COLOR_NAMES[t.color]:'待选择'} · ${t.direction===1?'顺时针 ↻':'逆时针 ↺'}\n\n**${status(t)}**\n${t.pending&&t.pending.kind!=='openingColor'?'下家请打开私密手牌接受罚牌'+(t.pending.kind==='draw4'?'或质疑 +4':'')+'。':''}`,fields,footer:{text:'beta.9 · 自动私密手牌 · 默认不叠加 · 空闲自动关桌'}}],components:rows,allowed_mentions:{parse:[]}};
 }
 export function handPanel(t,id,notice=''){
  const p=t.players.find(p=>p.id===id&&!p.bot);if(!p)throw Error('你没有加入这张 UNO 桌。');
@@ -43,3 +43,4 @@ export function handPanel(t,id,notice=''){
  return {content:`**第 ${t.handNo} 局 · 你的 UNO 手牌 · ${p.cards.length} 张**${notice?'\n'+notice:''}`,embeds:[{title:`仅你可见 · 第 ${page.page+1}/${page.pages} 页`,description:`**${own?'现在该你行动':status(t)}**\n桌面：${t.discard.length?game.cardName(t.discard.at(-1)):'未发牌'} · 当前${t.color?game.COLOR_NAMES[t.color]+'色':'颜色待定'}\n\n${list}${own&&t.drawn!==null?'\n\n摸牌后只能出刚摸到的牌，或选择保留。':''}`,color:own?0x57B99A:0xD9688D,footer:{text:'绿框可出 · 数字编号对应选择菜单 · 他人操作后自动更新'}}],components:rows.slice(0,5),attachments:[],allowed_mentions:{parse:[]}};
 }
 export function colorPrompt(t,id,card){return {type:4,data:{content:`**${game.cardName(card)} · 请选择后续颜色**\n选择颜色时才正式出牌。${game.face(card).value==='draw4'?'若你还有当前颜色的牌，下家质疑成功会让你罚摸 4 张。':''}`,flags:64,components:[row(...game.COLORS.map(c=>button(t,`color~${id}~${card}~${c}`,game.COLOR_NAMES[c]+'色',1)))],allowed_mentions:{parse:[]}}};}
+

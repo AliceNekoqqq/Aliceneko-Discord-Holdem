@@ -23,8 +23,8 @@ test('automatic hands retire old cards, update in place and survive object resta
  for(const id of ['1','4']){
   const body=requests.find(r=>r.method==='POST'&&r.url.endsWith(`token-${id}`)).body;
   const p=table.players.find(p=>p.id===id);assert.equal(body.flags,64);
-  assert.equal(body.embeds[0].fields[0].value,`**${g.cardText(p.cards[0])}**`);
-  assert.equal(body.embeds[0].fields[1].value,`**${g.cardText(p.cards[1])}**`);
+  assert(!body.embeds[0].description.includes('底牌：'));
+  assert(!body.embeds[0].fields.some(f=>f.name.includes('底牌')));
   assert.equal(body.attachments.length,1);assert(body.attachments[0].description.includes(g.cardsText(p.cards)));
   assert.equal(body.embeds[0].image.url,'attachment://hand-1.png');
  }

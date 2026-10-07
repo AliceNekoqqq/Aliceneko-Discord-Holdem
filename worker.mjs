@@ -3,13 +3,14 @@ import * as game from './engine.mjs';
 import { UnoController } from './uno-controller.mjs';
 import { board as unoBoard, command as unoCommand } from './uno-ui.mjs';
 import { computerTurn } from './computer.mjs';
+import { BoardSync } from './board-sync.mjs';
 import { PrivatePanels } from './private-panels.mjs';
 import { initializeLifecycle, nextLifecycleAlarm, automaticCloseReason, idleWarning, takeoverAt, canTakeover, touchOwner, effectiveHumanAction } from './lifecycle.mjs';
-import { board, quickRaises, confirmation, handPanel, panelAction, button, row } from './ui.mjs';
+import { board, quickRaises, confirmation, handPanel, management, panelAction, button, row } from './ui.mjs';
 const COMMAND_VERSION='games-v1.0.1-beta.8'; // Command schema unchanged in beta.2
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
-const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。桌主点「开始下一手」。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。\n未发牌空闲 5 分钟、结算后空闲 10 分钟自动关桌，提前 1 分钟提醒；刷新和查看手牌不延长计时。\n游玩中 10 分钟无人有效操作且仍可行动真人均已超时时，取消本手并退回下注。\n等待发牌或结算时，桌主 2 分钟未交互，其他已入座真人可接管。只供娱乐，无充值或兑换。';
+const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。点「准备下一手」，所有参与真人准备后 5 秒自动发牌；人员变化会取消全部准备。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；连续 2 次超时会在本手结束后暂离，保留筹码；在牌桌管理恢复参与。全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码；游玩中可预约本手结束后离桌，并随时取消。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。\n未发牌空闲 5 分钟、结算后空闲 10 分钟自动关桌，提前 1 分钟提醒；刷新和查看手牌不延长计时。\n游玩中 10 分钟无人有效操作且仍可行动真人均已超时时，取消本手并退回下注。\n等待发牌或结算时，桌主 2 分钟未交互，其他已入座真人可接管。只供娱乐，无充值或兑换。';
 const command={name:'德州',description:'群友虚拟筹码德州扑克',type:1,integration_types:[0],contexts:[0],options:[{type:1,name:'创建',description:'在当前频道创建 2～9 人牌桌'},{type:1,name:'测试',description:'创建电脑陪练桌，一个人即可测试',options:[{type:4,name:'电脑数量',description:'电脑玩家数量，默认 2 位',min_value:1,max_value:8}]},{type:1,name:'帮助',description:'查看玩法说明'},{type:1,name:'牌桌',description:'查看当前牌桌位置'}]};
 const fromHex=hex=>Uint8Array.from(hex.match(/../g),s=>parseInt(s,16));
 async function validSignature(request,body,keyHex){
@@ -21,22 +22,23 @@ async function discordApi(env,path,method,body,timeoutMs=6000){
   return fetch(`https://discord.com/api/v10${path}`,{method,headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
 }
 export class PokerTable extends DurableObject {
+  get boards(){return this.boardSync??=new BoardSync(this.ctx.storage,this.env);}
   get uno(){return this.unoController??=new UnoController(this);}
   get panels(){return this.privatePanels??=new PrivatePanels(this.ctx.storage,this.env);}
   async armAlarm(t){
-    const dates=[t?.computerDue,t?.deadline,t?.game==='uno'?t.idleDeadline:t?nextLifecycleAlarm(t):null,await this.ctx.storage.get('privateSyncAt'),await this.ctx.storage.get('privateExpiry')].filter(n=>Number.isFinite(n)&&n>0);
+    const dates=[t?.computerDue,t?.deadline,t?.readyDue,await this.ctx.storage.get('boardSyncAt'),t?.game==='uno'?t.idleDeadline:t?nextLifecycleAlarm(t):null,await this.ctx.storage.get('privateSyncAt'),await this.ctx.storage.get('privateExpiry')].filter(n=>Number.isFinite(n)&&n>0);
     if(dates.length)await this.ctx.storage.setAlarm(Math.max(Date.now()+1,Math.min(...dates)));else await this.ctx.storage.deleteAlarm();
   }
   async queuePanels(t){if(!await this.ctx.storage.get('privatePanels'))return;await this.ctx.storage.put('privateSyncAt',Date.now()+350);await this.armAlarm(t);}
   async save(t){
     if(t.game!=='uno')initializeLifecycle(t);
     t.computerDue=t.players.some(p=>p.id===t.turn&&p.bot)?Date.now()+1500:null;
-    await this.ctx.storage.put('table',t);await this.armAlarm(t);
+    await this.ctx.storage.put('table',t);if(t.game!=='uno')await this.boards.queue(t);await this.armAlarm(t);
   }
-  async syncBoard(t){if(t.messageId&&this.env.BOT_TOKEN){try{const r=await discordApi(this.env,`/channels/${t.channel}/messages/${t.messageId}`,'PATCH',t.game==='uno'?unoBoard(t):board(t),2000);return r.ok;}catch{return false;}}return false;}
+  async syncBoard(t){if(t.game!=='uno'){await this.boards.queue(t);await this.armAlarm(t);return true;}if(t.messageId&&this.env.BOT_TOKEN){try{const r=await discordApi(this.env,`/channels/${t.channel}/messages/${t.messageId}`,'PATCH',t.game==='uno'?unoBoard(t):board(t),2000);return r.ok;}catch{return false;}}return false;}
   async expireTable(t,now=Date.now()){
     const normalized=initializeLifecycle(t,now),reason=automaticCloseReason(t,now);
-    if(reason){game.close(t,t.owner,true);t.closeReason=reason;t.closedAt=now;t.version++;t.log.push(reason);t.log=t.log.slice(-5);await this.save(t);await this.queuePanels(t);this.ctx.waitUntil(this.syncBoard(structuredClone(t)));return true;}
+    if(reason){game.close(t,t.owner,true);t.closeReason=reason;t.closedAt=now;t.version++;t.log.push(reason);t.log=t.log.slice(-5);await this.save(t);await this.queuePanels(t);await this.syncBoard(t);return true;}
     if(normalized)await this.ctx.storage.put('table',t);
     await this.armAlarm(t);return false;
   }
@@ -51,10 +53,10 @@ export class PokerTable extends DurableObject {
     return this.ctx.blockConcurrencyWhile(async()=>{
       const payload=await request.json();
       const before=payload.op==='interaction'?await this.ctx.storage.get('table'):null;
-      const response=await this.dispatch(payload);
+      let response=await this.dispatch(payload);
       if(payload.op==='interaction'){
         const t=await this.ctx.storage.get('table');
-        if(t){const reply=await response.clone().json();const remembered=await this.panels.remember(t,payload.interaction,reply);
+        if(t){const reply=await response.clone().json();const panelReply=reply.panelData?{type:7,data:reply.panelData,deferred:true}:reply;delete reply.panelData;response=json(reply);const remembered=await this.panels.remember(t,payload.interaction,panelReply);
           if(remembered||before?.version!==t.version||before?.epoch!==t.epoch)await this.queuePanels(t);
         }
       }
@@ -69,7 +71,7 @@ export class PokerTable extends DurableObject {
         try{const results=await Promise.all([command,unoCommand].map(c=>discordApi(this.env,`/applications/${this.env.DISCORD_APPLICATION_ID}/commands`,'POST',c)));if(results.every(r=>r.ok))await this.ctx.storage.put('commandVersion',COMMAND_VERSION);return json({registered:results.every(r=>r.ok)});}catch{return json({registered:false});}
       }
       let t=await this.ctx.storage.get('table');
-      if(payload.op==='bind'){if(t&&t.epoch===payload.epoch&&!t.messageId&&/^\d+$/.test(payload.messageId)){t.messageId=payload.messageId;await this.save(t);this.ctx.waitUntil(this.syncBoard(t));}return json({ok:true});}
+      if(payload.op==='bind'){if(t&&t.epoch===payload.epoch&&!t.messageId&&/^\d+$/.test(payload.messageId)){t.messageId=payload.messageId;await this.save(t);await this.syncBoard(t);}return json({ok:true});}
       if(payload.op!=='interaction')return new Response('Not found',{status:404});
       const i=payload.interaction,id=i.member?.user?.id;
       if(!id||!i.guild_id)return json(privateReply('请在服务器文字频道内使用。'));
@@ -83,7 +85,7 @@ export class PokerTable extends DurableObject {
         if(t&&touchOwner(t,id)){await this.ctx.storage.put('table',t);await this.armAlarm(t);}
         const sub=i.data.options?.[0]?.name;
         if(sub==='帮助')return json(privateReply(help));
-        if(sub==='牌桌'){if(t?.messageId)this.ctx.waitUntil(this.syncBoard(t));return json(privateReply(t&&t.phase!=='closed'?(t.messageId?`牌桌：https://discord.com/channels/${t.guild}/${t.channel}/${t.messageId}`:'牌桌正在创建，请稍后再试。'):'当前频道没有牌桌，使用 `/德州 创建`。'));}
+        if(sub==='牌桌'){if(t?.messageId)await this.syncBoard(t);return json(privateReply(t&&t.phase!=='closed'?(t.messageId?`牌桌：https://discord.com/channels/${t.guild}/${t.channel}/${t.messageId}`:'牌桌正在创建，请稍后再试。'):'当前频道没有牌桌，使用 `/德州 创建`。'));}
         if(!['创建','测试'].includes(sub))return json(privateReply(help));
         if(!this.env.BOT_TOKEN)return json(privateReply('机器人尚未配置完成。'));
         if(t&&t.phase!=='closed')return json(privateReply('当前频道已有牌桌，请使用 `/德州 牌桌`。'));
@@ -96,31 +98,38 @@ export class PokerTable extends DurableObject {
       if(!t||t.phase==='closed')return json(privateReply('牌桌已关闭，请重新创建。'));
       const parts=(i.data?.custom_id||'').split(':');
       if(parts.length!==4||parts[0]!=='h'||parts[1]!==t.epoch)return json(privateReply('这是旧牌桌的按钮，请打开当前牌桌。'));
+      const managerMatch=parts[3].match(/^m~(\d+)~(.+)$/);
+      const isManager=!!managerMatch;
+      if(isManager&&(managerMatch[1]!==id||!((Number(i.message?.flags)||0)&64)))return json(privateReply('请打开自己的牌桌管理菜单。'));
       const panelMatch=parts[3].match(/^p~(\d+)~(.+)$/);
       const isPanel=!!panelMatch,privateMessage=!!(Number(i.message?.flags)&64);
       if(isPanel&&i.type===5&&panelMatch[2]!=='submit')return json(privateReply('无效的面板表单。'));
       if(isPanel&&(panelMatch[1]!==id||(i.type===3&&!privateMessage)))return json(privateReply('请重新点击公共牌桌上的「手牌 / 操作」。'));
       if(touchOwner(t,id)){await this.ctx.storage.put('table',t);await this.armAlarm(t);}
-      let action=isPanel?panelMatch[2]:parts[3];
+      let action=isPanel?panelMatch[2]:isManager?managerMatch[2]:parts[3];
       if(isPanel&&action==='yesallin')action=`yesallin~${id}`;
-      const panelReply=(notice='')=>({type:privateMessage?7:4,data:{...handPanel(t,id,notice),...(privateMessage?{}:{flags:64})}});
+      const panelReply=(notice='')=>privateMessage?{type:6,panelData:handPanel(t,id,notice)}:{type:4,data:{...handPanel(t,id,notice),flags:64}};
+      const managerReply=(notice='')=>({type:isManager?7:4,data:{...management(t,id,admin,notice),...(isManager?{}:{flags:64})}});
       if(isPanel&&!t.players.some(p=>p.id===id&&!p.bot))return json(privateReply('你已离开这张牌桌。'));
       // Keep old hide/cancel controls functional on cards sent before beta.6.
       if(isPanel&&action==='hide')return json({type:7,data:{content:'底牌已收起。',embeds:[],attachments:[],components:[row(button(t,panelAction(id,'hand'),'展开手牌',1))]}});
 
       const confirmAction=action.match(/^(yesallin|yesclose)~(\d+)$/);
+      if(action==='cancel'&&!privateMessage)return json(privateReply('已取消。'));
       if(action==='cancel')return json(isPanel?panelReply('已取消，尚未全下。'):{type:7,data:{content:'已取消。',embeds:[],components:[]}});
+      if(confirmAction&&!privateMessage)return json(privateReply('请使用自己的私密确认窗口。'));
       if(confirmAction&&confirmAction[2]!==id)return json(privateReply('这不是你的确认按钮。'));
-      if(action==='refresh')return json({type:7,data:board(t)});
+      if(action==='manage')return json(managerReply());
+      if(action==='refresh'){await this.syncBoard(t);return json({type:6});}
       if(action==='help')return json(privateReply(help));
       if(action==='hand'){
         if(!t.players.some(p=>p.id===id&&!p.bot))return json(privateReply('你没有加入这张牌桌。'));
         return json(isPanel?panelReply():{type:4,data:{...handPanel(t,id),flags:64}});
       }
-      if(!isPanel&&!confirmAction&&t.messageId&&i.message?.id&&i.message.id!==t.messageId)return json(privateReply('请使用原牌桌消息的按钮。'));
-      if(Number(parts[2])!==t.version&&confirmAction?.[1]!=='yesclose'){if(isPanel)return json(panelReply('牌局已更新，刚才的操作未执行。请按最新金额选择。'));if(confirmAction){this.ctx.waitUntil(this.syncBoard(t));return json({type:7,data:{content:'牌局已变化，未执行操作。请回牌桌重新选择。',components:[],embeds:[]}});}return json({type:7,data:{...board(t),content:'牌桌刚刚更新，请按最新金额重新选择操作。'}});}
+      if(!isPanel&&!isManager&&!confirmAction&&t.messageId&&i.message?.id&&i.message.id!==t.messageId)return json(privateReply('请使用原牌桌消息的按钮。'));
+      if(Number(parts[2])!==t.version&&confirmAction?.[1]!=='yesclose'&&!['ready','resume'].includes(action)){if(isPanel)return json(panelReply('牌局已更新，刚才的操作未执行。请按最新金额选择。'));if(isManager)return json(managerReply('牌局已更新，操作未执行，请按当前状态选择。'));if(confirmAction){await this.syncBoard(t);return json({type:7,data:{content:'牌局已变化，未执行操作。请回牌桌重新选择。',components:[],embeds:[]}});}await this.syncBoard(t);return json(privateReply('牌桌刚刚更新，操作未执行，请按最新金额重新选择。'));}
       // Process expired turns before accepting a player's late action.
-      if(t.deadline&&Date.now()>=t.deadline&&confirmAction?.[1]!=='yesclose'){game.timeout(t);t.version++;await this.save(t);if(isPanel){this.ctx.waitUntil(this.syncBoard(t));return json(panelReply('回合已超时，已自动处理。'));}if(confirmAction){this.ctx.waitUntil(this.syncBoard(t));return json({type:7,data:{content:'回合已超时，未执行确认操作。',components:[],embeds:[]}});}return json({type:7,data:board(t)});}
+      if(t.deadline&&Date.now()>=t.deadline&&confirmAction?.[1]!=='yesclose'){game.timeout(t);t.version++;await this.save(t);if(isPanel){await this.syncBoard(t);return json(panelReply('回合已超时，已自动处理。'));}if(confirmAction){await this.syncBoard(t);return json({type:7,data:{content:'回合已超时，未执行确认操作。',components:[],embeds:[]}});}await this.syncBoard(t);return json({type:6});}
       const seen=await this.ctx.storage.get('recentInteractions')||[];if(seen.includes(i.id))return json(privateReply('这次操作已经处理。'));
       const previousOwner=t.owner;
       try{
@@ -132,40 +141,46 @@ export class PokerTable extends DurableObject {
         }
         if(action==='join')game.join(t,id);
         else if(action==='takeover'){if(!canTakeover(t,id))throw Error('仅在等待发牌或本手结束、桌主 2 分钟未交互时，已入座的其他真人可以接管。');t.owner=id;t.log.push(`${game.playerLabel(t,id)} 接管桌主`);t.log=t.log.slice(-5);}
-        else if(action==='leave')game.leave(t,id);
+        else if(action==='leave')game.queueLeave(t,id);
+        else if(action==='ready')game.toggleReady(t,id);
+        else if(action==='resume')game.resume(t,id);
         else if(action==='rebuy')game.rebuy(t,id);
         else if(action==='addbot')game.addComputers(t,id);
         else if(action==='removebots')game.removeComputers(t,id);
-        else if(action==='start'){if(id!==t.owner)throw Error('只有桌主可以开始下一手。');if(['lobby','settled'].includes(t.phase))for(const p of t.players)if(p.bot&&p.stack===0)game.rebuy(t,p.id);game.start(t,id);}
+        else if(action==='start'){if(id!==t.owner)throw Error('只有桌主可以开始下一手。');game.start(t,id);}
         else if(confirmAction?.[1]==='yesclose')game.close(t,id,admin);
         else if(confirmAction?.[1]==='yesallin')game.act(t,id,'allin');
         else if(action.startsWith('quick')){const target=quickRaises(t,id).find(b=>b.action===action)?.target;if(!target)throw Error('当前无法使用这档快捷加注。');game.act(t,id,'raise',target);}
         else if(action==='submit'&&i.type===5){const value=i.data.components?.flatMap(r=>r.components||[]).find(c=>c.custom_id==='amount')?.value?.trim();if(!/^\d{1,8}$/.test(value||''))throw Error('请输入正整数。');game.act(t,id,'raise',Number(value));}
         else if(['fold','check','call','allin'].includes(action)&&i.type===3)game.act(t,id,action);
         else throw Error('未知操作。');
-      }catch(error){return json(isPanel?panelReply(error.message):privateReply(error.message));}
-      t.version++;effectiveHumanAction(t,previousOwner);if(!isPanel&&!confirmAction&&!t.messageId&&i.message?.id)t.messageId=i.message.id;
+      }catch(error){return json(isPanel?panelReply(error.message):isManager?managerReply(error.message):privateReply(error.message));}
+      t.version++;effectiveHumanAction(t,previousOwner);if(!isPanel&&!isManager&&!confirmAction&&!t.messageId&&i.message?.id)t.messageId=i.message.id;
       await this.save(t);await this.ctx.storage.put('recentInteractions',[...seen.slice(-99),i.id]);
-      if(isPanel){this.ctx.waitUntil(this.syncBoard(t));return json(panelReply('操作已执行。'));}
-      if(confirmAction){this.ctx.waitUntil(this.syncBoard(t));return json({type:7,data:{content:confirmAction[1]==='yesclose'?'牌桌已关闭。':'已全下，请回牌桌查看。',components:[],embeds:[]}});}
-      return json({type:7,data:board(t)});
+      if(isPanel){await this.syncBoard(t);return json(t.players.some(p=>p.id===id)?panelReply('操作已执行。'):privateReply('你已离桌。'));}
+      if(isManager)return json(t.phase==='closed'?{type:7,data:{content:'牌桌已关闭。',components:[]}}:managerReply('操作已执行。'));
+      if(confirmAction){await this.syncBoard(t);return json({type:7,data:{content:confirmAction[1]==='yesclose'?'牌桌已关闭。':'已全下，请回牌桌查看。',components:[],embeds:[]}});}
+      await this.syncBoard(t);return json({type:6});
   }
   async alarm(){
     await this.ctx.blockConcurrencyWhile(async()=>{
       const t=await this.ctx.storage.get('table');if(!t)return;
-      if(t.game==='uno'){await this.uno.alarm(t);return;}
       const now=Date.now();
-      if((await this.ctx.storage.get('privateExpiry'))<=now)await this.panels.prune(t);
-      if(await this.expireTable(t,now))return;
-      if(t.deadline&&t.deadline<=now&&game.timeout(t)){
-        t.version++;await this.save(t);await this.queuePanels(t);await this.syncBoard(t);return;
-      }
-      if(t.computerDue&&t.computerDue<=now&&computerTurn(t)){
-        t.version++;await this.save(t);await this.queuePanels(t);await this.syncBoard(t);return;
-      }
+      if(t.game==='uno'){await this.uno.alarm(t);await this.boards.flush(t,now);await this.armAlarm(t);return;}
+      if((await this.ctx.storage.get('privateExpiry'))<=now){await this.panels.prune(t);await this.armAlarm(t);return;}
+      const expired=await this.expireTable(t,now);
+      let changed=false;
+      if(!expired&&t.readyDue&&t.readyDue<=now){
+        game.updateReady(t,now);
+        if(t.readyDue&&game.canStart(t)){game.start(t,t.owner,undefined,now);changed=true;}
+        else await this.ctx.storage.put('table',t);
+      }else if(!expired&&t.deadline&&t.deadline<=now)changed=game.timeout(t,now);
+      else if(!expired&&t.computerDue&&t.computerDue<=now)changed=computerTurn(t);
+      if(changed){t.version++;await this.save(t);await this.queuePanels(t);}
       const syncAt=await this.ctx.storage.get('privateSyncAt');
-      if(syncAt&&syncAt<=now){await this.ctx.storage.delete('privateSyncAt');if(await this.panels.sync(t))await this.ctx.storage.put('privateSyncAt',Date.now()+3000);}
+      if(syncAt&&syncAt<=now){await this.ctx.storage.delete('privateSyncAt');if(await this.panels.sync(t))await this.ctx.storage.put('privateSyncAt',Date.now()+3000);await this.armAlarm(t);return;}
       await this.lifecycleNotices(t,now);
+      await this.boards.flush(t,now);
       await this.armAlarm(t);
     });
   }
@@ -203,3 +218,4 @@ export default {
   },
   async scheduled(event,env,ctx){ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-registration')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'register'})}));}
 };
+
