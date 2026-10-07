@@ -1,0 +1,10 @@
+{
+  "name": "discord-holdem",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-07",
+  "keep_vars": true,
+  "durable_objects": {"bindings": [{"name": "TABLES", "class_name": "PokerTable"}]},
+  "migrations": [{"tag": "v1", "new_sqlite_classes": ["PokerTable"]}],
+  "triggers": {"crons": ["* * * * *"]},
+  "observability": {"enabled": false}
+}
