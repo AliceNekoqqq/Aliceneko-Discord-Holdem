@@ -71,5 +71,5 @@ export function board(t) {
     components.push(row(button(t,'rebuy','补充筹码',2,!t.players.some(p=>!p.bot&&p.stack===0)),button(t,'leave','离桌'),button(t,'addbot','添加电脑',2,t.players.length>=9),button(t,'removebots','移除电脑',2,!t.players.some(p=>p.bot))));
     components.push(row(button(t,'refresh','刷新牌桌'),button(t,'help','玩法'),button(t,'close','关桌'),...(takeover!==null&&takeover<=Date.now()?[button(t,'takeover','接管桌主',1)]:[])));
   }
-  return {content:'',embeds:[{title:'♠ Aliceneko · 德州扑克',description,color:humanTurn?0x4E9975:0xB26486,fields,footer:{text:'beta.7 · 虚拟筹码 · 手牌自动送达 · 空闲关桌：等待 5 分钟 / 结算后 10 分钟'}}],components,allowed_mentions:{parse:[]}};
+  return {content:'',embeds:[{title:'♠ Aliceneko · 德州扑克',description,color:humanTurn?0x4E9975:0xB26486,fields,footer:{text:'beta.8 · 虚拟筹码 · 手牌自动送达 · 空闲关桌：等待 5 分钟 / 结算后 10 分钟'}}],components,allowed_mentions:{parse:[]}};
 }

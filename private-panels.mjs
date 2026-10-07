@@ -1,6 +1,11 @@
-import { handPanel, button, row, panelAction } from './ui.mjs';
-import { imageMessage } from './card-image.mjs';
+import { handPanel as pokerHand, button as pokerButton, row, panelAction } from './ui.mjs';
+import { imageMessage as pokerImage } from './card-image.mjs';
 
+import { handPanel as unoHand, button as unoButton } from './uno-ui.mjs';
+import { imageMessage as unoImage } from './uno-image.mjs';
+const handPanel=(t,...args)=>(t.game==='uno'?unoHand:pokerHand)(t,...args);
+const button=(t,...args)=>(t.game==='uno'?unoButton:pokerButton)(t,...args);
+const imageMessage=(t,...args)=>(t.game==='uno'?unoImage:pokerImage)(t,...args);
 const TTL=14*60*1000;
 const encode=s=>new TextEncoder().encode(s);
 const pack=a=>btoa(String.fromCharCode(...new Uint8Array(a)));
@@ -57,7 +62,7 @@ export class PrivatePanels {
       s.hidden=reply.data.content==='底牌已收起。';
       // Initial HTTP acknowledgements stay fast and text-only. Enrich that exact
       // private reply afterwards so a confirmation is never replaced by navigation.
-      if(!s.hidden&&t.players.find(p=>p.id===id).cards.length===2){s.panel.pending=structuredClone(reply.data);delete s.panel.pending.flags;}
+      if(!s.hidden&&(t.game==='uno'||t.players.find(p=>p.id===id).cards.length===2)){s.panel.pending=structuredClone(reply.data);delete s.panel.pending.flags;}
     }
     s.retire=s.retire.slice(-5);
     await this.write(records);return true;
@@ -85,7 +90,7 @@ export class PrivatePanels {
       let failed=pending.length>0;
       if(eligible){
         if(!s.panel&&s.send?.expires>Date.now()){
-          const data=handPanel(t,id,t.handNo?'新的一手已发牌，这是你本手的两张底牌。':'已入座，发牌后会自动显示你的底牌。');
+          const data=handPanel(t,id,t.game==='uno'?(t.handNo?'新一局已发牌，绿框表示可出。':'已入座，开始后会自动显示手牌。'):t.handNo?'新的一手已发牌，这是你本手的两张底牌。':'已入座，发牌后会自动显示你的底牌。');
           const prepared=await imageMessage(t,id,{...data,flags:64});
           const sent=await this.api(s.send,'POST',prepared.body);
           if(sent?.id){s.panel={...s.send,ref:sent.id,id:sent.id,hand:t.handNo,version:t.version,image:sent.attachments?.[0]?.id?{id:sent.attachments[0].id,signature:prepared.signature}:null};s.hidden=false;}else failed=true;

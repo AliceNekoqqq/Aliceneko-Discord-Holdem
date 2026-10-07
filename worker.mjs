@@ -1,10 +1,12 @@
 import { DurableObject } from 'cloudflare:workers';
 import * as game from './engine.mjs';
+import { UnoController } from './uno-controller.mjs';
+import { board as unoBoard, command as unoCommand } from './uno-ui.mjs';
 import { computerTurn } from './computer.mjs';
 import { PrivatePanels } from './private-panels.mjs';
 import { initializeLifecycle, nextLifecycleAlarm, automaticCloseReason, idleWarning, takeoverAt, canTakeover, touchOwner, effectiveHumanAction } from './lifecycle.mjs';
 import { board, quickRaises, confirmation, handPanel, panelAction, button, row } from './ui.mjs';
-const COMMAND_VERSION='holdem-v1.0.1-beta.1'; // Command schema unchanged in beta.2
+const COMMAND_VERSION='games-v1.0.1-beta.8'; // Command schema unchanged in beta.2
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。桌主点「开始下一手」。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。\n未发牌空闲 5 分钟、结算后空闲 10 分钟自动关桌，提前 1 分钟提醒；刷新和查看手牌不延长计时。\n游玩中 10 分钟无人有效操作且仍可行动真人均已超时时，取消本手并退回下注。\n等待发牌或结算时，桌主 2 分钟未交互，其他已入座真人可接管。只供娱乐，无充值或兑换。';
@@ -19,18 +21,19 @@ async function discordApi(env,path,method,body,timeoutMs=6000){
   return fetch(`https://discord.com/api/v10${path}`,{method,headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
 }
 export class PokerTable extends DurableObject {
+  get uno(){return this.unoController??=new UnoController(this);}
   get panels(){return this.privatePanels??=new PrivatePanels(this.ctx.storage,this.env);}
   async armAlarm(t){
-    const dates=[t?.computerDue,t?.deadline,t?nextLifecycleAlarm(t):null,await this.ctx.storage.get('privateSyncAt'),await this.ctx.storage.get('privateExpiry')].filter(n=>Number.isFinite(n)&&n>0);
+    const dates=[t?.computerDue,t?.deadline,t?.game==='uno'?t.idleDeadline:t?nextLifecycleAlarm(t):null,await this.ctx.storage.get('privateSyncAt'),await this.ctx.storage.get('privateExpiry')].filter(n=>Number.isFinite(n)&&n>0);
     if(dates.length)await this.ctx.storage.setAlarm(Math.max(Date.now()+1,Math.min(...dates)));else await this.ctx.storage.deleteAlarm();
   }
   async queuePanels(t){if(!await this.ctx.storage.get('privatePanels'))return;await this.ctx.storage.put('privateSyncAt',Date.now()+350);await this.armAlarm(t);}
   async save(t){
-    initializeLifecycle(t);
+    if(t.game!=='uno')initializeLifecycle(t);
     t.computerDue=t.players.some(p=>p.id===t.turn&&p.bot)?Date.now()+1500:null;
     await this.ctx.storage.put('table',t);await this.armAlarm(t);
   }
-  async syncBoard(t){if(t.messageId&&this.env.BOT_TOKEN){try{const r=await discordApi(this.env,`/channels/${t.channel}/messages/${t.messageId}`,'PATCH',board(t),2000);return r.ok;}catch{return false;}}return false;}
+  async syncBoard(t){if(t.messageId&&this.env.BOT_TOKEN){try{const r=await discordApi(this.env,`/channels/${t.channel}/messages/${t.messageId}`,'PATCH',t.game==='uno'?unoBoard(t):board(t),2000);return r.ok;}catch{return false;}}return false;}
   async expireTable(t,now=Date.now()){
     const normalized=initializeLifecycle(t,now),reason=automaticCloseReason(t,now);
     if(reason){game.close(t,t.owner,true);t.closeReason=reason;t.closedAt=now;t.version++;t.log.push(reason);t.log=t.log.slice(-5);await this.save(t);await this.queuePanels(t);this.ctx.waitUntil(this.syncBoard(structuredClone(t)));return true;}
@@ -63,7 +66,7 @@ export class PokerTable extends DurableObject {
       if(payload.op==='register'){
         if(!this.env.BOT_TOKEN)return json({registered:false});
         if(await this.ctx.storage.get('commandVersion')===COMMAND_VERSION)return json({registered:true});
-        try{const r=await discordApi(this.env,`/applications/${this.env.DISCORD_APPLICATION_ID}/commands`,'POST',command);if(r.ok)await this.ctx.storage.put('commandVersion',COMMAND_VERSION);return json({registered:r.ok});}catch{return json({registered:false});}
+        try{const results=await Promise.all([command,unoCommand].map(c=>discordApi(this.env,`/applications/${this.env.DISCORD_APPLICATION_ID}/commands`,'POST',c)));if(results.every(r=>r.ok))await this.ctx.storage.put('commandVersion',COMMAND_VERSION);return json({registered:results.every(r=>r.ok)});}catch{return json({registered:false});}
       }
       let t=await this.ctx.storage.get('table');
       if(payload.op==='bind'){if(t&&t.epoch===payload.epoch&&!t.messageId&&/^\d+$/.test(payload.messageId)){t.messageId=payload.messageId;await this.save(t);this.ctx.waitUntil(this.syncBoard(t));}return json({ok:true});}
@@ -71,6 +74,7 @@ export class PokerTable extends DurableObject {
       const i=payload.interaction,id=i.member?.user?.id;
       if(!id||!i.guild_id)return json(privateReply('请在服务器文字频道内使用。'));
       if(t&&(t.channel!==i.channel_id||t.guild!==i.guild_id))return json(privateReply('频道不匹配。'));
+      if(i.data?.name==='uno'||i.data?.custom_id?.startsWith('u:')||(t?.game==='uno'&&t.phase!=='closed')){if(t&&t.game!=='uno')await this.expireTable(t);return this.uno.dispatch(payload,t);}
       // Enforce wall-clock expiry before a late refresh/action can revive a table.
       if(t)await this.expireTable(t);
       const admin=(BigInt(i.member?.permissions||'0')&40n)!==0n;
@@ -149,6 +153,7 @@ export class PokerTable extends DurableObject {
   async alarm(){
     await this.ctx.blockConcurrencyWhile(async()=>{
       const t=await this.ctx.storage.get('table');if(!t)return;
+      if(t.game==='uno'){await this.uno.alarm(t);return;}
       const now=Date.now();
       if((await this.ctx.storage.get('privateExpiry'))<=now)await this.panels.prune(t);
       if(await this.expireTable(t,now))return;
