@@ -82,6 +82,7 @@ export class PokerTable extends DurableObject {
       if(isPanel&&action==='yesallin')action=`yesallin~${id}`;
       const panelReply=(notice='')=>({type:privateMessage?7:4,data:{...handPanel(t,id,notice),...(privateMessage?{}:{flags:64})}});
       if(isPanel&&!t.players.some(p=>p.id===id&&!p.bot))return json(privateReply('你已离开这张牌桌。'));
+      // Keep old hide/cancel controls functional on cards sent before beta.6.
       if(isPanel&&action==='hide')return json({type:7,data:{content:'底牌已收起。',embeds:[],attachments:[],components:[row(button(t,panelAction(id,'hand'),'展开手牌',1))]}});
 
       const confirmAction=action.match(/^(yesallin|yesclose)~(\d+)$/);
@@ -99,7 +100,7 @@ export class PokerTable extends DurableObject {
       if(t.deadline&&Date.now()>=t.deadline&&confirmAction?.[1]!=='yesclose'){game.timeout(t);t.version++;await this.save(t);if(isPanel){this.ctx.waitUntil(this.syncBoard(t));return json(panelReply('回合已超时，已自动处理。'));}if(confirmAction){this.ctx.waitUntil(this.syncBoard(t));return json({type:7,data:{content:'回合已超时，未执行确认操作。',components:[],embeds:[]}});}return json({type:7,data:board(t)});}
       const seen=await this.ctx.storage.get('recentInteractions')||[];if(seen.includes(i.id))return json(privateReply('这次操作已经处理。'));
       try{
-        if(action==='allin'){const l=game.legal(t,id);if(!l.canRaise&&l.maxTotal>t.currentBet)throw Error('本轮未重新开放加注权，只能跟注或弃牌。');const prompt=confirmation(t,id,'allin',`确认投入剩余 **${l.p.stack}** 筹码全下？本轮总下注将为 **${l.maxTotal}**。`);if(isPanel){const data=handPanel(t,id,prompt.data.content);data.components=[row(button(t,panelAction(id,'yesallin'),'确认全下',4),button(t,panelAction(id,'cancel'),'返回手牌'))];return json({type:7,data});}return json(prompt);}
+        if(action==='allin'){const l=game.legal(t,id);if(!l.canRaise&&l.maxTotal>t.currentBet)throw Error('本轮未重新开放加注权，只能跟注或弃牌。');return json(confirmation(t,id,'allin',`确认投入剩余 **${l.p.stack}** 筹码全下？本轮总下注将为 **${l.maxTotal}**。`));}
         if(action==='close'){if(id!==t.owner&&!admin)throw Error('只有桌主或管理员可以关闭牌桌。');return json(confirmation(t,id,'close','确认关闭整张牌桌？未完成手牌的下注会退回。'));}
         if(action==='raise'&&i.type===3){
           const limits=game.legal(t,id);if(!limits.canRaise)throw Error('本轮尚未重新开放你的加注权。');

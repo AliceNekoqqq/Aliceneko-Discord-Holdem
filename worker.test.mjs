@@ -87,9 +87,9 @@ test('all-in confirmation is private, actor-bound, version-checked and single-us
  const key=prompt.data.components[0].components[0].custom_id;
  const denied=await call(3,{custom_id:key},'4','888');assert.equal(denied.data.flags,64);assert.deepEqual(ctx.map.get('table'),before);
  await action('call');const stale=await call(3,{custom_id:key},'1','888');assert(stale.data.content.includes('未执行'));assert.equal(ctx.map.get('table').players[0].stack,1980);
- // Opponent is now acting; cancel preserves the current table.
- const next=await action('allin','4');const cancel=next.data.components[0].components[1].custom_id;
- const state=structuredClone(ctx.map.get('table'));await call(3,{custom_id:cancel},'4','888');assert.deepEqual(ctx.map.get('table'),state);
+ // Opening a confirmation does not commit chips; only the affirmative control exists.
+ const state=structuredClone(ctx.map.get('table'));const next=await action('allin','4');
+ assert.equal(next.data.components[0].components.length,1);assert.deepEqual(ctx.map.get('table'),state);
  const yes=next.data.components[0].components[0].custom_id;
  const savedFetch=globalThis.fetch;globalThis.fetch=async()=>Response.json({});
  try {
@@ -121,9 +121,10 @@ test('private hand panel supports betting and modal, refreshes in place, and can
  const before=structuredClone(ctx.map.get('table'));
  const stale=await call(3,{custom_id:staleKey},'1',{id:'888',flags:64});assert(stale.data.content.includes('未执行'));assert.deepEqual(ctx.map.get('table'),before);
  await call(3,{custom_id:key('call')},'4');await call(3,{custom_id:key('check')},'4');
- const prompt=await privateClick('allin');assert.equal(prompt.type,7);assert(prompt.data.content.includes('确认投入'));assert.equal(prompt.data.embeds[0].title,handTitle);
- const cancel=await privateClick('cancel');assert.equal(cancel.data.embeds[0].title,handTitle);assert.equal(ctx.map.get('table').players[0].stack,1960);
- const allin=await privateClick('yesallin');assert.equal(allin.type,7);assert.equal(ctx.map.get('table').players[0].stack,0);
+ const state=structuredClone(ctx.map.get('table'));const prompt=await privateClick('allin');assert.equal(prompt.type,4);assert.equal(prompt.data.flags,64);assert(prompt.data.content.includes('确认投入'));assert.equal(prompt.data.components[0].components.length,1);assert.deepEqual(ctx.map.get('table'),state);
+ // The original panel remains usable because the confirmation is a separate reply.
+ const unchanged=await privateClick('hand');assert.equal(unchanged.data.embeds[0].title,handTitle);assert.equal(ctx.map.get('table').players[0].stack,1960);
+ const allin=await call(3,{custom_id:prompt.data.components[0].components[0].custom_id},'1',{id:'777',flags:64});assert.equal(allin.type,7);assert.equal(ctx.map.get('table').players[0].stack,0);
  await Promise.all(ctx.tasks);assert(patches.length>0);assert(patches.every(p=>p.embeds[0].title==='♠ Aliceneko · 德州扑克'));
  // A modal without an attached private message must create an ephemeral reply.
  const missingMessage=await call(5,{custom_id:staleKey.replace('call','submit'),components:[]},'1',undefined);

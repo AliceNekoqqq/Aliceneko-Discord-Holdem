@@ -5,7 +5,7 @@ export function button(t,action,label,style=2,disabled=false) {
 }
 export const row=(...components)=>({type:1,components});
 export function confirmation(t,id,action,content) {
-  return {type:4,data:{content,flags:64,allowed_mentions:{parse:[]},components:[row(button(t,`yes${action}~${id}`,'确认'+(action==='allin'?'全下':'关桌'),4),button(t,'cancel','取消'))]}};
+  return {type:4,data:{content,flags:64,allowed_mentions:{parse:[]},components:[row(button(t,`yes${action}~${id}`,'确认'+(action==='allin'?'全下':'关桌'),4))]}};
 }
 export function quickRaises(t,id=t.turn) {
   const l=game.legal(t,id);
@@ -36,7 +36,7 @@ export function handPanel(t,id,notice='') {
   if(rank)fields.push({name:'你目前能组成的牌型',value:`${rank}（按你的底牌与已发公共牌计算）`});
   if(yourTurn){const l=game.legal(t,id);fields.push({name:'现在可以操作',value:`${l.call?`跟注需 ${Math.min(l.call,p.stack)} 筹码`:'可以免费过牌'} · <t:${Math.floor(t.deadline/1000)}:R> 超时`});}
   const components=yourTurn?bettingRows(t,id).map(r=>({...r,components:r.components.map(b=>({...b,custom_id:`h:${t.epoch}:${t.version}:${panelAction(id,b.custom_id.split(':')[3])}`}))})):[];
-  const navigation=[privateButton('hand','刷新手牌',1),privateButton('hide','收起底牌')];
+  const navigation=[privateButton('hand','刷新手牌',1)];
   if(t.messageId)navigation.push({type:2,style:5,label:'回到公共牌桌',url:`https://discord.com/channels/${t.guild}/${t.channel}/${t.messageId}`});
   components.push(row(...navigation));
   return {content:`**第 ${t.handNo} 手 · 你的底牌**${notice?`\n${notice}`:''}`,embeds:[{title:`第 ${t.handNo} 手 · 你的两张底牌`,description:`${p.cards.length?`**${cards}**\n\n`:''}**${status}**\n${phase}`,color:yourTurn?0x4E9975:0xB26486,fields,footer:{text:'仅你可见 · 图中上方是你的底牌，下方是共用公共牌 · 自动更新'}}],attachments:[],components,allowed_mentions:{parse:[]}};
@@ -67,5 +67,5 @@ export function board(t) {
     components.push(row(button(t,'rebuy','补充筹码',2,!t.players.some(p=>!p.bot&&p.stack===0)),button(t,'leave','离桌'),button(t,'addbot','添加电脑',2,t.players.length>=9),button(t,'removebots','移除电脑',2,!t.players.some(p=>p.bot))));
     components.push(row(button(t,'refresh','刷新牌桌'),button(t,'help','玩法'),button(t,'close','关桌')));
   }
-  return {content:'',embeds:[{title:'♠ Aliceneko · 德州扑克',description,color:humanTurn?0x4E9975:0xB26486,fields,footer:{text:'beta.5 · 虚拟筹码 · 发牌后自动送达手牌 · 未收到请点「手牌 / 操作」'}}],components,allowed_mentions:{parse:[]}};
+  return {content:'',embeds:[{title:'♠ Aliceneko · 德州扑克',description,color:humanTurn?0x4E9975:0xB26486,fields,footer:{text:'beta.6 · 虚拟筹码 · 发牌后自动送达手牌 · 未收到请点「手牌 / 操作」'}}],components,allowed_mentions:{parse:[]}};
 }
