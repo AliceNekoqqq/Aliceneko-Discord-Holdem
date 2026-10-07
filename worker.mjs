@@ -1,31 +1,17 @@
 import { DurableObject } from 'cloudflare:workers';
 import * as game from './engine.mjs';
 import { computerTurn } from './computer.mjs';
-const COMMAND_VERSION='holdem-v1.0.1-beta.1';
+import { board, quickRaises, confirmation } from './ui.mjs';
+const COMMAND_VERSION='holdem-v1.0.1-beta.1'; // Command schema unchanged in beta.2
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
-const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。桌主点「开始下一手」。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**。\n超时能过牌则过牌，否则弃牌；全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。只供娱乐，无充值或兑换。';
+const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。桌主点「开始下一手」。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。只供娱乐，无充值或兑换。';
 const command={name:'德州',description:'群友虚拟筹码德州扑克',type:1,integration_types:[0],contexts:[0],options:[{type:1,name:'创建',description:'在当前频道创建 2～9 人牌桌'},{type:1,name:'测试',description:'创建电脑陪练桌，一个人即可测试',options:[{type:4,name:'电脑数量',description:'电脑玩家数量，默认 2 位',min_value:1,max_value:8}]},{type:1,name:'帮助',description:'查看玩法说明'},{type:1,name:'牌桌',description:'查看当前牌桌位置'}]};
 const fromHex=hex=>Uint8Array.from(hex.match(/../g),s=>parseInt(s,16));
 async function validSignature(request,body,keyHex){
   const sig=request.headers.get('X-Signature-Ed25519')||'',ts=request.headers.get('X-Signature-Timestamp')||'';
   if(!/^[a-f0-9]{128}$/i.test(sig)||!/^\d{1,12}$/.test(ts)||!/^[a-f0-9]{64}$/i.test(keyHex||'')||Math.abs(Date.now()/1000-Number(ts))>300)return false;
   try{const key=await crypto.subtle.importKey('raw',fromHex(keyHex),'Ed25519',false,['verify']);return await crypto.subtle.verify('Ed25519',key,fromHex(sig),new TextEncoder().encode(ts+body));}catch{return false;}
-}
-function button(t,action,label,style=2,disabled=false){return {type:2,style,label,custom_id:`h:${t.epoch}:${t.version}:${action}`,disabled};}
-function row(...buttons){return {type:1,components:buttons};}
-function board(t){
-  const running=!['lobby','settled','closed'].includes(t.phase);
-  const phases={lobby:'等待入座',preflop:'翻牌前',flop:'翻牌',turn:'转牌',river:'河牌',settled:'本手结束',closed:'牌桌关闭'};
-  const players=t.players.map((p,i)=>`${t.turn===p.id?'▶ ':''}${game.playerLabel(t,p.id)}${i===t.dealer?' · 庄家':''}：${p.stack} 筹码${running&&p.inHand?(p.folded?' · 已弃牌':p.stack===0?' · 全下':` · 本轮 ${p.round}`):''}`).join('\n')||'暂无玩家';
-  const botActing=t.players.some(p=>p.id===t.turn&&p.bot);
-  const description=`${phases[t.phase]} · 第 ${t.handNo} 手 · ${t.players.length}/9 座\n**公共牌** ${t.board.length?game.cardsText(t.board):'尚未发出'}\n**底池** ${t.pot}${running?` · 当前下注 ${t.currentBet}`:''}\n\n${players}${t.turn?`\n\n轮到 ${game.playerLabel(t,t.turn)}${botActing?' · 正在思考…':` · <t:${Math.floor(t.deadline/1000)}:R> 超时`}`:''}`;
-  const fields=[];if(t.log.length)fields.push({name:'最近操作',value:t.log.join('\n').slice(-1000)});
-  if(t.result?.length)fields.push({name:'结算',value:t.result.join('\n').slice(0,1024)});
-  if(t.phase==='settled'&&t.showdown?.length)fields.push({name:'摊牌',value:t.showdown.map(p=>`${game.playerLabel(t,p.id)}：${game.cardsText(p.cards)} · ${p.rank}`).join('\n').slice(0,1024)});
-  const components=t.phase==='closed'?[]:[row(button(t,'hand','我的手牌',1),button(t,'join','加入',3,running),button(t,'leave','离桌',2,running),button(t,'rebuy','补充筹码',2,running),button(t,'start','开始下一手',3,running)),...(running?[row(button(t,'fold','弃牌',4),button(t,'check','过牌'),button(t,'call','跟注'),button(t,'raise','加注',1),button(t,'allin','全下',4))]:[]),row(button(t,'help','玩法说明'),button(t,'close','关闭牌桌',4))];
-  if(t.phase!=='closed') components[components.length-1]=row(button(t,'help','玩法说明'),button(t,'addbot','添加电脑',2,running||t.players.length>=9),button(t,'removebots','移除电脑',2,running||!t.players.some(p=>p.bot)),button(t,'close','关闭牌桌',4));
-  return {content:'',embeds:[{title:'♠ Aliceneko · 德州扑克',description,color:0xB26486,fields,footer:{text:'测试版 beta.1 · 电脑自动行动 · 虚拟筹码 · 底牌仅本人可见'}}],components,allowed_mentions:{parse:[]}};
 }
 async function discordApi(env,path,method,body,timeoutMs=6000){
   return fetch(`https://discord.com/api/v10${path}`,{method,headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
@@ -70,20 +56,26 @@ export class PokerTable extends DurableObject {
       const parts=(i.data?.custom_id||'').split(':');
       if(parts.length!==4||parts[0]!=='h'||parts[1]!==t.epoch)return json(privateReply('这是旧牌桌的按钮，请打开当前牌桌。'));
       const action=parts[3];
+      const confirmAction=action.match(/^(yesallin|yesclose)~(\d+)$/);
+      if(action==='cancel')return json({type:7,data:{content:'已取消。',embeds:[],components:[]}});
+      if(confirmAction&&confirmAction[2]!==id)return json(privateReply('这不是你的确认按钮。'));
+      if(action==='refresh')return json({type:7,data:board(t)});
       if(action==='help')return json(privateReply(help));
       if(action==='hand'){
         const p=t.players.find(p=>p.id===id);if(!p)return json(privateReply('你没有加入这张牌桌。'));
-        return json(privateReply(p.cards.length?`第 ${t.handNo} 手，你的底牌：**${game.cardsText(p.cards)}**${p.folded?'（已弃牌）':''}`:'还没发牌，请等待桌主开始。'));
+        return json(privateReply(p.cards.length?`第 ${t.handNo} 手，你的底牌：**${game.cardsText(p.cards)}**${p.folded?'（已弃牌）':t.turn===id?`\n**轮到你** · ${game.legal(t,id).call?`需跟注 ${Math.min(p.stack,game.legal(t,id).call)}`:'可以过牌'} · 剩余 ${p.stack} 筹码`:'\n等待其他玩家行动'}`:'还没发牌，请等待桌主开始。'));
       }
-      if(t.messageId&&i.message?.id&&i.message.id!==t.messageId)return json(privateReply('请使用原牌桌消息的按钮。'));
-      if(Number(parts[2])!==t.version)return json({type:7,data:board(t)});
+      if(!confirmAction&&t.messageId&&i.message?.id&&i.message.id!==t.messageId)return json(privateReply('请使用原牌桌消息的按钮。'));
+      if(Number(parts[2])!==t.version&&confirmAction?.[1]!=='yesclose'){if(confirmAction){this.ctx.waitUntil(this.syncBoard(t));return json({type:7,data:{content:'牌局已变化，未执行操作。请回牌桌重新选择。',components:[],embeds:[]}});}return json({type:7,data:{...board(t),content:'牌桌刚刚更新，请按最新金额重新选择操作。'}});}
       // Process expired turns before accepting a player's late action.
-      if(t.deadline&&Date.now()>=t.deadline){game.timeout(t);t.version++;await this.save(t);return json({type:7,data:board(t)});}
+      if(t.deadline&&Date.now()>=t.deadline&&confirmAction?.[1]!=='yesclose'){game.timeout(t);t.version++;await this.save(t);if(confirmAction){this.ctx.waitUntil(this.syncBoard(t));return json({type:7,data:{content:'回合已超时，未执行确认操作。',components:[],embeds:[]}});}return json({type:7,data:board(t)});}
       const seen=await this.ctx.storage.get('recentInteractions')||[];if(seen.includes(i.id))return json(privateReply('这次操作已经处理。'));
       try{
+        if(action==='allin'){const l=game.legal(t,id);if(!l.canRaise&&l.maxTotal>t.currentBet)throw Error('本轮未重新开放加注权，只能跟注或弃牌。');return json(confirmation(t,id,'allin',`确认投入剩余 **${l.p.stack}** 筹码全下？本轮总下注将为 **${l.maxTotal}**。`));}
+        if(action==='close'){if(id!==t.owner&&!admin)throw Error('只有桌主或管理员可以关闭牌桌。');return json(confirmation(t,id,'close','确认关闭整张牌桌？未完成手牌的下注会退回。'));}
         if(action==='raise'&&i.type===3){
           const limits=game.legal(t,id);if(!limits.canRaise)throw Error('本轮尚未重新开放你的加注权。');
-          return json({type:9,data:{custom_id:`h:${t.epoch}:${t.version}:submit`,title:'加注 · 填写本轮总下注',components:[{type:1,components:[{type:4,custom_id:'amount',label:`至少 ${limits.minTotal}，最多 ${limits.maxTotal}（不足可全下）`,style:1,required:true,min_length:1,max_length:8,placeholder:'本轮总下注，不是额外增加的筹码'}]}]}});
+          return json({type:9,data:{custom_id:`h:${t.epoch}:${t.version}:submit`,title:t.currentBet?'加注 · 本轮总下注':'下注 · 本轮总下注',components:[{type:1,components:[{type:4,custom_id:'amount',label:limits.maxTotal<limits.minTotal?`仅可全下：${limits.maxTotal}`:`本轮总额 ${limits.minTotal}～${limits.maxTotal}`,style:1,required:true,min_length:1,max_length:8,value:String(Math.min(limits.minTotal,limits.maxTotal)),placeholder:`已下 ${limits.p.round}，填本轮总额`}]}]}});
         }
         if(action==='join')game.join(t,id);
         else if(action==='leave')game.leave(t,id);
@@ -91,13 +83,16 @@ export class PokerTable extends DurableObject {
         else if(action==='addbot')game.addComputers(t,id);
         else if(action==='removebots')game.removeComputers(t,id);
         else if(action==='start'){if(id!==t.owner)throw Error('只有桌主可以开始下一手。');if(['lobby','settled'].includes(t.phase))for(const p of t.players)if(p.bot&&p.stack===0)game.rebuy(t,p.id);game.start(t,id);}
-        else if(action==='close')game.close(t,id,admin);
+        else if(confirmAction?.[1]==='yesclose')game.close(t,id,admin);
+        else if(confirmAction?.[1]==='yesallin')game.act(t,id,'allin');
+        else if(action.startsWith('quick')){const target=quickRaises(t,id).find(b=>b.action===action)?.target;if(!target)throw Error('当前无法使用这档快捷加注。');game.act(t,id,'raise',target);}
         else if(action==='submit'&&i.type===5){const value=i.data.components?.flatMap(r=>r.components||[]).find(c=>c.custom_id==='amount')?.value?.trim();if(!/^\d{1,8}$/.test(value||''))throw Error('请输入正整数。');game.act(t,id,'raise',Number(value));}
         else if(['fold','check','call','allin'].includes(action)&&i.type===3)game.act(t,id,action);
         else throw Error('未知操作。');
       }catch(error){return json(privateReply(error.message));}
       t.version++;t.lastActive=Date.now();if(!t.messageId&&i.message?.id)t.messageId=i.message.id;
       await this.save(t);await this.ctx.storage.put('recentInteractions',[...seen.slice(-99),i.id]);
+      if(confirmAction){this.ctx.waitUntil(this.syncBoard(t));return json({type:7,data:{content:confirmAction[1]==='yesclose'?'牌桌已关闭。':'已全下，请回牌桌查看。',components:[],embeds:[]}});}
       return json({type:7,data:board(t)});
     });
   }
