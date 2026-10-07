@@ -84,10 +84,10 @@ test('management actions bind actor and phase; late hand viewing cannot revive e
  let current=ctx.map.get('table');current.idleDeadline=Date.now()-1;await ctx.storage.put('table',current);const viewed=await click('hand');assert(viewed.data.content.includes('关闭'));assert.equal(ctx.map.get('table').phase,'closed');
 });
 
-test('all UNO panel states fit Discord component limits and public image is unaffected by private state',async()=>{
+test('all UNO panel states fit Discord component limits and public image is unaffected by private card identities',async()=>{
  const t=game.newTable('1','2','3');game.join(t,'4');t.phase='active';t.turn='1';t.handNo=1;t.color='red';t.discard=[104];t.players[0].cards=Array.from({length:107},(_,i)=>i);
  for(const turn of ['1','4'])for(const page of [0,3,10])for(const pending of [null,{kind:'openingColor',victim:'1'},{kind:'draw4',offender:'4',victim:'1'}]){t.turn=turn;t.pages={'1':page};t.pending=pending;t.unoOpportunity={player:'4'};const data=handPanel(t,'1');assert(data.components.length<=5);for(const r of data.components){assert(r.components.length<=5);for(const c of r.components){assert((c.custom_id||'').length<=100);assert((c.label||'').length<=80);if(c.options)assert(c.options.length<=25);}}for(const f of data.embeds[0].fields)assert(f.value.length<=1024);assert(data.embeds[0].title.length<=256);}
- const a=await boardImageMessage(t,board(t));t.players[0].cards=[5];t.deck=[12];t.pending={kind:'draw4',handBefore:[44,89]};const b=await boardImageMessage(t,board(t));assert.equal(a.signature,b.signature);assert.deepEqual(Buffer.from(await a.body.get('files[0]').arrayBuffer()),Buffer.from(await b.body.get('files[0]').arrayBuffer()));
+ const a=await boardImageMessage(t,board(t));t.players[0].cards=t.players[0].cards.map((_,i)=>107-i);t.deck=[12];t.pending={...t.pending,handBefore:[44,89]};const b=await boardImageMessage(t,board(t));assert.equal(a.signature,b.signature);assert.deepEqual(Buffer.from(await a.body.get('files[0]').arrayBuffer()),Buffer.from(await b.body.get('files[0]').arrayBuffer()));
 });
 
 test('live jump acknowledges privately out of turn, accepts unchanged window across versions, serializes duplicate clicks',async t=>{

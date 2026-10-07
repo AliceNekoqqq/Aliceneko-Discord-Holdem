@@ -1,4 +1,5 @@
 import { Canvas, encodePNG } from './card-image.mjs';
+import { glyphs } from './card-glyphs.mjs';
 import * as game from './uno-engine.mjs';
 import { pageCards, PAGE_SIZE } from './uno-ui.mjs';
 const palette={red:[222,77,110],yellow:[239,185,58],green:[57,172,135],blue:[71,135,212]},white=[255,251,246],ink=[27,34,49],pink=[242,173,209];
@@ -45,10 +46,74 @@ export async function renderBoardImage(card,color,jumped=false){
  else c.text('等候颜色',226,130,30,white);
  c.text('所有人可见',226,198,18,[164,199,218]);return encodePNG(c);
 }
+// Project only public facts before rendering or caching. No card identities from
+// players, draw piles, selected wilds or +4 challenge snapshots enter this model.
+export function publicTableSnapshot(t,now=Date.now()){
+ const jumping=game.jumpOpen(t,now),active=t.phase==='active';
+ return {epoch:t.epoch,hand:t.handNo,phase:t.phase,mode:t.mode,direction:t.direction,
+  card:t.discard?.at(-1)??null,color:t.color||null,jumping,
+  turn:active?t.turn:null,penalty:active?game.penaltyCount(t):0,
+  last:t.lastPlay?{actor:t.lastPlay.actor,jump:!!t.lastPlay.jump}:null,
+  seats:t.players.map((p,i)=>({id:p.id,seat:i+1,name:p.name||`玩家 ${i+1}`,count:p.cards.length,
+   team:t.mode==='teams'?i%2:null,owner:p.id===t.owner,bot:!!p.bot,
+   winner:t.phase==='settled'&&(t.mode==='teams'?i%2===t.winningTeam:p.id===t.winner)}))};
+}
+export function seatLayout(count){
+ if(!Number.isInteger(count)||count<0||count>10)throw Error('Invalid seat count');
+ return Array.from({length:count},(_,i)=>{const angle=-Math.PI/2+i*2*Math.PI/count;
+  return {x:Math.round(480+355*Math.cos(angle)),y:Math.round(430+274*Math.sin(angle)),angle};});
+}
+const gold=[255,209,102],mint=[114,241,176],muted=[164,185,199];
+function ellipse(c,cx,cy,rx,ry,color){
+ for(let y=Math.ceil(cy-ry);y<=cy+ry;y++){const dx=Math.floor(rx*Math.sqrt(Math.max(0,1-((y-cy)/ry)**2)));c.rect(cx-dx,y,2*dx+1,1,color);}
+}
+function arrow(c,x,y,angle,color){const a=13;line(c,Math.round(x-Math.cos(angle)*a),Math.round(y-Math.sin(angle)*a),Math.round(x+Math.cos(angle)*a),Math.round(y+Math.sin(angle)*a),color,3);
+ for(const side of [-1,1])line(c,Math.round(x+Math.cos(angle)*a),Math.round(y+Math.sin(angle)*a),Math.round(x+Math.cos(angle)*3+Math.cos(angle+side*Math.PI/2)*9),Math.round(y+Math.sin(angle)*3+Math.sin(angle+side*Math.PI/2)*9),color,3);
+}
+// Nicknames may use any script or emoji. The compact atlas cannot represent all
+// of them; retain an unambiguous seat label and the full name in the embed/alt text.
+function imageName(seat){const name=[...seat.name].slice(0,11).join('');return [...name].every(ch=>glyphs[ch])?name:`玩家 ${seat.seat}`;}
+function fitText(c,text,x,y,size,maxWidth,color,center=false){
+ const width=[...text].reduce((n,ch)=>n+glyphs[ch][2]*size/48,0);
+ c.text(text,x,y,Math.min(size,size*maxWidth/Math.max(1,width)),color,center);
+}
+export async function renderTableImage(model){
+ const c=new Canvas(960,820),positions=seatLayout(model.seats.length),active=model.phase==='active';
+ c.rect(18,18,924,62,[37,34,53],15);c.text('UNO',38,34,29,pink);
+ c.text(`第 ${model.hand} 局`,136,35,24,white);c.text(model.mode==='teams'?'2v2 组队':'公共牌桌',704,35,24,muted);
+ ellipse(c,480,430,407,317,[65,82,93]);ellipse(c,480,430,399,309,[17,44,48]);ellipse(c,480,430,386,296,[23,56,58]);
+ for(let i=0;i<positions.length;i++){const a=positions[i].angle+Math.PI/Math.max(1,positions.length),x=480+355*Math.cos(a),y=430+274*Math.sin(a);arrow(c,Math.round(x),Math.round(y),a+model.direction*Math.PI/2,muted);}
+ const status=model.jumping?'全桌抢出窗口':active?model.penalty?`累计罚牌 +${model.penalty}`:'等待出牌':model.phase==='lobby'?'等待加入发牌':'本局结束';
+ c.rect(304,280,352,284,[20,35,46],18);
+ fitText(c,status,480,299,25,318,model.jumping?gold:active?mint:pink,true);
+ if(model.card!==null){paintCard(c,model.card,330,344,114,158,model.last?.jump?'jump':false);
+  c.text(model.last?.jump?'抢出成功':'桌面公共牌',462,352,21,model.last?.jump?gold:muted);
+  const who=model.seats.find(s=>s.id===model.last?.actor);
+  if(who){fitText(c,`${who.seat}号 ${imageName(who)}`,462,389,20,180,pink);c.text('刚出牌',462,418,18,pink);}
+  if(model.color){c.rect(464,457,22,22,palette[model.color],5);c.text(`${game.COLOR_NAMES[model.color]}色`,500,458,21,white);}
+ }else{c.text('尚未发牌',480,392,28,muted,true);}
+ c.text(model.direction===1?'顺时针':'逆时针',480,530,20,muted,true);
+ for(let i=0;i<model.seats.length;i++){
+  const s=model.seats[i],{x:cx,y:cy}=positions[i],x=cx-87,y=cy-51,current=active&&model.turn===s.id,
+   stroke=s.winner?gold:current?(model.jumping?gold:mint):s.team!==null?palette[s.team===0?'red':'blue']:[72,92,111];
+  c.rect(x-5,y-5,184,112,stroke,17);c.rect(x,y,174,102,current?[30,64,59]:[29,39,54],13);
+  const title=s.winner?'胜者':current?(model.jumping?'下一位':model.penalty?'处理罚牌':'行动中'):s.owner?'桌主':s.bot?'电脑':s.team===0?'红队':s.team===1?'蓝队':'玩家';
+  c.text(String(s.seat),x+12,y+10,22,stroke);c.text(title,x+48,y+12,18,current||s.winner?stroke:muted);
+  fitText(c,imageName(s),cx,y+39,22,150,white,true);
+  c.text(model.phase==='lobby'?'等待':`${s.count} 张${s.count===1?' UNO':''}`,cx,y+73,19,s.count===1?gold:muted,true);
+  if(s.team!==null)c.rect(x+153,y+12,9,17,palette[s.team===0?'red':'blue'],3);
+  if(model.last?.actor===s.id)c.rect(x+15,y+101,144,5,model.last.jump?gold:pink,2);
+ }
+ c.text('绿框行动 / 金框下一位或胜者 / 粉条刚出牌',480,764,19,muted,true);
+ c.text('座位固定 / 玩家姓名见座次 / 箭头为出牌方向',480,790,17,muted,true);
+ return encodePNG(c);
+}
 export async function boardImageMessage(t,data,existing){
- if(!t.discard?.length||t.phase==='closed')return {body:{...data,attachments:[]},signature:null};
- const card=t.discard.at(-1),color=t.color,signature=`${t.epoch}/${card}/${color}/${!!t.lastPlay?.jump}`,filename='uno-table.png',body=withImage(data,filename);
+ if(t.phase==='closed'||!t.players?.length)return {body:{...data,attachments:[]},signature:null};
+ const model=publicTableSnapshot(t),signature=JSON.stringify(model),filename='uno-table.png',body=withImage(data,filename);
  if(existing?.signature===signature&&existing.id){body.attachments=[{id:existing.id,filename}];return {body,signature};}
- try{return {body:upload(body,await renderBoardImage(card,color,!!t.lastPlay?.jump),filename,`桌面公共牌：${game.cardName(card)}；当前颜色：${game.COLOR_NAMES[color]||'待选择'}。`),signature};}
+ const seats=model.seats.map(s=>`${s.seat}号 ${s.name}，${s.count}张${model.turn===s.id?model.jumping?'，抢出后下一位':'，当前行动者':''}${s.team!==null?`，${s.team===0?'红':'蓝'}队`:''}`).join('；');
+ const alt=`UNO 座次：${seats}。${model.direction===1?'顺':'逆'}时针；${model.jumping?'全桌抢出窗口；':''}${model.card!==null?`公共牌 ${game.cardName(model.card)}，当前${game.COLOR_NAMES[model.color]||'待选'}色。`:''}`;
+ try{return {body:upload(body,await renderTableImage(model),filename,alt.slice(0,1024)),signature};}
  catch{delete body.embeds[0].image;body.attachments=[];return {body,signature:null};}
 }

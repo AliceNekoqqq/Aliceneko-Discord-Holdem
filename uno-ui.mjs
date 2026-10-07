@@ -79,14 +79,14 @@ export function board(t){
  if(game.jumpOpen(t))fields.push({name:'⚡ 全员抢出窗口',value:`手里有 **${cardLabel(t.jumpWindow.card)}** 同色同数字牌即可抢出，不必等自己的回合。\n先通过校验者成功 · <t:${Math.ceil(t.jumpWindow.until/1000)}:R> 结束`});
  if(t.pending?.chain?.length)fields.push({name:`🔥 加牌接力 · 累计 +${game.penaltyCount(t)}`,value:t.pending.chain.map(e=>`${label(t,e.actor)} +${e.amount}`).join(' → ').slice(0,900)+`\n承受者：**${label(t,t.pending.victim)}**${t.pending.finisher?' · 已有玩家出完，先清算罚牌':''}`});
  if(t.mode==='teams')fields.push({name:'🤝 队友与队伍积分',value:[0,1].map(team=>`${team===0?'🔴':'🔵'} **${game.teamName(team)}**：${t.players.filter(p=>game.teamOf(t,p.id)===team).map(p=>label(t,p.id)).join(' + ')} · ${t.teamScores?.[team]||0} 分`).join('\n')});
- fields.push({name:'座次与剩余手牌',value:t.players.map((p,n)=>`${t.turn===p.id?'▶':'▫️'} ${n+1}. ${label(t,p.id)}${t.mode==='teams'?' · '+teamLabel(t,p.id):''}${p.id===t.owner?' · 桌主':''}　**${p.cards.length} 张**${p.cards.length===1?' ⚠️':''}${t.mode==='match'?` · ${p.score} 分`:''}`).join('\n')||'无玩家'});
+ fields.push({name:'座次与剩余手牌',value:t.players.map((p,n)=>`${t.phase==='active'&&t.turn===p.id?(game.jumpOpen(t)?'⏳':'▶'):'▫️'} ${n+1}. ${label(t,p.id)}${t.mode==='teams'?' · '+teamLabel(t,p.id):''}${p.id===t.owner?' · 桌主':''}　**${p.cards.length} 张**${p.cards.length===1?' ⚠️':''}${t.mode==='match'?` · ${p.score} 分`:''}`).join('\n')||'无玩家'});
  if(t.winner)fields.push({name:'🏆 本局结算',value:`${label(t,t.winner)} 出完手牌，${t.mode==='teams'?`**${game.teamName(t.winningTeam)}全队获胜**，获得`:'获得'} **${t.roundPoints} 分**${t.matchWinner?'，赢得积分赛':''}`});
  if(t.unoOpportunity)fields.push({name:'⚠️ 漏喊 UNO 窗口',value:`${label(t,t.unoOpportunity.player)}还未喊 UNO；本人可补喊，其他玩家可抓漏喊。`});
  const recent=(t.events||[]).filter(e=>e.kind!=='start'&&e.seq!==t.lastPlay?.seq).slice(-3);
  if(recent.length)fields.push({name:'最近行动',value:recent.map(e=>actionText(t,e)).join('\n').slice(0,1000)});
  else if(!t.events?.length&&t.log?.length)fields.push({name:'最近行动',value:t.log.slice(-2).join('\n')});
  const closed=t.phase==='closed',caption=t.lastPlay?`${t.lastPlay.jump?'⚡⚡ 抢出成功！':'🃏'} ${actionText(t,t.lastPlay)}\n${t.phase==='active'?`▶ **${status(t)}**`:status(t)}`:`🦋 **UNO · ${status(t)}**`;
- return {content:caption,embeds:[{title:`第 ${t.handNo} 局 · ${modeName(t)}`,color:t.lastPlay?.jump?0xFFD166:hex[t.color]||0xD9688D,description:closed?'未完成局不计分。':`**当前颜色：${t.color?colorEmoji[t.color]+' '+game.COLOR_NAMES[t.color]+'色':'待选择'}** · ${t.direction===1?'顺时针 ↻':'逆时针 ↺'} · ${t.players.length}/${game.seatLimit(t)} 人\n玩法：**${ruleSummary(t)}**`,fields,footer:{text:'beta.11 · 绿框可出 · 每频道一桌'}}],components:rows,allowed_mentions:{parse:[]}};
+ return {content:caption,embeds:[{title:`第 ${t.handNo} 局 · ${modeName(t)}`,color:t.lastPlay?.jump?0xFFD166:hex[t.color]||0xD9688D,description:closed?'未完成局不计分。':`**当前颜色：${t.color?colorEmoji[t.color]+' '+game.COLOR_NAMES[t.color]+'色':'待选择'}** · ${t.direction===1?'顺时针 ↻':'逆时针 ↺'} · ${t.players.length}/${game.seatLimit(t)} 人\n玩法：**${ruleSummary(t)}**`,fields,footer:{text:'beta.12 · 座位顺时针编号 · 绿框行动 / 金框下一位或胜者'}}],components:rows,allowed_mentions:{parse:[]}};
 }
 export function handPanel(t,id,notice=''){
  const p=t.players.find(p=>p.id===id&&!p.bot);if(!p)throw Error('你没有加入这张 UNO 桌。');
