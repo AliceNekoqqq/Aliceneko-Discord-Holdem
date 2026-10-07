@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import * as game from './engine.mjs';
 import { UnoController } from './uno-controller.mjs';
-import { board as unoBoard, command as unoCommand } from './uno-ui.mjs';
+import { command as unoCommand, focusHandPage } from './uno-ui.mjs';
 import { computerTurn } from './computer.mjs';
 import { BoardSync } from './board-sync.mjs';
 import { PrivatePanels } from './private-panels.mjs';
@@ -33,9 +33,10 @@ export class PokerTable extends DurableObject {
   async save(t){
     if(t.game!=='uno')initializeLifecycle(t);
     t.computerDue=t.players.some(p=>p.id===t.turn&&p.bot)?Date.now()+1500:null;
-    await this.ctx.storage.put('table',t);if(t.game!=='uno')await this.boards.queue(t);await this.armAlarm(t);
+    if(t.game==='uno')focusHandPage(t);
+    await this.ctx.storage.put('table',t);await this.boards.queue(t);await this.armAlarm(t);
   }
-  async syncBoard(t){if(t.game!=='uno'){await this.boards.queue(t);await this.armAlarm(t);return true;}if(t.messageId&&this.env.BOT_TOKEN){try{const r=await discordApi(this.env,`/channels/${t.channel}/messages/${t.messageId}`,'PATCH',t.game==='uno'?unoBoard(t):board(t),2000);return r.ok;}catch{return false;}}return false;}
+  async syncBoard(t){await this.boards.queue(t);await this.armAlarm(t);return true;}
   async expireTable(t,now=Date.now()){
     const normalized=initializeLifecycle(t,now),reason=automaticCloseReason(t,now);
     if(reason){game.close(t,t.owner,true);t.closeReason=reason;t.closedAt=now;t.version++;t.log.push(reason);t.log=t.log.slice(-5);await this.save(t);await this.queuePanels(t);await this.syncBoard(t);return true;}
@@ -166,7 +167,7 @@ export class PokerTable extends DurableObject {
     await this.ctx.blockConcurrencyWhile(async()=>{
       const t=await this.ctx.storage.get('table');if(!t)return;
       const now=Date.now();
-      if(t.game==='uno'){await this.uno.alarm(t);await this.boards.flush(t,now);await this.armAlarm(t);return;}
+      if(t.game==='uno'){const privateWork=await this.uno.alarm(t);if(!privateWork)await this.boards.flush(t,now);await this.armAlarm(t);return;}
       if((await this.ctx.storage.get('privateExpiry'))<=now){await this.panels.prune(t);await this.armAlarm(t);return;}
       const expired=await this.expireTable(t,now);
       let changed=false;

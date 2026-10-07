@@ -41,7 +41,7 @@ export class PrivatePanels {
     await Promise.all(Object.entries(records).map(async([id,s])=>{
       if(s.panel&&s.panel.expires<=Date.now()&&Date.now()-s.panel.expires<45000){
         const components=s.epoch===t?.epoch&&t.phase!=='closed'&&t.players.some(p=>p.id===id&&!p.bot)?[row(button(t,panelAction(id,'hand'),'重新启用自动手牌',1))]:[];
-        await this.api({...s.panel,expires:Date.now()+1500},'PATCH',{content:'自动手牌连接已到期，旧底牌已收起。点击下方按钮重新启用。',embeds:[],components,attachments:[],allowed_mentions:{parse:[]}},s.panel.ref);
+        await this.api({...s.panel,expires:Date.now()+1500},'PATCH',{content:'自动手牌连接已到期，旧手牌已收起。点击下方按钮重新启用。',embeds:[],components,attachments:[],allowed_mentions:{parse:[]}},s.panel.ref);
       }
     }));
     await this.write(records);
@@ -59,7 +59,7 @@ export class PrivatePanels {
       const sourceId=reply.type===7?i.message?.id:null;
       if(s.panel&&(!sourceId||(s.panel.id&&s.panel.id!==sourceId)))s.retire.push(s.panel);
       const previous=s.panel;
-      s.panel={...s.send,ref:'@original',id:sourceId,hand:t.handNo,version:t.version,image:sourceId&&previous?.hand===t.handNo?previous.image:null};
+      s.panel={...s.send,ref:'@original',id:sourceId,hand:t.handNo,version:t.version,image:sourceId&&(t.game==='uno'||previous?.hand===t.handNo)?previous?.image:null};
       s.hidden=reply.data.content==='底牌已收起。';
       // Initial HTTP acknowledgements stay fast and text-only. Enrich that exact
       // private reply afterwards so a confirmation is never replaced by navigation.
@@ -84,22 +84,22 @@ export class PrivatePanels {
       const eligible=s.epoch===t.epoch&&t.phase!=='closed'&&t.players.some(p=>p.id===id&&!p.bot);
       if(!eligible&&s.panel){s.retire.push(s.panel);delete s.panel;delete s.send;}
       const newHand=eligible&&s.panel&&s.panel.hand!==t.handNo;
-      if(newHand){s.retire.push(s.panel);delete s.panel;s.hidden=false;}
+      if(newHand&&t.game!=='uno'){s.retire.push(s.panel);delete s.panel;s.hidden=false;}
       const pending=[];
       await Promise.all((s.retire||[]).map(async p=>{if(p.expires>Date.now()&&!await this.api(p,'PATCH',retired(),p.ref))pending.push(p);}));
       s.retire=pending;
       let failed=pending.length>0;
       if(eligible){
-        if(!s.panel&&s.send?.expires>Date.now()){
+        if(!s.panel&&s.send?.expires>Date.now()&&!(t.game==='uno'&&t.phase==='lobby')){
           const data=handPanel(t,id,t.game==='uno'?(t.handNo?'新一局已发牌，绿框表示可出。':'已入座，开始后会自动显示手牌。'):t.handNo?'新的一手已发牌，这是你本手的两张底牌。':'已入座，发牌后会自动显示你的底牌。');
           const prepared=await imageMessage(t,id,{...data,flags:64});
           const sent=await this.api(s.send,'POST',prepared.body);
           if(sent?.id){s.panel={...s.send,ref:sent.id,id:sent.id,hand:t.handNo,version:t.version,image:sent.attachments?.[0]?.id?{id:sent.attachments[0].id,signature:prepared.signature}:null};s.hidden=false;}else failed=true;
-        }else if(s.panel?.expires>Date.now()&&(s.panel.version!==t.version||s.panel.pending)){
+        }else if(s.panel?.expires>Date.now()&&(s.panel.version!==t.version||s.panel.hand!==t.handNo||s.panel.pending)){
           const data=s.hidden?{content:'底牌已收起。',embeds:[],attachments:[],components:[row(button(t,panelAction(id,'hand'),'展开手牌',1))],allowed_mentions:{parse:[]}}:s.panel.version===t.version&&s.panel.pending?s.panel.pending:handPanel(t,id);
           const prepared=await imageMessage(t,id,data,s.panel.image);
           const updated=await this.api(s.panel,'PATCH',prepared.body,s.panel.ref);
-          if(updated){s.panel.version=t.version;delete s.panel.pending;if(updated.id)s.panel.id=updated.id;s.panel.image=updated.attachments?.[0]?.id?{id:updated.attachments[0].id,signature:prepared.signature}:null;}else failed=true;
+          if(updated){s.panel.hand=t.handNo;s.panel.version=t.version;delete s.panel.pending;if(updated.id)s.panel.id=updated.id;s.panel.image=updated.attachments?.[0]?.id?{id:updated.attachments[0].id,signature:prepared.signature}:null;}else failed=true;
         }
       }
       s.failures=failed?(s.failures||0)+1:0;

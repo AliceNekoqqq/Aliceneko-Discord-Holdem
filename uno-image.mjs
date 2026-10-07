@@ -1,6 +1,6 @@
 import { Canvas, encodePNG } from './card-image.mjs';
 import * as game from './uno-engine.mjs';
-import { pageCards } from './uno-ui.mjs';
+import { pageCards, PAGE_SIZE } from './uno-ui.mjs';
 const palette={red:[222,77,110],yellow:[239,185,58],green:[57,172,135],blue:[71,135,212]},white=[255,251,246],ink=[27,34,49],pink=[242,173,209];
 function line(c,x1,y1,x2,y2,color,width=3){const steps=Math.max(Math.abs(x2-x1),Math.abs(y2-y1));for(let i=0;i<=steps;i++){const x=Math.round(x1+(x2-x1)*i/steps),y=Math.round(y1+(y2-y1)*i/steps);c.rect(x,y,width,width,color);}}
 function plus(c,x,y,s,color){c.rect(x-s,y-3,s*2,6,color);c.rect(x-3,y-s,6,s*2,color);}
@@ -19,16 +19,36 @@ export function paintCard(c,card,x,y,w=128,h=172,enabled=false){
  else{plus(c,cx-19,cy,12,fg);c.text(f.value==='draw2'?'2':'4',cx+17,cy-30,54,fg,true);}
  if(typeof f.value!=='number')butterfly(c,x+19,y+20,white);
 }
-export async function renderUnoImage(t,id){const {cards,page,pages}=pageCards(t,id),legal=game.legalCards(t,id),height=280+Math.ceil(cards.length/5)*207,c=new Canvas(760,Math.max(300,height));
- c.rect(16,16,728,238,[37,34,53],14);c.text('ALICENEKO / UNO',38,32,24,pink);c.text('TABLE',38,78,18,[164,199,218]);
- if(t.discard.length)paintCard(c,t.discard.at(-1),300,68,116,166);
- if(t.color){c.rect(466,88,30,30,palette[t.color],8);c.text(t.color.toUpperCase(),513,91,21,white);}
- c.text(`HAND ${t.handNo}`,466,147,18,pink);c.text(`PAGE ${page+1} / ${pages}`,466,189,18,[164,199,218]);
- for(let i=0;i<cards.length;i++){const x=33+i%5*143,y=292+Math.floor(i/5)*207;c.text(String(page*20+i+1),x+64,y-28,20,legal.includes(cards[i])?[114,241,176]:pink,true);paintCard(c,cards[i],x,y,120,164,legal.includes(cards[i]));}
+export async function renderUnoImage(t,id){
+ const {cards,page,pages}=pageCards(t,id),legal=game.legalCards(t,id),own=t.phase==='active'&&t.turn===id,c=new Canvas(760,100+Math.max(1,Math.ceil(cards.length/5))*203);
+ c.rect(16,16,728,64,[37,34,53],14);c.text('你的手牌',34,29,27,pink);c.text('仅你可见',594,31,20,pink);
+ c.text(own?'绿框可出':'灰框等候',208,34,20,own?[114,241,176]:[164,199,218]);c.text(`第 ${page+1}/${pages} 页`,416,34,20,white);
+ for(let i=0;i<cards.length;i++){const x=33+i%5*143,y=118+Math.floor(i/5)*203;c.text(String(page*PAGE_SIZE+i+1),x+60,y-27,20,legal.includes(cards[i])?[114,241,176]:pink,true);paintCard(c,cards[i],x,y,120,164,legal.includes(cards[i]));}
  return encodePNG(c);
 }
-export async function imageMessage(t,id,data,existing){const p=t.players.find(p=>p.id===id&&!p.bot);if(!p?.cards.length||!data.embeds?.length)return {body:{...data,attachments:[]},signature:null};
- const page=pageCards(t,id),signature=`${t.epoch}/${t.handNo}/${page.page}/${p.cards.join(',')}/${t.discard.at(-1)}/${t.color}/${game.legalCards(t,id).join(',')}`,filename=`uno-${t.handNo}-p${page.page+1}.png`,body=structuredClone(data);body.embeds[0].image={url:`attachment://${filename}`};
+function withImage(data,filename){const body=structuredClone(data);body.embeds[0].image={url:`attachment://${filename}`};return body;}
+function upload(body,png,filename,description){body.attachments=[{id:0,filename,description}];const form=new FormData();form.set('payload_json',JSON.stringify(body));form.set('files[0]',png,filename);return form;}
+export async function imageMessage(t,id,data,existing){
+ const p=t.players.find(p=>p.id===id&&!p.bot);if(!p?.cards.length||!data.embeds?.length)return {body:{...data,attachments:[]},signature:null};
+ const page=pageCards(t,id),legal=game.legalCards(t,id),signature=`${t.epoch}/${t.handNo}/${page.page}/${p.cards.join(',')}/${legal.join(',')}/${t.phase==='active'&&t.turn===id}`,filename=`uno-${t.handNo}-p${page.page+1}.png`,body=withImage(data,filename);
+ const compact=()=>{body.embeds[0].fields=body.embeds[0].fields?.filter(f=>f.name!=='手牌文字');};
+ if(existing?.signature===signature&&existing.id){compact();body.attachments=[{id:existing.id,filename}];return {body,signature};}
+ try{const png=await renderUnoImage(t,id);compact();return {body:upload(body,png,filename,`你的 UNO 手牌第 ${page.page+1} 页，绿框可出：`+page.cards.map((c,n)=>`${page.page*PAGE_SIZE+n+1}. ${game.cardName(c)}${legal.includes(c)?'（可出）':''}`).join('；')),signature};}
+ catch{delete body.embeds[0].image;body.attachments=[];return {body,signature:null};}
+}
+// A separate public renderer receives only the visible discard card and color.
+// Player hands, draw piles and challenge snapshots never reach it.
+export async function renderBoardImage(card,color){
+ const c=new Canvas(760,264);c.rect(16,16,728,232,[27,43,54],14);paintCard(c,card,48,39,138,184);
+ c.text('桌面公共牌',226,39,28,[164,199,218]);c.text('UNO',226,84,20,pink);
+ if(color){c.rect(226,130,30,30,palette[color],8);c.text(`当前${game.COLOR_NAMES[color]}色`,273,129,30,white);}
+ else c.text('等候颜色',226,130,30,white);
+ c.text('所有人可见',226,198,18,[164,199,218]);return encodePNG(c);
+}
+export async function boardImageMessage(t,data,existing){
+ if(!t.discard?.length||t.phase==='closed')return {body:{...data,attachments:[]},signature:null};
+ const card=t.discard.at(-1),color=t.color,signature=`${t.epoch}/${card}/${color}`,filename='uno-table.png',body=withImage(data,filename);
  if(existing?.signature===signature&&existing.id){body.attachments=[{id:existing.id,filename}];return {body,signature};}
- try{const png=await renderUnoImage(t,id);body.attachments=[{id:0,filename,description:`你的 UNO 手牌第 ${page.page+1} 页，绿框可出，编号对应菜单。`}];const form=new FormData();form.set('payload_json',JSON.stringify(body));form.set('files[0]',png,filename);return {body:form,signature};}catch{delete body.embeds[0].image;body.attachments=[];return {body,signature:null};}
+ try{return {body:upload(body,await renderBoardImage(card,color),filename,`桌面公共牌：${game.cardName(card)}；当前颜色：${game.COLOR_NAMES[color]||'待选择'}。`),signature};}
+ catch{delete body.embeds[0].image;body.attachments=[];return {body,signature:null};}
 }

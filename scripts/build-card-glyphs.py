@@ -14,7 +14,7 @@ parser.add_argument('--cjk-font', required=True, help='Path to original Noto San
 args = parser.parse_args()
 cjk = ImageFont.truetype(args.cjk_font, 48)
 glyphs = {}
-for char in dict.fromkeys('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ /-♠♥♦♣你的底牌仅可见桌面公共所有人用翻转河'):
+for char in dict.fromkeys('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ /-♠♥♦♣你的底牌仅可见桌面公共所有人用翻转河手绿框出灰等候行动本局结束当前颜色红黄蓝最近点击编号第页剩余张可跳过反变'):
     face = cjk if ord(char) > 0x4e00 else font
     box = face.getbbox(char)
     width = max(1, box[2] - box[0])
