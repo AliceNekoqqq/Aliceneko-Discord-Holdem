@@ -148,3 +148,5 @@
 - 验证包括旧SQLite迁移、持久保存/重置、一次入场同步、不延长时钟、胜方与组队认输边界及图像变化。真人客户端效果待试玩。
 
 - 132项测试全通过，胜利表情座位PNG已目视检查。GitHub main已推送beta.16（2e85bed）。Cloudflare部署被自动审批拒绝：要求用户明确授权替换运行中Worker；未尝试绕过。在线仍为beta.15，待部署授权。
+
+- 用户于2026-10-08明确授予最高权限并授权部署后，beta.16上传成功（HTTP200），线上设置读回v1.0.1-beta.16。原BOT_TOKEN Secret、TABLES namespace与compatibility date保留。此前部署阻塞已解除，真人客户端效果待试玩。
