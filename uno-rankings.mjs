@@ -1,3 +1,4 @@
+import {applicationCatalog} from './app-emojis.mjs';
 import {UnoProfiles} from './uno-profile.mjs';
 // Guild-wide, durable and idempotent UNO standings. No private card data enters this store.
 const clean=s=>String(s||'玩家').replace(/[\x00-\x1f\\`*_~>|\[\]]/g,'').slice(0,24);
@@ -49,7 +50,7 @@ export class UnoRankings {
    state.error=null;state.blocked=false;state.retries=0;await this.storage.put('unoRole',state);await this.storage.deleteAlarm();
   }catch(e){state.error=e.message;state.blocked=!!e.permanent;state.retries=(state.retries||0)+1;await this.storage.put('unoRole',state);if(state.blocked)await this.storage.deleteAlarm();else await this.storage.setAlarm(Date.now()+Math.min(300000,5000*2**Math.min(state.retries,6)));}
  }
- async dispatch(payload){const {guild,action,id}=payload;if(!/^\d+$/.test(guild||''))throw Error('无效服务器。');await this.storage.put('rankGuild',guild);if(action==='record')return this.record(guild,payload.result);if(action==='crown')return {crown:this.crown(),profiles:this.profiles.forPlayers(payload.ids||[])};if(action==='profile'){const profile=payload.key==='open'?this.profiles.get(id):this.profiles.set(id,payload.key,payload.value);return {profile};}if(action==='equip')return this.equip(guild,id,payload.choice);return this.view(id);}
+ async dispatch(payload){const {guild,action,id}=payload;if(!/^\d+$/.test(guild||''))throw Error('无效服务器。');await this.storage.put('rankGuild',guild);if(action==='record')return this.record(guild,payload.result);if(action==='crown'){const profiles=this.profiles.forPlayers(payload.ids||[]),catalog=await applicationCatalog(this.env);for(const p of Object.values(profiles)){p.appEntrance=catalog.items.find(e=>e.id===p.entranceApp)||null;p.appVictory=catalog.items.find(e=>e.id===p.victoryApp)||null;}return {crown:this.crown(),profiles};}if(action==='profile'){const catalog=await applicationCatalog(this.env),parts=String(payload.key).match(/^(app|set)~(entranceApp|victoryApp)~(\d+)$/);const key=parts?.[1]==='set'?parts[2]:payload.key;const profile=payload.key==='open'||parts?.[1]==='app'?this.profiles.get(id):this.profiles.set(id,key,payload.value,catalog.items);return {profile,catalog:catalog.items,catalogStatus:catalog.status};}if(action==='equip')return this.equip(guild,id,payload.choice);return this.view(id);}
 }
 const mentions={parse:[]};
 const choiceText=choice=>({none:'暂不佩戴',title:'👑 游戏称号',role:'👑 Discord 身份组'})[choice]||'暂不佩戴';
