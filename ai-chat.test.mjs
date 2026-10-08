@@ -587,7 +587,7 @@ test("developer account identity uses an exact local Discord User ID match", asy
   assert.match(requests[0].messages[0].content,/\[开发者账号\]/);
   for (const request of requests) {
     assert.equal(request.messages.at(-1).content,'你好');
-    assert.match(request.messages[0].content,/不是当前用户发送的正文/);
+    assert.match(request.messages[0].content,/不是用户发言/);
     assert.match(request.messages[0].content,/服务器当前时间/);
   }
   for (const request of requests) assert.doesNotMatch(JSON.stringify(request),new RegExp(ownerId));
@@ -896,7 +896,7 @@ test("chat memory is scoped to one member and stores only successful direct chat
   assert.equal(secondRequest.contents.length,1);
 });
 
-test("channel memory combines channel and personal context, with speaker labels", async t => {
+test("channel memory stays attributed outside the current member's personal dialogue", async t => {
   const db=fakeDb();
   db.state.channelMemory.set("g1:c1",1);
   db.state.history.push(
@@ -920,8 +920,14 @@ test("channel memory combines channel and personal context, with speaker labels"
   },"bot-1");
   const request=JSON.parse(calls.find(call=>String(call.url).startsWith("https://generativelanguage.googleapis.com/")).options.body);
   assert.deepEqual(request.contents.map(item=>item.parts[0].text),[
-    "我之前的个人话题","个人记忆回复","【小明】我们刚才在聊 UNO","这里的共享上下文","【小红】那后来呢？"
+    "我之前的个人话题","个人记忆回复","那后来呢？"
   ]);
+  const system=request.systemInstruction.parts[0].text;
+  const background=JSON.parse(system.slice(system.lastIndexOf('\n{')+1));
+  assert.equal(background.currentSpeaker.name,'小红');
+  assert.equal(background.channelConversation.records[0].speaker,'member_1');
+  assert.equal(background.channelConversation.records[1].replyTo,'member_1');
+  assert.equal(background.channelConversation.participants[1].name,'小明');
   assert.equal(db.state.history.length,4);
   assert.equal(db.state.channelHistory.length,4);
   assert.equal(db.state.channelHistory[2].speaker_name,"小红");
@@ -949,8 +955,9 @@ test("member memory opt-out prevents their messages entering shared channel memo
   },"bot-1");
   const request=JSON.parse(calls.find(call=>String(call.url).startsWith("https://generativelanguage.googleapis.com/")).options.body);
   assert.deepEqual(request.contents.map(item=>item.parts[0].text),[
-    "【小明】别人留下的上下文","之前的回答","【小红】不要记住这句"
+    "不要记住这句"
   ]);
+  assert.match(request.systemInstruction.parts[0].text,/别人留下的上下文/);
   assert.equal(db.state.history.length,0);
   assert.equal(db.state.channelHistory.length,2);
 });
