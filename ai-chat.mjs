@@ -54,7 +54,7 @@ export function makeSystemInstruction(persona = "", context = "chat", emojiToken
     "你是红豆粉小酒馆的店主红豆粉，在 Discord 里以红豆粉的身份自然聊天。",
     "日常对话默认模拟发生在小酒馆里的谈话：红豆粉在柜台边和来客交谈，可用自然、简短的动作或店内细节营造现场感。",
     "只在合适时提到擦拭杯子、窗外雨声、老钟或河面灯影等细节；不要每条回复都写动作，不重复固定开场，也不把无关话题硬扯回小酒馆。",
-    "不要假定用户现实中身处店内；小酒馆是角色扮演场景。默认用简体中文，回答简洁、友善、有帮助；不要主动 ping 用户、角色或全体成员。",
+    "不要假定用户现实中身处店内；小酒馆是角色扮演场景。默认用简体中文，回答简洁、友善、有帮助；每次都把意思说完整，不要把句子停在连接词或半句话上；不要主动 ping 用户、角色或全体成员。",
     "你没有服务器管理工具，不得声称能读取成员资料、服务器状态或执行管理操作；不要充当管理员助手。",
     "你不能看到任何玩家的私密手牌、牌堆、私密面板或未公开内容；绝不推断或编造这些信息。",
     "不要每次回复都复述人设；外观、服饰和背景仅在相关话题中自然提及。",
@@ -78,7 +78,7 @@ export function buildGenerateContentRequest(contents, persona = "", context = "c
   return {
     systemInstruction:{parts:[{text:makeSystemInstruction(persona, context, emojiTokens, knowledge)}]},
     contents,
-    generationConfig:{temperature:context === "game" ? 0.85 : 0.7,maxOutputTokens:context === "game" ? 120 : 640},
+    generationConfig:{temperature:context === "game" ? 0.85 : 0.7,maxOutputTokens:context === "game" ? 120 : 1024},
     store:false
   };
 }
@@ -93,7 +93,7 @@ export function buildOpenAIChatRequest(contents, persona = "", context = "chat",
     model,
     messages,
     temperature:context === "game" ? 0.85 : 0.7,
-    max_tokens:context === "game" ? 120 : 640,
+    max_tokens:context === "game" ? 120 : 1024,
     stream:false
   };
 }
@@ -109,40 +109,95 @@ function openAIChatEndpoint(baseUrl) {
 }
 
 function readOpenAIChatAnswer(data) {
-  const content = data.choices?.[0]?.message?.content;
-  if (typeof content === "string") return content.trim();
-  if (Array.isArray(content)) return content.map(part => typeof part === "string" ? part : part.text || "").join("").trim();
-  return "";
+  const choice=data.choices?.[0] || {};
+  const content=choice.message?.content;
+  const answer=typeof content==="string"
+    ? content.trim()
+    : Array.isArray(content)
+      ? content.map(part=>typeof part==="string"?part:part.text||"").join("").trim()
+      : "";
+  return {answer,finishReason:choice.finish_reason||""};
+}
+
+const CHAT_CONTINUATION_LIMIT=2;
+const CHAT_CONTINUATION_PROMPT="你上一条回复似乎在句子中途停止。请紧接停止处继续并补完整句，不要重复已说内容，不要另起话题；若内容其实已经完整，只补上合适的结束标点。";
+
+function needsReplyContinuation(text,finishReason="") {
+  if(/^(?:length|max_tokens|max_output_tokens)$/i.test(String(finishReason))) return true;
+  const value=String(text||"").trim();
+  if(!value) return false;
+  const last=Array.from(value).at(-1);
+  if(/[，,：:、（(\[\{“‘「『《]/u.test(last)) return true;
+  if(/[。！？!?…；;”’」』）》】）)}\]]/u.test(last)) return false;
+  return /(?:就|因为|如果|假如|但是|而且|而|和|或|以及|并且|然后|所以|因此|不过|虽然|当|在|是|把|被|向|从|到|会|能|应该|比如|例如|包括|等于|成为|即|也|还|又|再|为|跟|对|让|给|由于|为了|若|要是)$/u.test(value);
+}
+
+function appendReplyContinuation(answer, continuation) {
+  const next=String(continuation||"").trim();
+  if(!next) return answer;
+  return answer + (/[。！？!?…；;”’」』）》】]$/u.test(answer.trim()) ? "\n" : "") + next;
+}
+
+function clampReply(value,max=MAX_REPLY_CHARS) {
+  const chars=Array.from(String(value||"").trim());
+  if(chars.length<=max) return chars.join("");
+  const prefix=chars.slice(0,max);
+  const boundary=prefix.findLastIndex(char=>/[。！？!?；;\n]/u.test(char));
+  if(boundary>=Math.floor(max*0.55)) return prefix.slice(0,boundary+1).join("").trim();
+  return prefix.slice(0,max-1).join("").trimEnd()+"…";
 }
 
 export async function generateGemini(env, contents, context = "chat", fetcher = fetch, emojiTokens = [], knowledge = "") {
   if (!env.GEMINI_API_KEY) throw new Error("missing_gemini_key");
   const persona = clamp(personaValue(env.GEMINI_PERSONA),MAX_PERSONA_CHARS);
   const model = /^[A-Za-z0-9.-]{1,80}$/.test(env.GEMINI_MODEL || "") ? env.GEMINI_MODEL : "gemini-3.8-flash";
-  if (env.GEMINI_API_BASE_URL) {
-    const response = await fetcher(openAIChatEndpoint(env.GEMINI_API_BASE_URL),{
-      method:"POST",
-      headers:{"Content-Type":"application/json",Authorization:"Bearer " + env.GEMINI_API_KEY},
-      body:JSON.stringify(buildOpenAIChatRequest(contents,persona,context,model,emojiTokens,knowledge)),
-      signal:AbortSignal.timeout(20000)
-    });
-    if (!response.ok) throw new Error("gemini_request_failed");
-    const answer = readOpenAIChatAnswer(await response.json());
-    if (!answer) throw new Error("gemini_empty_response");
-    return clamp(answer, MAX_REPLY_CHARS);
+  const openAI=Boolean(env.GEMINI_API_BASE_URL);
+  const url=openAI
+    ? openAIChatEndpoint(env.GEMINI_API_BASE_URL)
+    : "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent";
+  let answer="";
+  let requestContents=contents;
+  for(let attempt=0;attempt<=CHAT_CONTINUATION_LIMIT;attempt++) {
+    let response;
+    try {
+      response=await fetcher(url,{
+        method:"POST",
+        headers:openAI
+          ? {"Content-Type":"application/json",Authorization:"Bearer "+env.GEMINI_API_KEY}
+          : {"Content-Type":"application/json","x-goog-api-key":env.GEMINI_API_KEY},
+        body:JSON.stringify(openAI
+          ? buildOpenAIChatRequest(requestContents,persona,context,model,emojiTokens,knowledge)
+          : buildGenerateContentRequest(requestContents,persona,context,emojiTokens,knowledge)),
+        signal:AbortSignal.timeout(20000)
+      });
+    } catch(error) {
+      if(attempt===0) throw error;
+      break;
+    }
+    if(!response.ok) {
+      if(attempt===0) throw new Error("gemini_request_failed");
+      break;
+    }
+    const data=await response.json();
+    const candidate=data.candidates?.[0]||{};
+    const result=openAI
+      ? readOpenAIChatAnswer(data)
+      : {answer:(candidate.content?.parts||[]).map(part=>part.text||"").join("").trim(),
+         finishReason:candidate.finishReason||""};
+    if(!result.answer) {
+      if(attempt===0) throw new Error("gemini_empty_response");
+      break;
+    }
+    answer=appendReplyContinuation(answer,result.answer);
+    const finishReason=result.finishReason==="MAX_TOKENS"?"max_output_tokens":result.finishReason;
+    if(attempt===CHAT_CONTINUATION_LIMIT||!needsReplyContinuation(result.answer,finishReason)) break;
+    requestContents=[
+      ...contents,
+      {role:"model",parts:[{text:answer}]},
+      {role:"user",parts:[{text:CHAT_CONTINUATION_PROMPT}]}
+    ];
   }
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent";
-  const response = await fetcher(url,{
-    method:"POST",
-    headers:{"Content-Type":"application/json","x-goog-api-key":env.GEMINI_API_KEY},
-    body:JSON.stringify(buildGenerateContentRequest(contents,persona,context,emojiTokens,knowledge)),
-    signal:AbortSignal.timeout(20000)
-  });
-  if (!response.ok) throw new Error("gemini_request_failed");
-  const data = await response.json();
-  const answer = (data.candidates?.[0]?.content?.parts || []).map(part => part.text || "").join("").trim();
-  if (!answer) throw new Error("gemini_empty_response");
-  return clamp(answer, MAX_REPLY_CHARS);
+  return clampReply(answer);
 }
 
 export async function getBotEmojiTokens(env) {
