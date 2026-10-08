@@ -167,6 +167,22 @@ test("provider token-limit finish reasons trigger a continuation", async () => {
   assert.equal(nativeAnswer,"UNO 的目标是先出完手牌，并在最后一张牌前喊 UNO。");
 });
 
+test("chat uses at most one paid continuation request", async () => {
+  const env={
+    GEMINI_API_KEY:"test-secret",
+    GEMINI_API_BASE_URL:"https://gcli.ggchan.dev/v1/"
+  };
+  let calls=0;
+  const answer=await generateGemini(env,[{role:"user",parts:[{text:"UNO 怎么玩？"}]}],"chat",async ()=>{
+    calls++;
+    return Response.json({choices:[{message:{
+      content:calls===1?"UNO 的目标是先把手牌打完":"再根据颜色或数字匹配",
+    },finish_reason:"length"}]});
+  });
+  assert.equal(calls,2);
+  assert.equal(answer,"UNO 的目标是先把手牌打完再根据颜色或数字匹配…");
+});
+
 test("system instruction protects private cards and excludes admin assistance", () => {
   const prompt = makeSystemInstruction("活泼");
   assert.match(prompt,/私密手牌/);
