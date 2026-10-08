@@ -9,7 +9,7 @@ const pokerState=t=>{const copy=structuredClone(t);delete copy.ownerSeenAt;delet
 function context(){const map=new Map();const storage={sql:{exec:()=>({one:()=>({ok:1})})},get:async k=>structuredClone(map.get(k)),delete:async k=>map.delete(k),put:async(k,v)=>map.set(k,structuredClone(v)),setAlarm:async v=>map.set('alarm',v),deleteAlarm:async()=>map.delete('alarm')};storage.transaction=async fn=>fn(storage);const tasks=[];return {storage,map,tasks,blockConcurrencyWhile:fn=>fn(),waitUntil:p=>tasks.push(p)};}
 test('signed Discord flow, private cards, stale click, duplicate, modal, timeout and safe routes',async()=>{
  const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);const env={BOT_TOKEN:'test-secret-not-real',DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex')};
- const instances=new Map();env.TABLES={idFromName:n=>n,get:n=>{if(!instances.has(n)){const ctx=context();instances.set(n,{ctx,do:new PokerTable(ctx,env)});}return {fetch:(url,init)=>instances.get(n).do.fetch(new Request(url,init))};}};
+ const instances=new Map();env.TABLES={idFromName:n=>n,get:n=>{if(n==='system-discord-gateway')return {fetch:async()=>Response.json({connected:false})};if(!instances.has(n)){const ctx=context();instances.set(n,{ctx,do:new PokerTable(ctx,env)});}return {fetch:(url,init)=>instances.get(n).do.fetch(new Request(url,init))};}};
  const oldFetch=globalThis.fetch;globalThis.fetch=async(url,options)=>new Response(JSON.stringify({id:'999'}),{status:200,headers:{'Content-Type':'application/json'}});
  try{
  let counter=0;
