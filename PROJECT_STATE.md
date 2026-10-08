@@ -325,3 +325,10 @@
 - 提交f06e9f3已同步GitHub，尚未上线。Cloudflare上下文部署被automatic approval review拒绝：需要用户明确批准成员名字/账号ID和被回复消息内容发往 https://gcli.ggchan.dev/v1/chat/completions；此前允许仅覆盖图片。未绕过或改道部署，线上保持已上线识图版本。待此具体payload+destination授权后继续上传并读回核验。
 
 - 用户2026-10-08 20:43明确确认允许成员昵称/账号名/ID及主动@时引用的原消息与作者发送到当前中转，并授予广泛操作授权。Cloudflare部署HTTP200成功，36个模块；ai-chat.mjs与discord-chat-context.mjs均读回精确匹配。原gemini-3.8-flash、中转地址、密钥、D1和DO保留。此前成员上下文部署阻塞已解决；完整列表及普通引用原文仍取决于Developer Portal特权intent和频道读取历史权限。
+
+## Discord 开发者账号识别（2026-10-08）
+
+- 知识档案记录开发者常用名称：.aliceneko、♡aliceneko♡，有时显示为“红豆粉”；这些名称仅用于辅助称呼，不用作身份凭证。
+- Worker 使用本地 secret `DEVELOPER_DISCORD_USER_ID` 与当前消息的 `author.id` 精确匹配。匹配时将“当前说话者是红豆粉、也是姐姐”写入本轮系统上下文；未匹配时，即使他人使用相同昵称，也明确禁止将对方误认成开发者。
+- 数字 ID 仅保存在 Cloudflare secret，不写入 GitHub，也不包含在发往 Gemini 的系统上下文中。
+- 回归测试覆盖正确账号、相同别名的其他账号、未配置身份和聊天请求的身份上下文注入。

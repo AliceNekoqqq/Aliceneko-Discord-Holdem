@@ -9,6 +9,7 @@ import {
   generateGemini,
   GEMINI_MAX_RETRIES,
   discordImageParts,
+  developerIdentityContext,
   getBotEmojiTokens,
   handleAiCommand,
   makeSystemInstruction,
@@ -478,7 +479,50 @@ test("developer identity and Red Bean Powder OC facts are retrieved only when re
   assert.match(chatInstruction,/人格源自开发者红豆粉本人/);
   assert.match(chatInstruction,/亲近的姐姐/);
   assert.doesNotMatch(getBotKnowledge("UNO 怎么开局？"),/姐姐/);
+  const aliases=getBotKnowledge("♡aliceneko♡ 是谁？");
+  assert.match(aliases,/.aliceneko/);
+  assert.match(aliases,/♡aliceneko♡/);
+  assert.match(aliases,/不能用于验证当前发言者/);
   assert.doesNotMatch(makeSystemInstruction("","game",[],identity),/167cm/);
+});
+
+test("developer account identity uses an exact local Discord User ID match", async t => {
+  const ownerId="993451176282574878";
+  const verified=developerIdentityContext({DEVELOPER_DISCORD_USER_ID:ownerId},{author:{id:ownerId}});
+  assert.match(verified,/身份已确认/);
+  assert.match(verified,/开发者红豆粉/);
+  assert.doesNotMatch(verified,new RegExp(ownerId));
+  const impostor=developerIdentityContext({DEVELOPER_DISCORD_USER_ID:ownerId},{
+    author:{id:"123456789012345678",username:"♡aliceneko♡",global_name:"红豆粉"},
+    member:{nick:".aliceneko"}
+  });
+  assert.match(impostor,/身份未匹配/);
+  assert.match(impostor,/不要把当前发言者与她混为一人/);
+  assert.doesNotMatch(impostor,new RegExp(ownerId));
+  assert.match(developerIdentityContext({}, {author:{id:ownerId}}),/尚未有效配置/);
+
+  const calls=[];
+  t.mock.method(globalThis,"setInterval",()=>123);
+  t.mock.method(globalThis,"clearInterval",()=>{});
+  t.mock.method(globalThis,"fetch",async (url,options)=>{
+    calls.push({url:String(url),options});
+    if(String(url)==="https://example.test/v1/chat/completions") {
+      return Response.json({choices:[{message:{content:"姐姐，记得啦。"},finish_reason:"stop"}]});
+    }
+    return Response.json({});
+  });
+  const env={BOT_TOKEN:"test",GEMINI_API_KEY:"test",GEMINI_API_BASE_URL:"https://example.test/v1",DEVELOPER_DISCORD_USER_ID:ownerId};
+  for (const [messageId,author] of [
+    ["owner",{id:ownerId,username:"♡aliceneko♡",global_name:"红豆粉"}],
+    ["impostor",{id:"123456789012345678",username:"♡aliceneko♡",global_name:"红豆粉"}]
+  ]) {
+    await replyToMention(env,{id:messageId,guild_id:"g",channel_id:"c",author,member:{nick:".aliceneko"},content:"<@bot> 你好"},"bot");
+  }
+  const requests=calls.filter(call=>call.url==="https://example.test/v1/chat/completions").map(call=>JSON.parse(call.options.body));
+  assert.equal(requests.length,2);
+  assert.match(requests[0].messages[0].content,/身份已确认/);
+  assert.match(requests[1].messages[0].content,/身份未匹配/);
+  for (const request of requests) assert.doesNotMatch(JSON.stringify(request),new RegExp(ownerId));
 });
 
 test("published knowledge document is generated from the Worker knowledge source", async () => {
