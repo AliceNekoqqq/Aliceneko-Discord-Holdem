@@ -209,7 +209,7 @@ test('OpenAI image bytes are delivered inline and omitted from request diagnosti
   const env={GEMINI_API_KEY:'test-secret',GEMINI_API_BASE_URL:'https://example.test/v1',CHAT_DB:db};
   await generateGemini(env,[{role:'user',parts:[{text:'识图'},{imageUrl:'https://cdn.discordapp.com/attachments/1/2/a.png',mimeType:'image/png'}]}],'chat',async(url,options)=>{
     calls.push(url);
-    if(url.includes('cdn.discordapp.com'))return new Response(Uint8Array.from([137,80,78,71]));
+    if(url.includes('cdn.discordapp.com')){assert.equal(options.redirect,'manual');return new Response(Uint8Array.from([137,80,78,71]));}
     const body=JSON.parse(options.body);
     assert.equal(body.messages.at(-1).content[1].image_url.url,'data:image/png;base64,iVBORw==');
     return Response.json({choices:[{message:{content:'章鱼。'}}]});
@@ -217,6 +217,17 @@ test('OpenAI image bytes are delivered inline and omitted from request diagnosti
   assert.equal(calls.length,2);
   assert.equal(logs[0].messages.at(-1).content[1].image_url.url,'[image binary omitted from diagnostic log]');
   assert.ok(!JSON.stringify(logs).includes('iVBORw=='));
+});
+
+test('image download uses Workers-compatible redirect handling and never follows a redirect',async()=>{
+  let requests=0,waits=0;
+  await assert.rejects(generateGemini({GEMINI_API_KEY:'test-key',GEMINI_API_BASE_URL:'https://example.test/v1',AI_REQUEST_LOG_ENABLED:'false'},[{role:'user',parts:[{imageUrl:'https://cdn.discordapp.com/attachments/1/2/a.png',mimeType:'image/png'}]}],'chat',async(_url,options)=>{
+    requests++;
+    if(options.redirect==='error')throw Error('Invalid redirect value');
+    assert.equal(options.redirect,'manual');
+    return new Response('',{status:302,headers:{Location:'https://untrusted.example/a.png'}});
+  },[], '',async()=>{waits++;}),/image_redirect_rejected/);
+  assert.equal(requests,1);assert.equal(waits,0);
 });
 
 test('Gemini stops after exactly three retries, including network and invalid replies',async()=>{

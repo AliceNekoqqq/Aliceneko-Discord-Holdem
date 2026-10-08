@@ -362,3 +362,11 @@
 - 仅骗子酒馆在每次自动刷新前 GET 实际目标消息，核验私密 flags、interaction_metadata/旧 interaction 的接收者、固定消息 ID 和所有手牌组件归属。成功后固定为具体消息 ID；不再向未核验续传凭证创建手牌 followup。跨用户/错误 ID/缺失接收者/错绑控件清除旧手牌并停用；网络验证失败最多重试两次，期间不发送牌面。
 - 自动刷新重新按当前玩家生成内容；手牌图片显示所属名字，图片缓存签名包含玩家 ID/名字，附件名随玩家与牌面变化，防止复用另一人的同名附件。
 - 自动回归227项通过，包括本地 owner 正确但实际接收者不同、两玩家交错刷新、无元数据/错绑菜单/错消息/网络失败、相同手牌不同所属的图片，以及原其他游戏与聊天回归。真人 Discord 客户端验证仍待用户实测。
+
+
+## 读图不回复：Workers redirect 兼容性修复（2026-10-08）
+
+- 线上Workers日志精确定位：21:28、21:34、21:43等读图轮次在图片下载前报 Invalid redirect value，Workers不支持redirect:error；每轮重试3次后ai_reply_failed静默退出，故没有新的图片API请求日志。不是模型速率限制或45秒超时。
+- nativeImageContents改为redirect:manual，显式拒绝3xx，避免下载跳转至非Discord地址；这类永久失败不再浪费重试。其余下载暂时错误和模型请求保留原共享3次重试预算，最终失败仍不发用户禁止的固定故障文案。
+- 54项AI/上下文/长期记忆测试通过，新增Workers兼容redirect与3xx拒绝回归。Cloudflare上传HTTP200且ai-chat.mjs读回一致，仅更新此模块，保留同时进行的游戏修复和其他部署设置。
+- 用与线上一致的generateGemini代码在临时真实Cloudflare Worker中下载原章鱼图并组装OpenAI请求：downloadStatus=200，redirectMode=manual，inlineCharacters=5,863,726，providerRequestBuilt=true，ok=true，durationMs=54。图片真实下载/编码/请求组装通过；测试的provider返回由本地拦截模拟，未声称真实中转视觉答案已确认。临时Worker已删除。第一次访问遇到短暂1042、再次访问成功；未因传播期间响应修改生产代码。

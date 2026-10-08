@@ -149,7 +149,10 @@ export function discordImageParts(message) {
 async function nativeImageContents(contents,fetcher) {
   return Promise.all(contents.map(async item=>({...item,parts:await Promise.all((item.parts||[]).map(async part=>{
     if(!part.imageUrl)return part;
-    const response=await fetcher(part.imageUrl,{redirect:'error',signal:AbortSignal.timeout(10000)});
+    // Workers only supports follow/manual. Reject redirects explicitly so an
+    // attachment cannot redirect the image fetch away from Discord's CDN.
+    const response=await fetcher(part.imageUrl,{redirect:'manual',signal:AbortSignal.timeout(10000)});
+    if(response.status>=300&&response.status<400){const error=Error('image_redirect_rejected');error.retryable=false;throw error;}
     if(!response.ok||Number(response.headers.get('content-length'))>5*1024*1024)throw Error('image_download_failed');
     const reader=response.body.getReader(),chunks=[];let length=0;
     try {while(true){const {done,value}=await reader.read();if(done)break;length+=value.byteLength;if(length>5*1024*1024)throw Error('image_too_large');chunks.push(value);}}finally{await reader.cancel().catch(()=>{});}
@@ -262,7 +265,7 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
   const openAI=Boolean(env.GEMINI_API_BASE_URL);
   let retries=0;
   if(contents.some(item=>item.parts?.some(part=>part.imageUrl))) {
-    while(true){try{contents=await nativeImageContents(contents,fetcher);break;}catch(error){console.warn('ai_image_download_failed',{reason:error.message});if(retries>=GEMINI_MAX_RETRIES)throw error;await wait(retryDelay(null,retries++));}}
+    while(true){try{contents=await nativeImageContents(contents,fetcher);break;}catch(error){console.warn('ai_image_download_failed',{reason:error.message});if(error.retryable===false||retries>=GEMINI_MAX_RETRIES)throw error;await wait(retryDelay(null,retries++));}}
   }
   const url=openAI
     ? openAIChatEndpoint(env.GEMINI_API_BASE_URL)
