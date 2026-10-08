@@ -293,7 +293,7 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
             ? {"Content-Type":"application/json",Authorization:"Bearer "+env.GEMINI_API_KEY}
             : {"Content-Type":"application/json","x-goog-api-key":env.GEMINI_API_KEY},
           body,
-          signal:AbortSignal.timeout(contents.some(item=>item.parts?.some(part=>part.inlineData))?45000:20000)
+          signal:AbortSignal.timeout(context === "chat" ? 90000 : contents.some(item=>item.parts?.some(part=>part.inlineData)) ? 45000 : 20000)
         });
         if(!response.ok) {
           const error=new Error("gemini_request_failed");
