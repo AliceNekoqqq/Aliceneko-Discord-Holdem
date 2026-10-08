@@ -17,6 +17,19 @@ import {
 } from "./ai-chat.mjs";
 import { DiscordGateway } from "./discord-gateway.mjs";
 
+test("split cloud persona reaches chat and game requests without a seam or truncation", async () => {
+  const persona = "人设内容。\n".repeat(500);
+  const env = {GEMINI_API_KEY:"test-key",GEMINI_API_BASE_URL:"https://example.test/v1",GEMINI_MODEL:"gemini-3.8-flash",GEMINI_PERSONA:persona.slice(0,1500),GEMINI_PERSONA_CONT:persona.slice(1500)};
+  assert.ok(Buffer.byteLength(persona,"utf8") > 5120);
+  for (const context of ["chat", "game"]) {
+    await generateGemini(env,[{role:"user",parts:[{text:"test"}]}],context,async (_url,options) => {
+      const body = JSON.parse(options.body);
+      assert.ok(body.messages[0].content.includes(persona.trim()));
+      return new Response(JSON.stringify({choices:[{message:{content:"完成。"},finish_reason:"stop"}]}),{status:200});
+    });
+  }
+});
+
 function fakeDb() {
   const state = {memoryEnabled:1,settingExists:false,persona:"",gameHost:0,hostFeatures:{host_commentary:0,host_start:0,host_results:0},history:[],processed:new Set()};
   return {
