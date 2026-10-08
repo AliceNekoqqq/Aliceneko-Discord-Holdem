@@ -15,6 +15,11 @@ const userIdOf = i => i.member?.user?.id || i.user?.id || "";
 const textValue = value => String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim();
 const clamp = (value, max) => Array.from(String(value || "")).slice(0, max).join("");
 const personaValue = value => String(value || "").replace(/\r\n?/g,"\n").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g,"").trim();
+const HOST_FEATURE_FIELDS = Object.freeze({
+  "实时吐槽":"host_commentary",
+  "开局播报":"host_start",
+  "宣布结果":"host_results"
+});
 
 export const aiCommand = {
   name:"ai",
@@ -29,10 +34,15 @@ export const aiCommand = {
       {type:1,name:"关闭",description:"停止保存之后的对话"},
       {type:1,name:"清除",description:"删除本服务器保存的个人对话"}
     ]},
-    {type:2,name:"主持",description:"控制游戏解说与 AI 主持",options:[
-      {type:1,name:"开启",description:"开启本服务器游戏解说"},
-      {type:1,name:"关闭",description:"关闭本服务器游戏解说"},
-      {type:1,name:"查看",description:"查看游戏主持状态"}
+    {type:2,name:"主持",description:"控制各项游戏解说功能",options:[
+      {type:1,name:"开启",description:"一键开启全部 AI 主持功能"},
+      {type:1,name:"关闭",description:"一键关闭全部 AI 主持功能"},
+      {type:1,name:"查看",description:"查看每项主持功能的状态"},
+      {type:1,name:"功能",description:"单独设置实时吐槽、开局播报和宣布结果",options:[
+        {type:5,name:"实时吐槽",description:"公开关键动作时发送简短吐槽"},
+        {type:5,name:"开局播报",description:"牌局开始时发送简短播报"},
+        {type:5,name:"宣布结果",description:"结算时宣布本局结果"}
+      ]}
     ]}
   ]
 };
@@ -42,7 +52,9 @@ export function makeSystemInstruction(persona = "", context = "chat", emojiToken
     "轻松、友善、机灵，像熟悉桌游的群友；自然使用少量 emoji。";
   const base = [
     "你是红豆粉小酒馆的店主红豆粉，在 Discord 里以红豆粉的身份自然聊天。",
-    "默认用简体中文，回答简洁、友善、有帮助；不要主动 ping 用户、角色或全体成员。",
+    "日常对话默认模拟发生在小酒馆里的谈话：红豆粉在柜台边和来客交谈，可用自然、简短的动作或店内细节营造现场感。",
+    "只在合适时提到擦拭杯子、窗外雨声、老钟或河面灯影等细节；不要每条回复都写动作，不重复固定开场，也不把无关话题硬扯回小酒馆。",
+    "不要假定用户现实中身处店内；小酒馆是角色扮演场景。默认用简体中文，回答简洁、友善、有帮助；不要主动 ping 用户、角色或全体成员。",
     "你没有服务器管理工具，不得声称能读取成员资料、服务器状态或执行管理操作；不要充当管理员助手。",
     "你不能看到任何玩家的私密手牌、牌堆、私密面板或未公开内容；绝不推断或编造这些信息。",
     "不要每次回复都复述人设；外观、服饰和背景仅在相关话题中自然提及。",
@@ -52,7 +64,7 @@ export function makeSystemInstruction(persona = "", context = "chat", emojiToken
   const validEmojiTokens=(Array.isArray(emojiTokens)?emojiTokens:[]).filter(token=>/^<a?:[\p{L}\p{N}_]{2,32}:\d{1,20}>$/u.test(token)).slice(0,80);
   if(validEmojiTokens.length) base.push("你可以在合适时自然使用以下机器人已上传的自定义表情。必须原样输出完整标记，不要改名、伪造 ID 或每句都加： " + validEmojiTokens.join(" "));
   if (context === "game") {
-    base.push("你正在为游戏做公开解说。只根据给出的公开事件写一句简短、有气氛的评论，不重复整段状态，不给出未提供的事实或胜率判断。");
+    base.push("你正在为游戏做公开解说。开局时简短播报，结算时明确宣布给出的胜者或结果，其他事件才做一句简短吐槽。只根据给出的公开事件，不重复整段状态，不编造牌面、胜负原因或胜率判断。");
   } else {
     base.push("机器人功能索引：" + BOT_CAPABILITY_INDEX);
     const facts = String(knowledge || "").trim().slice(0,12000);
@@ -158,15 +170,48 @@ export async function getBotEmojiTokens(env) {
 }
 
 async function guildConfig(db, guildId) {
-  if (!db) return {game_host:0};
-  return await db.prepare("SELECT game_host FROM ai_guild_config WHERE guild_id = ?")
-    .bind(guildId).first() || {game_host:0};
+  const empty={game_host:0,host_commentary:0,host_start:0,host_results:0};
+  if (!db) return empty;
+  const row=await db.prepare("SELECT game_host, host_commentary, host_start, host_results FROM ai_guild_config WHERE guild_id = ?")
+    .bind(guildId).first();
+  if (!row) return empty;
+  const legacy=Number(row.game_host)===1;
+  const flag=value=>value===undefined||value===null?(legacy?1:0):(Number(value)===1?1:0);
+  return {
+    game_host:legacy?1:0,
+    host_commentary:flag(row.host_commentary),
+    host_start:flag(row.host_start),
+    host_results:flag(row.host_results)
+  };
+}
+
+async function saveHostConfig(db, guildId, config) {
+  const commentary=Number(config.host_commentary)===1?1:0;
+  const start=Number(config.host_start)===1?1:0;
+  const results=Number(config.host_results)===1?1:0;
+  const any=commentary||start||results;
+  await db.prepare("INSERT INTO ai_guild_config (guild_id, game_host, host_commentary, host_start, host_results, updated_at) VALUES (?, ?, ?, ?, ?, ?) " +
+    "ON CONFLICT(guild_id) DO UPDATE SET game_host = excluded.game_host, host_commentary = excluded.host_commentary, host_start = excluded.host_start, host_results = excluded.host_results, updated_at = excluded.updated_at")
+    .bind(guildId,any?1:0,commentary,start,results,Date.now()).run();
+  return {game_host:any?1:0,host_commentary:commentary,host_start:start,host_results:results};
 }
 
 async function setGuildHost(db, guildId, enabled) {
-  await db.prepare("INSERT INTO ai_guild_config (guild_id, game_host, updated_at) VALUES (?, ?, ?) " +
-    "ON CONFLICT(guild_id) DO UPDATE SET game_host = excluded.game_host, updated_at = excluded.updated_at")
-    .bind(guildId,enabled ? 1 : 0,Date.now()).run();
+  const value=enabled?1:0;
+  return await saveHostConfig(db,guildId,{host_commentary:value,host_start:value,host_results:value});
+}
+
+async function updateHostFeatures(db, guildId, patch) {
+  const current=await guildConfig(db,guildId);
+  return await saveHostConfig(db,guildId,{...current,...patch});
+}
+
+function hostStatusText(config) {
+  return [
+    "实时吐槽："+(config.host_commentary?"开启":"关闭"),
+    "开局播报："+(config.host_start?"开启":"关闭"),
+    "宣布结果："+(config.host_results?"开启":"关闭")
+  ].join("；");
 }
 
 async function memberSetting(db, guildId, userId) {
@@ -217,18 +262,25 @@ export async function handleAiCommand(env, interaction) {
   if (group.name === "主持") {
     if (action.name === "开启" || action.name === "关闭") {
       const enabled = action.name === "开启";
-      await setGuildHost(db,guildId,enabled);
-      return privateReply(enabled
-        ? "游戏主持已开启；牌局开始、关键进展和结算时会在牌桌频道简短解说。"
-        : "游戏主持已关闭。");
+      const config=await setGuildHost(db,guildId,enabled);
+      return privateReply((enabled?"已一键开启全部 AI 主持功能。":"已一键关闭全部 AI 主持功能。")+"当前状态："+hostStatusText(config)+"。");
     }
     if (action.name === "查看") {
       const config = await guildConfig(db,guildId);
-      return privateReply(config.game_host
-        ? "本服务器游戏主持已开启。用 /ai 主持 关闭 可停用。"
-        : "本服务器游戏主持目前关闭。用 /ai 主持 开启 可启用。");
+      return privateReply("AI 主持功能状态："+hostStatusText(config)+"。可用 /ai 主持 功能 单独设置；开启/关闭会一键切换全部功能。");
     }
-    return privateReply("使用 /ai 主持 开启、关闭 或 查看。");
+    if (action.name === "功能") {
+      const patch={};
+      for(const option of action.options||[]) {
+        const field=HOST_FEATURE_FIELDS[option.name];
+        if(field&&typeof option.value==="boolean") patch[field]=option.value?1:0;
+      }
+      if(!Object.keys(patch).length) return privateReply("请至少设置一个功能开关：实时吐槽、开局播报或宣布结果。");
+      const config=await updateHostFeatures(db,guildId,patch);
+      const changed=Object.keys(patch).map(field=>Object.entries(HOST_FEATURE_FIELDS).find(([,value])=>value===field)?.[0]).filter(Boolean);
+      return privateReply("已更新："+changed.join("、")+"。当前状态："+hostStatusText(config)+"。");
+    }
+    return privateReply("使用 /ai 主持 查看、开启、关闭，或 /ai 主持 功能 设置各项开关。");
   }
   return privateReply("未知 AI 设置。");
 }
@@ -374,7 +426,8 @@ export async function commentOnGameTransition(env, storage, before, after) {
   const event = gameEvent(before,after);
   if (!event) return false;
   const config = await guildConfig(env.CHAT_DB,String(after.guild));
-  if (!config.game_host) return false;
+  const enabled=event.kind==="action"?config.host_commentary:event.kind==="start"?config.host_start:event.kind==="result"?config.host_results:0;
+  if (!enabled) return false;
 
   const stateKey = "aiCommentState";
   const previous = await storage.get(stateKey) || {lastAt:0,hand:0,count:0,key:""};
@@ -383,9 +436,9 @@ export async function commentOnGameTransition(env, storage, before, after) {
   const hand = Number(after.handNo || 0);
   const sameTable = previous.epoch === after.epoch;
   const count = sameTable && previous.hand === hand ? previous.count : 0;
-  if (count >= 5) return false;
+  if (event.kind === "action" && count >= 5) return false;
   if (event.kind === "action" && sameTable && now - previous.lastAt < 20000) return false;
-  await storage.put(stateKey,{epoch:after.epoch,lastAt:now,hand,count:count+1,key:event.key});
+  await storage.put(stateKey,{epoch:after.epoch,lastAt:now,hand,count:count+(event.kind==="action"?1:0),key:event.key});
 
   let line;
   try {
