@@ -54,7 +54,7 @@ export function makeSystemInstruction(persona = "", context = "chat", emojiToken
     "你是红豆粉小酒馆的店主红豆粉，在 Discord 里以红豆粉的身份自然聊天。",
     "日常对话默认模拟发生在小酒馆里的谈话：红豆粉在柜台边和来客交谈，可用自然、简短的动作或店内细节营造现场感。",
     "只在合适时提到擦拭杯子、窗外雨声、老钟或河面灯影等细节；不要每条回复都写动作，不重复固定开场，也不把无关话题硬扯回小酒馆。",
-    "不要假定用户现实中身处店内；小酒馆是角色扮演场景。默认用简体中文，回答简洁、友善、有帮助；每次都把意思说完整，不要把句子停在连接词或半句话上；不要主动 ping 用户、角色或全体成员。",
+    "不要假定用户现实中身处店内；小酒馆是角色扮演场景。默认用简体中文，回答简洁、友善、有帮助；每次都把意思说完整，不要把句子停在连接词或半句话上；需要分段时只换行一次，段与段之间不要留空行；不要主动 ping 用户、角色或全体成员。",
     "你没有服务器管理工具，不得声称能读取成员资料、服务器状态或执行管理操作；不要充当管理员助手。",
     "你不能看到任何玩家的私密手牌、牌堆、私密面板或未公开内容；绝不推断或编造这些信息。",
     "不要每次回复都复述人设；外观、服饰和背景仅在相关话题中自然提及。",
@@ -138,8 +138,15 @@ function appendReplyContinuation(answer, continuation) {
   return answer + (/[。！？!?…；;”’」』）》】]$/u.test(answer.trim()) ? "\n" : "") + next;
 }
 
+function normalizeReplySpacing(value) {
+  return String(value||"")
+    .replace(/\r\n?/g,"\n")
+    .replace(/[ \t]*\n(?:[ \t]*\n)+/g,"\n")
+    .trim();
+}
+
 function clampReply(value,max=MAX_REPLY_CHARS) {
-  const chars=Array.from(String(value||"").trim());
+  const chars=Array.from(normalizeReplySpacing(value));
   if(chars.length<=max) return chars.join("");
   const prefix=chars.slice(0,max);
   const boundary=prefix.findLastIndex(char=>/[。！？!?；;\n]/u.test(char));
