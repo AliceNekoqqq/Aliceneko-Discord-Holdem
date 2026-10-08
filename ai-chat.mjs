@@ -283,7 +283,8 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
       const body=JSON.stringify(openAI
         ? buildOpenAIChatRequest(requestContents,persona,context,model,emojiTokens,knowledge,speakerIdentity)
         : buildGenerateContentRequest(requestContents,persona,context,emojiTokens,knowledge,speakerIdentity));
-      const entry={id:crypto.randomUUID(),generationId,attempt:++requestAttempt,context,model,endpoint:url,createdAt:Date.now(),body:requestLogBody(env,body)};
+      const timeoutMs=context === "chat" ? 90000 : contents.some(item=>item.parts?.some(part=>part.inlineData)) ? 45000 : 20000;
+      const entry={id:crypto.randomUUID(),generationId,attempt:++requestAttempt,context,model,endpoint:url,timeoutMs,createdAt:Date.now(),body:requestLogBody(env,body)};
       await requestLog(env,entry);
       const startedAt=Date.now();
       try {
@@ -293,7 +294,7 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
             ? {"Content-Type":"application/json",Authorization:"Bearer "+env.GEMINI_API_KEY}
             : {"Content-Type":"application/json","x-goog-api-key":env.GEMINI_API_KEY},
           body,
-          signal:AbortSignal.timeout(context === "chat" ? 90000 : contents.some(item=>item.parts?.some(part=>part.inlineData)) ? 45000 : 20000)
+          signal:AbortSignal.timeout(timeoutMs)
         });
         if(!response.ok) {
           const error=new Error("gemini_request_failed");
@@ -564,7 +565,7 @@ async function sendChannelReply(env, message, content) {
     }),
     signal:AbortSignal.timeout(8000)
   });
-  if (!response.ok) throw new Error("discord_reply_failed");
+  if (!response.ok) {const error=new Error("discord_reply_failed");error.status=response.status;throw error;}
 }
 
 async function getHistory(db,guildId,userId) {
@@ -675,7 +676,13 @@ export async function replyToMention(env, message, botId) {
   } finally {
     stopTyping();
   }
-  await sendChannelReply(env,message,responseText);
+  try {
+    await sendChannelReply(env,message,responseText);
+    console.info("ai_reply_sent",{messageId:message.id,channelId});
+  } catch(error) {
+    console.warn("ai_reply_delivery_failed",{messageId:message.id,channelId,reason:error?.message||error?.name||"Error",status:error?.status});
+    return true;
+  }
 
   if (db && memoryOn && generated) {
     const now = Date.now();
