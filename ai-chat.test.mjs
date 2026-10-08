@@ -122,6 +122,41 @@ test('Gemini retries rate limits with Retry-After and keeps the same model and p
   assert.equal(JSON.parse(requests[0].body).model,'gemini-3.8-flash');
 });
 
+test('request monitoring stores every attempt and outcome with full context but no credentials',async t=>{
+  const writes=[],events=[];let calls=0;
+  t.mock.method(console,'info',(event,data)=>events.push({event,data}));
+  const db={prepare(sql){return {bind(...args){return {async run(){writes.push({sql,args});return {success:true};}};}};}};
+  const env={CHAT_DB:db,GEMINI_API_KEY:'secret-api-123',BOT_TOKEN:'secret-bot-456',GEMINI_API_BASE_URL:'https://example.test/v1',GEMINI_PERSONA:'完整人设'};
+  const answer=await generateGemini(env,[{role:'user',parts:[{text:'上一轮'}]},{role:'model',parts:[{text:'上一轮回复。'}]},{role:'user',parts:[{text:'这一轮secret-api-123 secret-bot-456'}]}],'chat',async()=>{
+    calls++;
+    return calls===1?new Response('quota secret-api-123',{status:429}):Response.json({model:'actual-flash',usage:{total_tokens:50},choices:[{message:{content:'完成。'}}]});
+  },[],'相关知识',async()=>{});
+  assert.equal(answer,'完成。');
+  const inserts=writes.filter(w=>w.sql.startsWith('INSERT'));
+  const updates=writes.filter(w=>w.sql.startsWith('UPDATE'));
+  assert.equal(inserts.length,2);
+  assert.deepEqual(inserts.map(w=>w.args[2]),[1,2]);
+  assert.equal(inserts[0].args[1],inserts[1].args[1]);
+  const request=JSON.parse(inserts[0].args[6]);
+  assert.match(request.messages[0].content,/完整人设/);
+  assert.match(request.messages[0].content,/相关知识/);
+  assert.equal(request.messages[1].content,'上一轮');
+  assert.match(request.messages.at(-1).content,/\[REDACTED\]/);
+  assert.deepEqual(updates.map(w=>w.args[0]),[429,200]);
+  assert.equal(updates[1].args[3],'actual-flash');
+  assert.equal(JSON.parse(updates[1].args[4]).total_tokens,50);
+  const logged=JSON.stringify({writes,events});
+  assert.equal(logged.includes(env.GEMINI_API_KEY),false);
+  assert.equal(logged.includes(env.BOT_TOKEN),false);
+  assert.equal(logged.includes('Authorization'),false);
+});
+
+test('request monitoring can be disabled without affecting generation',async t=>{
+  t.mock.method(console,'info',()=>assert.fail('disabled logging'));
+  const answer=await generateGemini({AI_REQUEST_LOG_ENABLED:'false',GEMINI_API_KEY:'test'},[],'chat',async()=>Response.json({candidates:[{content:{parts:[{text:'完成。'}]}}]}));
+  assert.equal(answer,'完成。');
+});
+
 test('Gemini stops after exactly three retries, including network and invalid replies',async()=>{
   const waits=[];let calls=0;
   await assert.rejects(generateGemini({GEMINI_API_KEY:'test'},[{role:'user',parts:[{text:'你好'}]}],'chat',async()=>{

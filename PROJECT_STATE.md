@@ -279,3 +279,11 @@
 - AI专项35项测试通过，新增限流恢复、等待时长、3次预算、网络/坏JSON/空回复、永久错误、续写共享预算、静默失败和单次成功回复/记忆验证。未修改命令或数据库。
 
 - 补丁提交 7bcd036。Cloudflare /content 更新 HTTP200，35个线上模块保留；读回 ai-chat.mjs 与已测试补丁逐字符一致。GEMINI_MODEL=gemini-3.8-flash、原API base、两段人设（1708+1641字符）、BOT_TOKEN/GEMINI_API_KEY、CHAT_DB与TABLES均核验保留。未做真实付费生成或向Discord发送测试消息。
+
+
+## 每次模型请求监控（2026-10-08）
+
+- 用户要求监控每次发出的请求内容。新增 ai_request_logs D1 表，保存每次实际调用的完整请求JSON、模型/端点、生成关联ID、尝试序号、上下文类型、时间、HTTP状态、耗时、错误摘要及服务商返回的模型/用量字段；覆盖重试、续写和公开游戏解说。
+- 发送前保存 pending 记录，响应后更新结果；不记录认证头，正文和错误摘要中若包含已配置API key或Bot token原文则替换。请求监控独立于个人/频道记忆开关；默认7天，最长每小时随请求清理，AI_REQUEST_LOG_ENABLED=false关闭新增记录。
+- Workers输出 ai_request_sent/ai_request_result 小型索引与结果摘要，完整正文在D1；存储失败输出告警并尝试分块Workers日志。Cloudflare配置开启持久日志和100%采样；仓库wrangler配置同步。查看路径及SQL见 AI_REQUEST_MONITORING.md。
+- 37项AI测试通过，包括每次尝试/完整上下文记录、状态与服务商model/usage、认证信息排除、关闭监控，以及原重试/记忆/主持行为回归。线上D1建表和两个索引HTTP200完成；旧错误不可追溯。

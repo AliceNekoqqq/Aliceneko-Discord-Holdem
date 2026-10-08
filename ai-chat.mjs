@@ -161,6 +161,35 @@ function clampReply(value,max=MAX_REPLY_CHARS) {
 }
 
 export const GEMINI_MAX_RETRIES=3;
+let requestLogCleanupAt=0;
+const redactRequestLog=(env,value)=>[env.GEMINI_API_KEY,env.BOT_TOKEN].filter(Boolean).reduce((text,secret)=>text.split(secret).join('[REDACTED]'),String(value||''));
+
+async function requestLog(env,entry,complete=false) {
+  if(env.AI_REQUEST_LOG_ENABLED==='false') return;
+  // Full bodies live in D1; console events remain small enough for Workers logs.
+  const {body,...summary}=entry;
+  try { console.info(complete?'ai_request_result':'ai_request_sent',summary); } catch {}
+  if(!env.CHAT_DB) {
+    if(!complete) for(let i=0;i<body.length;i+=4000) console.info('ai_request_body',{id:entry.id,chunk:i/4000+1,content:body.slice(i,i+4000)});
+    return;
+  }
+  try {
+    if(complete) {
+      await env.CHAT_DB.prepare('UPDATE ai_request_logs SET status=?, duration_ms=?, error=?, response_model=?, usage_json=? WHERE id=?')
+        .bind(entry.status??null,entry.durationMs,entry.error||null,entry.responseModel||null,entry.usage?JSON.stringify(entry.usage):null,entry.id).run();
+    } else {
+      await env.CHAT_DB.prepare('INSERT INTO ai_request_logs (id, generation_id, attempt, context, model, endpoint, request_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(entry.id,entry.generationId,entry.attempt,entry.context,entry.model,entry.endpoint,body,entry.createdAt).run();
+      if(Date.now()-requestLogCleanupAt>3600000) {
+        requestLogCleanupAt=Date.now();
+        await env.CHAT_DB.prepare('DELETE FROM ai_request_logs WHERE created_at < ?').bind(Date.now()-7*86400000).run();
+      }
+    }
+  } catch {
+    console.warn('ai_request_log_storage_failed',{id:entry.id});
+    if(!complete) for(let i=0;i<body.length;i+=4000) console.info('ai_request_body',{id:entry.id,chunk:i/4000+1,content:body.slice(i,i+4000)});
+  }
+}
 const retryableStatus=status=>status===408||status===425||status===429||status>=500;
 const waitForRetry=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
@@ -182,26 +211,33 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
   let requestContents=contents;
   // One shared failure budget for the original request and any continuation.
   let retries=0;
+  const generationId=crypto.randomUUID();
+  let requestAttempt=0;
   for(let attempt=0;attempt<=CHAT_CONTINUATION_LIMIT;attempt++) {
     let result;
     let failure;
     while(true) {
       let response;
+      const body=JSON.stringify(openAI
+        ? buildOpenAIChatRequest(requestContents,persona,context,model,emojiTokens,knowledge)
+        : buildGenerateContentRequest(requestContents,persona,context,emojiTokens,knowledge));
+      const entry={id:crypto.randomUUID(),generationId,attempt:++requestAttempt,context,model,endpoint:url,createdAt:Date.now(),body:redactRequestLog(env,body)};
+      await requestLog(env,entry);
+      const startedAt=Date.now();
       try {
         response=await fetcher(url,{
           method:"POST",
           headers:openAI
             ? {"Content-Type":"application/json",Authorization:"Bearer "+env.GEMINI_API_KEY}
             : {"Content-Type":"application/json","x-goog-api-key":env.GEMINI_API_KEY},
-          body:JSON.stringify(openAI
-            ? buildOpenAIChatRequest(requestContents,persona,context,model,emojiTokens,knowledge)
-            : buildGenerateContentRequest(requestContents,persona,context,emojiTokens,knowledge)),
+          body,
           signal:AbortSignal.timeout(20000)
         });
         if(!response.ok) {
           const error=new Error("gemini_request_failed");
           error.status=response.status;
           error.retryable=retryableStatus(response.status);
+          try { error.providerMessage=redactRequestLog(env,(await response.text()).slice(0,2000)); } catch {}
           throw error;
         }
         const data=await response.json();
@@ -215,8 +251,10 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
           error.retryable=!data?.promptFeedback?.blockReason&&!/SAFETY|RECITATION|BLOCKLIST|PROHIBITED_CONTENT|content_filter/i.test(result.finishReason);
           throw error;
         }
+        await requestLog(env,{...entry,status:response.status,durationMs:Date.now()-startedAt,responseModel:redactRequestLog(env,data.model||data.modelVersion||''),usage:data.usage||data.usageMetadata},true);
         break;
       } catch(error) {
+        await requestLog(env,{...entry,status:response?.status,durationMs:Date.now()-startedAt,error:redactRequestLog(env,`${error.name||'Error'}: ${error.message||''}${error.providerMessage?' | '+error.providerMessage:''}`)},true);
         if(error.retryable===false||retries>=GEMINI_MAX_RETRIES) {
           failure=error;
           break;
