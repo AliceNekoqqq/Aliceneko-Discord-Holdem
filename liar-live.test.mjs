@@ -13,6 +13,7 @@ function fixture(ctx){
  ctx.mock.method(globalThis,'fetch',async(url,opts={})=>{
   const body=opts.body?JSON.parse(opts.body instanceof FormData?opts.body.get('payload_json'):opts.body):null;
   requests.push({url,method:opts.method||'GET',body});
+  if((opts.method||'GET')==='GET'&&url.includes('/private-original/'))return Response.json({id:'111',flags:64,interaction_metadata:{user:{id:'1'}},components:handPanel(t,'1').components});
   if(opts.method==='DELETE')return new Response(null,{status:mode==='delete403'?403:204});
   if(mode==='429')return Response.json({retry_after:3},{status:429});
   if(mode==='reject-image'&&opts.body instanceof FormData)return new Response(null,{status:413});
@@ -80,7 +81,7 @@ test('legacy private originals require the same Discord recipient; another user 
  const f=fixture(ctx),p=new PrivatePanels(f.db,f.env),expiry=Date.now()+60000,requests=[];
  ctx.mock.method(globalThis,'fetch',async(url,opts)=>{
    requests.push({method:opts.method,body:opts.body instanceof FormData?JSON.parse(opts.body.get('payload_json')):opts.body?JSON.parse(opts.body):null});
-   return Response.json({id:'444',flags:64,interaction_metadata:{user:{id:'4'}},attachments:[]});
+   return Response.json({id:'444',flags:64,interaction_metadata:{user:{id:'4'}},components:handPanel(f.t,'4').components,attachments:[]});
  });
  await p.write({'1':{epoch:f.t.epoch,panel:{token:'other-user',expires:expiry,ref:'@original',hand:f.t.handNo,version:-1},retire:[]}});await p.sync(f.t);
  assert.equal((await p.read())['1'],undefined);assert(requests.filter(r=>r.method==='PATCH').every(r=>r.body.embeds.length===0));assert(!JSON.stringify(requests).includes('你的手牌'));

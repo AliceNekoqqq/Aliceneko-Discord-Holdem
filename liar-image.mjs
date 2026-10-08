@@ -38,7 +38,7 @@ export async function renderBoard(t){
 }
 export async function renderHand(t,id){
  const p=t.players.find(p=>p.id===id);if(!p)return null;await prepareNicknameFont([...labels.match(/.{1,40}/gu),name(p),'隐藏出牌 / 识破谎言 / 存活到底']);const c=new Canvas(900,420);c.rect(0,0,900,420,C.bg);c.rect(20,20,860,380,C.wood,22);
- text(c,`你的手牌 / ${t.tableRank||'等待'}${t.tableRank?'桌':''}`,450,35,30,C.gold,true);text(c,'Joker万能 / 仅自己可见',450,80,21,C.rose,true);
+ text(c,`${[...name(p)].slice(0,12).join('')}的手牌 / ${t.tableRank||'等待'}${t.tableRank?'桌':''}`,450,35,26,C.gold,true);text(c,'Joker万能 / 仅自己可见',450,80,21,C.rose,true);
  const n=p.cards.length,step=150,start=(900-n*step)/2;for(let k=0;k<n;k++){const truth=rank(p.cards[k])===t.tableRank||rank(p.cards[k])==='JOKER';card(c,p.cards[k],Math.round(start+k*step+10),130,130,178,truth);text(c,String(k+1),Math.round(start+k*step+75),322,26,C.white,true);text(c,truth?'真牌':'可撒谎',Math.round(start+k*step+75),357,20,truth?C.green:C.rose,true);}
  if(!n)text(c,p.alive?'本轮手牌已出完':'你已出局',450,211,30,C.muted,true);return encodePNG(c);
 }
@@ -48,4 +48,4 @@ async function prepare(data,signature,filename,existing,render,description){
  try{return {body:upload(data,await render(),filename,description),signature};}catch{return {body:{...data,attachments:[]},signature:null};}
 }
 export async function boardImageMessage(t,data,existing){if(t.phase==='closed')return {body:{...data,attachments:[]},signature:null};return prepare(data,'liar-board-v1/'+JSON.stringify(publicSnapshot(t)),'liar-table.png',existing,()=>renderBoard(t),'骗子酒馆公开牌桌：座位、手牌数量、轮盘次数、已质疑翻牌；未质疑牌面和危险位保密。');}
-export async function imageMessage(t,id,data,existing){const p=t.players.find(p=>p.id===id);if(!p||!data.embeds?.length||!data.components?.some(r=>r.components.some(b=>b.custom_id?.includes(`p~${id}~`))))return {body:{...data,attachments:[]},signature:null};return prepare(data,'liar-hand-v1/'+JSON.stringify([t.epoch,t.handNo,t.tableRank,p.cards,p.alive]),'liar-hand.png',existing,()=>renderHand(t,id),`仅你的牌面：${p.cards.map(rank).join(' / ')}。编号对应私密多选菜单，可选1～3张盖下。`);}
+export async function imageMessage(t,id,data,existing){const p=t.players.find(p=>p.id===id&&!p.bot);const owners=(data.components||[]).flatMap(r=>r.components||[]).map(c=>/^l:[^:]+:[^:]+:p~(\d+)~/.exec(c.custom_id||'')?.[1]).filter(Boolean);if(!p||!data.embeds?.length||!owners.length||owners.some(owner=>owner!==id))return {body:{...data,attachments:[]},signature:null};const signature='liar-hand-v2/'+JSON.stringify([id,t.epoch,t.handNo,t.tableRank,p.cards,p.alive,name(p)]);const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(signature)));const tag=Array.from(digest.slice(0,8),n=>n.toString(16).padStart(2,'0')).join('');return prepare(data,signature,`liar-hand-${tag}.png`,existing,()=>renderHand(t,id),`${name(p)}的牌面：${p.cards.map(rank).join(' / ')}。编号对应私密多选菜单，可选1～3张盖下。`);}

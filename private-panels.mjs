@@ -94,16 +94,30 @@ export class PrivatePanels {
     await Promise.all(Object.entries(records).map(async([id,s])=>{
       if(t.game==='liar'){
         if(s.send?.private!==true||s.send?.owner!==id)delete s.send;
-        if(s.panel&&(s.panel.private!==true||s.panel.owner!==id)){
-          // Legacy records are untrusted until Discord confirms ephemerality.
+        if(s.panel){
+          // Local owner labels cannot establish who actually sees @original.
+          // Verify every target, including newly registered credentials, before
+          // rendering any cards; pin the exact Discord message afterwards.
           const message=await this.api(s.panel,'GET',null,s.panel.ref);
           const recipient=message?.interaction_metadata?.user?.id||message?.interaction?.user?.id;
-          if(message&&(Number(message.flags)&64)&&recipient===id){s.panel.private=true;s.panel.owner=id;}
+          const controls=message?.components?.flatMap(r=>r.components||[]).map(c=>c.custom_id).filter(Boolean)||[];
+          const owners=controls.map(c=>/^l:[^:]+:[^:]+:p~(\d+)~/.exec(c)?.[1]).filter(Boolean);
+          const sameMessage=!s.panel.id||s.panel.id===message?.id;
+          if(message&&/^\d+$/.test(message.id||'')&&(Number(message.flags)&64)&&recipient===id&&sameMessage&&owners.length&&owners.every(owner=>owner===id)){
+            s.panel.private=true;s.panel.owner=id;s.panel.ref=message.id;s.panel.id=message.id;
+          }
+          else if(!message&&s.panel.private===true&&(s.verifyFailures||0)<2){
+            s.verifyFailures=(s.verifyFailures||0)+1;retry=true;return;
+          }
           else {
             if(message)await this.api(s.panel,'PATCH',retired(),s.panel.ref);
-            delete s.panel;
+            delete s.panel;delete s.send;
           }
+          if(message)s.verifyFailures=0;
         }
+        // Hands use verified original replies only, never a fresh followup
+        // from an unverified continuation token.
+        if(!s.panel)delete s.send;
       }
       const eligible=s.epoch===t.epoch&&t.phase!=='closed'&&t.players.some(p=>p.id===id&&!p.bot);
       if(!eligible&&s.panel){s.retire.push(s.panel);delete s.panel;delete s.send;}
@@ -120,7 +134,7 @@ export class PrivatePanels {
           const sent=await this.api(s.send,'POST',prepared.body);
           if(sent?.id){s.panel={...s.send,ref:sent.id,id:sent.id,hand:t.handNo,version:t.version,image:sent.attachments?.[0]?.id?{id:sent.attachments[0].id,signature:prepared.signature}:null};s.hidden=false;}else failed=true;
         }else if(s.panel?.expires>Date.now()&&(s.panel.version!==t.version||s.panel.hand!==t.handNo||s.panel.pending)){
-          const data=s.hidden?{content:'底牌已收起。',embeds:[],attachments:[],components:[row(button(t,panelAction(id,'hand'),'展开手牌',1))],allowed_mentions:{parse:[]}}:s.panel.version===t.version&&s.panel.pending?s.panel.pending:handPanel(t,id);
+          const data=s.hidden?{content:'底牌已收起。',embeds:[],attachments:[],components:[row(button(t,panelAction(id,'hand'),'展开手牌',1))],allowed_mentions:{parse:[]}}:t.game==='liar'?handPanel(t,id,s.panel.pending?.content?.split('\n')[0]||''):s.panel.version===t.version&&s.panel.pending?s.panel.pending:handPanel(t,id);
           const prepared=await imageMessage(t,id,data,s.panel.image);
           const updated=await this.api(s.panel,'PATCH',prepared.body,s.panel.ref);
           if(updated){s.panel.hand=t.handNo;s.panel.version=t.version;delete s.panel.pending;if(updated.id)s.panel.id=updated.id;s.panel.image=updated.attachments?.[0]?.id?{id:updated.attachments[0].id,signature:prepared.signature}:null;}else failed=true;
