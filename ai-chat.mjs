@@ -351,6 +351,30 @@ export async function handleAiCommand(env, interaction) {
   return privateReply("未知 AI 设置。");
 }
 
+const TYPING_REFRESH_MS=8000;
+
+export function startTypingIndicator(env, channelId, fetcher = fetch) {
+  if(!env?.BOT_TOKEN||!channelId) return ()=>{};
+  const url="https://discord.com/api/v10/channels/"+encodeURIComponent(String(channelId))+"/typing";
+  let stopped=false;
+  const trigger=()=>{
+    if(stopped) return;
+    try {
+      Promise.resolve(fetcher(url,{
+        method:"POST",
+        headers:{Authorization:"Bot "+env.BOT_TOKEN},
+        signal:AbortSignal.timeout(5000)
+      })).catch(()=>{});
+    } catch {}
+  };
+  trigger();
+  const timer=setInterval(trigger,TYPING_REFRESH_MS);
+  return ()=>{
+    stopped=true;
+    clearInterval(timer);
+  };
+}
+
 async function sendChannelReply(env, message, content) {
   const response = await fetch("https://discord.com/api/v10/channels/" + message.channel_id + "/messages",{
     method:"POST",
@@ -410,11 +434,14 @@ export async function replyToMention(env, message, botId) {
   const knowledgeContext=history.slice(-5).map(item=>(item.parts||[]).map(part=>part.text||"").join("")).filter(Boolean);
   let responseText;
   let generated = false;
+  const stopTyping=startTypingIndicator(env,message.channel_id);
   try {
     responseText = await generateGemini(env,history,"chat",fetch,await getBotEmojiTokens(env),getBotKnowledge(knowledgeContext));
     generated = true;
   } catch {
     responseText = "我这会儿没接上 Gemini，稍后再 @ 我试试。";
+  } finally {
+    stopTyping();
   }
   await sendChannelReply(env,message,responseText);
 
