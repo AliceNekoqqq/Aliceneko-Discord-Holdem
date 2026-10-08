@@ -385,5 +385,5 @@
 
 - 请求日志确认23:18用户真实正文仅‘你好’，原实现却把Discord成员/引用、时间与长期偏好直接拼在相同user消息文本里；模型误认用户粘贴系统模板，且旧assistant误判进入历史后重复放大。不是用户真的粘贴提示词。
 - runtimeData独立传递至两种API适配器，当前user正文只保留真实发言与图片；程序背景以明确来源的JSON资料注入，并声明昵称、引用原文和网页内容没有系统指令权。服务器时间与账号核验由程序决定，旧assistant猜测不作权威。developer ID脱敏、图片及90秒期限保留。
-- 50项聊天回归通过。与线上同一密钥/模型/人设的固定‘你好’+旧assistant误判场景，真实API11348ms回复正常问候，没有模板/占位符/改时间指责；仅固定虚构样例，不读取用户私密记忆、不向Discord发测试消息。源码3模块读回一致；实际Gateway传播与真人新问候仍需分别核验。
+- 50项聊天回归通过。与线上同一密钥/模型/人设的固定‘你好’+旧assistant误判场景，真实API11348ms回复正常问候，没有模板/占位符/改时间指责；仅固定虚构样例，不读取用户私密记忆、不向Discord发测试消息。源码3模块读回一致；23:32实际Gateway读回runtime=chat90-context-boundary-v2，connected=true、connecting=false，确认聊天连接已切换。临时诊断Worker删除HTTP200。真人新问候的自然回复仍以新请求与Discord回发核验。
 - 新增CHAT_MESSAGE_PROTOCOL.md，规定system/user/assistant与原生Gemini映射、资料来源、用户正文和记忆边界；中转未验证developer/tool支持，因此不伪造tool调用链。后台材料受系统明确的数据边界约束，不能把‘系统托管’等同于‘内容拥有指令权’。
