@@ -133,14 +133,22 @@ export class DiscordGateway {
     const mentioned = (message.mentions || []).some(user => user.id === this.botId) ||
       new RegExp("<@!?" + this.botId + ">").test(String(message.content || ""));
     if (!mentioned) return;
-    const key = String(message.guild_id) + ":" + String(message.author.id);
+    const key = [message.guild_id,message.channel_id,message.author.id].map(String).join(":");
+    const queuedAt = Date.now();
+    const diagnostic = {messageId:message.id,channelId:message.channel_id};
+    console.info("ai_chat_queued",diagnostic);
     const previous = this.chatQueues.get(key) || Promise.resolve();
-    const next = previous.catch(() => {}).then(() => replyToMention(this.env,message,this.botId));
-    this.chatQueues.set(key,next);
+    const next = previous.catch(() => {}).then(() => {
+      console.info("ai_chat_started",{...diagnostic,queueWaitMs:Date.now()-queuedAt});
+      return replyToMention(this.env,message,this.botId);
+    });
     const tracked = next.finally(() => {
       if (this.chatQueues.get(key) === tracked) this.chatQueues.delete(key);
     });
-    this.host.ctx.waitUntil(tracked.catch(() => {}));
+    this.chatQueues.set(key,tracked);
+    this.host.ctx.waitUntil(tracked.catch(error => {
+      console.warn("ai_chat_pipeline_failed",{...diagnostic,reason:error?.message||error?.name||"Error",status:error?.status});
+    }));
   }
 
   startHeartbeats(interval) {
@@ -210,3 +218,4 @@ export class DiscordGateway {
     ]);
   }
 }
+
