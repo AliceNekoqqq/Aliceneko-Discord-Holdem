@@ -189,9 +189,9 @@
 - 接入 Gemini GenerateContent；Worker 内新增 Discord Gateway，只处理服务器内直接 @机器人的消息，使用 GUILDS + GUILD_MESSAGES，不请求特权 Message Content Intent。
 - 新增 /ai 记忆（成员个人开关/清除）、/ai 人格（服务器管理员配置）、/ai 主持（服务器管理员控制游戏解说）；未加入管理员助手。主持默认关闭，只向 Gemini 提供公开游戏事件摘要，并限制每局评论次数。
 - 新增 aliceneko-ai D1 数据库及 CHAT_DB 绑定，保存按服务器/成员隔离的最近 30 条对话；数据库迁移已执行。Gemini API Key 需由用户在 Cloudflare 设置为加密 Secret GEMINI_API_KEY，未写入仓库。
-- 9 项 AI/Gateway 专项测试通过；GitHub main 已同步 beta.20。
+- 10 项 AI/Gateway 专项测试通过；GitHub main 已同步 beta.20。
 - 2026-10-08 部署成功：Cloudflare Worker 上传 HTTP 200，线上 COMMAND_VERSION 为 games-v1.0.1-beta.20；28 个模块可读回，CHAT_DB 的 D1 绑定和既有 BOT_TOKEN Secret 均保留，TABLES namespace 与每分钟 Cron 保持。
-- aliceneko-ai D1 已创建并运行 migrations/0001_ai.sql，4 张 AI 表已验证。Gemini API Secret 尚未设置，因此实际 Gemini 对话和游戏解说要等用户在 Cloudflare Secret 中添加 GEMINI_API_KEY 后启用。
+- aliceneko-ai D1 已创建并运行 migrations/0001_ai.sql，4 张 AI 表已验证。GEMINI_API_KEY 已作为加密 Worker Secret 配置，实际 Gemini 对话和游戏解说已启用。
 
 
 ## 抽鬼牌上线核对与部署补齐（2026-10-08）
@@ -202,3 +202,5 @@
 - 完整156项测试通过，包括1000局抽鬼牌、私密隔离、并发、超时、昵称3分钟决定/5分钟恢复、榜首鬼王授予及UNO/德扑回归。更新旧测试的beta.20指令版本断言，并隔离游戏回归中的Gateway实例，避免测试连接真实WebSocket。
 - /抽鬼牌 等待对手、发起挑战 玩家、排行榜、牌桌、帮助已进入指令注册schema，既有Cron自动注册；本次没有取得Discord实时指令列表读回，真实客户端游玩效果仍待用户试玩。
 - 昵称惩罚依赖bot的管理昵称权限和角色层级，鬼王授予依赖管理身份组权限；权限不足时会返回明确失败提示。Gemini Secret是否配置不影响抽鬼牌功能。
+
+- 2026-10-08 新增 OpenAI 兼容网关适配；GEMINI_API_BASE_URL 指向 ggchan.dev，GEMINI_MODEL 设置为 gemini-3.8-flash。保留原生 Gemini 接口回退，不包含管理员助手。

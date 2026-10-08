@@ -3,6 +3,10 @@
   "main": "worker.mjs",
   "compatibility_date": "2026-10-07",
   "keep_vars": true,
+  "vars": {
+    "GEMINI_API_BASE_URL": "https://gcli.ggchan.dev/v1",
+    "GEMINI_MODEL": "gemini-3.8-flash"
+  },
   "durable_objects": {"bindings": [{"name": "TABLES", "class_name": "PokerTable"}]},
   "d1_databases": [{"binding": "CHAT_DB", "database_name": "aliceneko-ai", "database_id": "b9327b3d-b549-4c48-b221-689c5f4aa3a9"}],
   "migrations": [{"tag": "v1", "new_sqlite_classes": ["PokerTable"]}],

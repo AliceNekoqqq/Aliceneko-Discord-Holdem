@@ -68,9 +68,53 @@ export function buildGenerateContentRequest(contents, persona = "", context = "c
   };
 }
 
+export function buildOpenAIChatRequest(contents, persona = "", context = "chat", model = "gemini-3.8-flash") {
+  const messages = [{role:"system",content:makeSystemInstruction(persona,context)}];
+  for (const item of contents || []) {
+    const content = (item.parts || []).map(part => part.text || "").join("");
+    if (content) messages.push({role:item.role === "model" ? "assistant" : "user",content});
+  }
+  return {
+    model,
+    messages,
+    temperature:context === "game" ? 0.85 : 0.7,
+    max_tokens:context === "game" ? 120 : 640,
+    stream:false
+  };
+}
+
+function openAIChatEndpoint(baseUrl) {
+  let parsed;
+  try { parsed = new URL(baseUrl); }
+  catch { throw new Error("invalid_gemini_api_base_url"); }
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error("invalid_gemini_api_base_url");
+  }
+  return parsed.origin + parsed.pathname.replace(/\/+$/, "") + "/chat/completions";
+}
+
+function readOpenAIChatAnswer(data) {
+  const content = data.choices?.[0]?.message?.content;
+  if (typeof content === "string") return content.trim();
+  if (Array.isArray(content)) return content.map(part => typeof part === "string" ? part : part.text || "").join("").trim();
+  return "";
+}
+
 export async function generateGemini(env, contents, persona = "", context = "chat", fetcher = fetch) {
   if (!env.GEMINI_API_KEY) throw new Error("missing_gemini_key");
   const model = /^[A-Za-z0-9.-]{1,80}$/.test(env.GEMINI_MODEL || "") ? env.GEMINI_MODEL : "gemini-3.8-flash";
+  if (env.GEMINI_API_BASE_URL) {
+    const response = await fetcher(openAIChatEndpoint(env.GEMINI_API_BASE_URL),{
+      method:"POST",
+      headers:{"Content-Type":"application/json",Authorization:"Bearer " + env.GEMINI_API_KEY},
+      body:JSON.stringify(buildOpenAIChatRequest(contents,persona,context,model)),
+      signal:AbortSignal.timeout(20000)
+    });
+    if (!response.ok) throw new Error("gemini_request_failed");
+    const answer = readOpenAIChatAnswer(await response.json());
+    if (!answer) throw new Error("gemini_empty_response");
+    return clamp(answer, MAX_REPLY_CHARS);
+  }
   const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent";
   const response = await fetcher(url,{
     method:"POST",

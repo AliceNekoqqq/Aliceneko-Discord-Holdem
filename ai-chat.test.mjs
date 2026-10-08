@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   aiCommand,
+  buildOpenAIChatRequest,
   buildGenerateContentRequest,
   generateGemini,
   handleAiCommand,
@@ -64,6 +65,39 @@ test("Gemini requests disable request storage and keep the key out of the URL", 
   assert.equal(captured.url.includes(env.GEMINI_API_KEY),false);
   assert.equal(captured.options.headers["x-goog-api-key"],env.GEMINI_API_KEY);
   assert.equal(JSON.parse(captured.options.body).store,false);
+});
+
+test("custom Gemini gateway uses OpenAI chat completions with memory and persona", async () => {
+  const history = [
+    {role:"user",parts:[{text:"第一句"}]},
+    {role:"model",parts:[{text:"上一轮回复"}]},
+    {role:"user",parts:[{text:"接着说"}]}
+  ];
+  const built = buildOpenAIChatRequest(history,"爱讲冷笑话");
+  assert.deepEqual(built.messages.map(message=>message.role),["system","user","assistant","user"]);
+  assert.match(built.messages[0].content,/爱讲冷笑话/);
+  assert.equal(built.messages[2].content,"上一轮回复");
+  assert.equal(built.stream,false);
+
+  const env = {
+    GEMINI_API_KEY:"test-secret",
+    GEMINI_API_BASE_URL:"https://gcli.ggchan.dev/v1/",
+    GEMINI_MODEL:"gemini-3.8-flash"
+  };
+  let captured;
+  const answer = await generateGemini(env,history,"爱讲冷笑话","chat",async (url,options) => {
+    captured={url,options};
+    return Response.json({choices:[{message:{content:"接着聊"}}]});
+  });
+  assert.equal(answer,"接着聊");
+  assert.equal(captured.url,"https://gcli.ggchan.dev/v1/chat/completions");
+  assert.equal(captured.options.headers.Authorization,"Bearer test-secret");
+  const request = JSON.parse(captured.options.body);
+  assert.equal(request.model,"gemini-3.8-flash");
+  assert.equal(request.messages.length,4);
+  assert.equal(request.messages[2].role,"assistant");
+  assert.equal(request.messages[2].content,"上一轮回复");
+  assert.equal(captured.url.includes("test-secret"),false);
 });
 
 test("system instruction protects private cards and excludes admin assistance", () => {

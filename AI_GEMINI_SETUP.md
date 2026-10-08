@@ -1,4 +1,4 @@
-# Gemini AI · beta.20
+# Gemini AI
 
 This adds Gemini chat and an optional game host to the existing Discord Worker.
 The administrator-assistant feature is intentionally not included.
@@ -16,11 +16,16 @@ The administrator-assistant feature is intentionally not included.
 
 The Worker uses the existing TABLES Durable Object namespace for the Discord Gateway connection and the aliceneko-ai D1 database for settings and chat memory. Migration migrations/0001_ai.sql creates the required tables.
 
-Add the Gemini key as an encrypted Worker Secret:
+Add the API key as an encrypted Worker Secret:
 
     npx wrangler secret put GEMINI_API_KEY
 
-When prompted, paste the key from Google AI Studio. Do not put it in wrangler.jsonc, a plain text Worker variable, or GitHub. The code defaults to gemini-3.8-flash; set the optional GEMINI_MODEL Worker variable to override it.
+Do not put the key in wrangler.jsonc, a plain text Worker variable, or GitHub. This bot uses an OpenAI-compatible chat-completions endpoint when `GEMINI_API_BASE_URL` is configured. Set these plain text Worker variables for the ggchan.dev gateway:
+
+    GEMINI_API_BASE_URL=https://gcli.ggchan.dev/v1
+    GEMINI_MODEL=gemini-3.8-flash
+
+The Worker sends requests to `/chat/completions` under that base URL, using `Authorization: Bearer` and the OpenAI chat message format. Without `GEMINI_API_BASE_URL`, it uses Google's native Gemini GenerateContent endpoint. The configured gateway receives chat messages and the selected model name.
 
 The D1 database binding is named CHAT_DB. If preparing another environment, create the database and run:
 
@@ -31,7 +36,7 @@ The existing Worker Cron registers /ai and keeps the Discord Gateway connection 
 
 ## Data boundaries
 
-Chat history is not shared between members or servers. Only direct mentions of the bot are sent to Gemini. The system prompt excludes private game hands, decks, and other unrevealed state. Game commentary receives a small public event summary rather than the full table object. Gemini GenerateContent requests set store:false.
+Chat history is not shared between members or servers. Only direct mentions of the bot are sent to the configured model endpoint. The system prompt excludes private game hands, decks, and other unrevealed state. Game commentary receives a small public event summary rather than the full table object. Native Gemini GenerateContent requests set store:false; OpenAI-compatible requests are non-streaming.
 
 Memory is stored in D1 until the member clears it. Disabling memory pauses new chat-history storage but does not remove existing history. The Worker keeps no channel transcript. Avoid sending sensitive personal data in a public Discord channel.
 
