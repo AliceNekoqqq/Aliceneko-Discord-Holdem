@@ -287,3 +287,12 @@
 - 发送前保存 pending 记录，响应后更新结果；不记录认证头，正文和错误摘要中若包含已配置API key或Bot token原文则替换。请求监控独立于个人/频道记忆开关；默认7天，最长每小时随请求清理，AI_REQUEST_LOG_ENABLED=false关闭新增记录。
 - Workers输出 ai_request_sent/ai_request_result 小型索引与结果摘要，完整正文在D1；存储失败输出告警并尝试分块Workers日志。Cloudflare配置开启持久日志和100%采样；仓库wrangler配置同步。查看路径及SQL见 AI_REQUEST_MONITORING.md。
 - 37项AI测试通过，包括每次尝试/完整上下文记录、状态与服务商model/usage、认证信息排除、关闭监控，以及原重试/记忆/主持行为回归。线上D1建表和两个索引HTTP200完成；旧错误不可追溯。
+
+
+## Discord 图片识别（2026-10-08）
+
+- 用户要求让bot读取Discord图片并请求API。主动@消息的图片附件最多4张，支持PNG/JPEG/WebP、每张附件标称大小<=5MB；只接受HTTPS Discord CDN的/attachments/链接，保留签名查询串。
+- OpenAI兼容请求使用text+image_url内容数组，将当轮图片真实传给API；纯文字消息保持原字符串结构。原生Gemini分支下载图片并构建inlineData，设置下载超时、禁止跳转和实际读取5MB上限。
+- 图片本体不进入个人/频道对话记忆，历史只存附图标记及文字回答；提示要求不假装能看到历史原图。只在用户主动@时读取，不扫频道图片。默认无文本时请求描述图片。
+- 请求监控保存当前线上OpenAI请求的完整图片URL；原生路径日志只保留MIME与二进制省略标记，避免base64使D1记录超限。API实际仍接收完整图片字节。
+- AI专项41项测试通过，新增图文混合结构/纯文本兼容、来源/格式/大小/数量限制、仅图片@端到端回复及无原图记忆、原生inlineData转换。没有使用用户API密钥做真实付费图像生成测试，服务商端识图实际响应待Discord上传图片验证。

@@ -8,6 +8,7 @@ import {
   buildGenerateContentRequest,
   generateGemini,
   GEMINI_MAX_RETRIES,
+  discordImageParts,
   getBotEmojiTokens,
   handleAiCommand,
   makeSystemInstruction,
@@ -155,6 +156,49 @@ test('request monitoring can be disabled without affecting generation',async t=>
   t.mock.method(console,'info',()=>assert.fail('disabled logging'));
   const answer=await generateGemini({AI_REQUEST_LOG_ENABLED:'false',GEMINI_API_KEY:'test'},[],'chat',async()=>Response.json({candidates:[{content:{parts:[{text:'完成。'}]}}]}));
   assert.equal(answer,'完成。');
+});
+
+test('Discord images use multimodal OpenAI content, while ordinary chat stays text-only',()=>{
+  const images=discordImageParts({attachments:[{url:'https://cdn.discordapp.com/attachments/123/456/photo.png?ex=abc&hm=def',content_type:'image/png',size:1234}]});
+  assert.equal(images.length,1);
+  const body=buildOpenAIChatRequest([{role:'user',parts:[{text:'看看这张'},...images]}]);
+  assert.deepEqual(body.messages.at(-1).content,[{type:'text',text:'看看这张'},{type:'image_url',image_url:{url:images[0].imageUrl}}]);
+  assert.equal(buildOpenAIChatRequest([{role:'user',parts:[{text:'你好'}]}]).messages.at(-1).content,'你好');
+});
+
+test('Discord attachment selection rejects untrusted URLs and unsupported or oversized files',()=>{
+  const attachment={url:'https://cdn.discordapp.com/attachments/1/2/test.jpg',filename:'test.jpg',size:500};
+  for(const patch of [{url:'http://cdn.discordapp.com/attachments/1/2/test.jpg'},{url:'https://evil.test/test.jpg'},{url:'https://cdn.discordapp.com.evil.test/attachments/1/2/test.jpg'},{content_type:'text/html'},{size:6*1024*1024}])assert.equal(discordImageParts({attachments:[{...attachment,...patch}]}).length,0);
+  assert.equal(discordImageParts({attachments:[attachment]}).length,1);
+  assert.equal(discordImageParts({attachments:Array.from({length:7},(_,n)=>({...attachment,url:`https://cdn.discordapp.com/attachments/1/${n}/test.jpg`}))}).length,4);
+});
+
+test('image-only mentions send real images and save no image URLs in conversational memory',async t=>{
+  const db=fakeDb();const modelRequests=[],replies=[];
+  const imageUrl='https://cdn.discordapp.com/attachments/1/2/photo.png?hm=signed';
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    if(url.includes('example.test')){modelRequests.push(JSON.parse(options.body));return Response.json({choices:[{message:{content:'图里是一只猫。'}}]});}
+    if(url.endsWith('/messages'))replies.push(JSON.parse(options.body));
+    return new Response('{}');
+  });
+  await replyToMention({BOT_TOKEN:'bot-token',GEMINI_API_KEY:'api-key',GEMINI_API_BASE_URL:'https://example.test/v1',CHAT_DB:db,AI_REQUEST_LOG_ENABLED:'false'},
+    {id:'image-only',guild_id:'g',channel_id:'c',author:{id:'u'},content:'<@bot>',attachments:[{url:imageUrl,content_type:'image/png',size:50}]},'bot');
+  assert.equal(modelRequests.length,1);
+  assert.equal(modelRequests[0].messages.at(-1).content[1].image_url.url,imageUrl);
+  assert.equal(replies[0].content,'图里是一只猫。');
+  assert.match(db.state.history[0].content,/附带1张图片/);
+  assert.equal(JSON.stringify(db.state.history).includes(imageUrl),false);
+});
+
+test('native Gemini receives inline image bytes instead of a Discord file URI',async()=>{
+  const imageUrl='https://cdn.discordapp.com/attachments/1/2/photo.png';let captured;
+  const bytes=Uint8Array.from([137,80,78,71]);
+  await generateGemini({GEMINI_API_KEY:'api-key',AI_REQUEST_LOG_ENABLED:'false'},[{role:'user',parts:[{text:'看看'},...discordImageParts({attachments:[{url:imageUrl,content_type:'image/png',size:4}]})]}],'chat',async(url,options)=>{
+    if(url===imageUrl)return new Response(bytes,{headers:{'Content-Type':'image/png'}});
+    captured=JSON.parse(options.body);
+    return Response.json({candidates:[{content:{parts:[{text:'完成。'}]}}]});
+  });
+  assert.deepEqual(captured.contents[0].parts[1],{inlineData:{mimeType:'image/png',data:'iVBORw=='}});
 });
 
 test('Gemini stops after exactly three retries, including network and invalid replies',async()=>{

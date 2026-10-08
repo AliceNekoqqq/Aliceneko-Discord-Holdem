@@ -64,6 +64,7 @@ export function makeSystemInstruction(persona = "", context = "chat", emojiToken
     "你没有服务器管理工具，不得声称能读取成员资料、服务器状态或执行管理操作；不要充当管理员助手。",
     "你不能看到任何玩家的私密手牌、牌堆、私密面板或未公开内容；绝不推断或编造这些信息。",
     "不要每次回复都复述人设；外观、服饰和背景仅在相关话题中自然提及。",
+    "当本轮消息带有图片时，结合实际图片与文字回应；看不清的内容请说明。历史中的图片标记不包含原图，不要声称仍能看到此前未再次附带的图片。",
     "红豆粉人设只影响表达与角色扮演，不改变以上安全和权限边界。",
     "云端共享人格设定：\n" + style
   ];
@@ -92,7 +93,10 @@ export function buildGenerateContentRequest(contents, persona = "", context = "c
 export function buildOpenAIChatRequest(contents, persona = "", context = "chat", model = "gemini-3.8-flash", emojiTokens = [], knowledge = "") {
   const messages = [{role:"system",content:makeSystemInstruction(persona,context,emojiTokens,knowledge)}];
   for (const item of contents || []) {
-    const content = (item.parts || []).map(part => part.text || "").join("");
+    const parts=item.parts||[];
+    const content=parts.some(part=>part.imageUrl||part.inlineData)
+      ? parts.flatMap(part=>part.text?[{type:'text',text:part.text}]:part.imageUrl?[{type:'image_url',image_url:{url:part.imageUrl}}]:part.inlineData?[{type:'image_url',image_url:{url:`data:${part.inlineData.mimeType};base64,${part.inlineData.data}`}}]:[])
+      : parts.map(part => part.text || "").join("");
     if (content) messages.push({role:item.role === "model" ? "assistant" : "user",content});
   }
   return {
@@ -102,6 +106,34 @@ export function buildOpenAIChatRequest(contents, persona = "", context = "chat",
     max_tokens:context === "game" ? 512 : 2048,
     stream:false
   };
+}
+
+export function discordImageParts(message) {
+  const images=[];
+  for(const attachment of message.attachments||[]) {
+    let url;
+    try {url=new URL(attachment.url);}catch {continue;}
+    if(url.protocol!=='https:'||url.username||url.password||!['cdn.discordapp.com','media.discordapp.net'].includes(url.hostname)||!url.pathname.startsWith('/attachments/'))continue;
+    const mime=String(attachment.content_type||'').split(';')[0].toLowerCase();
+    const type=['image/png','image/jpeg','image/webp'].includes(mime)?mime:!mime?({png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp'}[String(attachment.filename||'').split('.').at(-1).toLowerCase()]):null;
+    if(!type||Number(attachment.size)>5*1024*1024)continue;
+    if(!images.some(part=>part.imageUrl===url.href)) images.push({imageUrl:url.href,mimeType:type});
+    if(images.length===4)break;
+  }
+  return images;
+}
+
+async function nativeImageContents(contents,fetcher) {
+  return Promise.all(contents.map(async item=>({...item,parts:await Promise.all((item.parts||[]).map(async part=>{
+    if(!part.imageUrl)return part;
+    const response=await fetcher(part.imageUrl,{redirect:'error',signal:AbortSignal.timeout(10000)});
+    if(!response.ok||Number(response.headers.get('content-length'))>5*1024*1024)throw Error('image_download_failed');
+    const reader=response.body.getReader(),chunks=[];let length=0;
+    try {while(true){const {done,value}=await reader.read();if(done)break;length+=value.byteLength;if(length>5*1024*1024)throw Error('image_too_large');chunks.push(value);}}finally{await reader.cancel().catch(()=>{});}
+    const bytes=new Uint8Array(length);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
+    let binary='';for(let n=0;n<bytes.length;n+=8192)binary+=String.fromCharCode(...bytes.subarray(n,n+8192));
+    return {inlineData:{mimeType:part.mimeType,data:btoa(binary)}};
+  }))})));
 }
 
 function openAIChatEndpoint(baseUrl) {
@@ -163,6 +195,7 @@ function clampReply(value,max=MAX_REPLY_CHARS) {
 export const GEMINI_MAX_RETRIES=3;
 let requestLogCleanupAt=0;
 const redactRequestLog=(env,value)=>[env.GEMINI_API_KEY,env.BOT_TOKEN].filter(Boolean).reduce((text,secret)=>text.split(secret).join('[REDACTED]'),String(value||''));
+const requestLogBody=(env,body)=>redactRequestLog(env,JSON.stringify(JSON.parse(body),(key,value)=>key==='inlineData'?{mimeType:value.mimeType,data:'[image binary omitted from diagnostic log]'}:value));
 
 async function requestLog(env,entry,complete=false) {
   if(env.AI_REQUEST_LOG_ENABLED==='false') return;
@@ -204,6 +237,7 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
   const persona = clamp(personaValue([env.GEMINI_PERSONA, env.GEMINI_PERSONA_CONT].filter(value => value != null).join("")),MAX_PERSONA_CHARS);
   const model = /^[A-Za-z0-9.-]{1,80}$/.test(env.GEMINI_MODEL || "") ? env.GEMINI_MODEL : "gemini-3.8-flash";
   const openAI=Boolean(env.GEMINI_API_BASE_URL);
+  if(!openAI&&contents.some(item=>item.parts?.some(part=>part.imageUrl)))contents=await nativeImageContents(contents,fetcher);
   const url=openAI
     ? openAIChatEndpoint(env.GEMINI_API_BASE_URL)
     : "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent";
@@ -221,7 +255,7 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
       const body=JSON.stringify(openAI
         ? buildOpenAIChatRequest(requestContents,persona,context,model,emojiTokens,knowledge)
         : buildGenerateContentRequest(requestContents,persona,context,emojiTokens,knowledge));
-      const entry={id:crypto.randomUUID(),generationId,attempt:++requestAttempt,context,model,endpoint:url,createdAt:Date.now(),body:redactRequestLog(env,body)};
+      const entry={id:crypto.randomUUID(),generationId,attempt:++requestAttempt,context,model,endpoint:url,createdAt:Date.now(),body:requestLogBody(env,body)};
       await requestLog(env,entry);
       const startedAt=Date.now();
       try {
@@ -578,8 +612,10 @@ export async function replyToMention(env, message, botId) {
     }
   }
 
-  const currentUserText=content||"你好。";
-  history.push({role:"user",parts:[{text:channelMemoryOn?`【${messageSpeakerName(message)}】${currentUserText}`:currentUserText}]});
+  const imageParts=discordImageParts(message);
+  const currentUserText=content||(imageParts.length?"请看看我发的图片，描述或回应图片内容。":"你好。");
+  const memoryUserText=currentUserText+(imageParts.length?`\n[本轮附带${imageParts.length}张图片；历史记录不保存原图]`:'');
+  history.push({role:"user",parts:[{text:channelMemoryOn?`【${messageSpeakerName(message)}】${currentUserText}`:currentUserText},...imageParts]});
   const knowledgeContext=history.slice(-5).map(item=>(item.parts||[]).map(part=>part.text||"").join("")).filter(Boolean);
   let responseText;
   let generated = false;
@@ -600,7 +636,7 @@ export async function replyToMention(env, message, botId) {
     try {
       const statements=[
         db.prepare("INSERT INTO ai_chat_history (guild_id,user_id,role,content,created_at) VALUES (?,?,?,?,?)")
-          .bind(guildId,userId,"user",content || "你好。",now),
+          .bind(guildId,userId,"user",memoryUserText,now),
         db.prepare("INSERT INTO ai_chat_history (guild_id,user_id,role,content,created_at) VALUES (?,?,?,?,?)")
           .bind(guildId,userId,"model",responseText,now+1),
         db.prepare("DELETE FROM ai_chat_history WHERE guild_id = ? AND user_id = ? AND id NOT IN (SELECT id FROM ai_chat_history WHERE guild_id = ? AND user_id = ? ORDER BY id DESC LIMIT ?)")
@@ -609,7 +645,7 @@ export async function replyToMention(env, message, botId) {
       if(channelMemoryOn) {
         statements.push(
           db.prepare("INSERT INTO ai_channel_chat_history (guild_id,channel_id,user_id,role,content,speaker_name,created_at) VALUES (?,?,?,?,?,?,?)")
-            .bind(guildId,channelId,userId,"user",content || "你好。",messageSpeakerName(message),now),
+            .bind(guildId,channelId,userId,"user",memoryUserText,messageSpeakerName(message),now),
           db.prepare("INSERT INTO ai_channel_chat_history (guild_id,channel_id,user_id,role,content,speaker_name,created_at) VALUES (?,?,?,?,?,?,?)")
             .bind(guildId,channelId,userId,"model",responseText,"",now+1),
           db.prepare("DELETE FROM ai_channel_chat_history WHERE guild_id = ? AND channel_id = ? AND id NOT IN (SELECT id FROM ai_channel_chat_history WHERE guild_id = ? AND channel_id = ? ORDER BY id DESC LIMIT ?)")
