@@ -149,7 +149,7 @@ function clampReply(value,max=MAX_REPLY_CHARS) {
 
 export async function generateGemini(env, contents, context = "chat", fetcher = fetch, emojiTokens = [], knowledge = "") {
   if (!env.GEMINI_API_KEY) throw new Error("missing_gemini_key");
-  const persona = clamp(personaValue(env.GEMINI_PERSONA),MAX_PERSONA_CHARS);
+  const persona = clamp(personaValue([env.GEMINI_PERSONA, env.GEMINI_PERSONA_CONT].filter(value => value != null).join("")),MAX_PERSONA_CHARS);
   const model = /^[A-Za-z0-9.-]{1,80}$/.test(env.GEMINI_MODEL || "") ? env.GEMINI_MODEL : "gemini-3.8-flash";
   const openAI=Boolean(env.GEMINI_API_BASE_URL);
   const url=openAI
