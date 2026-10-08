@@ -10,13 +10,14 @@ import {
   getBotEmojiTokens,
   handleAiCommand,
   makeSystemInstruction,
+  commentOnGameTransition,
   publicGameEvent,
   replyToMention
 } from "./ai-chat.mjs";
 import { DiscordGateway } from "./discord-gateway.mjs";
 
 function fakeDb() {
-  const state = {memoryEnabled:1,settingExists:false,persona:"",gameHost:0,history:[],processed:new Set()};
+  const state = {memoryEnabled:1,settingExists:false,persona:"",gameHost:0,hostFeatures:{host_commentary:0,host_start:0,host_results:0},history:[],processed:new Set()};
   return {
     state,
     prepare(sql) {
@@ -26,7 +27,7 @@ function fakeDb() {
         bind(...args) { query.args=args; return this; },
         async first() {
           if (query.sql.includes("ai_member_settings")) return state.settingExists ? {memory_enabled:state.memoryEnabled} : null;
-          if (query.sql.includes("ai_guild_config")) return {persona:state.persona,game_host:state.gameHost};
+          if (query.sql.includes("ai_guild_config")) return {persona:state.persona,game_host:state.gameHost,...state.hostFeatures};
           return null;
         },
         async run() {
@@ -37,7 +38,10 @@ function fakeDb() {
           }
           if (query.sql.includes("ai_member_settings")) {state.memoryEnabled=query.args[2];state.settingExists=true;}
           if (query.sql.includes("ai_guild_config") && query.sql.includes("persona")) state.persona=query.args[1];
-          if (query.sql.includes("ai_guild_config") && query.sql.includes("game_host")) state.gameHost=query.args[1];
+          if (query.sql.includes("ai_guild_config") && query.sql.includes("host_commentary")) {
+            state.gameHost=query.args[1];
+            state.hostFeatures={host_commentary:query.args[2],host_start:query.args[3],host_results:query.args[4]};
+          } else if (query.sql.includes("ai_guild_config") && query.sql.includes("game_host")) state.gameHost=query.args[1];
           return {meta:{changes:1}};
         },
         async all() { return {results:state.history.filter(row=>row.guild_id===query.args[0]&&row.user_id===query.args[1])}; }
@@ -113,6 +117,14 @@ test("system instruction protects private cards and excludes admin assistance", 
   assert.match(prompt,/活泼/);
 });
 
+test("ordinary chat simulates the tavern naturally without repeating stage directions", () => {
+  const prompt=makeSystemInstruction("");
+  assert.match(prompt,/默认模拟发生在小酒馆里的谈话/);
+  assert.match(prompt,/不要每条回复都写动作/);
+  assert.match(prompt,/不要假定用户现实中身处店内/);
+  assert.match(makeSystemInstruction("","game"),/结算时明确宣布给出的胜者或结果/);
+});
+
 test("bot knowledge retrieval adds relevant authoritative facts only", () => {
   const unoKnowledge=getBotKnowledge("UNO 的 +2 可以叠 +4 吗？");
   assert.match(unoKnowledge,/默认混合叠加：\+2 可接 \+2 或 \+4/);
@@ -143,11 +155,37 @@ test("published knowledge document is generated from the Worker knowledge source
   assert.equal(document,BOT_KNOWLEDGE_MARKDOWN);
 });
 
-test("AI command exposes only member memory and game-host controls", () => {
+test("AI command exposes only member memory and independently configurable host features", () => {
   const groups = aiCommand.options.map(group=>group.name);
   assert.deepEqual(groups,["记忆","主持"]);
   assert.equal(groups.includes("管理员助手"),false);
   assert.equal(groups.includes("人格"),false);
+  const host=aiCommand.options.find(group=>group.name==="主持");
+  const featureCommand=host.options.find(option=>option.name==="功能");
+  assert.deepEqual(featureCommand.options.map(option=>option.name),["实时吐槽","开局播报","宣布结果"]);
+  assert.ok(featureCommand.options.every(option=>option.type===5));
+});
+
+test("AI host feature settings update only selected toggles", async () => {
+  const db=fakeDb();
+  const reply=await handleAiCommand({CHAT_DB:db},{
+    guild_id:"guild-1",
+    member:{user:{id:"admin-1"},permissions:"40"},
+    data:{options:[{name:"主持",options:[{name:"功能",options:[
+      {name:"实时吐槽",value:true},
+      {name:"宣布结果",value:true}
+    ]}]}]}
+  });
+  assert.deepEqual(db.state.hostFeatures,{host_commentary:1,host_start:0,host_results:1});
+  assert.match(reply.data.content,/已更新：实时吐槽、宣布结果/);
+  assert.match(reply.data.content,/开局播报：关闭/);
+  const allOff=await handleAiCommand({CHAT_DB:db},{
+    guild_id:"guild-1",
+    member:{user:{id:"admin-1"},permissions:"40"},
+    data:{options:[{name:"主持",options:[{name:"关闭"}]}]}
+  });
+  assert.deepEqual(db.state.hostFeatures,{host_commentary:0,host_start:0,host_results:0});
+  assert.match(allOff.data.content,/一键关闭全部/);
 });
 
 test("memory off control changes only the calling member setting", async () => {
@@ -218,6 +256,33 @@ test("public game events include only public summaries", () => {
   assert.equal(JSON.stringify(event).includes("cards"),false);
   assert.equal(JSON.stringify(event).includes("deck"),false);
   assert.equal(JSON.stringify(event).includes("showdown"),false);
+});
+
+test("host feature gates announce results independently from live commentary", async t => {
+  const db=fakeDb();
+  db.state.hostFeatures={host_commentary:0,host_start:0,host_results:1};
+  const calls=[];
+  t.mock.method(globalThis,"fetch",async (url,options)=>{
+    calls.push({url,options});
+    if(String(url).startsWith("https://generativelanguage.googleapis.com/")) {
+      return Response.json({candidates:[{content:{parts:[{text:"小明赢下了这一局。"}]}}]});
+    }
+    return new Response("{}",{status:200});
+  });
+  const env={BOT_TOKEN:"test",GEMINI_API_KEY:"test",CHAT_DB:db};
+  const storage={state:null,async get(){return this.state;},async put(_key,value){this.state=value;}};
+  const before={game:"poker",guild:"g1",channel:"c1",epoch:"e1",version:1,handNo:1,phase:"river",players:[],log:["河牌"]};
+  const settled={...before,version:2,phase:"settled",players:[{id:"u1",name:"小明"}],settlements:[{label:"小明",net:20}]};
+  assert.equal(await commentOnGameTransition(env,storage,before,settled),true);
+  const sent=calls.find(call=>String(call.url).includes("/channels/c1/messages"));
+  assert.ok(sent);
+  assert.match(sent.options.body,/小明赢下了这一局/);
+
+  const active={...settled,version:3,phase:"turn",log:["小明加注"]};
+  const action={...active,version:4,log:["小红跟注"]};
+  const callCount=calls.length;
+  assert.equal(await commentOnGameTransition(env,storage,active,action),false);
+  assert.equal(calls.length,callCount);
 });
 
 test("Gateway replies to direct mentions and ignores ordinary guild messages", async t => {
