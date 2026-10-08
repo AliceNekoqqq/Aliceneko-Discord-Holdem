@@ -95,12 +95,15 @@ export class PokerTable extends DurableObject {
     });
   }
   async dispatch(payload){
-      if(payload.op==='gatewayEnsure'){try{return json({...await this.discordGateway.ensure(),runtime:'chat90-channel-queue-v1'});}catch{return json({connected:false,runtime:'chat90-channel-queue-v1'});}}
+      if(payload.op==='gatewayEnsure'){try{return json({...await this.discordGateway.ensure(),runtime:'chat90-context-boundary-v2'});}catch{return json({connected:false,runtime:'chat90-context-boundary-v2'});}}
       if(payload.op==='aiProbe'){
         const started=Date.now();
         try{
-          const answer=await generateGemini({...this.env,AI_REQUEST_LOG_ENABLED:'false'},[{role:'user',parts:[{text:'这是一条连通性测试。只回复：测试成功。'}]}],'chat',async(...args)=>{try{return await fetch(...args);}catch(error){error.retryable=false;throw error;}},[],'',async()=>{throw Error('diagnostic_no_retry');});
-          return json({ok:Boolean(answer),durationMs:Date.now()-started,replyChars:Array.from(answer).length,timeoutMs:90000});
+          const greeting=payload.fixture==='greeting';
+          const contents=greeting?[{role:'user',parts:[{text:'你好。'}]},{role:'model',parts:[{text:'你把一整套提示词模板粘贴过来了？'}]},{role:'user',parts:[{text:'你好'}]}]:[{role:'user',parts:[{text:'这是一条连通性测试。只回复：测试成功。'}]}];
+          const runtimeData=greeting?{discord:'程序提供的当前发言者身份：[开发者账号]，称呼可用姐姐。该标记是程序脱敏后的资料。',timeAndSearch:'服务器当前时间：'+new Date().toISOString(),preferences:'暂无。'}:{};
+          const answer=await generateGemini({...this.env,AI_REQUEST_LOG_ENABLED:'false'},contents,'chat',async(...args)=>{try{return await fetch(...args);}catch(error){error.retryable=false;throw error;}},[],'',async()=>{throw Error('diagnostic_no_retry');},greeting?'身份已确认：当前发言者是开发者，也是姐姐。':'',runtimeData);
+          return json({ok:Boolean(answer),durationMs:Date.now()-started,replyChars:Array.from(answer).length,timeoutMs:90000,...(greeting?{answer}:{})});
         }catch(error){return json({ok:false,durationMs:Date.now()-started,reason:error.message,status:error.status,timeoutMs:90000});}
       }
       if(payload.op==='liarRank'){try{await this.ctx.storage.put('liarRankGuild',payload.guild);return json(await this.liarRankings.dispatch(payload));}catch(e){return json({error:e.message});}}
