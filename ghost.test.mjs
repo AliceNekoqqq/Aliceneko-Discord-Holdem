@@ -29,6 +29,48 @@ test('controller enforces 1v1 target, privacy, channel occupancy, confirms surre
 test('simultaneous draw clicks execute once; stale replay refreshes instead of drawing; encrypted panels update privately',async t=>{const s=setup(t);await s.create();await s.click('join','4');let state=s.ctx.map.get('table');state.phase='active';state.turn='1';state.deadline=Date.now()+45000;state.players[0].cards=[0,52];state.players[1].cards=[1,13];await s.ctx.storage.put('table',state);await s.click('hand','1');await s.click('hand','4');const stale=`g:${state.epoch}:${state.version}:p~1~draw~0`;const replies=await Promise.all([s.call(3,{custom_id:stale},'1',true),s.call(3,{custom_id:stale},'1',true)]);assert(replies.every(r=>r.type===6));state=s.ctx.map.get('table');assert.equal(state.version,2);assert.equal(state.last.actor,'1');assert.equal(state.turn,'4');assert.equal(state.players[1].cards.length,1);assert(!JSON.stringify([...s.ctx.map]).includes('private-ghost-'));await s.ctx.storage.put('privateSyncAt',1);await s.table.alarm();assert(s.requests.some(r=>r.file&&r.url.includes('/webhooks/')));assert(!s.requests.some(r=>r.url.includes('/channels/')&&JSON.stringify(r.body).includes('你的手牌')));
 });
 const result=(epoch,winner='1',at=Date.now())=>({id:`${epoch}:1`,guild:'3',at,mode:'round',players:[{id:'1',name:'红豆粉',won:winner==='1'},{id:'4',name:'猫电台',won:winner==='4'}]});
+test('settled ghost role consumes legacy due marker and sleeps without rewriting unchanged penalties',async t=>{
+ const s=setup(t),ctx=context(),svc=new PokerTable(ctx,s.env).ghostService;
+ await svc.record('3',result('sleep','1',Date.now()-3600000));await svc.alarm('3');
+ assert.equal((await ctx.storage.get('ghostRole')).assigned,true);
+ await ctx.storage.put('ghostRoleDue',1);
+ const requests=s.requests.length,put=ctx.storage.put;let penaltyWrites=0;
+ ctx.storage.put=async(k,v)=>{if(k==='ghostPenalties')penaltyWrites++;return put(k,v);};
+ await svc.alarm('3');assert.equal(await ctx.storage.get('ghostRoleDue'),undefined);assert.equal(ctx.map.has('alarm'),false);
+ for(let n=0;n<10;n++)await svc.alarm('3');
+ assert.equal(penaltyWrites,0);assert.equal(s.requests.length,requests);
+ await svc.dispatch({guild:'3',action:'view',id:'1'});assert.equal(ctx.map.has('alarm'),false);
+});
+test('empty ghost leaderboard clears an inherited due marker without creating a role or alarm',async t=>{
+ const s=setup(t),ctx=context(),svc=new PokerTable(ctx,s.env).ghostService;
+ await ctx.storage.put('ghostRoleDue',1);await svc.alarm('3');
+ assert.equal(await ctx.storage.get('ghostRoleDue'),undefined);assert.equal(ctx.map.has('alarm'),false);assert.equal(s.requests.length,0);
+ await svc.dispatch({guild:'3',action:'view',id:'1'});assert.equal(ctx.map.has('alarm'),false);
+});
+test('nickname alarms preserve ghost role backoff; permission failures stop until explicit refresh',async t=>{
+ const s=setup(t),ctx=context(),svc=new PokerTable(ctx,s.env).ghostService,fetch=globalThis.fetch;let status=500,attempts=0;
+ globalThis.fetch=async(url,opts={})=>{if(opts.method==='PUT'&&url.includes('/roles/')){attempts++;if(status)return new Response('{}',{status});}return fetch(url,opts);};
+ await svc.record('3',result('retry'));await svc.alarm('3');
+ const due=await ctx.storage.get('ghostRoleDue');assert(due>Date.now());assert.equal(attempts,1);
+ const records=await ctx.storage.get('ghostPenalties');records['retry:1'].until=1;await ctx.storage.put('ghostPenalties',records);
+ await svc.alarm('3');assert.equal(attempts,1);assert.equal(await ctx.storage.get('ghostRoleDue'),due);assert.equal(ctx.map.get('alarm'),due);
+ status=403;await ctx.storage.put('ghostRoleDue',1);await svc.alarm('3');
+ assert.equal((await ctx.storage.get('ghostRole')).blocked,true);assert.equal(await ctx.storage.get('ghostRoleDue'),undefined);assert.equal(ctx.map.has('alarm'),false);
+ await svc.alarm('3');assert.equal(attempts,2);
+ status=0;await svc.dispatch({guild:'3',action:'view',id:'1'});await svc.alarm('3');
+ assert.equal(attempts,3);assert.equal((await ctx.storage.get('ghostRole')).assigned,true);assert.equal(ctx.map.has('alarm'),false);
+});
+test('nickname restoration keeps original recovery data and backs off when permissions are revoked',async t=>{
+ const s=setup(t),ctx=context(),svc=new PokerTable(ctx,s.env).ghostService;await svc.record('3',result('recover'));await svc.submit('3','1','recover:1','鬼鬼');
+ const records=await ctx.storage.get('ghostPenalties');records['recover:1'].restoreAt=1;await ctx.storage.put('ghostPenalties',records);
+ const fetch=globalThis.fetch;let blocked=true;
+ globalThis.fetch=async(url,opts={})=>blocked&&url.endsWith('/members/4')&&opts.method==='PATCH'?new Response('{}',{status:403}):fetch(url,opts);
+ await svc.alarm('3');const pending=(await ctx.storage.get('ghostPenalties'))['recover:1'];
+ assert.equal(pending.status,'restoring');assert.equal(pending.original,null);assert(pending.retryAt>=Date.now()+299000);
+ const requests=s.requests.length;await svc.alarm('3');assert.equal(s.requests.length,requests);
+ blocked=false;pending.retryAt=1;await ctx.storage.put('ghostPenalties',{'recover:1':pending});await svc.alarm('3');
+ const restored=(await ctx.storage.get('ghostPenalties'))['recover:1'];assert.equal(restored.status,'restored');assert.equal(restored.retryAt,undefined);assert.equal(restored.retries,undefined);
+});
 test('penalties authorize only winner/loser, once, nonoverlapping; expiry checked server side; restores null after reboot',async t=>{const s=setup(t),ctx=context(),host=new PokerTable(ctx,s.env),svc=host.ghostService;await svc.record('3',result('a'));await assert.rejects(()=>svc.submit('3','4','a:1','鬼鬼'),/胜者/);await assert.rejects(()=>svc.submit('3','1','a:1','\u200b'),/正常昵称/);await svc.submit('3','1','a:1','鬼鬼');await assert.rejects(()=>svc.submit('3','1','a:1','second'),/重复/);const pending=await ctx.storage.get('ghostPenalties');assert.equal(pending['a:1'].original,null);assert.equal(pending['a:1'].restoreAt-pending['a:1'].startedAt,300000);await svc.record('3',result('b'));await assert.rejects(()=>svc.submit('3','1','b:1','another'),/叠加/);const data=await ctx.storage.get('ghostPenalties');data['a:1'].restoreAt=Date.now()-1;data['b:1'].until=Date.now()-1;await ctx.storage.put('ghostPenalties',data);const reboot=new PokerTable(ctx,s.env);await reboot.alarm();assert.equal((await ctx.storage.get('ghostPenalties'))['a:1'].status,'restored');assert(s.requests.some(r=>r.url.endsWith('/members/4')&&r.method==='PATCH'&&r.body.nick===null));await assert.rejects(()=>reboot.ghostService.submit('3','1','b:1','late'),/过期/);
 });
 test('ambiguous nickname PATCH is recovered, manual changes are preserved on restoration, 403 is reported',async t=>{const s=setup(t),ctx=context(),svc=new PokerTable(ctx,s.env).ghostService;await svc.record('3',result('a'));const old=globalThis.fetch;let first=true;globalThis.fetch=async(url,opts)=>{const r=await old(url,opts);if(url.endsWith('/members/4')&&opts.method==='PATCH'&&first){first=false;throw Error('lost reply');}return r;};await assert.rejects(()=>svc.submit('3','1','a:1','鬼鬼'));let records=await ctx.storage.get('ghostPenalties');assert.equal(records['a:1'].status,'applying');records['a:1'].retryAt=1;await ctx.storage.put('ghostPenalties',records);await svc.alarm('3');assert.equal((await ctx.storage.get('ghostPenalties'))['a:1'].status,'active');await old('https://discord.com/api/v10/guilds/3/members/4',{method:'PATCH',body:JSON.stringify({nick:'管理员新名'})});records=await ctx.storage.get('ghostPenalties');records['a:1'].restoreAt=1;await ctx.storage.put('ghostPenalties',records);await svc.alarm('3');assert.equal((await ctx.storage.get('ghostPenalties'))['a:1'].status,'externally_changed');assert.equal(s.requests.at(-1).body?.nick===null,false);
@@ -44,3 +86,4 @@ test('signed special routes acknowledge immediately, isolate leaderboard from oc
 });
 test('outbox survives lost guild response and replacement by a different game; results are counted exactly once',async t=>{const s=setup(t);await s.create();await s.click('join','4');const state=s.ctx.map.get('table');game.finish(state,'1','认输');await s.table.save(state);const original=s.env.TABLES.get;let lost=true;s.env.TABLES.get=n=>{const stub=original(n);return {fetch:async(...args)=>{const r=await stub.fetch(...args);if(n==='ghost-rank:3'&&lost){lost=false;throw Error('lost response');}return r;}};};await s.ctx.storage.put('ghostSyncAt',1);await s.table.ghost.flush();assert.equal((await s.ctx.storage.get('ghostJobs')).length,1);state.phase='closed';await s.ctx.storage.put('table',state);await s.call(2,{name:'uno',options:[{name:'创建'}]});assert.equal(s.ctx.map.get('table').game,'uno');await s.ctx.storage.put('ghostSyncAt',1);await s.table.alarm();assert.equal((await s.ctx.storage.get('ghostJobs')).length,0);assert.equal((await s.instances.get('ghost-rank:3').table.ghostService.rank.view('1')).mine.wins,1);
 });
+

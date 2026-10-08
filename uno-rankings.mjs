@@ -30,8 +30,8 @@ export class UnoRankings {
  async api(path,method,body){const r=await fetch(`https://discord.com/api/v10${path}`,{method,headers:{Authorization:`Bot ${this.env.BOT_TOKEN}`,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(5000)});if(!r.ok){const e=Error([401,403].includes(r.status)?'身份组操作被拒绝：请检查 bot 的管理身份组权限及角色层级。':r.status===404?'身份组或成员已不存在，请重试。':'Discord 暂时繁忙，稍后自动重试。');e.status=r.status;e.permanent=[401,403].includes(r.status);throw e;}return r.status===204?null:r.json();}
  async reconcile(guild,force=false){
   const state=await this.storage.get(this.roleKey)||{},leader=this.leader(),desired=leader?.choice==='role'?leader.id:null;
-  if(state.holder===desired&&(!desired||state.id&&state.renamed&&state.assigned)){if(state.error){state.error=null;await this.storage.put(this.roleKey,state);}await this.storage.deleteAlarm();return;}
-  if(state.blocked&&!force){await this.storage.deleteAlarm();return;}
+  if((state.holder??null)===desired&&(!desired||state.id&&state.renamed&&state.assigned)){if(state.error||state.blocked||state.retries){state.error=null;state.blocked=false;state.retries=0;await this.storage.put(this.roleKey,state);}await this.storage.deleteAlarm();return {retryAt:null};}
+  if(state.blocked&&!force){await this.storage.deleteAlarm();return {retryAt:null};}
   try{
    // Remove the old king first. Never grant a second holder if removal fails.
    if(state.holder&&state.holder!==desired){try{await this.api(`/guilds/${guild}/members/${state.holder}/roles/${state.id}`,'DELETE');}catch(e){if(!e.message.includes('已不存在'))throw e;}state.holder=null;state.assigned=false;await this.storage.put(this.roleKey,state);}
@@ -47,8 +47,8 @@ export class UnoRankings {
     state.holder=desired;state.assigned=false;await this.storage.put(this.roleKey,state);
     await this.api(`/guilds/${guild}/members/${desired}/roles/${state.id}`,'PUT');state.assigned=true;
    }
-   state.error=null;state.blocked=false;state.retries=0;await this.storage.put(this.roleKey,state);await this.storage.deleteAlarm();
-  }catch(e){state.error=e.message;state.blocked=!!e.permanent;state.retries=(state.retries||0)+1;await this.storage.put(this.roleKey,state);if(state.blocked)await this.storage.deleteAlarm();else await this.storage.setAlarm(Date.now()+Math.min(300000,5000*2**Math.min(state.retries,6)));}
+   state.error=null;state.blocked=false;state.retries=0;await this.storage.put(this.roleKey,state);await this.storage.deleteAlarm();return {retryAt:null};
+  }catch(e){state.error=e.message;state.blocked=!!e.permanent;state.retries=(state.retries||0)+1;await this.storage.put(this.roleKey,state);const retryAt=state.blocked?null:Date.now()+Math.min(300000,5000*2**Math.min(state.retries,6));if(retryAt)await this.storage.setAlarm(retryAt);else await this.storage.deleteAlarm();return {retryAt};}
  }
  async dispatch(payload){const {guild,action,id}=payload;if(!/^\d+$/.test(guild||''))throw Error('无效服务器。');await this.storage.put('rankGuild',guild);if(action==='record')return this.record(guild,payload.result);if(action==='crown'){const profiles=this.profiles.forPlayers(payload.ids||[]),catalog=await applicationCatalog(this.env);for(const p of Object.values(profiles)){p.appEntrance=catalog.items.find(e=>e.id===p.entranceApp)||null;p.appVictory=catalog.items.find(e=>e.id===p.victoryApp)||null;}return {crown:this.crown(),profiles};}if(action==='profile'){const catalog=await applicationCatalog(this.env),parts=String(payload.key).match(/^(app|set)~(entranceApp|victoryApp)~(\d+)$/);const key=parts?.[1]==='set'?parts[2]:payload.key;const profile=payload.key==='open'||parts?.[1]==='app'?this.profiles.get(id):this.profiles.set(id,key,payload.value,catalog.items);return {profile,catalog:catalog.items,catalogStatus:catalog.status};}if(action==='equip')return this.equip(guild,id,payload.choice);return this.view(id);}
 }
@@ -70,3 +70,4 @@ export async function answerRanking(env,i){
  try{const r=await stub.fetch('https://internal',{method:'POST',body:JSON.stringify({op:'unoRank',guild:i.guild_id,id,action:['title','role','none'].includes(action)?'equip':'view',choice:action})});if(!r.ok)throw Error('排行榜暂时繁忙，请重试。');const data=await r.json();if(data.error)throw Error(data.error);return rankingData(data,id,i.guild_id,action!=='view');}catch(e){return {content:`🦋 ${e.message}`,components:[],allowed_mentions:mentions};}
 }
 export async function finishRanking(env,i){const data=await answerRanking(env,i);try{await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${i.token}/messages/@original`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),signal:AbortSignal.timeout(5000)});}catch{} }
+

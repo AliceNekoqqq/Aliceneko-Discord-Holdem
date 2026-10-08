@@ -19,8 +19,11 @@ test('reply context names current speaker and original author, preserving image 
   const result=await discordChatContext({BOT_TOKEN:'token'},{guild_id:'10',channel_id:'11',author:{id:'1',username:'alice'},member:{nick:'阿猫'},content:'阿猫画得怎么样？',message_reference:{message_id:'101',channel_id:'11'},referenced_message:reference},'999',fetcher);
   assert.equal(result.reference,reference);
   assert.match(result.text,/当前发消息的人.*"id":"1"/);
-  assert.match(result.text,/被回复消息原作者.*"id":"2"/);
-  assert.match(result.text,/我画了一只猫/);
+  assert.equal(result.replyReference.author.id,'2');
+  assert.equal(result.replyReference.author.kind,'member');
+  assert.equal(result.replyReference.content,'我画了一只猫');
+  assert.doesNotMatch(result.text,/我画了一只猫/);
+  assert.equal(result.reference.attachments[0].content_type,'image/png');
   assert.match(result.text,/同名或匹配不明确时询问/);
   assert.match(result.text,/列表完整/);
 });
@@ -43,10 +46,13 @@ test('missing reply fetch is restricted to the same channel',async t=>{
   const fetcher=async url=>{requested.push(url);return url.endsWith('/messages/300')?Response.json({id:'300',channel_id:'61',author:{id:'8',username:'original'},content:'原文'}):new Response('',{status:403});};
   const message={guild_id:'60',channel_id:'61',author:{id:'7',username:'current'},message_reference:{message_id:'300',channel_id:'61'}};
   const result=await discordChatContext({BOT_TOKEN:'token'},message,'999',fetcher);
-  assert.match(result.text,/原文/);
+  assert.equal(result.replyReference.content,'原文');
+  assert.equal(result.replyReference.author.id,'8');
+  assert.doesNotMatch(result.text,/原文/);
   requested.length=0;
   const cross=await discordChatContext({BOT_TOKEN:'token'},{...message,message_reference:{message_id:'301',channel_id:'62'}},'999',fetcher);
   assert.equal(cross.reference,null);
   assert.equal(requested.some(url=>url.includes('/channels/62/')),false);
   assert.match(cross.text,/跨频道/);
 });
+
