@@ -138,6 +138,36 @@ test("Gateway replies to direct mentions and ignores ordinary guild messages", a
   assert.equal(sent[0].body.message_reference.message_id,"m2");
 });
 
+test("Gateway identifies with only non-privileged guild and message intents", async t => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis,"WebSocket");
+  class FakeWebSocket {
+    static OPEN=1;
+    static CONNECTING=0;
+    constructor(url) { this.url=url;this.readyState=1;this.listeners={};this.sent=[];FakeWebSocket.last=this; }
+    addEventListener(name,fn) { this.listeners[name]=fn; }
+    send(value) { this.sent.push(JSON.parse(value)); }
+    close() { this.readyState=3; }
+  }
+  Object.defineProperty(globalThis,"WebSocket",{configurable:true,value:FakeWebSocket});
+  t.after(()=> {
+    if(previous)Object.defineProperty(globalThis,"WebSocket",previous);
+    else delete globalThis.WebSocket;
+  });
+  const tasks=[];
+  const host={env:{BOT_TOKEN:"test"},ctx:{storage:{async put(){},async get(){return null;},async delete(){}},waitUntil(p){tasks.push(p);}}};
+  const gateway=new DiscordGateway(host);
+  await gateway.ensure();
+  const socket=FakeWebSocket.last;
+  assert.match(socket.url,/gateway\.discord\.gg/);
+  socket.listeners.message({data:JSON.stringify({op:10,d:{heartbeat_interval:45000}})});
+  await Promise.all(tasks);
+  const identify=socket.sent.find(packet=>packet.op===2);
+  assert.ok(identify);
+  assert.equal(identify.d.intents,(1<<0)|(1<<9));
+  assert.equal((identify.d.intents&(1<<15))===0,true);
+  gateway.clearHeartbeats();
+});
+
 test("chat memory is scoped to one member and stores only successful direct chats", async t => {
   const db=fakeDb();
   const calls=[];
