@@ -178,6 +178,7 @@ test('image-only mentions send real images and save no image URLs in conversatio
   const db=fakeDb();const modelRequests=[],replies=[];
   const imageUrl='https://cdn.discordapp.com/attachments/1/2/photo.png?hm=signed';
   t.mock.method(globalThis,'fetch',async(url,options)=>{
+    if(url===imageUrl)return new Response(Uint8Array.from([137,80,78,71]),{headers:{'Content-Type':'image/png'}});
     if(url.includes('example.test')){modelRequests.push(JSON.parse(options.body));return Response.json({choices:[{message:{content:'图里是一只猫。'}}]});}
     if(url.endsWith('/messages'))replies.push(JSON.parse(options.body));
     return new Response('{}');
@@ -185,7 +186,7 @@ test('image-only mentions send real images and save no image URLs in conversatio
   await replyToMention({BOT_TOKEN:'bot-token',GEMINI_API_KEY:'api-key',GEMINI_API_BASE_URL:'https://example.test/v1',CHAT_DB:db,AI_REQUEST_LOG_ENABLED:'false'},
     {id:'image-only',guild_id:'g',channel_id:'c',author:{id:'u'},content:'<@bot>',attachments:[{url:imageUrl,content_type:'image/png',size:50}]},'bot');
   assert.equal(modelRequests.length,1);
-  assert.equal(modelRequests[0].messages.at(-1).content[1].image_url.url,imageUrl);
+  assert.equal(modelRequests[0].messages.at(-1).content[1].image_url.url,'data:image/png;base64,iVBORw==');
   assert.equal(replies[0].content,'图里是一只猫。');
   assert.match(db.state.history[0].content,/附带1张图片/);
   assert.equal(JSON.stringify(db.state.history).includes(imageUrl),false);
@@ -200,6 +201,22 @@ test('native Gemini receives inline image bytes instead of a Discord file URI',a
     return Response.json({candidates:[{content:{parts:[{text:'完成。'}]}}]});
   });
   assert.deepEqual(captured.contents[0].parts[1],{inlineData:{mimeType:'image/png',data:'iVBORw=='}});
+});
+
+test('OpenAI image bytes are delivered inline and omitted from request diagnostic storage',async()=>{
+  const calls=[],logs=[];
+  const db={prepare(sql){return {bind(...params){if(sql.startsWith('INSERT INTO ai_request_logs'))logs.push(JSON.parse(params[6]));return {run:async()=>({})};}}}};
+  const env={GEMINI_API_KEY:'test-secret',GEMINI_API_BASE_URL:'https://example.test/v1',CHAT_DB:db};
+  await generateGemini(env,[{role:'user',parts:[{text:'识图'},{imageUrl:'https://cdn.discordapp.com/attachments/1/2/a.png',mimeType:'image/png'}]}],'chat',async(url,options)=>{
+    calls.push(url);
+    if(url.includes('cdn.discordapp.com'))return new Response(Uint8Array.from([137,80,78,71]));
+    const body=JSON.parse(options.body);
+    assert.equal(body.messages.at(-1).content[1].image_url.url,'data:image/png;base64,iVBORw==');
+    return Response.json({choices:[{message:{content:'章鱼。'}}]});
+  });
+  assert.equal(calls.length,2);
+  assert.equal(logs[0].messages.at(-1).content[1].image_url.url,'[image binary omitted from diagnostic log]');
+  assert.ok(!JSON.stringify(logs).includes('iVBORw=='));
 });
 
 test('Gemini stops after exactly three retries, including network and invalid replies',async()=>{
@@ -618,7 +635,7 @@ test("clearing personal memory also removes that member from channel memory", as
     guild_id:"guild-1",channel_id:"channel-1",member:{user:{id:"member-1"},permissions:"0"},
     data:{options:[{name:"记忆",options:[{name:"清除"}]}]}
   });
-  assert.match(reply.data.content,/个人记忆和频道共享记忆/);
+  assert.match(reply.data.content,/长期记忆、个人对话和频道共享记忆/);
   assert.deepEqual(db.state.history,[]);
   assert.deepEqual(db.state.channelHistory.map(row=>row.user_id),["other"]);
 });
