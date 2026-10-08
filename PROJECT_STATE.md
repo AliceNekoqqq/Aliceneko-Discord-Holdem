@@ -323,3 +323,5 @@
 - 45项AI/上下文测试通过，包括频道权限覆盖、当前/原作者区分、引用图片保留、同名提示、403降级、删除消息及禁止跨频道回读。真实Discord权限和完整名单需用户后台配置后验证。
 
 - 提交f06e9f3已同步GitHub，尚未上线。Cloudflare上下文部署被automatic approval review拒绝：需要用户明确批准成员名字/账号ID和被回复消息内容发往 https://gcli.ggchan.dev/v1/chat/completions；此前允许仅覆盖图片。未绕过或改道部署，线上保持已上线识图版本。待此具体payload+destination授权后继续上传并读回核验。
+
+- 用户2026-10-08 20:43明确确认允许成员昵称/账号名/ID及主动@时引用的原消息与作者发送到当前中转，并授予广泛操作授权。Cloudflare部署HTTP200成功，36个模块；ai-chat.mjs与discord-chat-context.mjs均读回精确匹配。原gemini-3.8-flash、中转地址、密钥、D1和DO保留。此前成员上下文部署阻塞已解决；完整列表及普通引用原文仍取决于Developer Portal特权intent和频道读取历史权限。
