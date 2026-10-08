@@ -487,7 +487,7 @@ test("developer identity and Red Bean Powder OC facts are retrieved only when re
 });
 
 test("developer account identity uses an exact local Discord User ID match", async t => {
-  const ownerId="993451176282574878";
+  const ownerId="112233445566778899";
   const verified=developerIdentityContext({DEVELOPER_DISCORD_USER_ID:ownerId},{author:{id:ownerId}});
   assert.match(verified,/身份已确认/);
   assert.match(verified,/开发者红豆粉/);
@@ -502,13 +502,19 @@ test("developer account identity uses an exact local Discord User ID match", asy
   assert.match(developerIdentityContext({}, {author:{id:ownerId}}),/尚未有效配置/);
 
   const calls=[];
+  const guildId="333333333333333333",channelId="444444444444444444";
   t.mock.method(globalThis,"setInterval",()=>123);
   t.mock.method(globalThis,"clearInterval",()=>{});
   t.mock.method(globalThis,"fetch",async (url,options)=>{
-    calls.push({url:String(url),options});
-    if(String(url)==="https://example.test/v1/chat/completions") {
+    const target=String(url);
+    calls.push({url:target,options});
+    if(target==="https://example.test/v1/chat/completions") {
       return Response.json({choices:[{message:{content:"姐姐，记得啦。"},finish_reason:"stop"}]});
     }
+    if(target==="https://discord.com/api/v10/guilds/"+guildId)return Response.json({id:guildId,owner_id:"555555555555555555"});
+    if(target==="https://discord.com/api/v10/guilds/"+guildId+"/roles")return Response.json([{id:guildId,permissions:"1024"}]);
+    if(target==="https://discord.com/api/v10/channels/"+channelId)return Response.json({id:channelId,guild_id:guildId,type:0,permission_overwrites:[]});
+    if(target==="https://discord.com/api/v10/guilds/"+guildId+"/members?limit=1000")return Response.json([{user:{id:ownerId,username:"♡aliceneko♡",global_name:"红豆粉"},nick:".aliceneko",roles:[]}]);
     return Response.json({});
   });
   const env={BOT_TOKEN:"test",GEMINI_API_KEY:"test",GEMINI_API_BASE_URL:"https://example.test/v1",DEVELOPER_DISCORD_USER_ID:ownerId};
@@ -516,12 +522,13 @@ test("developer account identity uses an exact local Discord User ID match", asy
     ["owner",{id:ownerId,username:"♡aliceneko♡",global_name:"红豆粉"}],
     ["impostor",{id:"123456789012345678",username:"♡aliceneko♡",global_name:"红豆粉"}]
   ]) {
-    await replyToMention(env,{id:messageId,guild_id:"g",channel_id:"c",author,member:{nick:".aliceneko"},content:"<@bot> 你好"},"bot");
+    await replyToMention(env,{id:messageId,guild_id:guildId,channel_id:channelId,author,member:{nick:".aliceneko"},content:"<@bot> 你好"},"bot");
   }
   const requests=calls.filter(call=>call.url==="https://example.test/v1/chat/completions").map(call=>JSON.parse(call.options.body));
   assert.equal(requests.length,2);
   assert.match(requests[0].messages[0].content,/身份已确认/);
   assert.match(requests[1].messages[0].content,/身份未匹配/);
+  assert.match(requests[0].messages.at(-1).content,/\[开发者账号\]/);
   for (const request of requests) assert.doesNotMatch(JSON.stringify(request),new RegExp(ownerId));
 });
 

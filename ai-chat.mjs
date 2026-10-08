@@ -592,6 +592,12 @@ function messageSpeakerName(message) {
   return textValue(raw).replace(/[<>@]/g," ").slice(0,32)||"成员";
 }
 
+function redactDeveloperDiscordIdFromPrompt(value, env) {
+  const id = String(env?.DEVELOPER_DISCORD_USER_ID || "").trim();
+  const text = String(value || "");
+  return /^\d{17,20}$/.test(id) ? text.split(id).join("[开发者账号]") : text;
+}
+
 export async function replyToMention(env, message, botId) {
   let db = env.CHAT_DB;
   const guildId = String(message.guild_id || "");
@@ -644,7 +650,7 @@ export async function replyToMention(env, message, botId) {
   try {
     const discordContext=await discordChatContext(env,message,botId);
     const last=history.at(-1);
-    if(discordContext.text)last.parts.push({text:discordContext.text});
+    if(discordContext.text)last.parts.push({text:redactDeveloperDiscordIdFromPrompt(discordContext.text,env)});
     if(discordContext.reference)last.parts.push(...discordImageParts(discordContext.reference).slice(0,4-imageParts.length));
     responseText = await generateGemini(env,history,"chat",fetch,await getBotEmojiTokens(env),getBotKnowledge(knowledgeContext),waitForRetry,developerIdentityContext(env,message));
     generated = true;
