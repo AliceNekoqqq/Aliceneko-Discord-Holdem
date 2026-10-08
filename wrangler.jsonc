@@ -4,6 +4,7 @@
   "compatibility_date": "2026-10-07",
   "keep_vars": true,
   "durable_objects": {"bindings": [{"name": "TABLES", "class_name": "PokerTable"}]},
+  "d1_databases": [{"binding": "CHAT_DB", "database_name": "aliceneko-ai", "database_id": "b9327b3d-b549-4c48-b221-689c5f4aa3a9"}],
   "migrations": [{"tag": "v1", "new_sqlite_classes": ["PokerTable"]}],
   "triggers": {"crons": ["* * * * *"]},
   "observability": {"enabled": false}

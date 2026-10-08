@@ -1,10 +1,13 @@
+## Gemini AI · beta.20
+
+新增 Gemini 群聊、按服务器/成员隔离的个人记忆、可配置说话人格，以及可选游戏解说 / AI 主持。直接 @机器人聊天；使用 /ai 记忆 管理个人记忆，服务器管理员可用 /ai 人格 和 /ai 主持 配置。管理员助手功能未加入。详见 [AI_GEMINI_SETUP.md](AI_GEMINI_SETUP.md)。
 ## 抽鬼牌 · beta.19
 
 新增 1v1 抽鬼牌快局：`/抽鬼牌 等待对手`、`/抽鬼牌 发起挑战 玩家`。公开双人牌桌、私密图形手牌、编号按钮抽牌、自动消除对子及洗牌；邀请 3 分钟 / 回合 45 秒超时结束。胜者有 3 分钟指定输家昵称，生效 5 分钟后自动恢复。服务器胜场排行榜第一自动获得「👻鬼王」身份组。
 
 完整规则与权限处理见 [GHOST_RULES.md](GHOST_RULES.md)。`/抽鬼牌 排行榜`、`帮助`、`牌桌` 可随时查看。
 
-# Aliceneko 游戏 bot v1.0.1-beta.18
+# Aliceneko 游戏 bot v1.0.1-beta.20
 
 Discord 服务器内的虚拟筹码无限注德州扑克，运行于 Cloudflare Workers + SQLite Durable Objects。无需持续网关连接，使用斜杠指令、按钮和加注窗口。
 

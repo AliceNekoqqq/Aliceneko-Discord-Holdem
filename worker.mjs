@@ -1,6 +1,8 @@
 import {GhostController} from './ghost-controller.mjs';
 import {GhostService,specialInteraction,finishSpecial} from './ghost-service.mjs';
 import {command as ghostCommand} from './ghost-ui.mjs';
+import {aiCommand,handleAiCommand,commentOnGameTransition} from './ai-chat.mjs';
+import {DiscordGateway} from './discord-gateway.mjs';
 import {AppEmojis} from './app-emojis.mjs';
 import { profileInteraction, finishProfile } from './uno-profile.mjs';
 import { UnoRankings, rankingInteraction, finishRanking } from './uno-rankings.mjs';
@@ -15,7 +17,7 @@ import { BoardSync } from './board-sync.mjs';
 import { PrivatePanels } from './private-panels.mjs';
 import { initializeLifecycle, nextLifecycleAlarm, automaticCloseReason, idleWarning, takeoverAt, canTakeover, touchOwner, effectiveHumanAction } from './lifecycle.mjs';
 import { board, quickRaises, confirmation, handPanel, management, panelAction, button, row } from './ui.mjs';
-const COMMAND_VERSION='games-v1.0.1-beta.19'; // Personal seat profiles, guild rankings and the optional UNO king title/role.
+const COMMAND_VERSION='games-v1.0.1-beta.20'; // Gemini chat, per-member memory, configurable persona and optional game host.
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。点「准备下一手」，所有参与真人准备后 5 秒自动发牌；人员变化会取消全部准备。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；连续 2 次超时会在本手结束后暂离，保留筹码；在牌桌管理恢复参与。全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码；游玩中可预约本手结束后离桌，并随时取消。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。\n未发牌空闲 5 分钟、结算后空闲 10 分钟自动关桌，提前 1 分钟提醒；刷新和查看手牌不延长计时。\n游玩中 10 分钟无人有效操作且仍可行动真人均已超时时，取消本手并退回下注。\n等待发牌或结算时，桌主 2 分钟未交互，其他已入座真人可接管。只供娱乐，无充值或兑换。';
@@ -31,6 +33,7 @@ async function discordApi(env,path,method,body,timeoutMs=6000){
 }
 export class PokerTable extends DurableObject {
   get ghost(){return this.ghostController??=new GhostController(this);}
+  get discordGateway(){return this.discordGatewayController??=new DiscordGateway(this);}
   get ghostService(){return this.ghostGuildService??=new GhostService(this);}
   get rankings(){return this.unoRankings??=new UnoRankings(this.ctx.storage,this.env);}
   get rankBridge(){return this.unoRankBridge??=new UnoRankBridge(this);}
@@ -44,12 +47,15 @@ export class PokerTable extends DurableObject {
   async queuePanels(t){if(!await this.ctx.storage.get('privatePanels'))return;await this.ctx.storage.put('privateSyncAt',Date.now()+350);await this.armAlarm(t);}
   async save(t){
     if(t.game==='ghost')return this.ghost.save(t);
+    const before=await this.ctx.storage.get('table');
     if(t.game!=='uno')initializeLifecycle(t);
     t.computerDue=t.players.some(p=>p.id===t.turn&&p.bot)?Math.max(Date.now(),t.game==='uno'?t.jumpWindow?.until||0:0)+1500:null;
     if(t.game==='uno'){if(jumpOpen(t)&&t.players.some(p=>p.bot&&jumpCards(t,p.id).length)){if(t.computerJumpKey!==t.jumpWindow.key){t.computerJumpKey=t.jumpWindow.key;t.computerJumpDue=Date.now()+2500;}}else {t.computerJumpDue=null;t.computerJumpKey=null;}}
     if(t.game==='uno')focusHandPage(t);
     await this.ctx.storage.put('table',t);await this.rankBridge.capture(t);await this.boards.queue(t);await this.armAlarm(t);
+    if(before&&before.version!==t.version)this.queueAICommentary(before,t);
   }
+  queueAICommentary(before,after){this.ctx.waitUntil(commentOnGameTransition(this.env,this.ctx.storage,before,after).catch(()=>false));}
   async syncBoard(t){await this.boards.queue(t);await this.armAlarm(t);return true;}
   async expireTable(t,now=Date.now()){
     if(t.game==='ghost')return this.ghost.expire(t);
@@ -81,6 +87,7 @@ export class PokerTable extends DurableObject {
     });
   }
   async dispatch(payload){
+      if(payload.op==='gatewayEnsure'){try{return json(await this.discordGateway.ensure());}catch{return json({connected:false});}}
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
       if(payload.op==='unoRank'){try{return json(await this.rankings.dispatch(payload));}catch(e){return json({error:e.message});}}
@@ -88,7 +95,7 @@ export class PokerTable extends DurableObject {
       if(payload.op==='register'){
         if(!this.env.BOT_TOKEN)return json({registered:false});
         if(await this.ctx.storage.get('commandVersion')===COMMAND_VERSION)return json({registered:true});
-        try{const results=await Promise.all([command,unoCommand,ghostCommand].map(c=>discordApi(this.env,`/applications/${this.env.DISCORD_APPLICATION_ID}/commands`,'POST',c)));if(results.every(r=>r.ok))await this.ctx.storage.put('commandVersion',COMMAND_VERSION);return json({registered:results.every(r=>r.ok)});}catch{return json({registered:false});}
+        try{const results=await Promise.all([command,unoCommand,ghostCommand,aiCommand].map(c=>discordApi(this.env,`/applications/${this.env.DISCORD_APPLICATION_ID}/commands`,'POST',c)));if(results.every(r=>r.ok))await this.ctx.storage.put('commandVersion',COMMAND_VERSION);return json({registered:results.every(r=>r.ok)});}catch{return json({registered:false});}
       }
       let t=await this.ctx.storage.get('table');
       if(payload.op==='bind'){if(t&&t.epoch===payload.epoch&&!t.messageId&&/^\d+$/.test(payload.messageId)){t.messageId=payload.messageId;await this.save(t);await this.syncBoard(t);}return json({ok:true});}
@@ -185,6 +192,7 @@ export class PokerTable extends DurableObject {
   }
   async alarm(){
     await this.ctx.blockConcurrencyWhile(async()=>{
+      if(await this.ctx.storage.get('gatewayMode')){await this.discordGateway.ensure();return;}
       const ghostGuild=await this.ctx.storage.get('ghostGuild');if(ghostGuild){await this.ghostService.alarm(ghostGuild);return;}
       const guild=await this.ctx.storage.get('rankGuild');if(guild){await this.rankings.reconcile(guild);return;}
       const t=await this.ctx.storage.get('table');await this.ghost.flush();await this.rankBridge.flush(t);if(!t){await this.armAlarm(null);return;}
@@ -234,6 +242,7 @@ async function handle(request,env,ctx){
   if(specialInteraction(i)){if(!i.member?.user?.id)return json(privateReply('请在服务器内使用。'));ctx.waitUntil(finishSpecial(env,i));return json({type:5,data:{flags:64}});}
   if(profileInteraction(i)){if(!i.member?.user?.id)return json(privateReply('请在服务器内使用。'));ctx.waitUntil(finishProfile(env,i));const parts=(i.data?.custom_id||'').split(':');const updateOwn=i.type===3&&!!(Number(i.message?.flags)&64)&&parts.length===4&&parts[1]===i.guild_id&&parts[2]===i.member.user.id;return json(updateOwn?{type:6}:{type:5,data:{flags:64}});}
   if(rankingInteraction(i)){if(!i.member?.user?.id)return json(privateReply('请在服务器内使用。'));ctx.waitUntil(finishRanking(env,i));return json({type:5,data:{flags:64}});}
+  if(i.type===2&&i.data?.name==='ai')return json(await handleAiCommand(env,i));
   const stub=env.TABLES.get(env.TABLES.idFromName(`table:${i.guild_id}:${i.channel_id}`));
   const response=await stub.fetch('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:i})});
   const reply=await response.json();if(reply.bindEpoch){const epoch=reply.bindEpoch;delete reply.bindEpoch;ctx.waitUntil(bindOriginal(env,stub,i,epoch));}return json(reply);
@@ -243,5 +252,5 @@ export default {
     const headers=new Headers(response.headers);for(const [key,value]of Object.entries({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow'}))headers.set(key,value);
     return new Response(response.body,{status:response.status,headers});
   },
-  async scheduled(event,env,ctx){ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-emojis')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'appEmojis'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-registration')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'register'})}));}
+  async scheduled(event,env,ctx){ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-emojis')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'appEmojis'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-registration')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'register'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-discord-gateway')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayEnsure'})}));}
 };

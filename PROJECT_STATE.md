@@ -182,3 +182,11 @@
 - 147项测试全部通过，含1000局抽鬼牌牌守恒/终局模拟、并发双击、旧按钮/假冒/私密隔离、邀请/回合超时、确认认输、签名排行榜/表单、去重/丢响应/换游戏outbox、3分钟过期/5分钟恢复/null/重启/手动更名/403/模糊PATCH恢复、鬼王先收后授，以及UNO和德扑全部回归。公共牌桌与私密手牌图已生成并目视检查，真实Discord客户端与实际权限效果待用户试玩。
 - 沿用discord-holdem、PokerTable namespace、BOT_TOKEN Secret、compatibility date和每分钟cron；COMMAND_VERSION games-v1.0.1-beta.19 注册第三个游戏指令。
 - 发布状态：准备推送和部署，成功后更新。
+
+
+## beta.20 · Gemini 对话与游戏主持（2026-10-08）
+
+- 接入 Gemini GenerateContent；Worker 内新增 Discord Gateway，只处理服务器内直接 @机器人的消息，使用 GUILDS + GUILD_MESSAGES，不请求特权 Message Content Intent。
+- 新增 /ai 记忆（成员个人开关/清除）、/ai 人格（服务器管理员配置）、/ai 主持（服务器管理员控制游戏解说）；未加入管理员助手。主持默认关闭，只向 Gemini 提供公开游戏事件摘要，并限制每局评论次数。
+- 新增 aliceneko-ai D1 数据库及 CHAT_DB 绑定，保存按服务器/成员隔离的最近 30 条对话；数据库迁移已执行。Gemini API Key 需由用户在 Cloudflare 设置为加密 Secret GEMINI_API_KEY，未写入仓库。
+- 8 项 AI/Gateway 专项测试通过；部署待完成。
