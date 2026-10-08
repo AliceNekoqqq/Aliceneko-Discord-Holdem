@@ -61,6 +61,8 @@ test("Gemini requests disable request storage and keep the key out of the URL", 
   const body = buildGenerateContentRequest([{role:"user",parts:[{text:"你好"}]}],"爱讲冷笑话");
   assert.equal(body.store,false);
   assert.equal(body.contents[0].role,"user");
+  assert.equal(body.generationConfig.maxOutputTokens,1024);
+  assert.match(body.systemInstruction.parts[0].text,/每次都把意思说完整/); 
   assert.match(body.systemInstruction.parts[0].text,/爱讲冷笑话/);
   const env = {GEMINI_API_KEY:"test-secret",GEMINI_MODEL:"gemini-3.8-flash",GEMINI_PERSONA:"爱讲冷笑话"};
   let captured;
@@ -84,6 +86,7 @@ test("custom Gemini gateway uses OpenAI chat completions with memory and persona
   assert.deepEqual(built.messages.map(message=>message.role),["system","user","assistant","user"]);
   assert.match(built.messages[0].content,/爱讲冷笑话/);
   assert.equal(built.messages[2].content,"上一轮回复");
+  assert.equal(built.max_tokens,1024);
   assert.equal(built.stream,false);
 
   const env = {
@@ -107,6 +110,53 @@ test("custom Gemini gateway uses OpenAI chat completions with memory and persona
   assert.equal(request.messages[2].role,"assistant");
   assert.equal(request.messages[2].content,"上一轮回复");
   assert.equal(captured.url.includes("test-secret"),false);
+});
+
+test("incomplete Chinese chat replies continue from the cutoff without repeating", async () => {
+  const env={
+    GEMINI_API_KEY:"test-secret",
+    GEMINI_API_BASE_URL:"https://gcli.ggchan.dev/v1/",
+    GEMINI_MODEL:"gemini-3.8-flash"
+  };
+  const requests=[];
+  const answers=[
+    {choices:[{message:{content:"UNO 其实很简单，最先打光手牌就"},finish_reason:"stop"}]},
+    {choices:[{message:{content:"能获胜。"},finish_reason:"stop"}]}
+  ];
+  const answer=await generateGemini(env,[{role:"user",parts:[{text:"UNO 怎么玩？"}]}],"chat",async (url,options)=>{
+    requests.push(JSON.parse(options.body));
+    return Response.json(answers.shift());
+  });
+  assert.equal(answer,"UNO 其实很简单，最先打光手牌就能获胜。");
+  assert.equal(requests.length,2);
+  assert.match(requests[1].messages.at(-1).content,/紧接停止处继续/);
+  assert.equal(requests[1].max_tokens,1024);
+});
+
+test("provider token-limit finish reasons trigger a continuation", async () => {
+  const openAIEnv={
+    GEMINI_API_KEY:"test-secret",
+    GEMINI_API_BASE_URL:"https://gcli.ggchan.dev/v1/"
+  };
+  let openAICalls=0;
+  const openAIAnswer=await generateGemini(openAIEnv,[{role:"user",parts:[{text:"介绍 UNO"}]}],"chat",async ()=>{
+    openAICalls++;
+    return Response.json({choices:[{message:{content:openAICalls===1?"UNO 很简单。":"按颜色或数字出牌。"},finish_reason:openAICalls===1?"length":"stop"}]});
+  });
+  assert.equal(openAICalls,2);
+  assert.equal(openAIAnswer,"UNO 很简单。\n按颜色或数字出牌。");
+
+  const nativeEnv={GEMINI_API_KEY:"test-secret"};
+  let nativeCalls=0;
+  const nativeAnswer=await generateGemini(nativeEnv,[{role:"user",parts:[{text:"介绍 UNO"}]}],"chat",async ()=>{
+    nativeCalls++;
+    return Response.json({candidates:[{
+      content:{parts:[{text:nativeCalls===1?"UNO 的目标是先出完手牌":"，并在最后一张牌前喊 UNO。"}]},
+      finishReason:nativeCalls===1?"MAX_TOKENS":"STOP"
+    }]});
+  });
+  assert.equal(nativeCalls,2);
+  assert.equal(nativeAnswer,"UNO 的目标是先出完手牌，并在最后一张牌前喊 UNO。");
 });
 
 test("system instruction protects private cards and excludes admin assistance", () => {
