@@ -78,7 +78,7 @@ export function buildGenerateContentRequest(contents, persona = "", context = "c
   return {
     systemInstruction:{parts:[{text:makeSystemInstruction(persona, context, emojiTokens, knowledge)}]},
     contents,
-    generationConfig:{temperature:context === "game" ? 0.85 : 0.7,maxOutputTokens:context === "game" ? 120 : 1024},
+    generationConfig:{temperature:context === "game" ? 0.85 : 0.7,maxOutputTokens:context === "game" ? 512 : 2048},
     store:false
   };
 }
@@ -93,7 +93,7 @@ export function buildOpenAIChatRequest(contents, persona = "", context = "chat",
     model,
     messages,
     temperature:context === "game" ? 0.85 : 0.7,
-    max_tokens:context === "game" ? 120 : 1024,
+    max_tokens:context === "game" ? 512 : 2048,
     stream:false
   };
 }
@@ -123,12 +123,12 @@ const CHAT_CONTINUATION_LIMIT=2;
 const CHAT_CONTINUATION_PROMPT="你上一条回复似乎在句子中途停止。请紧接停止处继续并补完整句，不要重复已说内容，不要另起话题；若内容其实已经完整，只补上合适的结束标点。";
 
 function needsReplyContinuation(text,finishReason="") {
-  if(/^(?:length|max_tokens|max_output_tokens)$/i.test(String(finishReason))) return true;
   const value=String(text||"").trim();
   if(!value) return false;
   const last=Array.from(value).at(-1);
   if(/[，,：:、（(\[\{“‘「『《]/u.test(last)) return true;
   if(/[。！？!?…；;”’」』）》】）)}\]]/u.test(last)) return false;
+  if(/^(?:length|max_tokens|max_output_tokens)$/i.test(String(finishReason))) return true;
   return /(?:就|因为|如果|假如|但是|而且|而|和|或|以及|并且|然后|所以|因此|不过|虽然|当|在|是|把|被|向|从|到|会|能|应该|比如|例如|包括|等于|成为|即|也|还|又|再|为|跟|对|让|给|由于|为了|若|要是)$/u.test(value);
 }
 
@@ -178,7 +178,13 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
       if(attempt===0) throw new Error("gemini_request_failed");
       break;
     }
-    const data=await response.json();
+    let data;
+    try {
+      data=await response.json();
+    } catch(error) {
+      if(attempt===0) throw error;
+      break;
+    }
     const candidate=data.candidates?.[0]||{};
     const result=openAI
       ? readOpenAIChatAnswer(data)
