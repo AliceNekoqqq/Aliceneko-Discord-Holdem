@@ -1,3 +1,4 @@
+import {beginTavernRound} from './tavern-catalog.mjs';
 // Fast Old Maid: thirteen distinct pairs and one unpaired ghost, 1v1 only.
 export const TURN_MS=45000,WAIT_MS=180000,MAX_MS=600000,DECIDE_MS=180000;
 export const name=p=>String(p?.name||'玩家').replace(/[\x00-\x1f\\`*_~>|\[\]]/g,'').slice(0,24);
@@ -7,7 +8,7 @@ export function removePairs(cards){const keep=[],pairs=[],byRank=new Map();for(c
 export function create(id,channel,guild,displayName,target=null,now=Date.now()){return {game:'ghost',epoch:crypto.randomUUID(),version:0,handNo:1,owner:id,channel,guild,target,phase:'lobby',players:[{id,name:displayName,cards:[]}],waitUntil:now+WAIT_MS,deadline:null,createdAt:now,log:[],discard:[],turn:null};}
 export function start(t,id,displayName,rng,now=Date.now()){
  if(t.phase!=='lobby'||t.waitUntil<=now)throw Error('邀请已过期。');if(t.owner===id)throw Error('请等待另一位玩家加入。');if(t.target&&t.target!==id)throw Error('这是给指定玩家的挑战。');
- t.players.push({id,name:displayName,cards:[]});const deck=shuffle([...Array.from({length:13},(_,i)=>i),...Array.from({length:13},(_,i)=>i+13),52],rng);
+ beginTavernRound(t,now);t.players.push({id,name:displayName,cards:[]});const deck=shuffle([...Array.from({length:13},(_,i)=>i),...Array.from({length:13},(_,i)=>i+13),52],rng);
  deck.forEach((c,n)=>t.players[n%2].cards.push(c));for(const p of t.players){const clean=removePairs(p.cards);p.cards=shuffle(clean.cards,rng);t.discard.push(...clean.pairs.flat());}
  t.phase='active';t.waitUntil=null;t.turn=t.players[Math.floor((rng?.()??crypto.getRandomValues(new Uint32Array(1))[0]/4294967296)*2)].id;t.deadline=now+TURN_MS;t.endAt=now+MAX_MS;t.log=['发牌完成，开局对子已自动消除。'];checkWin(t,now);
 }

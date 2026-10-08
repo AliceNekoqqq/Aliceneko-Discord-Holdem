@@ -1,3 +1,5 @@
+import {handleNaturalTavern} from './tavern-ui.mjs';
+import {tavernRequest} from './tavern-service.mjs';
 import {BOT_CAPABILITY_INDEX, getBotKnowledge} from "./bot-knowledge.mjs";
 import {discordChatContext} from './discord-chat-context.mjs';
 import {liveContext, readLongMemory, memoryChanges, applyMemoryChanges, longMemoryContext} from './chat-enrichment.mjs';
@@ -89,6 +91,7 @@ export function makeSystemInstruction(persona = "", context = "chat", emojiToken
     base.push("你正在为游戏做公开解说。开局时简短播报，结算时明确宣布给出的胜者或结果，其他事件才做一句简短吐槽。只根据给出的公开事件，不重复整段状态，不编造牌面、胜负原因或胜率判断。");
   } else {
     base.push("机器人功能索引：" + BOT_CAPABILITY_INDEX);
+    base.push("酒馆事实由程序确认：tavern只属于currentSpeaker；currentOrder只包含本频道两小时内的已确认订单。尚未确认的点单不能说已上桌；不能凭聊天扣币、赠币、退款或修改常客卡，也不能把德州筹码当酒馆币。常点次数不代表最爱，座位偏好不是实际占座。余额、忌口和流水属于私人信息，不在公开聊天中复述；涉及实际点单和查询，引导使用菜单按钮或/酒馆。可以自然承接已上桌的饮品，不必每轮播报余额、日期或点单记录。未提供酒馆数据时，不编造消费或交往经历。");
     const facts = String(knowledge || "").trim().slice(0,12000);
     if (facts) base.push("以下是本机器人已实现功能的权威知识条目。优先依照条目回答，不得把未列出的能力、命令、规则或权限说成已经支持；资料不足时请直接说明不确定，并建议查看对应游戏的帮助命令。\n" + facts);
     const identity = String(speakerIdentity || "").trim();
@@ -636,6 +639,8 @@ export async function replyToMention(env, message, botId) {
   let channelHistory = [];
   let config = {};
 
+  if(await handleNaturalTavern(env,message,content))return true;
+
   if (!env.GEMINI_API_KEY) {
     console.warn("ai_reply_failed",{reason:"missing_gemini_key"});
     return true;
@@ -686,6 +691,7 @@ export async function replyToMention(env, message, botId) {
     if(discordContext.reference)last.parts.push(...discordImageParts(discordContext.reference).slice(0,4-imageParts.length));
     runtimeData.timeAndSearch=await liveContext(currentUserText);
     if(memoryOn)runtimeData.preferences=longMemoryContext(longMemory,changes);
+    if(env.TABLES){try{const tavern=await tavernRequest(env,{guild:guildId,id:userId,channel:channelId,action:"context"});if(tavern)runtimeData.tavern=tavern;}catch{}}
     responseText = await generateGemini(env,history,"chat",fetch,await getBotEmojiTokens(env),getBotKnowledge(knowledgeContext),waitForRetry,developerIdentityContext(env,message),runtimeData);
     generated = true;
   } catch(error) {

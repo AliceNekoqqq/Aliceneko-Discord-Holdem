@@ -1,3 +1,4 @@
+import {beginTavernRound,noteTavernAction} from './tavern-catalog.mjs';
 export const TURN_MS = 60000;
 export const BUYIN = 2000;
 const fail = text => { throw new Error(text); };
@@ -94,6 +95,7 @@ export function start(t,id,deck=shuffledDeck(),now=Date.now()) {
   if(!canStart(t)) fail('至少需要 2 位参与玩家，其中至少一位有筹码的真人。');
   if(deck.length!==52||new Set(deck).size!==52||deck.some(c=>!Number.isInteger(c)||c<0||c>51)) fail('牌组不完整。');
   for(const p of t.players)if(p.bot&&p.stack===0&&!p.away)p.stack=BUYIN;
+  beginTavernRound(t,now);t.tavernResult=null;
   resetReady(t);t.deck=[...deck];t.board=[];t.pot=0;t.result=[];t.pots=[];t.settlements=[];t.showdown=[];t.handNo++;t.phase='preflop';t.currentBet=20;t.minRaise=20;t.settledAt=null;
   for(const p of t.players){const playing=p.stack>0&&!p.away&&!p.leaveAfterHand;Object.assign(p,{startStack:p.stack,inHand:playing,folded:false,round:0,total:0,cards:[],actedAt:null,pending:playing,timedOutAt:null,awayAfterHand:false});}
   t.dealer=nextSeat(t,t.dealer,p=>p.inHand);
@@ -131,7 +133,7 @@ export function act(t,id,kind,target,now=Date.now(),automatic=false) {
       p.pending=false;p.actedAt=to;note(t,`${playerLabel(t,id)} ${kind==='allin'?'全下':'加注至'} ${to}`);
     }
   } else fail('未知操作。');
-  if(!p.bot&&!automatic){p.timedOutAt=null;p.timeoutStreak=0;p.awayAfterHand=false;t.lastActive=now;}
+  if(!p.bot&&!automatic){noteTavernAction(t,id);p.timedOutAt=null;p.timeoutStreak=0;p.awayAfterHand=false;t.lastActive=now;}
   advance(t,seat,now);
 }
 function advance(t,seat,now) {
@@ -202,6 +204,8 @@ function awardPots(t,hands){
 function finish(t,now){
   t.phase='settled';t.settledAt=now;t.turn=null;t.deadline=null;t.deck=[];resetReady(t);
   t.settlements=t.players.filter(p=>p.inHand).map(p=>({id:p.id,label:playerLabel(t,p.id),net:p.stack-(p.startStack??p.stack)}));
+  // Preserve public completion before queued leavers are removed from the table.
+  t.tavernResult={id:`${t.epoch}:${t.handNo}`,guild:t.guild,at:now,players:t.players.filter(p=>p.inHand).map(p=>({id:p.id,name:p.name||'玩家',bot:!!p.bot,won:p.stack>(p.startStack??p.stack),surrendered:false}))};
   for(const p of t.players){p.pending=false;p.round=0;p.total=0;if(p.awayAfterHand&&!p.leaveAfterHand){p.away=true;note(t,`${playerLabel(t,p.id)} 连续超时，已暂离；恢复后才会参与下一手`);}}
   const departing=t.players.filter(p=>p.leaveAfterHand).map(p=>p.id);if(departing.length){removeSeats(t,departing,now);note(t,'已执行预约离桌');}
   if(!t.players.some(p=>!p.bot)){close(t,t.owner,true);t.closeReason='所有真人已离桌，牌桌自动关闭。';}

@@ -1,3 +1,4 @@
+import {beginTavernRound} from './tavern-catalog.mjs';
 // Classic Liar's Deck adapted for Discord. Hidden cards/chambers stay in the DO.
 export const TURN_MS=60000,LOBBY_MS=600000,IDLE_MS=900000,MAX_MS=1800000,SETTLED_MS=900000;
 export const random=()=>crypto.getRandomValues(new Uint32Array(1))[0]/4294967296;
@@ -32,7 +33,7 @@ export function ready(t,id,now=Date.now()){
 }
 export function start(t,id,rng=random,now=Date.now()){
  if(id!==t.owner||!['lobby','settled'].includes(t.phase)||t.players.length<2||t.players.length>4)throw Error('桌主可在至少2人入座后开局。');
- for(const p of t.players){Object.assign(p,{alive:true,cards:[],shots:0,chamber:pick(6,rng)+1,forfeit:false,timeouts:0,ready:false});}
+ beginTavernRound(t,now);for(const p of t.players){Object.assign(p,{alive:true,cards:[],shots:0,chamber:pick(6,rng)+1,forfeit:false,timeouts:0,ready:false});}
  t.result=null;t.winner=null;t.readyDue=null;t.endAt=now+MAX_MS;t.startedAt=now;t.eliminations=[];t.matchNo=(t.matchNo||0)+1;t.handNo=0;touch(t,now);deal(t,t.players[pick(t.players.length,rng)].id,rng,now);
 }
 function nextAlive(t,from,predicate=()=>true){const n=t.players.findIndex(p=>p.id===from);for(let k=1;k<=t.players.length;k++){const p=t.players[(n+k)%t.players.length];if(p.id!==from&&p.alive&&predicate(p))return p;}return null;}

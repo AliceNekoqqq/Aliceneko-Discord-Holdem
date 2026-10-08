@@ -1,3 +1,4 @@
+import {noteTavernAction} from './tavern-catalog.mjs';
 import * as game from './uno-engine.mjs';
 import {board,handPanel,HELP,button,row,management,sortedCards,PAGE_SIZE,socialMenu,label} from './uno-ui.mjs';
 import {EMOTES,sendEmote,expireEmote} from './uno-social.mjs';
@@ -87,6 +88,7 @@ export class UnoController {
    else if(prompt?.[1]==='color')game.play(t,id,Number(prompt[3]),prompt[4]);
    else if(prompt?.[1]==='yesclose')game.close(t,id,admin);else throw Error('无效操作。');
   }catch(e){return json(panel&&seated?panelReply(e.message):privateReply(e.message));}
+  if(panel&&/^(draw|pass|accept|challenge|play|card~|jump~|pickcolor~|opening~)/.test(action)||prompt?.[1]==='color')noteTavernAction(t,id);
   t.version++;t.lastActive=Date.now();if(t.phase!=='closed')t.idleDeadline=Date.now()+(t.phase==='lobby'?600000:900000);
   await this.host.save(t);await this.ctx.storage.put('recentInteractions',[...seen.slice(-99),i.id]);await this.host.syncBoard(t);
   if(reveal)return json({type:4,data:{flags:64,content:`🕵️ **质疑${reveal.success?'成功':'失败'}**\n+4 出牌者出牌前的手牌（仅你可见）：\n${reveal.cards.map(game.cardName).join('、')}\n当时颜色：${game.COLOR_NAMES[reveal.previousColor]}。${reveal.success?`对方摸累计 ${reveal.penalty} 张，你继续行动。`:`你摸 ${reveal.total} + 2 = ${reveal.penalty} 张并跳过。`}`,allowed_mentions:{parse:[]}}});

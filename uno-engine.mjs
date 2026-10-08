@@ -1,3 +1,4 @@
+import {beginTavernRound} from './tavern-catalog.mjs';
 import {recordRoundInteraction} from './uno-social.mjs';
 // Classic 108-card deck with explicitly labelled stacking, numeric jump-in and 2v2 variants.
 export const COLORS=['red','yellow','green','blue'];
@@ -47,7 +48,7 @@ export function leave(t,id){waiting(t);player(t,id);t.players=t.players.filter(p
 export function addComputers(t,id,count=1){waiting(t);if(id!==t.owner)throw Error('只有桌主可添加电脑。');if(!Number.isInteger(count)||count<1||count>seatLimit(t)-1||t.players.length+count>seatLimit(t))throw Error(`最多 ${seatLimit(t)} 位玩家。`);if(t.mode==='match'&&t.handNo)throw Error('积分赛开始后不能更换参赛者。');for(let n=0;n<count;n++){let serial=1;while(t.players.some(p=>p.id===`uno-cpu-${serial}`))serial++;t.players.push({id:`uno-cpu-${serial}`,name:`电脑 ${serial}`,bot:true,cards:[],score:0});}resetTeamScore(t);}
 export function removeComputers(t,id){waiting(t);if(id!==t.owner)throw Error('只有桌主可移除电脑。');if(t.mode==='match'&&t.handNo)throw Error('积分赛开始后不能更换参赛者。');t.players=t.players.filter(p=>!p.bot);resetTeamScore(t);}
 export function start(t,id){waiting(t);if(id!==t.owner)throw Error('只有桌主可开始。');if(t.mode==='teams'&&t.players.length!==4)throw Error('2v2 组队需要恰好四位玩家，可添加电脑。');if(t.players.length<2)throw Error('至少需要 2 人，可添加电脑陪练。');if(t.matchWinner)throw Error('积分赛已结束，请关桌后创建新赛。');
-  t.rules??={...DEFAULT_RULES};t.handNo++;t.dealer=t.handNo===1?shuffle(t.players.map((_,i)=>i))[0]:(t.dealer+1)%t.players.length;t.deck=shuffle(Array.from({length:108},(_,i)=>i));t.discard=[];t.direction=1;t.color=null;t.pending=null;t.drawn=null;t.armed=null;t.unoOpportunity=null;t.winner=null;t.winningTeam=null;t.roundPoints=0;t.log=[];t.events=[];t.lastAction=null;t.lastPlay=null;t.lastJump=null;t.jumpWindow=null;t.computerJumpDue=null;t.jumpSerial=0;t.pages={};t.selectedWild=null;t.social=null;t.roundInteractions=null;t.phase='active';
+  beginTavernRound(t);t.rules??={...DEFAULT_RULES};t.handNo++;t.dealer=t.handNo===1?shuffle(t.players.map((_,i)=>i))[0]:(t.dealer+1)%t.players.length;t.deck=shuffle(Array.from({length:108},(_,i)=>i));t.discard=[];t.direction=1;t.color=null;t.pending=null;t.drawn=null;t.armed=null;t.unoOpportunity=null;t.winner=null;t.winningTeam=null;t.roundPoints=0;t.log=[];t.events=[];t.lastAction=null;t.lastPlay=null;t.lastJump=null;t.jumpWindow=null;t.computerJumpDue=null;t.jumpSerial=0;t.pages={};t.selectedWild=null;t.social=null;t.roundInteractions=null;t.phase='active';
   t.finishReason=null;t.rankedResult=null;for(const p of t.players){p.cards=[];p.surrendered=false;}for(let n=0;n<7;n++)for(let j=1;j<=t.players.length;j++)take(t,t.players[(t.dealer+j)%t.players.length].id,1);
   let top=t.deck.pop();while(face(top).value==='draw4'){t.deck.unshift(top);shuffle(t.deck);top=t.deck.pop();}t.discard.push(top);const f=face(top);t.color=f.color;setTurn(t,t.players[(t.dealer+1)%t.players.length].id);
   if(f.value==='reverse'){t.direction=-1;setTurn(t,t.players[t.dealer].id);}
@@ -71,7 +72,7 @@ export function jumpCards(t,id,now=Date.now()){
 }
 function clearJump(t){t.jumpWindow=null;t.computerJumpDue=null;t.computerJumpKey=null;}
 function openJump(t,card){clearJump(t);if(!rulesOf(t).jumpIn||t.phase!=='active'||t.pending||typeof face(card).value!=='number'||face(card).value===0)return;
- t.jumpSerial=(t.jumpSerial||0)+1;t.jumpWindow={key:`${t.handNo}-${t.jumpSerial}`,card,until:Date.now()+JUMP_MS};t.deadline+=JUMP_MS;
+ t.jumpSerial=(t.jumpSerial||0)+1;t.jumpWindow={key:`${t.handNo}-${t.jumpSerial}`,card,until:Date.now()+JUMP_MS};t.deadline=t.jumpWindow.until+TURN_MS;
 }
 export function expireJump(t,now=Date.now()){if(!t.jumpWindow||t.jumpWindow.until>now)return false;clearJump(t);return true;}
 export function jump(t,id,card,key){player(t,id);if(t.jumpWindow?.key!==key||!jumpCards(t,id).includes(card))throw Error('抢出窗口已变化或结束，刚才抢出未执行。');const from=t.turn,declared=player(t,id).cards.length===2;clearJump(t);t.turn=id;t.drawn=null;t.armed=declared?id:null;t.pending=null;play(t,id,card,undefined,{jump:true,from});}

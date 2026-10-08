@@ -1,9 +1,10 @@
+import {noteTavernAction} from './tavern-catalog.mjs';
 import * as game from './liar-engine.mjs';
 import {board,handPanel,management,confirmation,social,HELP,row,button} from './liar-ui.mjs';
 const json=body=>Response.json(body),priv=content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 export class LiarController {
  constructor(host){this.host=host;this.storage=host.ctx.storage;this.env=host.env;}
- async save(t){const before=await this.storage.get('table');t.computerDue=t.phase==='active'&&t.players.some(p=>p.id===t.turn&&p.bot)?before?.phase===t.phase&&before?.turn===t.turn&&before?.computerDue?before.computerDue:Date.now()+1800:null;await this.storage.put('table',t);await this.host.liarBridge.capture(t);await this.host.boards.queue(t);await this.host.armAlarm(t);if(before&&before.version!==t.version)this.host.queueAICommentary(before,t);}
+ async save(t){const before=await this.storage.get('table');t.computerDue=t.phase==='active'&&t.players.some(p=>p.id===t.turn&&p.bot)?before?.phase===t.phase&&before?.turn===t.turn&&before?.computerDue?before.computerDue:Date.now()+1800:null;await this.storage.put('table',t);await this.host.tavernBridge?.capture(t);await this.host.liarBridge.capture(t);await this.host.boards.queue(t);await this.host.armAlarm(t);if(before&&before.version!==t.version)this.host.queueAICommentary(before,t);}
  async progress(t,now=Date.now()){
   if(t?.game!=='liar')return false;let changed=game.expire(t,now);if(!changed)changed=game.advance(t,undefined,now);if(!changed)changed=game.timeout(t,now);if(changed){t.version++;await this.save(t);await this.host.queuePanels(t);}return changed;
  }
@@ -39,6 +40,7 @@ export class LiarController {
    else if(isSocial){if(!p||!['active','roulette','intermission'].includes(t.phase))throw Error('本局没有可互动的酒客。');const text=['我很镇定，真的。','盯着你的眼睛看……','碰个杯，待会见真章。','这手牌，我可不信。'][Number(action)];if(!text)throw Error('无效互动。');if(t.socialLastAt&&Date.now()-t.socialLastAt<8000)throw Error('稍等一会，让其他酒客说句话。');t.socialLastAt=Date.now();t.events=[...t.events,{actor:id,text}].slice(-3);effective=false;notice='互动已显示在原牌桌。';}
    else throw Error('无效操作。');
   }catch(e){return json(isPanel&&p?panelReply(e.message):isManager?managerReply(e.message):priv(e.message));}
+  if(['play','believe','challenge'].includes(action))noteTavernAction(t,id);
   if(effective&&t.phase!=='closed')game.touch(t);if(effective)t.version++;await this.save(t);await this.storage.put('recentInteractions',[...seen.slice(-99),i.id]);await this.host.queuePanels(t);
   if(isConfirm||isSocial)return json({type:7,data:{content:notice,components:[],embeds:[],attachments:[],allowed_mentions:{parse:[]}}});if(isPanel&&p)return json(panelReply(notice));if(isManager)return json(t.phase==='closed'||!t.players.some(p=>p.id===id)?{type:7,data:{content:notice,components:[],embeds:[],attachments:[],allowed_mentions:{parse:[]}}}:managerReply(notice));
   // Establish an explicitly private original reply before automatic hand updates.
