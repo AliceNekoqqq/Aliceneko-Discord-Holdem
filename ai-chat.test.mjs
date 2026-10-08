@@ -457,6 +457,23 @@ test("bot knowledge retrieval adds relevant authoritative facts only", () => {
   assert.match(getBotKnowledge(["我们在玩 UNO", "这桌最多几个人？"]),/2～10 人|2–10 人/);
 });
 
+test("developer identity and Red Bean Powder OC facts are retrieved only when relevant", () => {
+  const identity=getBotKnowledge("谁开发了你？红豆粉和你是什么关系？");
+  assert.match(identity,/开发者与原创角色创作者/);
+  assert.match(identity,/红豆粉本人/);
+  const profile=getBotKnowledge("红豆粉的生日、身高和性格设定是什么？");
+  assert.match(profile,/18 岁/);
+  assert.match(profile,/167cm/);
+  assert.match(profile,/7 月 7 日/);
+  assert.match(profile,/讨好型倾向/);
+  const tavern=getBotKnowledge("外婆为什么叫她红豆粉？小酒馆在什么地方？");
+  assert.match(tavern,/临河小城的旧街/);
+  assert.match(tavern,/红豆甜点/);
+  assert.doesNotMatch(getBotKnowledge("UNO 怎么开局？"),/167cm/);
+  assert.match(makeSystemInstruction("","chat"),/人格源自开发者红豆粉本人/);
+  assert.doesNotMatch(makeSystemInstruction("","game",[],identity),/167cm/);
+});
+
 test("published knowledge document is generated from the Worker knowledge source", async () => {
   const document=await readFile(new URL("./BOT_KNOWLEDGE.md",import.meta.url),"utf8");
   assert.equal(document,BOT_KNOWLEDGE_MARKDOWN);
