@@ -97,7 +97,9 @@ test('menus fit Discord limits and confirmation/privacy boundaries reject forged
 });
 test('natural intent handles requests but does not interpret questions, quotes or history as purchases',()=>{
  assert.equal(parseTavernIntent('给我一杯红豆牛奶').item,'milk');assert.equal(parseTavernIntent('看看菜单').action,'menu');assert.equal(parseTavernIntent('我想喝红豆牛奶').action,'menu');assert.equal(parseTavernIntent('给我一杯甜一点的，不要酒精').options.sweetness,'sweet');
- for(const text of ['上次来一杯红豆牛奶','别给我点红豆牛奶','红豆牛奶多少钱？','给我介绍红豆牛奶','给我一杯伏特加','给我看看“来一杯红豆牛奶”','如果我要红豆牛奶','我要知道红豆牛奶是什么'])assert.equal(parseTavernIntent(text),null,text);
+ for(const text of ['上次来一杯红豆牛奶','别给我点红豆牛奶','红豆牛奶多少钱？','给我介绍红豆牛奶','给我一杯伏特加','给我看看“来一杯红豆牛奶”','如果我要红豆牛奶','我要知道红豆牛奶是什么','给我一杯红豆牛奶？','给我一杯红豆牛奶，不要了','我要红豆牛奶，算了','我想喝红豆牛奶，取消'])assert.equal(parseTavernIntent(text),null,text);
+ assert.equal(parseTavernIntent('给我一杯红豆牛奶！').item,'milk');
+ assert.equal(parseTavernIntent('给我一杯红豆牛奶，不要酒精').item,'milk');
 });
 test('natural previews run without model requests, publish no private preferences and never deduct',async t=>{
  const {service:s}=setup();s.profile('1','Alice','restrictions','secret');const env={...environment(s),BOT_TOKEN:'test'},sent=[];const previous=globalThis.fetch;globalThis.fetch=async(url,options)=>{sent.push({url,body:JSON.parse(options.body)});return Response.json({id:'111'});};t.after(()=>globalThis.fetch=previous);

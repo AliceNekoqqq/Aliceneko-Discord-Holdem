@@ -1,4 +1,5 @@
 import {WELCOME_COINS,DAILY_REWARD_CAP,ROSTER_DAILY_LIMIT,ORDER_TTL,REWARDS,validId,dayKey,cleanText,menuItem,makeOrderDetails,SWEETNESS,TEMPERATURE,SEATS} from './tavern-catalog.mjs';
+import {TavernRenovation} from './tavern-renovation.mjs';
 
 export class TavernService {
  constructor(storage){
@@ -15,6 +16,7 @@ export class TavernService {
   this.sql.exec('CREATE TABLE IF NOT EXISTS tavern_daily (user_id TEXT NOT NULL, day TEXT NOT NULL, earned INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(user_id,day))');
   this.sql.exec('CREATE TABLE IF NOT EXISTS tavern_rosters (roster TEXT NOT NULL, day TEXT NOT NULL, played INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(roster,day))');
  }
+ get renovation(){return this._renovation??=new TavernRenovation(this);}
  rows(q,...args){return this.sql.exec(q,...args).toArray();}
  one(q,...args){return this.rows(q,...args)[0]||null;}
  member(id,name='',now=Date.now(),insideTransaction=false){
@@ -52,6 +54,9 @@ export class TavernService {
   return {...draft,balance:member.balance};
  }
  confirm(id,draftId,channel,now=Date.now()){
+  // Schema creation and one-time legacy order backfill must happen outside this
+  // order transaction; new consumption is added atomically with the order.
+  const renovation=this.renovation;
   let answer;
   this.storage.transactionSync(()=>{
    const d=this.one('SELECT * FROM tavern_drafts WHERE id=?',draftId);
@@ -66,6 +71,7 @@ export class TavernService {
    if(d.price===0&&this.one('SELECT id FROM tavern_orders WHERE user_id=? AND price=0 AND at>? LIMIT 1',id,now-60000))throw Error('免费茶水每分钟可点一次，先慢慢喝。');
    this.sql.exec('UPDATE tavern_members SET balance=balance-? WHERE id=?',d.price,id);
    this.sql.exec('INSERT INTO tavern_orders(id,user_id,channel,item,price,details,at) VALUES(?,?,?,?,?,?,?)',d.id,id,channel,d.item,d.price,d.details,now);
+   renovation.recordConsumption({id:d.id,user_id:id,details:d.details,price:d.price,at:now},true);
    this.sql.exec('INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)',`order:${d.id}`,id,-d.price,'order',JSON.parse(d.details).itemName,now);
    this.sql.exec("UPDATE tavern_drafts SET status='confirmed' WHERE id=?",d.id);
    answer={order:{id:d.id,user_id:id,channel,item:d.item,price:d.price,details:JSON.parse(d.details),at:now},balance:member.balance-d.price,repeated:false};
@@ -110,6 +116,7 @@ export class TavernService {
   if(!validId(p.guild))throw Error('无效服务器。');
   const bound=await this.storage.get('tavernGuild');if(bound&&bound!==p.guild)throw Error('服务器不匹配。');if(!bound)await this.storage.put('tavernGuild',p.guild);
   if(p.action==='reward')return this.reward(p.guild,p.result);
+  if(p.action?.startsWith('reno'))return this.renovation.dispatch(p);
   if(!validId(p.id))throw Error('无效来客。');
   if(p.action==='context')return this.context(p.id,p.channel);
   if(p.action==='draft'){const d=this.one('SELECT * FROM tavern_drafts WHERE id=?',p.draftId);if(!d||d.user_id!==p.id||d.channel!==p.channel)throw Error('这不是你的点单窗口。');return {...d,details:JSON.parse(d.details),balance:this.member(p.id,p.name).balance};}
