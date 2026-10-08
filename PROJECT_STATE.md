@@ -321,3 +321,5 @@
 - 完整名单需要Discord Developer Portal启用Server Members Intent；被引用普通消息正文可能需要Message Content Intent及Read Message History权限。接口不可用时降级至频道最近100条消息的作者名字，只取身份、不注入普通聊天正文；标注并非完整列表或在线状态。未启用额外Gateway特权intents，避免未获授权导致Gateway断线。
 - 身份和引用作为当轮上下文发给现有中转并进入请求诊断；不写入个人/频道聊天记忆，不查询他人私人记忆。名单重名/不明确时要求澄清，保留现有管理能力边界。
 - 45项AI/上下文测试通过，包括频道权限覆盖、当前/原作者区分、引用图片保留、同名提示、403降级、删除消息及禁止跨频道回读。真实Discord权限和完整名单需用户后台配置后验证。
+
+- 提交f06e9f3已同步GitHub，尚未上线。Cloudflare上下文部署被automatic approval review拒绝：需要用户明确批准成员名字/账号ID和被回复消息内容发往 https://gcli.ggchan.dev/v1/chat/completions；此前允许仅覆盖图片。未绕过或改道部署，线上保持已上线识图版本。待此具体payload+destination授权后继续上传并读回核验。
