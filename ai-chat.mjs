@@ -34,6 +34,12 @@ export const aiCommand = {
       {type:1,name:"关闭",description:"停止保存之后的对话"},
       {type:1,name:"清除",description:"删除本服务器保存的个人对话"}
     ]},
+    {type:2,name:"频道记忆",description:"管理当前频道的 AI 共享对话记忆",options:[
+      {type:1,name:"查看",description:"查看当前频道共享记忆状态"},
+      {type:1,name:"开启",description:"汇总本频道成员与机器人的 @ 对话"},
+      {type:1,name:"关闭",description:"停止汇总本频道的 @ 对话"},
+      {type:1,name:"清除",description:"删除本频道保存的共享对话"}
+    ]},
     {type:2,name:"主持",description:"控制各项游戏解说功能",options:[
       {type:1,name:"开启",description:"一键开启全部 AI 主持功能"},
       {type:1,name:"关闭",description:"一键关闭全部 AI 主持功能"},
@@ -298,6 +304,17 @@ async function setMemory(db, guildId, userId, enabled) {
     .bind(guildId,userId,enabled ? 1 : 0,Date.now()).run();
 }
 
+async function channelMemorySetting(db, guildId, channelId) {
+  return await db.prepare("SELECT enabled FROM ai_channel_memory_config WHERE guild_id = ? AND channel_id = ?")
+    .bind(guildId,channelId).first();
+}
+
+async function setChannelMemory(db, guildId, channelId, enabled) {
+  await db.prepare("INSERT INTO ai_channel_memory_config (guild_id, channel_id, enabled, updated_at) VALUES (?, ?, ?, ?) " +
+    "ON CONFLICT(guild_id,channel_id) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at")
+    .bind(guildId,channelId,enabled ? 1 : 0,Date.now()).run();
+}
+
 export async function handleAiCommand(env, interaction) {
   const guildId = guildIdOf(interaction);
   const userId = userIdOf(interaction);
@@ -307,7 +324,7 @@ export async function handleAiCommand(env, interaction) {
 
   const group = interaction.data?.options?.[0];
   const action = group?.options?.[0];
-  if (!group || !action) return privateReply("使用 /ai 记忆 或 /ai 主持。");
+  if (!group || !action) return privateReply("使用 /ai 记忆、/ai 频道记忆 或 /ai 主持。");
 
   if (group.name === "记忆") {
     if (action.name === "查看") {
@@ -324,10 +341,39 @@ export async function handleAiCommand(env, interaction) {
         : "已关闭个人对话记忆；之后的对话正文不会保存，消息 ID 临时保留 7 天用于防重复回复。已有记忆仍保留，可用 /ai 记忆 清除删除。");
     }
     if (action.name === "清除") {
-      await db.prepare("DELETE FROM ai_chat_history WHERE guild_id = ? AND user_id = ?").bind(guildId,userId).run();
-      return privateReply("已删除你在本服务器保存的 AI 对话正文；防重复回复用的消息 ID 最长保留 7 天。");
+      await db.batch([
+        db.prepare("DELETE FROM ai_chat_history WHERE guild_id = ? AND user_id = ?").bind(guildId,userId),
+        db.prepare("DELETE FROM ai_channel_chat_history WHERE guild_id = ? AND user_id = ?").bind(guildId,userId)
+      ]);
+      return privateReply("已删除你在本服务器个人记忆和频道共享记忆中的对话正文；防重复回复用的消息 ID 最长保留 7 天。");
     }
     return privateReply("使用 /ai 记忆 查看、开启、关闭 或 清除。");
+  }
+
+  if (group.name === "频道记忆") {
+    const channelId=String(interaction.channel_id||"");
+    if (!channelId) return privateReply("请在服务器文字频道内使用。");
+    const setting=await channelMemorySetting(db,guildId,channelId);
+    const enabled=Number(setting?.enabled)===1;
+    if (action.name === "查看") {
+      return privateReply(enabled
+        ? "当前频道的共享对话记忆已开启；只保存成员主动 @ 红豆粉且个人记忆已开启的成功问答，最多保留最近 30 条消息，不记录普通频道聊天。管理员可用 /ai 频道记忆 关闭 或 清除。"
+        : "当前频道的共享对话记忆已关闭；不会汇总本频道对话。管理员可用 /ai 频道记忆 开启。默认关闭。");
+    }
+    if (!manageGuild(interaction.member)) return privateReply("管理频道共享记忆需要「管理服务器」权限。");
+    if (action.name === "开启" || action.name === "关闭") {
+      const nextEnabled=action.name==="开启";
+      await setChannelMemory(db,guildId,channelId,nextEnabled);
+      return privateReply(nextEnabled
+        ? "已开启当前频道的共享对话记忆；只收录成员主动 @ 红豆粉且个人记忆已开启的成功问答，最多保留最近 30 条消息。普通频道聊天不会保存。"
+        : "已关闭当前频道的共享对话记忆；之后的问答不会写入频道共享记忆，已有内容仍保留，可用 /ai 频道记忆 清除。个人记忆开关不受影响。");
+    }
+    if (action.name === "清除") {
+      await db.prepare("DELETE FROM ai_channel_chat_history WHERE guild_id = ? AND channel_id = ?")
+        .bind(guildId,channelId).run();
+      return privateReply("已清除当前频道的共享对话记忆；频道开关状态保持不变。");
+    }
+    return privateReply("使用 /ai 频道记忆 查看、开启、关闭 或 清除。");
   }
 
   if (!manageGuild(interaction.member)) return privateReply("设置游戏主持需要「管理服务器」权限。");
@@ -397,21 +443,49 @@ async function sendChannelReply(env, message, content) {
 }
 
 async function getHistory(db,guildId,userId) {
-  const rows = await db.prepare("SELECT role, content FROM ai_chat_history WHERE guild_id = ? AND user_id = ? ORDER BY id DESC LIMIT ?")
+  const rows = await db.prepare("SELECT role, content, user_id, created_at, id FROM ai_chat_history WHERE guild_id = ? AND user_id = ? ORDER BY id DESC LIMIT ?")
     .bind(guildId,userId,CHAT_MEMORY_LIMIT).all();
-  return (rows.results || []).reverse().map(row => ({
-    role:row.role === "model" ? "model" : "user",
-    parts:[{text:clamp(row.content,MAX_USER_CHARS)}]
-  }));
+  return (rows.results || []).reverse();
+}
+
+async function getChannelHistory(db,guildId,channelId) {
+  const rows=await db.prepare("SELECT role, content, user_id, speaker_name, created_at, id FROM ai_channel_chat_history WHERE guild_id = ? AND channel_id = ? ORDER BY id DESC LIMIT ?")
+    .bind(guildId,channelId,CHAT_MEMORY_LIMIT).all();
+  return (rows.results||[]).reverse();
+}
+
+function mergeHistory(personalRows,channelRows) {
+  const seen=new Set();
+  const rows=[...(channelRows||[]),...(personalRows||[])].filter(row=>{
+    if(row.created_at===undefined||row.created_at===null) return true;
+    const key=[row.user_id||"",row.role||"",row.content||"",row.created_at].join("\u0000");
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a,b)=>Number(a.created_at||0)-Number(b.created_at||0)||Number(a.id||0)-Number(b.id||0));
+  return rows.map(row=>{
+    const role=row.role==="model"?"model":"user";
+    const speaker=textValue(row.speaker_name||"").replace(/[<>@]/g," ").slice(0,32);
+    const content=clamp(row.content,MAX_USER_CHARS);
+    return {role,parts:[{text:role==="user"&&speaker?`【${speaker}】${content}`:content}]};
+  });
+}
+
+function messageSpeakerName(message) {
+  const raw=message.member?.nick||message.author?.global_name||message.author?.username||"成员";
+  return textValue(raw).replace(/[<>@]/g," ").slice(0,32)||"成员";
 }
 
 export async function replyToMention(env, message, botId) {
   let db = env.CHAT_DB;
   const guildId = String(message.guild_id || "");
   const userId = String(message.author?.id || "");
+  const channelId = String(message.channel_id || "");
   const content = clamp(textValue(textValue(message.content).replace(new RegExp("<@!?" + botId + ">","g")," ")),MAX_USER_CHARS);
   let memoryOn = true;
   let history = [];
+  let channelMemoryOn = false;
+  let channelHistory = [];
   let config = {};
 
   if (!env.GEMINI_API_KEY) {
@@ -428,16 +502,23 @@ export async function replyToMention(env, message, botId) {
       const setting = await memberSetting(db,guildId,userId);
       memoryOn = setting?.memory_enabled !== 0;
       config = await guildConfig(db,guildId);
+      const channelSetting=await channelMemorySetting(db,guildId,channelId);
+      channelMemoryOn=Number(channelSetting?.enabled)===1;
       if (memoryOn) history = await getHistory(db,guildId,userId);
+      if (channelMemoryOn) channelHistory=await getChannelHistory(db,guildId,channelId);
+      history=mergeHistory(history,channelHistory);
     } catch {
       db = null;
       memoryOn = false;
+      channelMemoryOn = false;
       config = {};
       history = [];
+      channelHistory=[];
     }
   }
 
-  history.push({role:"user",parts:[{text:content || "你好。"}]});
+  const currentUserText=content||"你好。";
+  history.push({role:"user",parts:[{text:channelMemoryOn?`【${messageSpeakerName(message)}】${currentUserText}`:currentUserText}]});
   const knowledgeContext=history.slice(-5).map(item=>(item.parts||[]).map(part=>part.text||"").join("")).filter(Boolean);
   let responseText;
   let generated = false;
@@ -455,14 +536,25 @@ export async function replyToMention(env, message, botId) {
   if (db && memoryOn && generated) {
     const now = Date.now();
     try {
-      await db.batch([
+      const statements=[
         db.prepare("INSERT INTO ai_chat_history (guild_id,user_id,role,content,created_at) VALUES (?,?,?,?,?)")
           .bind(guildId,userId,"user",content || "你好。",now),
         db.prepare("INSERT INTO ai_chat_history (guild_id,user_id,role,content,created_at) VALUES (?,?,?,?,?)")
           .bind(guildId,userId,"model",responseText,now+1),
         db.prepare("DELETE FROM ai_chat_history WHERE guild_id = ? AND user_id = ? AND id NOT IN (SELECT id FROM ai_chat_history WHERE guild_id = ? AND user_id = ? ORDER BY id DESC LIMIT ?)")
           .bind(guildId,userId,guildId,userId,CHAT_MEMORY_LIMIT)
-      ]);
+      ];
+      if(channelMemoryOn) {
+        statements.push(
+          db.prepare("INSERT INTO ai_channel_chat_history (guild_id,channel_id,user_id,role,content,speaker_name,created_at) VALUES (?,?,?,?,?,?,?)")
+            .bind(guildId,channelId,userId,"user",content || "你好。",messageSpeakerName(message),now),
+          db.prepare("INSERT INTO ai_channel_chat_history (guild_id,channel_id,user_id,role,content,speaker_name,created_at) VALUES (?,?,?,?,?,?,?)")
+            .bind(guildId,channelId,userId,"model",responseText,"",now+1),
+          db.prepare("DELETE FROM ai_channel_chat_history WHERE guild_id = ? AND channel_id = ? AND id NOT IN (SELECT id FROM ai_channel_chat_history WHERE guild_id = ? AND channel_id = ? ORDER BY id DESC LIMIT ?)")
+            .bind(guildId,channelId,guildId,channelId,CHAT_MEMORY_LIMIT)
+        );
+      }
+      await db.batch(statements);
     } catch {}
   }
   return true;
