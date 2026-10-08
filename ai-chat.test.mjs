@@ -213,6 +213,17 @@ test("ordinary chat simulates the tavern naturally without repeating stage direc
   assert.match(makeSystemInstruction("","game"),/结算时明确宣布给出的胜者或结果/);
 });
 
+test("AI replies collapse redundant blank lines but keep single line breaks", async () => {
+  const answer=await generateGemini(
+    {GEMINI_API_KEY:"test-secret"},
+    [{role:"user",parts:[{text:"分两段回答"}]}],
+    "chat",
+    async ()=>Response.json({candidates:[{content:{parts:[{text:"第一段。\n\n\n第二段。\n第三行。"}]}}]})
+  );
+  assert.equal(answer,"第一段。\n第二段。\n第三行。");
+  assert.match(makeSystemInstruction(""),/段与段之间不要留空行/);
+});
+
 test("bot knowledge retrieval adds relevant authoritative facts only", () => {
   const unoKnowledge=getBotKnowledge("UNO 的 +2 可以叠 +4 吗？");
   assert.match(unoKnowledge,/默认混合叠加：\+2 可接 \+2 或 \+4/);
