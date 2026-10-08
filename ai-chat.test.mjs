@@ -460,7 +460,11 @@ test("bot knowledge retrieval adds relevant authoritative facts only", () => {
 test("developer identity and Red Bean Powder OC facts are retrieved only when relevant", () => {
   const identity=getBotKnowledge("谁开发了你？红豆粉和你是什么关系？");
   assert.match(identity,/开发者与原创角色创作者/);
-  assert.match(identity,/红豆粉本人/);
+  assert.match(identity,/红豆粉/);
+  assert.match(identity,/亲近的姐姐/);
+  const sibling=getBotKnowledge("开发者是你的姐姐吗？");
+  assert.match(sibling,/亲近的姐姐/);
+  assert.match(sibling,/自然聊天/);
   const profile=getBotKnowledge("红豆粉的生日、身高和性格设定是什么？");
   assert.match(profile,/18 岁/);
   assert.match(profile,/167cm/);
@@ -470,7 +474,10 @@ test("developer identity and Red Bean Powder OC facts are retrieved only when re
   assert.match(tavern,/临河小城的旧街/);
   assert.match(tavern,/红豆甜点/);
   assert.doesNotMatch(getBotKnowledge("UNO 怎么开局？"),/167cm/);
-  assert.match(makeSystemInstruction("","chat"),/人格源自开发者红豆粉本人/);
+  const chatInstruction=makeSystemInstruction("","chat");
+  assert.match(chatInstruction,/人格源自开发者红豆粉本人/);
+  assert.match(chatInstruction,/亲近的姐姐/);
+  assert.doesNotMatch(getBotKnowledge("UNO 怎么开局？"),/姐姐/);
   assert.doesNotMatch(makeSystemInstruction("","game",[],identity),/167cm/);
 });
 
