@@ -1,6 +1,6 @@
 # 项目状态
 
-- 当前版本：v1.0.1-beta.19，德州扑克、UNO 与 1v1 抽鬼牌测试版。
+- 当前版本：v1.0.1-beta.20，德州扑克、UNO、1v1 抽鬼牌与 Gemini 对话测试版。
 - Worker 名称：discord-holdem；公开品牌：Aliceneko。
 - 已实现规则、私密手牌、按钮/加注 modal、边池分池、超时告警处理、命令自动注册。
 - 当前 105 项测试通过，包含 500 局 UNO、300 局随机德扑和 200 局电脑陪练；最新界面改造需要真人 Discord 客户端反馈。
@@ -181,7 +181,7 @@
 - 持久结果outbox+SQLite事务去重，服务器跨频道排行；榜首自动身份组，权限0、精确名👻鬼王、先收回再授予、创建超时恢复。复用UNO角色协调器的可配置名称/存储键，分开服务器DO，原UNO行为不变。
 - 147项测试全部通过，含1000局抽鬼牌牌守恒/终局模拟、并发双击、旧按钮/假冒/私密隔离、邀请/回合超时、确认认输、签名排行榜/表单、去重/丢响应/换游戏outbox、3分钟过期/5分钟恢复/null/重启/手动更名/403/模糊PATCH恢复、鬼王先收后授，以及UNO和德扑全部回归。公共牌桌与私密手牌图已生成并目视检查，真实Discord客户端与实际权限效果待用户试玩。
 - 沿用discord-holdem、PokerTable namespace、BOT_TOKEN Secret、compatibility date和每分钟cron；COMMAND_VERSION games-v1.0.1-beta.19 注册第三个游戏指令。
-- 发布状态：准备推送和部署，成功后更新。
+- 发布状态：已推送 GitHub；抽鬼牌随 beta.20 部署，随后完成遗漏图片及共用面板模块的部署补齐。详见下方上线核对记录。
 
 
 ## beta.20 · Gemini 对话与游戏主持（2026-10-08）
@@ -192,3 +192,13 @@
 - 9 项 AI/Gateway 专项测试通过；GitHub main 已同步 beta.20。
 - 2026-10-08 部署成功：Cloudflare Worker 上传 HTTP 200，线上 COMMAND_VERSION 为 games-v1.0.1-beta.20；28 个模块可读回，CHAT_DB 的 D1 绑定和既有 BOT_TOKEN Secret 均保留，TABLES namespace 与每分钟 Cron 保持。
 - aliceneko-ai D1 已创建并运行 migrations/0001_ai.sql，4 张 AI 表已验证。Gemini API Secret 尚未设置，因此实际 Gemini 对话和游戏解说要等用户在 Cloudflare Secret 中添加 GEMINI_API_KEY 后启用。
+
+
+## 抽鬼牌上线核对与部署补齐（2026-10-08）
+
+- 延续已完成的 beta.19 开发，不重新制作玩法或图片。线上 beta.20 已包含抽鬼牌规则、频道控制、昵称惩罚、排行和可配置鬼王协调器，但部署遗漏 ghost-image.mjs，且 board-sync.mjs、private-panels.mjs 仍为未集成抽鬼牌的旧版。
+- 本次将 GitHub main 已完成的图片模块与公共/私密面板整合补到同一 Worker，保留 Gemini 模块。上传返回 HTTP 200；全部29个运行模块从线上读回，与 GitHub 逐文件内容哈希一致；GET /health 返回 {"ok":true}。
+- BOT_TOKEN 加密变量、CHAT_DB、原TABLES namespace、compatibility date 与每分钟 Cron 保留。未向真人主动发消息、改昵称或授予身份组。
+- 完整156项测试通过，包括1000局抽鬼牌、私密隔离、并发、超时、昵称3分钟决定/5分钟恢复、榜首鬼王授予及UNO/德扑回归。更新旧测试的beta.20指令版本断言，并隔离游戏回归中的Gateway实例，避免测试连接真实WebSocket。
+- /抽鬼牌 等待对手、发起挑战 玩家、排行榜、牌桌、帮助已进入指令注册schema，既有Cron自动注册；本次没有取得Discord实时指令列表读回，真实客户端游玩效果仍待用户试玩。
+- 昵称惩罚依赖bot的管理昵称权限和角色层级，鬼王授予依赖管理身份组权限；权限不足时会返回明确失败提示。Gemini Secret是否配置不影响抽鬼牌功能。
