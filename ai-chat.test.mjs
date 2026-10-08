@@ -131,6 +131,11 @@ test("bot knowledge retrieval adds relevant authoritative facts only", () => {
     ["UNO头像能用机器人上传的表情吗", "个人座位设置"],
     ["UNO排行榜第一名能领身份组吗", "排行榜"]
   ]) assert.match(getBotKnowledge(question),new RegExp(expected));
+  assert.match(getBotKnowledge("你都能干嘛"),/功能总览与命令/);
+  assert.match(getBotKnowledge("可以用我上传的表情吗"),/自定义应用表情/);
+  assert.match(getBotKnowledge("AI 会保存我和它的对话吗"),/最多保留最近 30 条消息/);
+  assert.match(getBotKnowledge("我想清除聊天记录"),/删除该成员在本服务器保存的对话正文/);
+  assert.match(getBotKnowledge(["我们在玩 UNO", "这桌最多几个人？"]),/2～10 人|2–10 人/);
 });
 
 test("published knowledge document is generated from the Worker knowledge source", async () => {
@@ -327,4 +332,27 @@ test("direct chats receive only the feature knowledge relevant to the question",
   assert.match(request.systemInstruction.parts[0].text,/默认混合叠加：\+2 可接 \+2 或 \+4/);
   assert.doesNotMatch(request.systemInstruction.parts[0].text,/起始虚拟筹码 2,000/);
   assert.equal(JSON.parse(calls[1].options.body).content,"可以呀。");
+});
+
+test("recent chat context resolves follow-up questions about the current game", async t => {
+  const db=fakeDb();
+  db.state.history.push(
+    {guild_id:"g1",user_id:"u1",role:"user",content:"我们来玩 UNO 吧"},
+    {guild_id:"g1",user_id:"u1",role:"model",content:"好呀，准备开桌！"}
+  );
+  const calls=[];
+  const env={BOT_TOKEN:"test",GEMINI_API_KEY:"test",CHAT_DB:db};
+  t.mock.method(globalThis,"fetch",async (url,options) => {
+    calls.push({url,options});
+    if(String(url).startsWith("https://generativelanguage.googleapis.com/")) {
+      return Response.json({candidates:[{content:{parts:[{text:"普通 UNO 桌最多 10 人。"}]}}]});
+    }
+    return new Response("{}",{status:200});
+  });
+  await replyToMention(env,{
+    id:"follow-up",guild_id:"g1",channel_id:"c1",author:{id:"u1"},content:"<@bot-1> 这桌最多几个人？"
+  },"bot-1");
+  const prompt=JSON.parse(calls[0].options.body).systemInstruction.parts[0].text;
+  assert.match(prompt,/2～10 人|2–10 人/);
+  assert.match(prompt,/电脑陪练/);
 });

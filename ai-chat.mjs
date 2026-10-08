@@ -289,10 +289,11 @@ export async function replyToMention(env, message, botId) {
   }
 
   history.push({role:"user",parts:[{text:content || "你好。"}]});
+  const knowledgeContext=history.slice(-5).map(item=>(item.parts||[]).map(part=>part.text||"").join("")).filter(Boolean);
   let responseText;
   let generated = false;
   try {
-    responseText = await generateGemini(env,history,"chat",fetch,await getBotEmojiTokens(env),getBotKnowledge(content));
+    responseText = await generateGemini(env,history,"chat",fetch,await getBotEmojiTokens(env),getBotKnowledge(knowledgeContext));
     generated = true;
   } catch {
     responseText = "我这会儿没接上 Gemini，稍后再 @ 我试试。";

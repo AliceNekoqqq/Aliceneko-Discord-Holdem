@@ -4,7 +4,7 @@ export const BOT_KNOWLEDGE_SECTIONS = Object.freeze([
   Object.freeze({
     id: "overview",
     title: "功能总览与命令",
-    keywords: ["有哪些功能", "机器人能做什么", "你能做什么", "目前支持", "目前功能", "指令列表", "斜杠命令", "怎么使用", "怎么玩", "commands", "command", "功能", "指令", "帮助", "管理员助手"],
+    keywords: ["有哪些功能", "机器人能做什么", "你能做什么", "你都能做什么", "你能干嘛", "你都能干嘛", "能干嘛", "能做啥", "可以干什么", "有哪些玩法", "你的能力", "目前支持", "目前功能", "指令列表", "斜杠命令", "怎么使用", "怎么玩", "commands", "command", "功能", "指令", "帮助", "管理员助手"],
     content: [
       "Aliceneko 是 Discord 文字服务器里的桌游机器人，目前提供德州扑克、UNO、抽鬼牌、直接 @ 机器人文字聊天、个人对话记忆、可选 AI 游戏解说、UNO 个人座位设置与排行榜，以及抽鬼牌排行榜。牌局通过斜杠命令创建，再用牌桌上的按钮操作。",
       "主要入口：/德州 创建、测试、帮助、牌桌；/uno 创建、测试、个人设置、排行榜、称号、帮助、牌桌；/抽鬼牌 等待对手、发起挑战、排行榜、牌桌、帮助；/ai 记忆 查看/开启/关闭/清除，以及 /ai 主持 查看/开启/关闭。",
@@ -14,7 +14,7 @@ export const BOT_KNOWLEDGE_SECTIONS = Object.freeze([
   Object.freeze({
     id: "holdem",
     title: "德州扑克",
-    keywords: ["德州扑克", "德州", "扑克", "holdem", "hold'em", "小盲", "大盲", "筹码", "全下", "边池", "下注", "手牌", "电脑陪练", "测试桌"],
+    keywords: ["德州扑克", "德州", "扑克", "holdem", "hold'em", "小盲", "大盲", "筹码", "全下", "边池", "下注", "手牌", "电脑陪练", "测试桌", "最多几人", "最多几个人", "几个人", "多少人"],
     content: [
       "入口：/德州 创建 开真人牌桌；/德州 测试 可带 1～8 位电脑，默认 2 位；/德州 帮助 查看规则；/德州 牌桌 定位当前频道牌桌。通常先点加入，入座后使用牌桌按钮。所有参与真人准备下一手后，5 秒后自动发牌。",
       "每桌 2～9 人，起始虚拟筹码 2,000，小盲 10、大盲 20，每次行动 60 秒。玩家的底牌通过仅本人可见的手牌面板查看；加注输入本轮累计下注总额，可用最小、半池、满池快捷档。全下与关桌都要确认。",
@@ -25,7 +25,7 @@ export const BOT_KNOWLEDGE_SECTIONS = Object.freeze([
   Object.freeze({
     id: "uno",
     title: "UNO",
-    keywords: ["uno", "乌诺", "加牌", "+2", "+4", "抢出", "截胡", "喊uno", "漏喊", "质疑", "2v2", "组队", "积分赛", "出牌", "摸牌", "认输", "牌桌互动"],
+    keywords: ["uno", "乌诺", "加牌", "+2", "+4", "抢出", "截胡", "喊uno", "漏喊", "质疑", "2v2", "组队", "积分赛", "出牌", "摸牌", "认输", "牌桌互动", "最多几人", "最多几个人", "几个人", "多少人"],
     content: [
       "入口：/uno 创建 选择单局休闲、500 分积分赛或 2v2；/uno 测试 创建电脑陪练桌（个人赛默认 2 台，组队默认 3 台，可选 1～9 台）；另有 /uno 个人设置、排行榜、称号、帮助、牌桌。德州与 UNO 共用每频道一张牌桌。普通桌 2～10 人，经典 108 张牌，每人 7 张。",
       "按同色、同数字或同功能符号出牌；万能牌需选择颜色。没牌可出时摸 1 张，也可自愿摸；摸后只能出刚摸的牌或保留结束回合。两人局的反转相当于跳过。新建桌默认混合叠加：+2 可接 +2 或 +4，+4 只能接 +4，每回合接一张；桌主可在等候或结算时改成同类叠加或不叠加，亦可开关数字抢出。积分赛开始后玩法固定。",
@@ -38,7 +38,7 @@ export const BOT_KNOWLEDGE_SECTIONS = Object.freeze([
   Object.freeze({
     id: "ghost",
     title: "抽鬼牌",
-    keywords: ["抽鬼牌", "鬼牌", "鬼王", "昵称惩罚", "改名惩罚", "给输家改名", "抽牌", "鬼牌排行榜"],
+    keywords: ["抽鬼牌", "鬼牌", "鬼王", "昵称惩罚", "改名惩罚", "给输家改名", "抽牌", "鬼牌排行榜", "最多几人", "最多几个人", "几个人", "多少人"],
     content: [
       "入口：/抽鬼牌 等待对手 公开等一位玩家；/抽鬼牌 发起挑战 玩家 点名约战；还有排行榜、牌桌、帮助。只支持两名真人，不提供电脑陪练。邀请 3 分钟后过期。",
       "快局使用 27 张牌：13 对普通牌和 1 张鬼牌。开局自动消除成对牌，双方轮流从对方背面抽一张；凑成同点数的一对自动消除。每次抽牌后重新洗牌，先清空手牌者获胜。每回合 45 秒，全局最长 10 分钟。超时取消，不计排行，也不触发改名惩罚；确认认输则计胜负并接受惩罚。",
@@ -48,7 +48,7 @@ export const BOT_KNOWLEDGE_SECTIONS = Object.freeze([
   Object.freeze({
     id: "ai_chat_memory",
     title: "AI 聊天、云端人设与对话记忆",
-    keywords: ["ai聊天", "机器人聊天", "@机器人", "艾特机器人", "对话记忆", "聊天记忆", "记忆", "保存对话", "清除对话", "云端人设", "人格", "红豆粉", "gemini", "自定义表情", "机器人表情"],
+    keywords: ["ai聊天", "机器人聊天", "@机器人", "艾特机器人", "对话记忆", "聊天记忆", "记忆", "记住", "保存", "会保存", "聊天记录", "清除聊天记录", "聊天内容", "历史记录", "最近30条", "30条", "关闭记忆", "保存对话", "清除对话", "云端人设", "人格", "红豆粉", "gemini", "自定义表情", "机器人表情", "表情", "emoji", "emojis", "上传的表情"],
     content: [
       "在服务器文字频道直接 @ 机器人即可文字聊天，使用云端配置的红豆粉人格。人设由云端统一维护，不存在 /ai 人格 Discord 编辑入口。当前只把消息文字交给模型，不会读取附件、图片或玩家私密手牌。机器人可在合适时使用它已上传且当前可用的自定义应用表情；表情目录不可用时仍可正常聊天，只是不带应用表情。",
       "对话记忆按服务器和成员分别保存，默认开启；只记录该成员主动 @ 机器人的成功对话，最多保留最近 30 条消息。用 /ai 记忆 查看、开启、关闭、清除 管理自己的设置。关闭会阻止保存之后的对话正文，但不会自动删除旧记录；清除会删除该成员在本服务器保存的对话正文。为避免重复回复，消息 ID 最长保留 7 天，这些 ID 不是聊天正文。",
@@ -58,7 +58,7 @@ export const BOT_KNOWLEDGE_SECTIONS = Object.freeze([
   Object.freeze({
     id: "game_host",
     title: "AI 游戏主持与解说",
-    keywords: ["ai主持", "主持", "游戏解说", "解说", "播报", "游戏主持"],
+    keywords: ["ai主持", "主持", "游戏解说", "解说", "播报", "游戏主持", "开主持", "关主持"],
     content: [
       "游戏主持按服务器开关，默认关闭。拥有管理服务器权限的成员可用 /ai 主持 查看、开启或关闭。开启后，牌桌频道会在牌局开始、公开关键进展和结算时收到简短 AI 解说。",
       "解说只接收公开牌局事件摘要，不会看到手牌、牌堆、私密面板或未公开信息。每手最多 5 条解说，普通动作之间至少间隔 20 秒；关闭后停止。游戏主持与成员对话记忆是独立设置。"
@@ -67,7 +67,7 @@ export const BOT_KNOWLEDGE_SECTIONS = Object.freeze([
   Object.freeze({
     id: "uno_profile_emojis",
     title: "UNO 个人座位设置与机器人应用表情",
-    keywords: ["个人设置", "个人形象", "座位形象", "头像", "名牌", "入场", "胜利表情", "表情符号", "自定义emoji", "上传到bot", "上传到机器人", "应用表情"],
+    keywords: ["个人设置", "个人形象", "座位形象", "头像", "名牌", "入场", "胜利表情", "表情符号", "表情", "emoji", "emojis", "自定义emoji", "上传的表情", "上传到bot", "上传到机器人", "应用表情"],
     content: [
       "使用 /uno 个人设置 可选择 UNO 座位头像 emoji、名牌配色、入场短句和胜利表情，也可选择机器人应用里已上传的表情作入场或胜利装饰。设置自动保存，在本服务器的 UNO 牌桌跨频道使用；更改通常约 15 秒内同步。个人座位设置不改变手牌或对局规则。",
       "自定义应用表情仅能从机器人当前可用的应用表情目录中选择，不能把任意外部 ID 当成表情。UNO 大王可以显示王冠、金色名牌与星光。AI 对话也会获得当前可用表情列表，并被允许偶尔自然使用；并非每条消息都要加表情。"
@@ -76,7 +76,7 @@ export const BOT_KNOWLEDGE_SECTIONS = Object.freeze([
   Object.freeze({
     id: "rankings_roles",
     title: "排行榜、UNO 大王与鬼王身份组",
-    keywords: ["排行榜", "排行", "胜率", "胜场", "排名", "第一名", "称号", "身份组", "王冠", "大王", "uno大王", "鬼王"],
+    keywords: ["排行榜", "排行", "胜率", "胜场", "排名", "第一名", "称号", "身份组", "王冠", "大王", "uno大王", "鬼王", "领身份组"],
     content: [
       "UNO 排行榜以服务器为范围，记录当前版本起完成的全真人对局；含电脑的局和取消的局不计。2v2 未认输的获胜队员各记一胜，认输计负场。按胜场、胜率、较早达到该胜场排序。/uno 称号 允许当前第一名选择游戏称号，或请求机器人创建/佩戴同名 UNO 大王 Discord 身份组；易主时机器人会尝试收回旧身份组。身份组失败时可改选游戏称号。机器人需要管理身份组权限，且目标角色必须低于机器人的最高角色。",
       "抽鬼牌排行榜按服务器累计胜场，榜首自动获得 👻鬼王 身份组；该自动身份组同样依赖 Discord 管理身份组权限和角色层级。游戏排名与成员私人聊天记忆相互独立。"
@@ -85,7 +85,7 @@ export const BOT_KNOWLEDGE_SECTIONS = Object.freeze([
   Object.freeze({
     id: "privacy_permissions",
     title: "隐私、权限与功能边界",
-    keywords: ["隐私", "私密", "别人能看手牌吗", "能看手牌", "手牌谁能看", "权限", "管理员助手", "服务器状态", "成员资料", "数据", "消息id", "安全"],
+    keywords: ["隐私", "私密", "别人能看手牌吗", "能看手牌", "手牌谁能看", "权限", "管理员助手", "服务器状态", "查服务器", "成员资料", "数据", "消息id", "安全", "server status", "member data"],
     content: [
       "底牌/手牌面板仅发给对应玩家；AI 聊天和游戏主持均不读取私密手牌、牌堆或其他玩家的私有聊天记忆。桌面公开信息不能用来推断不可见牌面。",
       "普通 AI 对话没有查询成员资料、实时服务器状态或执行管理员指令的能力；不要把它描述成管理员助手。游戏代码里为 UNO 大王/抽鬼牌鬼王发放身份组、或为抽鬼牌设置短时昵称，是特定游戏流程，不代表 AI 聊天能执行任意管理操作。相关流程仍受 Discord 机器人权限与角色层级限制。"
@@ -94,12 +94,15 @@ export const BOT_KNOWLEDGE_SECTIONS = Object.freeze([
 ]);
 
 export function getBotKnowledge(query, maxSections = 3) {
-  const text = String(query || "").normalize("NFKC").toLocaleLowerCase("zh-CN");
-  if (!text) return "";
+  const queries = (Array.isArray(query) ? query : [query]).map(value => String(value || "").normalize("NFKC").toLocaleLowerCase("zh-CN")).filter(Boolean);
+  if (!queries.length) return "";
   const limit = Math.max(1, Math.min(6, Number.isInteger(maxSections) ? maxSections : 3));
   const matched = BOT_KNOWLEDGE_SECTIONS.map((section, index) => {
-    const hits = [...new Set(section.keywords.filter(term => text.includes(term.toLocaleLowerCase("zh-CN"))))];
-    return {section, index, score:hits.reduce((sum, term) => sum + (term.length >= 4 ? 3 : 2), 0)};
+    const score=section.keywords.reduce((sum, term) => {
+      const phrase=term.toLocaleLowerCase("zh-CN"), weight=phrase.length >= 4 ? 3 : 2;
+      return sum + queries.reduce((total, text, queryIndex) => total + (text.includes(phrase) ? weight * (queryIndex === queries.length - 1 ? 3 : 1) : 0),0);
+    },0);
+    return {section, index, score};
   }).filter(item => item.score > 0).sort((a, b) => b.score - a.score || a.index - b.index).slice(0, limit);
   return matched.map(({section}) => `## ${section.title}\n${section.content}`).join("\n\n");
 }
