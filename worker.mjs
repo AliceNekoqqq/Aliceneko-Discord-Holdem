@@ -95,7 +95,7 @@ export class PokerTable extends DurableObject {
     });
   }
   async dispatch(payload){
-      if(payload.op==='gatewayEnsure'){try{return json(await this.discordGateway.ensure());}catch{return json({connected:false});}}
+      if(payload.op==='gatewayEnsure'){try{return json({...await this.discordGateway.ensure(),runtime:'chat90-channel-queue-v1'});}catch{return json({connected:false,runtime:'chat90-channel-queue-v1'});}}
       if(payload.op==='liarRank'){try{await this.ctx.storage.put('liarRankGuild',payload.guild);return json(await this.liarRankings.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
@@ -271,3 +271,4 @@ export default {
   },
   async scheduled(event,env,ctx){ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-emojis')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'appEmojis'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-registration')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'register'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-discord-gateway')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayEnsure'})}));}
 };
+
