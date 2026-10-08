@@ -3,6 +3,13 @@
 This adds Gemini chat and an optional game host to the existing Discord Worker.
 The administrator-assistant feature is intentionally not included.
 
+## Failure handling (2026-10-08)
+
+- Generation retries transient HTTP failures (408/425/429/5xx), network errors, malformed JSON and empty replies at most three times after the initial request. The retry budget is shared with optional sentence continuation.
+- Default waits are 3, 6 and 12 seconds. A larger Retry-After value increases the wait, capped at 60 seconds. Permanent HTTP failures such as 401/403/404/405 and explicit blocked responses are not retried.
+- The typing indicator stays active during generation and retry waits. A successful mention sends one final reply; exhausted failures send no Gemini connection error to the channel and save no failed chat exchange. Missing API configuration also stays out of public channel replies.
+- A direct unauthenticated POST to https://gcli.ggchan.dev (without /v1/chat/completions) was tested and returned HTTP 405 Method Not Allowed. The root route is therefore not a working replacement demonstrated by this test; the existing /v1/chat/completions endpoint remains configured. This probe does not verify authenticated generation or explain Pro quota accounting.
+
 ## Features
 
 - Mention the bot in a server channel to start a chat. The bot replies in the same channel.
@@ -44,3 +51,4 @@ Chat history is not shared between members or servers. Only direct mentions of t
 Memory is stored in D1 until the member clears it. Disabling memory pauses new chat-history storage but does not remove existing history. The Worker keeps no channel transcript. Avoid sending sensitive personal data in a public Discord channel.
 
 The persistent Discord Gateway uses an outbound WebSocket in a Durable Object. Cloudflare documents that outbound WebSockets do not use the WebSocket Hibernation API; a live connection and its heartbeat work can contribute to Worker duration charges. Review usage after enabling this for a busy server.
+

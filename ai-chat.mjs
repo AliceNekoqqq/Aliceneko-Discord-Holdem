@@ -160,7 +160,17 @@ function clampReply(value,max=MAX_REPLY_CHARS) {
   return prefix.slice(0,max-1).join("").trimEnd()+"…";
 }
 
-export async function generateGemini(env, contents, context = "chat", fetcher = fetch, emojiTokens = [], knowledge = "") {
+export const GEMINI_MAX_RETRIES=3;
+const retryableStatus=status=>status===408||status===425||status===429||status>=500;
+const waitForRetry=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+
+function retryDelay(response,retry) {
+  const raw=response?.headers?.get('retry-after');
+  const hinted=raw==null?NaN:/^\d+(?:\.\d+)?$/.test(raw.trim())?Number(raw)*1000:Date.parse(raw)-Date.now();
+  return Math.min(60000,Math.max(3000*2**retry,Number.isFinite(hinted)?hinted:0));
+}
+
+export async function generateGemini(env, contents, context = "chat", fetcher = fetch, emojiTokens = [], knowledge = "", wait = waitForRetry) {
   if (!env.GEMINI_API_KEY) throw new Error("missing_gemini_key");
   const persona = clamp(personaValue([env.GEMINI_PERSONA, env.GEMINI_PERSONA_CONT].filter(value => value != null).join("")),MAX_PERSONA_CHARS);
   const model = /^[A-Za-z0-9.-]{1,80}$/.test(env.GEMINI_MODEL || "") ? env.GEMINI_MODEL : "gemini-3.8-flash";
@@ -170,41 +180,54 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
     : "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent";
   let answer="";
   let requestContents=contents;
+  // One shared failure budget for the original request and any continuation.
+  let retries=0;
   for(let attempt=0;attempt<=CHAT_CONTINUATION_LIMIT;attempt++) {
-    let response;
-    try {
-      response=await fetcher(url,{
-        method:"POST",
-        headers:openAI
-          ? {"Content-Type":"application/json",Authorization:"Bearer "+env.GEMINI_API_KEY}
-          : {"Content-Type":"application/json","x-goog-api-key":env.GEMINI_API_KEY},
-        body:JSON.stringify(openAI
-          ? buildOpenAIChatRequest(requestContents,persona,context,model,emojiTokens,knowledge)
-          : buildGenerateContentRequest(requestContents,persona,context,emojiTokens,knowledge)),
-        signal:AbortSignal.timeout(20000)
-      });
-    } catch(error) {
-      if(attempt===0) throw error;
-      break;
+    let result;
+    let failure;
+    while(true) {
+      let response;
+      try {
+        response=await fetcher(url,{
+          method:"POST",
+          headers:openAI
+            ? {"Content-Type":"application/json",Authorization:"Bearer "+env.GEMINI_API_KEY}
+            : {"Content-Type":"application/json","x-goog-api-key":env.GEMINI_API_KEY},
+          body:JSON.stringify(openAI
+            ? buildOpenAIChatRequest(requestContents,persona,context,model,emojiTokens,knowledge)
+            : buildGenerateContentRequest(requestContents,persona,context,emojiTokens,knowledge)),
+          signal:AbortSignal.timeout(20000)
+        });
+        if(!response.ok) {
+          const error=new Error("gemini_request_failed");
+          error.status=response.status;
+          error.retryable=retryableStatus(response.status);
+          throw error;
+        }
+        const data=await response.json();
+        const candidate=data?.candidates?.[0]||{};
+        result=openAI
+          ? readOpenAIChatAnswer(data||{})
+          : {answer:(candidate.content?.parts||[]).map(part=>part.text||"").join("").trim(),
+             finishReason:candidate.finishReason||""};
+        if(!result.answer) {
+          const error=new Error("gemini_empty_response");
+          error.retryable=!data?.promptFeedback?.blockReason&&!/SAFETY|RECITATION|BLOCKLIST|PROHIBITED_CONTENT|content_filter/i.test(result.finishReason);
+          throw error;
+        }
+        break;
+      } catch(error) {
+        if(error.retryable===false||retries>=GEMINI_MAX_RETRIES) {
+          failure=error;
+          break;
+        }
+        await wait(retryDelay(response,retries++));
+      }
     }
-    if(!response.ok) {
-      if(attempt===0) throw new Error("gemini_request_failed");
-      break;
-    }
-    let data;
-    try {
-      data=await response.json();
-    } catch(error) {
-      if(attempt===0) throw error;
-      break;
-    }
-    const candidate=data.candidates?.[0]||{};
-    const result=openAI
-      ? readOpenAIChatAnswer(data)
-      : {answer:(candidate.content?.parts||[]).map(part=>part.text||"").join("").trim(),
-         finishReason:candidate.finishReason||""};
-    if(!result.answer) {
-      if(attempt===0) throw new Error("gemini_empty_response");
+    if(failure) {
+      if(attempt===0) throw failure;
+      // Keep a valid first answer if its optional continuation remains unavailable.
+      if(needsReplyContinuation(answer)) answer=answer.trimEnd()+"…";
       break;
     }
     answer=appendReplyContinuation(answer,result.answer);
@@ -489,7 +512,7 @@ export async function replyToMention(env, message, botId) {
   let config = {};
 
   if (!env.GEMINI_API_KEY) {
-    await sendChannelReply(env,message,"Gemini API 还未配置。请管理员在 Cloudflare Worker 的 Secrets 中添加 GEMINI_API_KEY。");
+    console.warn("ai_reply_failed",{reason:"missing_gemini_key"});
     return true;
   }
 
@@ -526,8 +549,9 @@ export async function replyToMention(env, message, botId) {
   try {
     responseText = await generateGemini(env,history,"chat",fetch,await getBotEmojiTokens(env),getBotKnowledge(knowledgeContext));
     generated = true;
-  } catch {
-    responseText = "我这会儿没接上 Gemini，稍后再 @ 我试试。";
+  } catch(error) {
+    console.warn("ai_reply_failed",{reason:error?.name||"Error",status:error?.status,maxRetries:GEMINI_MAX_RETRIES});
+    return true;
   } finally {
     stopTyping();
   }
@@ -661,3 +685,4 @@ export async function commentOnGameTransition(env, storage, before, after) {
     return false;
   }
 }
+

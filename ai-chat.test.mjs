@@ -7,6 +7,7 @@ import {
   buildOpenAIChatRequest,
   buildGenerateContentRequest,
   generateGemini,
+  GEMINI_MAX_RETRIES,
   getBotEmojiTokens,
   handleAiCommand,
   makeSystemInstruction,
@@ -105,6 +106,97 @@ function fakeDb() {
     }
   };
 }
+
+test('Gemini retries rate limits with Retry-After and keeps the same model and prompt',async()=>{
+  const waits=[],requests=[];
+  const env={GEMINI_API_KEY:'test-key',GEMINI_API_BASE_URL:'https://example.test/v1',GEMINI_MODEL:'gemini-3.8-flash'};
+  const answer=await generateGemini(env,[{role:'user',parts:[{text:'你好'}]}],'chat',async(url,options)=>{
+    requests.push({url,body:options.body});
+    if(requests.length===1)return new Response('',{status:429,headers:{'Retry-After':'7'}});
+    if(requests.length===2)return new Response('',{status:503});
+    return Response.json({choices:[{message:{content:'你好。'}}]});
+  },[],'',async ms=>waits.push(ms));
+  assert.equal(answer,'你好。');
+  assert.deepEqual(waits,[7000,6000]);
+  assert.equal(new Set(requests.map(r=>r.body)).size,1);
+  assert.equal(JSON.parse(requests[0].body).model,'gemini-3.8-flash');
+});
+
+test('Gemini stops after exactly three retries, including network and invalid replies',async()=>{
+  const waits=[];let calls=0;
+  await assert.rejects(generateGemini({GEMINI_API_KEY:'test'},[{role:'user',parts:[{text:'你好'}]}],'chat',async()=>{
+    calls++;
+    if(calls===1)throw new TypeError('network');
+    if(calls===2)return new Response('invalid json');
+    return Response.json({candidates:[]});
+  },[],'',async ms=>waits.push(ms)),/gemini_empty_response/);
+  assert.equal(GEMINI_MAX_RETRIES,3);
+  assert.equal(calls,4);
+  assert.deepEqual(waits,[3000,6000,12000]);
+});
+
+test('permanent API errors and blocked replies are not retried',async()=>{
+  for(const response of [new Response('',{status:401}),new Response('',{status:405}),Response.json({promptFeedback:{blockReason:'SAFETY'}})]) {
+    let calls=0;
+    await assert.rejects(generateGemini({GEMINI_API_KEY:'test'},[],'chat',async()=>{calls++;return response;},[],'',async()=>assert.fail('unexpected retry')));
+    assert.equal(calls,1);
+  }
+});
+
+test('continuation requests share the three-retry failure budget',async()=>{
+  let calls=0;const waits=[];
+  const answer=await generateGemini({GEMINI_API_KEY:'test',GEMINI_API_BASE_URL:'https://example.test/v1'},[],'chat',async()=>{
+    calls++;
+    if(calls===1||calls>=3)return new Response('',{status:429});
+    return Response.json({choices:[{message:{content:'然后'},finish_reason:'length'}]});
+  },[],'',async ms=>waits.push(ms));
+  assert.equal(calls,5);
+  assert.equal(waits.length,3);
+  assert.equal(answer,'然后…');
+});
+
+test('failed mentions remain silent, stop typing and never save failed conversations',async t=>{
+  const db=fakeDb();let stopped=0;const replies=[];
+  t.mock.method(globalThis,'setTimeout',callback=>{queueMicrotask(callback);return 0;});
+  t.mock.method(globalThis,'setInterval',()=>123);
+  t.mock.method(globalThis,'clearInterval',()=>{stopped++;});
+  t.mock.method(console,'warn',()=>{});
+  let calls=0;
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    if(url.includes('generativelanguage')){calls++;return new Response('',{status:429});}
+    if(url.endsWith('/messages'))replies.push(JSON.parse(options.body));
+    return new Response('{}');
+  });
+  const env={BOT_TOKEN:'test',GEMINI_API_KEY:'test',CHAT_DB:db};
+  const message={id:'failed-message',guild_id:'g',channel_id:'c',author:{id:'u'},content:'<@bot> 你好'};
+  assert.equal(await replyToMention(env,message,'bot'),true);
+  assert.equal(calls,4);
+  assert.equal(replies.length,0);
+  assert.equal(stopped,1);
+  assert.equal(db.state.history.length,0);
+  assert.equal(db.state.channelHistory.length,0);
+  await replyToMention(env,message,'bot');
+  assert.equal(calls,4);
+});
+
+test('a mention replies once after recovery and saves only the valid answer',async t=>{
+  const db=fakeDb(),replies=[];let calls=0;
+  t.mock.method(globalThis,'setTimeout',callback=>{queueMicrotask(callback);return 0;});
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    if(url.includes('generativelanguage')){
+      calls++;
+      return calls<3?new Response('',{status:429}):Response.json({candidates:[{content:{parts:[{text:'终于等到你啦。'}]}}]});
+    }
+    if(url.endsWith('/messages'))replies.push(JSON.parse(options.body));
+    return new Response('{}');
+  });
+  await replyToMention({BOT_TOKEN:'test',GEMINI_API_KEY:'test',CHAT_DB:db},{id:'recovered',guild_id:'g',channel_id:'c',author:{id:'u'},content:'<@bot> 你好'},'bot');
+  assert.equal(calls,3);
+  assert.equal(replies.length,1);
+  assert.equal(replies[0].content,'终于等到你啦。');
+  assert.equal(db.state.history.length,2);
+  assert.equal(db.state.history[1].content,'终于等到你啦。');
+});
 
 test("Gemini requests disable request storage and keep the key out of the URL", async () => {
   const body = buildGenerateContentRequest([{role:"user",parts:[{text:"你好"}]}],"爱讲冷笑话");
@@ -495,10 +587,10 @@ test("Gateway replies to direct mentions and ignores ordinary guild messages", a
   const sent=[];
   t.mock.method(globalThis,"fetch",async (url,options)=> {
     sent.push({url,body:JSON.parse(options.body)});
-    return new Response("{}",{status:200});
+    return url.includes('generativelanguage')?Response.json({candidates:[{content:{parts:[{text:'你好。'}]}}]}):new Response("{}",{status:200});
   });
   const tasks=[];
-  const host={env:{BOT_TOKEN:"test-token"},ctx:{storage:{async put(){},async get(){return null;},async delete(){}},waitUntil(p){tasks.push(p);}}};
+  const host={env:{BOT_TOKEN:"test-token",GEMINI_API_KEY:"test-key"},ctx:{storage:{async put(){},async get(){return null;},async delete(){}},waitUntil(p){tasks.push(p);}}};
   const gateway=new DiscordGateway(host);
   gateway.botId="bot-1";
   gateway.onGuildMessage({id:"m1",guild_id:"g",channel_id:"c",author:{id:"u"},content:"hi"});
@@ -506,10 +598,11 @@ test("Gateway replies to direct mentions and ignores ordinary guild messages", a
   gateway.onGuildMessage({id:"m2",guild_id:"g",channel_id:"c",author:{id:"u"},content:"<@bot-1> 你好",mentions:[{id:"bot-1"}]});
   assert.equal(tasks.length,1);
   await Promise.all(tasks);
-  assert.equal(sent.length,1);
-  assert.equal(sent[0].url,"https://discord.com/api/v10/channels/c/messages");
-  assert.deepEqual(sent[0].body.allowed_mentions,{parse:[]});
-  assert.equal(sent[0].body.message_reference.message_id,"m2");
+  const replies=sent.filter(item=>item.url.endsWith('/messages'));
+  assert.equal(replies.length,1);
+  assert.equal(replies[0].url,"https://discord.com/api/v10/channels/c/messages");
+  assert.deepEqual(replies[0].body.allowed_mentions,{parse:[]});
+  assert.equal(replies[0].body.message_reference.message_id,"m2");
 });
 
 test("Gateway identifies with only non-privileged guild and message intents", async t => {
@@ -687,3 +780,4 @@ test("recent chat context resolves follow-up questions about the current game", 
   assert.match(prompt,/2～10 人|2–10 人/);
   assert.match(prompt,/电脑陪练/);
 });
+
