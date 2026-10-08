@@ -20,6 +20,34 @@ import {
 } from "./ai-chat.mjs";
 import { DiscordGateway } from "./discord-gateway.mjs";
 
+test('chat waits 90 seconds on every attempt for text and images', async () => {
+  const originalTimeout = AbortSignal.timeout;
+  const deadlines = new WeakMap();
+  AbortSignal.timeout = milliseconds => {
+    const signal = new AbortController().signal;
+    deadlines.set(signal, milliseconds);
+    return signal;
+  };
+  try {
+    for (const image of [false, true]) {
+      let attempts = 0;
+      const parts = image ? [{inlineData:{mimeType:'image/png',data:'iVBORw=='}}] : [{text:'你好'}];
+      await generateGemini({GEMINI_API_KEY:'test',AI_REQUEST_LOG_ENABLED:'false'}, [{role:'user',parts}], 'chat', async (_url, options) => {
+        assert.equal(deadlines.get(options.signal), 90000);
+        if (++attempts === 1) throw new DOMException('slow upstream', 'TimeoutError');
+        return Response.json({candidates:[{content:{parts:[{text:'完成。'}]}}]});
+      }, [], '', async () => {});
+      assert.equal(attempts, 2);
+    }
+    await generateGemini({GEMINI_API_KEY:'test',AI_REQUEST_LOG_ENABLED:'false'}, [{role:'user',parts:[{text:'开局'}]}], 'game', async (_url, options) => {
+      assert.equal(deadlines.get(options.signal), 20000);
+      return Response.json({candidates:[{content:{parts:[{text:'开局了。'}]}}]});
+    });
+  } finally {
+    AbortSignal.timeout = originalTimeout;
+  }
+});
+
 test("split cloud persona reaches chat and game requests without a seam or truncation", async () => {
   const persona = "人设内容。\n".repeat(500);
   const env = {GEMINI_API_KEY:"test-key",GEMINI_API_BASE_URL:"https://example.test/v1",GEMINI_MODEL:"gemini-3.8-flash",GEMINI_PERSONA:persona.slice(0,1500),GEMINI_PERSONA_CONT:persona.slice(1500)};
