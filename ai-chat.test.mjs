@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
+import {BOT_KNOWLEDGE_MARKDOWN, getBotKnowledge} from "./bot-knowledge.mjs";
 import {
   aiCommand,
   buildOpenAIChatRequest,
@@ -109,6 +111,31 @@ test("system instruction protects private cards and excludes admin assistance", 
   assert.match(prompt,/不要充当管理员助手/);
   assert.match(prompt,/以红豆粉的身份自然聊天/);
   assert.match(prompt,/活泼/);
+});
+
+test("bot knowledge retrieval adds relevant authoritative facts only", () => {
+  const unoKnowledge=getBotKnowledge("UNO 的 +2 可以叠 +4 吗？");
+  assert.match(unoKnowledge,/默认混合叠加：\+2 可接 \+2 或 \+4/);
+  assert.doesNotMatch(unoKnowledge,/小盲 10/);
+  const chatPrompt=makeSystemInstruction("红豆粉","chat",[],unoKnowledge);
+  assert.match(chatPrompt,/机器人功能索引/);
+  assert.match(chatPrompt,/权威知识条目/);
+  assert.match(chatPrompt,/正常回复末尾不要自动添加记忆说明/);
+  assert.doesNotMatch(makeSystemInstruction("红豆粉","game",[],unoKnowledge),/默认混合叠加/);
+  assert.match(chatPrompt,/没有自然语言管理员助手/);
+  for (const [question, expected] of [
+    ["德州扑克小盲和边池怎么算", "德州扑克"],
+    ["抽鬼牌输了会改名多久", "抽鬼牌"],
+    ["怎么关闭我的聊天记忆", "对话记忆"],
+    ["怎么开游戏主持", "AI 游戏主持"],
+    ["UNO头像能用机器人上传的表情吗", "个人座位设置"],
+    ["UNO排行榜第一名能领身份组吗", "排行榜"]
+  ]) assert.match(getBotKnowledge(question),new RegExp(expected));
+});
+
+test("published knowledge document is generated from the Worker knowledge source", async () => {
+  const document=await readFile(new URL("./BOT_KNOWLEDGE.md",import.meta.url),"utf8");
+  assert.equal(document,BOT_KNOWLEDGE_MARKDOWN);
 });
 
 test("AI command exposes only member memory and game-host controls", () => {
@@ -282,4 +309,22 @@ test("chat memory is scoped to one member and stores only successful direct chat
   assert.equal(db.state.history.length,before);
   const secondRequest=JSON.parse(calls[2].options.body);
   assert.equal(secondRequest.contents.length,1);
+});
+
+test("direct chats receive only the feature knowledge relevant to the question", async t => {
+  const calls=[];
+  t.mock.method(globalThis,"fetch",async (url,options) => {
+    calls.push({url,options});
+    if(String(url).startsWith("https://generativelanguage.googleapis.com/")) {
+      return Response.json({candidates:[{content:{parts:[{text:"可以呀。"}]}}]});
+    }
+    return new Response("{}",{status:200});
+  });
+  await replyToMention({BOT_TOKEN:"test",GEMINI_API_KEY:"test"},{
+    id:"uno-question",guild_id:"g1",channel_id:"c1",author:{id:"u1"},content:"<@bot-1> UNO 的 +2 可以叠 +4 吗？"
+  },"bot-1");
+  const request=JSON.parse(calls[0].options.body);
+  assert.match(request.systemInstruction.parts[0].text,/默认混合叠加：\+2 可接 \+2 或 \+4/);
+  assert.doesNotMatch(request.systemInstruction.parts[0].text,/起始虚拟筹码 2,000/);
+  assert.equal(JSON.parse(calls[1].options.body).content,"可以呀。");
 });
