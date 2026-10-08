@@ -266,7 +266,8 @@ test("chat memory is scoped to one member and stores only successful direct chat
   assert.equal(db.state.history[0].guild_id,"g1");
   assert.equal(db.state.history[0].user_id,"u1");
   assert.equal(db.state.history[0].content,"我喜欢蓝色");
-  assert.match(calls[1].options.body,/最近 30 条/);
+  assert.equal(JSON.parse(calls[1].options.body).content,"嗨，记住啦。");
+  assert.doesNotMatch(calls[1].options.body,/会保存最近 30 条/);
   const request=JSON.parse(calls[0].options.body);
   assert.equal(request.contents.at(-1).parts[0].text,"我喜欢蓝色");
   assert.match(request.systemInstruction.parts[0].text,/# 红豆粉｜完整人设\n姓名：红豆粉/);

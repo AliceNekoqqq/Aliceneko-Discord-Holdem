@@ -257,7 +257,6 @@ export async function replyToMention(env, message, botId) {
   const userId = String(message.author?.id || "");
   const content = clamp(textValue(textValue(message.content).replace(new RegExp("<@!?" + botId + ">","g")," ")),MAX_USER_CHARS);
   let memoryOn = true;
-  let firstUse = false;
   let history = [];
   let config = {};
 
@@ -274,13 +273,11 @@ export async function replyToMention(env, message, botId) {
       await db.prepare("DELETE FROM ai_processed_messages WHERE created_at < ?").bind(Date.now()-7*86400000).run();
       const setting = await memberSetting(db,guildId,userId);
       memoryOn = setting?.memory_enabled !== 0;
-      firstUse = memoryOn && !setting;
       config = await guildConfig(db,guildId);
       if (memoryOn) history = await getHistory(db,guildId,userId);
     } catch {
       db = null;
       memoryOn = false;
-      firstUse = false;
       config = {};
       history = [];
     }
@@ -295,10 +292,7 @@ export async function replyToMention(env, message, botId) {
   } catch {
     responseText = "我这会儿没接上 Gemini，稍后再 @ 我试试。";
   }
-  const deliveredText = firstUse && generated
-    ? responseText + "\n\n会保存最近 30 条 @ 对话；消息 ID 留 7 天用于防重复回复。可用 /ai 记忆 关闭 或 清除管理。"
-    : responseText;
-  await sendChannelReply(env,message,deliveredText);
+  await sendChannelReply(env,message,responseText);
 
   if (db && memoryOn && generated) {
     const now = Date.now();

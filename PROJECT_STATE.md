@@ -222,3 +222,11 @@
 - 聊天和公开游戏解说读取现有机器人应用表情缓存，最多向模型提供 80 个校验过的真实 Discord 标记，避免编造名称或 ID。已有表情目录、缓存 Durable Object 和权限配置均复用。
 - 12 项 AI/Gateway 专项测试通过，覆盖多人设换行、超千字文本、表情标记、命令移除、私密内容与记忆隔离。
 - Cloudflare beta.22 上传返回 HTTP 200；29 个 Worker 模块、GEMINI_API_BASE_URL、gemini-3.8-flash、GEMINI_API_KEY 与 BOT_TOKEN Secret、CHAT_DB、TABLES namespace 和每分钟 Cron 均核验保留。线上变量全文与用户提供的人设匹配。
+
+
+## beta.23 · 移除首轮回复后的记忆说明尾注（2026-10-08）
+
+- 用户反馈首次 @ 机器人后，角色回复会被自动拼接一段关于“最近 30 条对话”的说明。已移除这段首轮尾注；频道现在只发送 Gemini 生成的回复。
+- 不改变记忆设置：按服务器和成员隔离、最多保存最近 30 条；仍可通过 /ai 记忆 查看、关闭或清除。
+- 12 项 AI/Gateway 专项测试通过，新增断言确认首轮回复不会再附加记忆说明。
+- Cloudflare hotfix 上传返回 HTTP 200；线上 29 个模块、红豆粉云端人设、Gemini 地址/模型、两个 Secret、D1、Durable Object 和每分钟 Cron 均保留。线上聊天模块确认不再拼接尾注。
