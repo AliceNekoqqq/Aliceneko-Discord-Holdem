@@ -1,4 +1,4 @@
-# Gemini AI
+# Gemini AI · beta.21
 
 This adds Gemini chat and an optional game host to the existing Discord Worker.
 The administrator-assistant feature is intentionally not included.
@@ -6,7 +6,7 @@ The administrator-assistant feature is intentionally not included.
 ## Features
 
 - Mention the bot in a server channel to start a chat. The bot replies in the same channel.
-- The server can set a shared speaking style with /ai 人格 设置, inspect it with /ai 人格 查看, and restore the default with /ai 人格 重置. These controls require Manage Server permission.
+- The shared AI personality is configured in the Cloudflare Worker variable `GEMINI_PERSONA` (up to 1000 characters). `/ai 人格 查看` is read-only and displays the current cloud value; Discord no longer has a personality editing command.
 - Personal memory is scoped to one Discord server and one member. It records only messages that directly mention the bot, with the most recent 30 user/model messages retained.
 - Use /ai 记忆 关闭 to stop saving chat text, /ai 记忆 开启 to resume, /ai 记忆 清除 to delete saved chat text, and /ai 记忆 查看 to see the current setting. Disabling memory does not delete existing chat text; use 清除 for that.
 - Short lived message IDs are kept for up to seven days to prevent duplicate replies after a Gateway reconnect. They do not include message text.
@@ -24,8 +24,11 @@ Do not put the key in wrangler.jsonc, a plain text Worker variable, or GitHub. T
 
     GEMINI_API_BASE_URL=https://gcli.ggchan.dev/v1
     GEMINI_MODEL=gemini-3.8-flash
+    GEMINI_PERSONA=轻松、友善、机灵，像熟悉桌游的群友；自然使用少量 emoji。
 
 The Worker sends requests to `/chat/completions` under that base URL, using `Authorization: Bearer` and the OpenAI chat message format. Without `GEMINI_API_BASE_URL`, it uses Google's native Gemini GenerateContent endpoint. The configured gateway receives chat messages and the selected model name.
+
+Edit `GEMINI_PERSONA` in Cloudflare Dashboard under **Workers & Pages → discord-holdem → Settings → Variables and Secrets**. The shared persona is injected into both chat and game commentary. The previous D1 persona field is no longer used.
 
 The D1 database binding is named CHAT_DB. If preparing another environment, create the database and run:
 

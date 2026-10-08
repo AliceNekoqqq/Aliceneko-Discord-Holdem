@@ -1,6 +1,6 @@
 # 项目状态
 
-- 当前版本：v1.0.1-beta.20，德州扑克、UNO、1v1 抽鬼牌与 Gemini 对话测试版。
+- 当前版本：v1.0.1-beta.21，德州扑克、UNO、1v1 抽鬼牌与 Gemini 对话测试版。
 - Worker 名称：discord-holdem；公开品牌：Aliceneko。
 - 已实现规则、私密手牌、按钮/加注 modal、边池分池、超时告警处理、命令自动注册。
 - 当前 105 项测试通过，包含 500 局 UNO、300 局随机德扑和 200 局电脑陪练；最新界面改造需要真人 Discord 客户端反馈。
@@ -204,3 +204,11 @@
 - 昵称惩罚依赖bot的管理昵称权限和角色层级，鬼王授予依赖管理身份组权限；权限不足时会返回明确失败提示。Gemini Secret是否配置不影响抽鬼牌功能。
 
 - 2026-10-08 新增 OpenAI 兼容网关适配；GEMINI_API_BASE_URL 指向 ggchan.dev，GEMINI_MODEL 设置为 gemini-3.8-flash。保留原生 Gemini 接口回退，不包含管理员助手。
+
+
+## beta.21 · 云端人格配置（2026-10-08）
+
+- AI 共享人格改由 Cloudflare Worker 变量 GEMINI_PERSONA 管理，聊天与游戏解说共用；/ai 人格 仅保留查看，不再提供 Discord 编辑入口。
+- 设置默认人格为“轻松、友善、机灵，像熟悉桌游的群友；自然使用少量 emoji。”，可在 Cloudflare Dashboard 的 Workers & Pages → discord-holdem → Settings → Variables and Secrets 修改，最多 1000 字。
+- 更新 AI 斜杠命令版本至 games-v1.0.1-beta.21，Cron 会自动同步只读的人格查看命令。
+- 11 项 AI/Gateway 专项测试通过；管理员助手仍排除。

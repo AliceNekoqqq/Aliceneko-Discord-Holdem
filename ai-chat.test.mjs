@@ -55,9 +55,9 @@ test("Gemini requests disable request storage and keep the key out of the URL", 
   assert.equal(body.store,false);
   assert.equal(body.contents[0].role,"user");
   assert.match(body.systemInstruction.parts[0].text,/爱讲冷笑话/);
-  const env = {GEMINI_API_KEY:"test-secret",GEMINI_MODEL:"gemini-3.8-flash"};
+  const env = {GEMINI_API_KEY:"test-secret",GEMINI_MODEL:"gemini-3.8-flash",GEMINI_PERSONA:"爱讲冷笑话"};
   let captured;
-  const answer = await generateGemini(env,body.contents,"","chat",async (url,options) => {
+  const answer = await generateGemini(env,body.contents,"chat",async (url,options) => {
     captured={url,options};
     return Response.json({candidates:[{content:{parts:[{text:"你好呀"}]}}]});
   });
@@ -82,10 +82,11 @@ test("custom Gemini gateway uses OpenAI chat completions with memory and persona
   const env = {
     GEMINI_API_KEY:"test-secret",
     GEMINI_API_BASE_URL:"https://gcli.ggchan.dev/v1/",
-    GEMINI_MODEL:"gemini-3.8-flash"
+    GEMINI_MODEL:"gemini-3.8-flash",
+    GEMINI_PERSONA:"爱讲冷笑话"
   };
   let captured;
-  const answer = await generateGemini(env,history,"爱讲冷笑话","chat",async (url,options) => {
+  const answer = await generateGemini(env,history,"chat",async (url,options) => {
     captured={url,options};
     return Response.json({choices:[{message:{content:"接着聊"}}]});
   });
@@ -95,6 +96,7 @@ test("custom Gemini gateway uses OpenAI chat completions with memory and persona
   const request = JSON.parse(captured.options.body);
   assert.equal(request.model,"gemini-3.8-flash");
   assert.equal(request.messages.length,4);
+  assert.match(request.messages[0].content,/爱讲冷笑话/);
   assert.equal(request.messages[2].role,"assistant");
   assert.equal(request.messages[2].content,"上一轮回复");
   assert.equal(captured.url.includes("test-secret"),false);
@@ -111,6 +113,8 @@ test("AI command exposes member memory, persona and game-host controls only", ()
   const groups = aiCommand.options.map(group=>group.name);
   assert.deepEqual(groups,["记忆","人格","主持"]);
   assert.equal(groups.includes("管理员助手"),false);
+  const personaGroup=aiCommand.options.find(group=>group.name==="人格");
+  assert.deepEqual(personaGroup.options.map(option=>option.name),["查看"]);
 });
 
 test("memory off control changes only the calling member setting", async () => {
@@ -130,9 +134,20 @@ test("persona and game-host controls require server-management permission", asyn
   const reply=await handleAiCommand({CHAT_DB:db},{
     guild_id:"guild-1",
     member:{user:{id:"user-1"},permissions:"0"},
-    data:{options:[{name:"人格",options:[{name:"设置",options:[{name:"描述",value:"冷淡"}]}]}]}
+    data:{options:[{name:"人格",options:[{name:"查看"}]}]}
   });
   assert.match(reply.data.content,/管理服务器/);
+  assert.equal(db.state.persona,"");
+});
+
+test("shared persona is read from the Cloudflare variable and cannot be edited in Discord", async () => {
+  const db=fakeDb();
+  const reply=await handleAiCommand({CHAT_DB:db,GEMINI_PERSONA:"活泼、温柔、爱桌游"},{
+    guild_id:"guild-1",
+    member:{user:{id:"user-1"},permissions:"40"},
+    data:{options:[{name:"人格",options:[{name:"查看"}]}]}
+  });
+  assert.match(reply.data.content,/活泼、温柔、爱桌游/);
   assert.equal(db.state.persona,"");
 });
 

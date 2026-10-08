@@ -5,7 +5,8 @@
   "keep_vars": true,
   "vars": {
     "GEMINI_API_BASE_URL": "https://gcli.ggchan.dev/v1",
-    "GEMINI_MODEL": "gemini-3.8-flash"
+    "GEMINI_MODEL": "gemini-3.8-flash",
+    "GEMINI_PERSONA": "轻松、友善、机灵，像熟悉桌游的群友；自然使用少量 emoji。"
   },
   "durable_objects": {"bindings": [{"name": "TABLES", "class_name": "PokerTable"}]},
   "d1_databases": [{"binding": "CHAT_DB", "database_name": "aliceneko-ai", "database_id": "b9327b3d-b549-4c48-b221-689c5f4aa3a9"}],

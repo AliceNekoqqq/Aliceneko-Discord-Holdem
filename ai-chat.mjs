@@ -10,7 +10,6 @@ const manageGuild = member => {
 };
 const guildIdOf = i => i.guild_id || i.guild?.id || "";
 const userIdOf = i => i.member?.user?.id || i.user?.id || "";
-const option = (options, name) => (options || []).find(item => item.name === name);
 const textValue = value => String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim();
 const clamp = (value, max) => Array.from(String(value || "")).slice(0, max).join("");
 
@@ -27,10 +26,8 @@ export const aiCommand = {
       {type:1,name:"关闭",description:"停止保存之后的对话"},
       {type:1,name:"清除",description:"删除本服务器保存的个人对话"}
     ]},
-    {type:2,name:"人格",description:"设置服务器内 AI 的说话风格",options:[
-      {type:1,name:"设置",description:"设置 AI 人格描述",options:[{type:3,name:"描述",description:"性格、语气、说话风格，最多 1000 字",required:true,max_length:1000}]},
-      {type:1,name:"查看",description:"查看当前服务器人格"},
-      {type:1,name:"重置",description:"恢复默认人格"}
+    {type:2,name:"人格",description:"查看云端 AI 的说话风格",options:[
+      {type:1,name:"查看",description:"查看 Cloudflare Worker 的共享人格"}
     ]},
     {type:2,name:"主持",description:"控制游戏解说与 AI 主持",options:[
       {type:1,name:"开启",description:"开启本服务器游戏解说"},
@@ -100,8 +97,9 @@ function readOpenAIChatAnswer(data) {
   return "";
 }
 
-export async function generateGemini(env, contents, persona = "", context = "chat", fetcher = fetch) {
+export async function generateGemini(env, contents, context = "chat", fetcher = fetch) {
   if (!env.GEMINI_API_KEY) throw new Error("missing_gemini_key");
+  const persona = textValue(env.GEMINI_PERSONA).slice(0,MAX_PERSONA_CHARS);
   const model = /^[A-Za-z0-9.-]{1,80}$/.test(env.GEMINI_MODEL || "") ? env.GEMINI_MODEL : "gemini-3.8-flash";
   if (env.GEMINI_API_BASE_URL) {
     const response = await fetcher(openAIChatEndpoint(env.GEMINI_API_BASE_URL),{
@@ -130,15 +128,9 @@ export async function generateGemini(env, contents, persona = "", context = "cha
 }
 
 async function guildConfig(db, guildId) {
-  if (!db) return {persona:"",game_host:0};
-  return await db.prepare("SELECT persona, game_host FROM ai_guild_config WHERE guild_id = ?")
-    .bind(guildId).first() || {persona:"",game_host:0};
-}
-
-async function setGuildPersona(db, guildId, persona) {
-  await db.prepare("INSERT INTO ai_guild_config (guild_id, persona, updated_at) VALUES (?, ?, ?) " +
-    "ON CONFLICT(guild_id) DO UPDATE SET persona = excluded.persona, updated_at = excluded.updated_at")
-    .bind(guildId,persona,Date.now()).run();
+  if (!db) return {game_host:0};
+  return await db.prepare("SELECT game_host FROM ai_guild_config WHERE guild_id = ?")
+    .bind(guildId).first() || {game_host:0};
 }
 
 async function setGuildHost(db, guildId, enabled) {
@@ -190,25 +182,12 @@ export async function handleAiCommand(env, interaction) {
     return privateReply("使用 /ai 记忆 查看、开启、关闭 或 清除。");
   }
 
-  if (!manageGuild(interaction.member)) return privateReply("人格和游戏主持设置需要「管理服务器」权限。");
+  if (!manageGuild(interaction.member)) return privateReply("查看云端人格和设置游戏主持需要「管理服务器」权限。");
   if (group.name === "人格") {
-    if (action.name === "查看") {
-      const config = await guildConfig(db,guildId);
-      return privateReply(config.persona
-        ? "当前 AI 人格：\n" + clamp(config.persona,MAX_PERSONA_CHARS)
-        : "当前使用默认人格：轻松、友善、机灵，像熟悉桌游的群友。");
-    }
-    if (action.name === "重置") {
-      await setGuildPersona(db,guildId,"");
-      return privateReply("已恢复默认 AI 人格。");
-    }
-    if (action.name === "设置") {
-      const value = clamp(textValue(option(action.options,"描述")?.value),MAX_PERSONA_CHARS);
-      if (!value) return privateReply("人格描述不能为空；需要恢复默认时使用 /ai 人格 重置。");
-      await setGuildPersona(db,guildId,value);
-      return privateReply("已保存本服务器的 AI 人格。");
-    }
-    return privateReply("使用 /ai 人格 设置、查看 或 重置。");
+    const persona = textValue(env.GEMINI_PERSONA).slice(0,MAX_PERSONA_CHARS);
+    return privateReply(persona
+      ? "当前云端 AI 人格：\n" + persona
+      : "当前使用默认人格：轻松、友善、机灵，像熟悉桌游的群友。可在 Cloudflare Worker Variables 中设置 GEMINI_PERSONA。");
   }
 
   if (group.name === "主持") {
@@ -261,7 +240,7 @@ export async function replyToMention(env, message, botId) {
   let memoryOn = true;
   let firstUse = false;
   let history = [];
-  let config = {persona:""};
+  let config = {};
 
   if (!env.GEMINI_API_KEY) {
     await sendChannelReply(env,message,"Gemini API 还未配置。请管理员在 Cloudflare Worker 的 Secrets 中添加 GEMINI_API_KEY。");
@@ -283,7 +262,7 @@ export async function replyToMention(env, message, botId) {
       db = null;
       memoryOn = false;
       firstUse = false;
-      config = {persona:""};
+      config = {};
       history = [];
     }
   }
@@ -292,7 +271,7 @@ export async function replyToMention(env, message, botId) {
   let responseText;
   let generated = false;
   try {
-    responseText = await generateGemini(env,history,config.persona || "");
+    responseText = await generateGemini(env,history);
     generated = true;
   } catch {
     responseText = "我这会儿没接上 Gemini，稍后再 @ 我试试。";
@@ -391,7 +370,7 @@ export async function commentOnGameTransition(env, storage, before, after) {
 
   let line;
   try {
-    line = await generateGemini(env,[{role:"user",parts:[{text:event.text}]}],config.persona || "","game");
+    line = await generateGemini(env,[{role:"user",parts:[{text:event.text}]}],"game");
     await fetch("https://discord.com/api/v10/channels/" + after.channel + "/messages",{
       method:"POST",
       headers:{Authorization:"Bot " + env.BOT_TOKEN,"Content-Type":"application/json"},
