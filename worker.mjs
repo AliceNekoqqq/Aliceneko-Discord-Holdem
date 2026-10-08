@@ -4,7 +4,7 @@ import {command as liarCommand} from './liar-ui.mjs';
 import {GhostController} from './ghost-controller.mjs';
 import {GhostService,specialInteraction,finishSpecial} from './ghost-service.mjs';
 import {command as ghostCommand} from './ghost-ui.mjs';
-import {aiCommand,handleAiCommand,commentOnGameTransition} from './ai-chat.mjs';
+import {aiCommand,handleAiCommand,commentOnGameTransition,generateGemini} from './ai-chat.mjs';
 import {DiscordGateway} from './discord-gateway.mjs';
 import {AppEmojis} from './app-emojis.mjs';
 import { profileInteraction, finishProfile } from './uno-profile.mjs';
@@ -96,6 +96,13 @@ export class PokerTable extends DurableObject {
   }
   async dispatch(payload){
       if(payload.op==='gatewayEnsure'){try{return json({...await this.discordGateway.ensure(),runtime:'chat90-channel-queue-v1'});}catch{return json({connected:false,runtime:'chat90-channel-queue-v1'});}}
+      if(payload.op==='aiProbe'){
+        const started=Date.now();
+        try{
+          const answer=await generateGemini({...this.env,AI_REQUEST_LOG_ENABLED:'false'},[{role:'user',parts:[{text:'这是一条连通性测试。只回复：测试成功。'}]}],'chat',async(...args)=>{try{return await fetch(...args);}catch(error){error.retryable=false;throw error;}},[],'',async()=>{throw Error('diagnostic_no_retry');});
+          return json({ok:Boolean(answer),durationMs:Date.now()-started,replyChars:Array.from(answer).length,timeoutMs:90000});
+        }catch(error){return json({ok:false,durationMs:Date.now()-started,reason:error.message,status:error.status,timeoutMs:90000});}
+      }
       if(payload.op==='liarRank'){try{await this.ctx.storage.put('liarRankGuild',payload.guild);return json(await this.liarRankings.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
