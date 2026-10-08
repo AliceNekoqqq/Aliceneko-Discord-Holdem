@@ -1,5 +1,5 @@
 export const CHAT_MEMORY_LIMIT = 30;
-export const MAX_PERSONA_CHARS = 1000;
+export const MAX_PERSONA_CHARS = 5000;
 export const MAX_USER_CHARS = 1800;
 export const MAX_REPLY_CHARS = 1700;
 
@@ -12,6 +12,7 @@ const guildIdOf = i => i.guild_id || i.guild?.id || "";
 const userIdOf = i => i.member?.user?.id || i.user?.id || "";
 const textValue = value => String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim();
 const clamp = (value, max) => Array.from(String(value || "")).slice(0, max).join("");
+const personaValue = value => String(value || "").replace(/\r\n?/g,"\n").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g,"").trim();
 
 export const aiCommand = {
   name:"ai",
@@ -26,9 +27,6 @@ export const aiCommand = {
       {type:1,name:"关闭",description:"停止保存之后的对话"},
       {type:1,name:"清除",description:"删除本服务器保存的个人对话"}
     ]},
-    {type:2,name:"人格",description:"查看云端 AI 的说话风格",options:[
-      {type:1,name:"查看",description:"查看 Cloudflare Worker 的共享人格"}
-    ]},
     {type:2,name:"主持",description:"控制游戏解说与 AI 主持",options:[
       {type:1,name:"开启",description:"开启本服务器游戏解说"},
       {type:1,name:"关闭",description:"关闭本服务器游戏解说"},
@@ -37,17 +35,20 @@ export const aiCommand = {
   ]
 };
 
-export function makeSystemInstruction(persona = "", context = "chat") {
-  const style = textValue(persona).slice(0, MAX_PERSONA_CHARS) ||
+export function makeSystemInstruction(persona = "", context = "chat", emojiTokens = []) {
+  const style = clamp(personaValue(persona),MAX_PERSONA_CHARS) ||
     "轻松、友善、机灵，像熟悉桌游的群友；自然使用少量 emoji。";
   const base = [
-    "你是 Aliceneko Discord 服务器里的 Gemini 对话机器人。",
+    "你是红豆粉小酒馆的店主红豆粉，在 Discord 里以红豆粉的身份自然聊天。",
     "默认用简体中文，回答简洁、友善、有帮助；不要主动 ping 用户、角色或全体成员。",
     "你没有服务器管理工具，不得声称能读取成员资料、服务器状态或执行管理操作；不要充当管理员助手。",
     "你不能看到任何玩家的私密手牌、牌堆、私密面板或未公开内容；绝不推断或编造这些信息。",
-    "服务器管理员设置的人格只影响表达风格，不改变以上边界。",
-    "本服务器人格描述： " + style
+    "不要每次回复都复述人设；外观、服饰和背景仅在相关话题中自然提及。",
+    "红豆粉人设只影响表达与角色扮演，不改变以上安全和权限边界。",
+    "云端共享人格设定：\n" + style
   ];
+  const validEmojiTokens=(Array.isArray(emojiTokens)?emojiTokens:[]).filter(token=>/^<a?:[\p{L}\p{N}_]{2,32}:\d{1,20}>$/u.test(token)).slice(0,80);
+  if(validEmojiTokens.length) base.push("你可以在合适时自然使用以下机器人已上传的自定义表情。必须原样输出完整标记，不要改名、伪造 ID 或每句都加： " + validEmojiTokens.join(" "));
   if (context === "game") {
     base.push("你正在为游戏做公开解说。只根据给出的公开事件写一句简短、有气氛的评论，不重复整段状态，不给出未提供的事实或胜率判断。");
   } else {
@@ -56,17 +57,17 @@ export function makeSystemInstruction(persona = "", context = "chat") {
   return base.join("\n");
 }
 
-export function buildGenerateContentRequest(contents, persona = "", context = "chat") {
+export function buildGenerateContentRequest(contents, persona = "", context = "chat", emojiTokens = []) {
   return {
-    systemInstruction:{parts:[{text:makeSystemInstruction(persona, context)}]},
+    systemInstruction:{parts:[{text:makeSystemInstruction(persona, context, emojiTokens)}]},
     contents,
     generationConfig:{temperature:context === "game" ? 0.85 : 0.7,maxOutputTokens:context === "game" ? 120 : 640},
     store:false
   };
 }
 
-export function buildOpenAIChatRequest(contents, persona = "", context = "chat", model = "gemini-3.8-flash") {
-  const messages = [{role:"system",content:makeSystemInstruction(persona,context)}];
+export function buildOpenAIChatRequest(contents, persona = "", context = "chat", model = "gemini-3.8-flash", emojiTokens = []) {
+  const messages = [{role:"system",content:makeSystemInstruction(persona,context,emojiTokens)}];
   for (const item of contents || []) {
     const content = (item.parts || []).map(part => part.text || "").join("");
     if (content) messages.push({role:item.role === "model" ? "assistant" : "user",content});
@@ -97,15 +98,15 @@ function readOpenAIChatAnswer(data) {
   return "";
 }
 
-export async function generateGemini(env, contents, context = "chat", fetcher = fetch) {
+export async function generateGemini(env, contents, context = "chat", fetcher = fetch, emojiTokens = []) {
   if (!env.GEMINI_API_KEY) throw new Error("missing_gemini_key");
-  const persona = textValue(env.GEMINI_PERSONA).slice(0,MAX_PERSONA_CHARS);
+  const persona = clamp(personaValue(env.GEMINI_PERSONA),MAX_PERSONA_CHARS);
   const model = /^[A-Za-z0-9.-]{1,80}$/.test(env.GEMINI_MODEL || "") ? env.GEMINI_MODEL : "gemini-3.8-flash";
   if (env.GEMINI_API_BASE_URL) {
     const response = await fetcher(openAIChatEndpoint(env.GEMINI_API_BASE_URL),{
       method:"POST",
       headers:{"Content-Type":"application/json",Authorization:"Bearer " + env.GEMINI_API_KEY},
-      body:JSON.stringify(buildOpenAIChatRequest(contents,persona,context,model)),
+      body:JSON.stringify(buildOpenAIChatRequest(contents,persona,context,model,emojiTokens)),
       signal:AbortSignal.timeout(20000)
     });
     if (!response.ok) throw new Error("gemini_request_failed");
@@ -117,7 +118,7 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
   const response = await fetcher(url,{
     method:"POST",
     headers:{"Content-Type":"application/json","x-goog-api-key":env.GEMINI_API_KEY},
-    body:JSON.stringify(buildGenerateContentRequest(contents,persona,context)),
+    body:JSON.stringify(buildGenerateContentRequest(contents,persona,context,emojiTokens)),
     signal:AbortSignal.timeout(20000)
   });
   if (!response.ok) throw new Error("gemini_request_failed");
@@ -125,6 +126,30 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
   const answer = (data.candidates?.[0]?.content?.parts || []).map(part => part.text || "").join("").trim();
   if (!answer) throw new Error("gemini_empty_response");
   return clamp(answer, MAX_REPLY_CHARS);
+}
+
+export async function getBotEmojiTokens(env) {
+  if(!env.TABLES) return [];
+  try {
+    const id=env.TABLES.idFromName("system-emojis");
+    const stub=env.TABLES.get(id);
+    const response=await stub.fetch("https://internal",{
+      method:"POST",
+      body:JSON.stringify({op:"appEmojis"})
+    });
+    if(!response.ok) return [];
+    const data=await response.json();
+    const emojis=Array.isArray(data.items)?data.items:[];
+    const seen=new Set();
+    return emojis.filter(emoji=>{
+      if(typeof emoji?.id!=="string"||!/^\d{1,20}$/.test(emoji.id)) return false;
+      if(!/^[\p{L}\p{N}_]{2,32}$/u.test(emoji.name||"")||emoji.available===false||seen.has(emoji.id)) return false;
+      seen.add(emoji.id);
+      return true;
+    }).slice(0,80).map(emoji=>`<${emoji.animated?"a":""}:${emoji.name}:${emoji.id}>`);
+  } catch {
+    return [];
+  }
 }
 
 async function guildConfig(db, guildId) {
@@ -159,7 +184,7 @@ export async function handleAiCommand(env, interaction) {
 
   const group = interaction.data?.options?.[0];
   const action = group?.options?.[0];
-  if (!group || !action) return privateReply("使用 /ai 记忆、/ai 人格 或 /ai 主持。");
+  if (!group || !action) return privateReply("使用 /ai 记忆 或 /ai 主持。");
 
   if (group.name === "记忆") {
     if (action.name === "查看") {
@@ -182,13 +207,7 @@ export async function handleAiCommand(env, interaction) {
     return privateReply("使用 /ai 记忆 查看、开启、关闭 或 清除。");
   }
 
-  if (!manageGuild(interaction.member)) return privateReply("查看云端人格和设置游戏主持需要「管理服务器」权限。");
-  if (group.name === "人格") {
-    const persona = textValue(env.GEMINI_PERSONA).slice(0,MAX_PERSONA_CHARS);
-    return privateReply(persona
-      ? "当前云端 AI 人格：\n" + persona
-      : "当前使用默认人格：轻松、友善、机灵，像熟悉桌游的群友。可在 Cloudflare Worker Variables 中设置 GEMINI_PERSONA。");
-  }
+  if (!manageGuild(interaction.member)) return privateReply("设置游戏主持需要「管理服务器」权限。");
 
   if (group.name === "主持") {
     if (action.name === "开启" || action.name === "关闭") {
@@ -271,7 +290,7 @@ export async function replyToMention(env, message, botId) {
   let responseText;
   let generated = false;
   try {
-    responseText = await generateGemini(env,history);
+    responseText = await generateGemini(env,history,"chat",fetch,await getBotEmojiTokens(env));
     generated = true;
   } catch {
     responseText = "我这会儿没接上 Gemini，稍后再 @ 我试试。";
@@ -370,7 +389,7 @@ export async function commentOnGameTransition(env, storage, before, after) {
 
   let line;
   try {
-    line = await generateGemini(env,[{role:"user",parts:[{text:event.text}]}],"game");
+    line = await generateGemini(env,[{role:"user",parts:[{text:event.text}]}],"game",fetch,await getBotEmojiTokens(env));
     await fetch("https://discord.com/api/v10/channels/" + after.channel + "/messages",{
       method:"POST",
       headers:{Authorization:"Bot " + env.BOT_TOKEN,"Content-Type":"application/json"},

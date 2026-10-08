@@ -212,3 +212,13 @@
 - 设置默认人格为“轻松、友善、机灵，像熟悉桌游的群友；自然使用少量 emoji。”，可在 Cloudflare Dashboard 的 Workers & Pages → discord-holdem → Settings → Variables and Secrets 修改，最多 1000 字。
 - 更新 AI 斜杠命令版本至 games-v1.0.1-beta.21，Cron 会自动同步只读的人格查看命令。
 - 11 项 AI/Gateway 专项测试通过；管理员助手仍排除。
+
+
+## beta.22 · 红豆粉云端人设与应用表情（2026-10-08）
+
+- 采用用户提供的完整红豆粉 OC 人设，保存为 Cloudflare Worker 文本变量 GEMINI_PERSONA；全文 1,304 个字符、3,734 UTF-8 字节，聊天和游戏解说共用。人设只在 Cloudflare Dashboard → Workers & Pages → discord-holdem → Settings → Variables and Secrets 修改，不写入 Discord 命令或仓库变量值。
+- 系统提示以红豆粉身份自然回应，不反复复述资料；继续禁止管理员助手功能，并保留私密手牌与服务器权限边界。
+- AI 斜杠命令移除整个「人格」组；/ai 仅保留「记忆」「主持」。COMMAND_VERSION 升至 games-v1.0.1-beta.22，沿用每分钟 Cron 注册 Discord 命令。
+- 聊天和公开游戏解说读取现有机器人应用表情缓存，最多向模型提供 80 个校验过的真实 Discord 标记，避免编造名称或 ID。已有表情目录、缓存 Durable Object 和权限配置均复用。
+- 12 项 AI/Gateway 专项测试通过，覆盖多人设换行、超千字文本、表情标记、命令移除、私密内容与记忆隔离。
+- Cloudflare beta.22 上传返回 HTTP 200；29 个 Worker 模块、GEMINI_API_BASE_URL、gemini-3.8-flash、GEMINI_API_KEY 与 BOT_TOKEN Secret、CHAT_DB、TABLES namespace 和每分钟 Cron 均核验保留。线上变量全文与用户提供的人设匹配。

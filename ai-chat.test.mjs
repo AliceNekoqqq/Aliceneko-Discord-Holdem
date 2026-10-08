@@ -5,6 +5,7 @@ import {
   buildOpenAIChatRequest,
   buildGenerateContentRequest,
   generateGemini,
+  getBotEmojiTokens,
   handleAiCommand,
   makeSystemInstruction,
   publicGameEvent,
@@ -106,15 +107,15 @@ test("system instruction protects private cards and excludes admin assistance", 
   const prompt = makeSystemInstruction("活泼");
   assert.match(prompt,/私密手牌/);
   assert.match(prompt,/不要充当管理员助手/);
+  assert.match(prompt,/以红豆粉的身份自然聊天/);
   assert.match(prompt,/活泼/);
 });
 
-test("AI command exposes member memory, persona and game-host controls only", () => {
+test("AI command exposes only member memory and game-host controls", () => {
   const groups = aiCommand.options.map(group=>group.name);
-  assert.deepEqual(groups,["记忆","人格","主持"]);
+  assert.deepEqual(groups,["记忆","主持"]);
   assert.equal(groups.includes("管理员助手"),false);
-  const personaGroup=aiCommand.options.find(group=>group.name==="人格");
-  assert.deepEqual(personaGroup.options.map(option=>option.name),["查看"]);
+  assert.equal(groups.includes("人格"),false);
 });
 
 test("memory off control changes only the calling member setting", async () => {
@@ -129,25 +130,46 @@ test("memory off control changes only the calling member setting", async () => {
   assert.equal(reply.data.flags,64);
 });
 
-test("persona and game-host controls require server-management permission", async () => {
+test("full multiline cloud persona is preserved in the shared system instruction", () => {
+  const profile="# 红豆粉｜完整人设\n## 基本资料\n姓名：红豆粉\n"+("人物细节".repeat(400));
+  const prompt=makeSystemInstruction(profile);
+  assert.match(prompt,/# 红豆粉｜完整人设\n## 基本资料\n姓名：红豆粉/);
+  assert.ok(prompt.includes("人物细节".repeat(400)));
+  assert.ok([...profile].length>1000);
+});
+
+test("uploaded bot emojis are validated and supplied as real Discord markup", async () => {
+  let request;
+  const env={TABLES:{
+    idFromName(name){assert.equal(name,"system-emojis");return "emoji-do";},
+    get(id){assert.equal(id,"emoji-do");return {async fetch(url,options){
+      request={url,options};
+      return Response.json({items:[
+        {id:"123456789",name:"redbean",animated:false},
+        {id:"234567890",name:"dance",animated:true},
+        {id:"345678901",name:"bad name"},
+        {id:"456789012",name:"removed",available:false},
+        {id:"123456789",name:"duplicate",animated:true}
+      ]});
+    }};}
+  }};
+  const tokens=await getBotEmojiTokens(env);
+  assert.deepEqual(tokens,["<:redbean:123456789>","<a:dance:234567890>"]);
+  assert.equal(request.url,"https://internal");
+  assert.equal(JSON.parse(request.options.body).op,"appEmojis");
+  const prompt=makeSystemInstruction("红豆粉","chat",tokens);
+  assert.match(prompt,/<:redbean:123456789>/);
+  assert.match(prompt,/<a:dance:234567890>/);
+});
+
+test("legacy persona command is not available in Discord", async () => {
   const db=fakeDb();
   const reply=await handleAiCommand({CHAT_DB:db},{
     guild_id:"guild-1",
-    member:{user:{id:"user-1"},permissions:"0"},
-    data:{options:[{name:"人格",options:[{name:"查看"}]}]}
-  });
-  assert.match(reply.data.content,/管理服务器/);
-  assert.equal(db.state.persona,"");
-});
-
-test("shared persona is read from the Cloudflare variable and cannot be edited in Discord", async () => {
-  const db=fakeDb();
-  const reply=await handleAiCommand({CHAT_DB:db,GEMINI_PERSONA:"活泼、温柔、爱桌游"},{
-    guild_id:"guild-1",
     member:{user:{id:"user-1"},permissions:"40"},
-    data:{options:[{name:"人格",options:[{name:"查看"}]}]}
+    data:{options:[]}
   });
-  assert.match(reply.data.content,/活泼、温柔、爱桌游/);
+  assert.match(reply.data.content,/使用 \/ai 记忆 或 \/ai 主持/);
   assert.equal(db.state.persona,"");
 });
 
@@ -220,6 +242,16 @@ test("Gateway identifies with only non-privileged guild and message intents", as
 test("chat memory is scoped to one member and stores only successful direct chats", async t => {
   const db=fakeDb();
   const calls=[];
+  const env={
+    BOT_TOKEN:"test",
+    GEMINI_API_KEY:"test",
+    GEMINI_PERSONA:"# 红豆粉｜完整人设\n姓名：红豆粉\n语气自然、简洁。",
+    CHAT_DB:db,
+    TABLES:{
+      idFromName(name){return name;},
+      get(){return {async fetch(){return Response.json({items:[{id:"123456789",name:"redbean",animated:false}]});}};}
+    }
+  };
   t.mock.method(globalThis,"fetch",async (url,options) => {
     calls.push({url,options});
     if(String(url).startsWith("https://generativelanguage.googleapis.com/")) {
@@ -227,7 +259,7 @@ test("chat memory is scoped to one member and stores only successful direct chat
     }
     return new Response("{}",{status:200});
   });
-  await replyToMention({BOT_TOKEN:"test",GEMINI_API_KEY:"test",CHAT_DB:db},{
+  await replyToMention(env,{
     id:"m1",guild_id:"g1",channel_id:"c1",author:{id:"u1"},content:"<@bot-1> 我喜欢蓝色"
   },"bot-1");
   assert.equal(db.state.history.length,2);
@@ -237,11 +269,13 @@ test("chat memory is scoped to one member and stores only successful direct chat
   assert.match(calls[1].options.body,/最近 30 条/);
   const request=JSON.parse(calls[0].options.body);
   assert.equal(request.contents.at(-1).parts[0].text,"我喜欢蓝色");
+  assert.match(request.systemInstruction.parts[0].text,/# 红豆粉｜完整人设\n姓名：红豆粉/);
+  assert.match(request.systemInstruction.parts[0].text,/<:redbean:123456789>/);
 
   db.state.memoryEnabled=0;
   db.state.settingExists=true;
   const before=db.state.history.length;
-  await replyToMention({BOT_TOKEN:"test",GEMINI_API_KEY:"test",CHAT_DB:db},{
+  await replyToMention(env,{
     id:"m2",guild_id:"g1",channel_id:"c1",author:{id:"u1"},content:"<@bot-1> 这条不要保存"
   },"bot-1");
   assert.equal(db.state.history.length,before);
