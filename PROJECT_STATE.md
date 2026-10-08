@@ -370,3 +370,12 @@
 - nativeImageContents改为redirect:manual，显式拒绝3xx，避免下载跳转至非Discord地址；这类永久失败不再浪费重试。其余下载暂时错误和模型请求保留原共享3次重试预算，最终失败仍不发用户禁止的固定故障文案。
 - 54项AI/上下文/长期记忆测试通过，新增Workers兼容redirect与3xx拒绝回归。Cloudflare上传HTTP200且ai-chat.mjs读回一致，仅更新此模块，保留同时进行的游戏修复和其他部署设置。
 - 用与线上一致的generateGemini代码在临时真实Cloudflare Worker中下载原章鱼图并组装OpenAI请求：downloadStatus=200，redirectMode=manual，inlineCharacters=5,863,726，providerRequestBuilt=true，ok=true，durationMs=54。图片真实下载/编码/请求组装通过；测试的provider返回由本地拦截模拟，未声称真实中转视觉答案已确认。临时Worker已删除。第一次访问遇到短暂1042、再次访问成功；未因传播期间响应修改生产代码。
+
+
+## 跨频道不回复与90秒运行核验（2026-10-08）
+
+- D1确认22:35、22:39、22:44、22:59等文字聊天每轮4次请求均在20000ms超时。22:57已上传90秒源码，但23:02实际Gateway仍记录旧48d12c95版本和20秒期限；此前源码读回成功不能证明聊天连接已切换。未把历史超时归因于游戏锁或模型限流。
+- Gateway队列按服务器+频道+用户隔离，修复Map存next却比较tracked导致完成后不删除的缺陷。同频道同用户仍串行；跨频道可独立开始。补充排队/开始、API实际timeoutMs、Discord回发成功/失败（含HTTP状态）日志，不输出密钥，不恢复用户禁止的固定故障文案。
+- 49项聊天回归通过，包括跨频道慢请求不阻塞、同频道顺序与清理、Discord403后后续回复。完整源码上传保留38模块、所有绑定；重新显式声明本地PokerTable绑定，secret以strict inherit保留。原D1、Secret、DO命名和Cron保留。已有连接版本切换存在延迟，不能只读回源码就宣布运行生效。
+- 临时无密钥探针：Cloudflare到中转首页HTTP200（约627ms），/v1/models HTTP401（约197ms），基础连通性正常；401为该无密钥探针预期结果，不能当成生产密钥错误。内部aiProbe仅使用固定测试文字，在独立system-ai-diagnosis对象运行，不读用户记忆、不向Discord发消息；与线上相同密钥/模型/人设真实API回复成功，7357ms、5字符、90秒期限。该结果只证明当时短请求可用，不证明此前上游无故障或所有长上下文均可用。
+- 临时probe读回Gateway runtime=chat90-channel-queue-v1，确认实际连接已经进入新代码。该辅助Worker用后删除；生产保留只能通过内部DO绑定调用的固定文本aiProbe，后续诊断无需暴露密钥。真人Discord最终回发仍以新ai_reply_sent日志和用户实测为准。
