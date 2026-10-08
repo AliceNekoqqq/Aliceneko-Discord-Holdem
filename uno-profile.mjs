@@ -20,7 +20,7 @@ export class UnoProfiles {
 }
 export function profileData(profile,id,guild,notice='',catalog=[]){
  const p=normalizedProfile(profile),avatar=AVATARS[p.avatar],accent=ACCENTS[p.accent];const custom=action=>`v:${guild}:${id}:${action}`;
- return {content:`🎭 **我的牌桌形象**\n${notice?notice+'\n':''}当前形象：${avatar.emoji} ${avatar.name} · 名牌：${accent.name}\n入场：${ENTRANCES[p.entrance]} · 胜利：${VICTORIES[p.victory].emoji} ${VICTORIES[p.victory].name}\n应用表情：入场 ${emojiMarkup(catalog.find(e=>e.id===p.entranceApp))||'关闭'} · 胜利 ${emojiMarkup(catalog.find(e=>e.id===p.victoryApp))||'关闭'}\n选择后自动保存，在本服务器各 UNO 牌桌约15秒内同步；下次入座也会记住。\n👑 大王选择佩戴游戏称号后，头像加王冠、名牌变金色，保留自己的 emoji。`,components:[
+ return {content:`🎭 **我的牌桌形象**\n${notice?notice+'\n':''}当前形象：${avatar.emoji} ${avatar.name} · 名牌：${accent.name}\n入场：${ENTRANCES[p.entrance]} · 胜利：${VICTORIES[p.victory].emoji} ${VICTORIES[p.victory].name}\n应用表情：入场 ${emojiMarkup(catalog.find(e=>e.id===p.entranceApp))||'关闭'} · 胜利 ${emojiMarkup(catalog.find(e=>e.id===p.victoryApp))||'关闭'}\n选择后自动保存，在本服务器各 UNO / 骗子酒馆牌桌约15秒内同步；下次入座也会记住。\n👑 大王选择佩戴游戏称号后，头像加王冠、名牌变金色，保留自己的 emoji。`,components:[
   {type:1,components:[{type:3,custom_id:custom('avatar'),placeholder:'选一个座位 emoji',min_values:1,max_values:1,options:Object.entries(AVATARS).map(([value,a])=>({label:a.name,emoji:{name:a.emoji},value,default:value===p.avatar}))}]},
   {type:1,components:[{type:3,custom_id:custom('accent'),placeholder:'选择个人名牌配色',min_values:1,max_values:1,options:Object.entries(ACCENTS).map(([value,a])=>({label:a.name,value,default:value===p.accent}))}]},
   {type:1,components:[{type:3,custom_id:custom('entrance'),placeholder:'选择个人入场短句',min_values:1,max_values:1,options:Object.entries(ENTRANCES).map(([value,label])=>({label,value,default:value===p.entrance}))}]},
@@ -28,7 +28,7 @@ export function profileData(profile,id,guild,notice='',catalog=[]){
   {type:1,components:[{type:2,custom_id:`r:${guild}:${id}:menu`,label:'👑 大王称号',style:2},{type:2,custom_id:custom('reset'),label:'恢复默认设置',style:2},{type:2,custom_id:custom('open'),label:'刷新设置',style:2},{type:2,custom_id:custom('app~entranceApp~0'),label:'应用表情',style:2}]}
  ],embeds:[{description:'Emoji artwork: [Twemoji](https://github.com/jdecked/twemoji) · [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/)'}],attachments:[],allowed_mentions:{parse:[]}};
 }
-export const profileInteraction=i=>i.type===2&&i.data?.name==='uno'&&i.data.options?.[0]?.name==='个人设置'||i.type===3&&i.data?.custom_id?.startsWith('v:');
+export const profileInteraction=i=>i.type===2&&['uno','骗子酒馆'].includes(i.data?.name)&&i.data.options?.[0]?.name==='个人设置'||i.type===3&&i.data?.custom_id?.startsWith('v:');
 export async function answerProfile(env,i){
  const id=i.member?.user?.id;let action='open',value;
  if(i.type===3){const parts=i.data.custom_id.split(':');if(parts.length!==4||parts[1]!==i.guild_id||!['open','avatar','accent','entrance','victory','reset'].includes(parts[3])&&!/^(app|set)~(entranceApp|victoryApp)~\d{1,2}$/.test(parts[3]))return {content:'🔄 请重新打开 `/uno 个人设置`。',components:[],allowed_mentions:{parse:[]}};

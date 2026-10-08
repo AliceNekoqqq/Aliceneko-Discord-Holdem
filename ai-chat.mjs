@@ -569,6 +569,21 @@ function gameEvent(before, after) {
   const game = after.game || "德州扑克";
   const names = (after.players || []).filter(p => !p.bot).map(playerName).slice(0,10);
   const playerList = names.length ? names.join("、") : "牌桌玩家";
+  if (game === "liar") {
+    const action=after.lastAction;
+    if (!action || action.seq === before.lastAction?.seq) return null;
+    const actor=playerName(after.players?.find(p=>p.id===action.actor));
+    let kind="action",text;
+    if(action.kind==="start"){kind="start";text=`骗子酒馆第${after.handNo}轮开始，${after.tableRank}桌；酒客：${playerList}。`;}
+    else if(action.kind==="result"){kind="result";text=`骗子酒馆结束：${actor}成为最后的酒客，获胜！`;}
+    else if(action.kind==="play")text=`骗子酒馆公开动作：${actor}声称盖下${action.count}张${action.rank}，尚未翻牌，真假未知。`;
+    else if(action.kind==="challenge")text=`骗子酒馆公开验牌：${actor}提出质疑，已翻开${action.cards.map(c=>c<6?"A":c<12?"K":c<18?"Q":"Joker").join("、")}，${action.honest?"质疑失败，质疑者":"抓到谎言，出牌者"}接受轮盘。`;
+    else if(action.kind==="roulette")text=`骗子酒馆公开轮盘结果：${actor}第${action.shots}次轮盘，${action.dead?"出局":"安全"}。`;
+    else if(action.kind==="forfeit")text=`骗子酒馆：${actor}认输退出本局。`;
+    else if(action.kind==="believe")text=`骗子酒馆：${actor}选择相信上一手，未翻牌，准备出牌。`;
+    else return null;
+    return {key:String(after.epoch)+":"+after.version,kind,text};
+  }
   if (after.phase === "settled" && before.phase !== "settled") {
     let result = "本局结束。";
     if (game === "ghost") {
