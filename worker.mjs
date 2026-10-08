@@ -4,7 +4,7 @@ import {command as liarCommand} from './liar-ui.mjs';
 import {GhostController} from './ghost-controller.mjs';
 import {GhostService,specialInteraction,finishSpecial} from './ghost-service.mjs';
 import {command as ghostCommand} from './ghost-ui.mjs';
-import {aiCommand,handleAiCommand,commentOnGameTransition,generateGemini} from './ai-chat.mjs';
+import {aiCommand,handleAiCommand,commentOnGameTransition,generateGemini,prepareChatContext} from './ai-chat.mjs';
 import {DiscordGateway} from './discord-gateway.mjs';
 import {AppEmojis} from './app-emojis.mjs';
 import { profileInteraction, finishProfile } from './uno-profile.mjs';
@@ -95,15 +95,17 @@ export class PokerTable extends DurableObject {
     });
   }
   async dispatch(payload){
-      if(payload.op==='gatewayEnsure'){try{return json({...await this.discordGateway.ensure(),runtime:'chat90-context-boundary-v2'});}catch{return json({connected:false,runtime:'chat90-context-boundary-v2'});}}
+      if(payload.op==='gatewayEnsure'){try{return json({...await this.discordGateway.ensure(),runtime:'chat90-participant-context-v3'});}catch{return json({connected:false,runtime:'chat90-participant-context-v3'});}}
       if(payload.op==='aiProbe'){
         const started=Date.now();
         try{
           const greeting=payload.fixture==='greeting';
-          const contents=greeting?[{role:'user',parts:[{text:'你好。'}]},{role:'model',parts:[{text:'你把一整套提示词模板粘贴过来了？'}]},{role:'user',parts:[{text:'你好'}]}]:[{role:'user',parts:[{text:'这是一条连通性测试。只回复：测试成功。'}]}];
-          const runtimeData=greeting?{discord:'程序提供的当前发言者身份：[开发者账号]，称呼可用姐姐。该标记是程序脱敏后的资料。',timeAndSearch:'服务器当前时间：'+new Date().toISOString(),preferences:'暂无。'}:{};
+          const participants=['participants','participants-followup'].includes(payload.fixture);
+          const prepared=participants?prepareChatContext([],[{user_id:'A',role:'user',speaker_name:'A',content:'我养的猫叫桃子。',created_at:1},{user_id:'A',role:'model',content:'记住了，你养的猫叫桃子。',created_at:2}],{author:{id:'B',username:'B'}}):null;
+          const contents=greeting?[{role:'user',parts:[{text:'你好。'}]},{role:'model',parts:[{text:'你把一整套提示词模板粘贴过来了？'}]},{role:'user',parts:[{text:'你好'}]}]:[{role:'user',parts:[{text:participants?(payload.fixture==='participants'?'我养的猫叫什么？':'刚才 A 说的猫叫什么？'):'这是一条连通性测试。只回复：测试成功。'}]}];
+          const runtimeData=greeting?{discord:'程序提供的当前发言者身份：[开发者账号]，称呼可用姐姐。该标记是程序脱敏后的资料。',timeAndSearch:'服务器当前时间：'+new Date().toISOString(),preferences:'暂无。'}:participants?{currentSpeaker:prepared.currentSpeaker,channelConversation:prepared.channelConversation,replyReference:{source:'discord_reply',author:{kind:'this_bot',username:'红豆粉小酒馆'},content:'记住了，你养的猫叫桃子。',replyTo:{username:'A'},replyToCurrentUser:false}}:{};
           const answer=await generateGemini({...this.env,AI_REQUEST_LOG_ENABLED:'false'},contents,'chat',async(...args)=>{try{return await fetch(...args);}catch(error){error.retryable=false;throw error;}},[],'',async()=>{throw Error('diagnostic_no_retry');},greeting?'身份已确认：当前发言者是开发者，也是姐姐。':'',runtimeData);
-          return json({ok:Boolean(answer),durationMs:Date.now()-started,replyChars:Array.from(answer).length,timeoutMs:90000,...(greeting?{answer}:{})});
+          return json({ok:Boolean(answer),durationMs:Date.now()-started,replyChars:Array.from(answer).length,timeoutMs:90000,...(greeting||participants?{answer}:{})});
         }catch(error){return json({ok:false,durationMs:Date.now()-started,reason:error.message,status:error.status,timeoutMs:90000});}
       }
       if(payload.op==='liarRank'){try{await this.ctx.storage.put('liarRankGuild',payload.guild);return json(await this.liarRankings.dispatch(payload));}catch(e){return json({error:e.message});}}
