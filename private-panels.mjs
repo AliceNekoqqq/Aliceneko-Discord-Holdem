@@ -57,9 +57,12 @@ export class PrivatePanels {
     if(t.game==='uno'&&(action==='social'||action.startsWith('s~')))return false;
     const id=i.member?.user?.id;
     if(!i.token||!this.env.BOT_TOKEN||!id||!t.players.some(p=>p.id===id&&!p.bot)||t.phase==='closed')return false;
+    // Liar hands must never use a public component's @original credential.
+    const liarPrivate=t.game==='liar'&&(reply.type===4&&(reply.data?.flags&64)||reply.type===7&&(i.message?.flags&64));
+    if(t.game==='liar'&&!liarPrivate)return false;
     const records=await this.read();let s=records[id];
     if(!s||s.epoch!==t.epoch){s={epoch:t.epoch,retire:s?.panel?[s.panel]:[]};records[id]=s;}
-    s.send={token:i.token,expires:Date.now()+TTL};s.failures=0;
+    s.send={token:i.token,expires:Date.now()+TTL,...(t.game==='liar'?{private:true,owner:id}:{})};s.failures=0;
     const actions=reply.data?.components?.flatMap(r=>r.components||[])||[];
     const panelReply=actions.some(b=>b.custom_id?.includes(`:p~${id}~`));
     const privateReply=reply.type===4&&(reply.data?.flags&64)||reply.type===7&&(i.message?.flags&64);
@@ -80,7 +83,7 @@ export class PrivatePanels {
     if(!credential||credential.expires<=Date.now())return null;
     const path=`https://discord.com/api/v10/webhooks/${this.env.DISCORD_APPLICATION_ID}/${encodeURIComponent(credential.token)}${ref?`/messages/${ref}`:''}`;
     const multipart=body instanceof FormData;
-    try{let r=await fetch(path,{method,headers:multipart?{}:{'Content-Type':'application/json'},body:multipart?body:JSON.stringify(body),signal:AbortSignal.timeout(multipart?1500:1000)});
+    try{let r=await fetch(path,{method,headers:multipart?{}:{'Content-Type':'application/json'},...(method==='GET'?{}:{body:multipart?body:JSON.stringify(body)}),signal:AbortSignal.timeout(multipart?1500:1000)});
       // Explicit file rejection is safe to retry as text. A timeout is ambiguous,
       // so never issue an immediate second POST in that case.
       if(multipart&&[400,403,413,415].includes(r.status)){const fallback=JSON.parse(body.get('payload_json'));const description=fallback.attachments?.[0]?.description;for(const embed of fallback.embeds||[])delete embed.image;if(description&&fallback.embeds?.[0])fallback.embeds[0].description+='\n'+description;fallback.attachments=[];r=await fetch(path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(fallback),signal:AbortSignal.timeout(1000)});}
@@ -89,6 +92,19 @@ export class PrivatePanels {
   async sync(t){
     const records=await this.read();let retry=false;
     await Promise.all(Object.entries(records).map(async([id,s])=>{
+      if(t.game==='liar'){
+        if(s.send?.private!==true||s.send?.owner!==id)delete s.send;
+        if(s.panel&&(s.panel.private!==true||s.panel.owner!==id)){
+          // Legacy records are untrusted until Discord confirms ephemerality.
+          const message=await this.api(s.panel,'GET',null,s.panel.ref);
+          const recipient=message?.interaction_metadata?.user?.id||message?.interaction?.user?.id;
+          if(message&&(Number(message.flags)&64)&&recipient===id){s.panel.private=true;s.panel.owner=id;}
+          else {
+            if(message)await this.api(s.panel,'PATCH',retired(),s.panel.ref);
+            delete s.panel;
+          }
+        }
+      }
       const eligible=s.epoch===t.epoch&&t.phase!=='closed'&&t.players.some(p=>p.id===id&&!p.bot);
       if(!eligible&&s.panel){s.retire.push(s.panel);delete s.panel;delete s.send;}
       const newHand=eligible&&s.panel&&s.panel.hand!==t.handNo;

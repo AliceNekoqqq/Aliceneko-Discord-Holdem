@@ -122,6 +122,13 @@ export class DiscordGateway {
 
   onGuildMessage(message) {
     if (!this.botId || !message?.guild_id || !message?.channel_id || !message?.id) return;
+    // Only message identity is needed to follow the channel tail; no chat text is stored.
+    if(this.env.TABLES&&/^\d+$/.test(message.id)){
+      const table=this.env.TABLES.get(this.env.TABLES.idFromName(`table:${message.guild_id}:${message.channel_id}`));
+      this.host.ctx.waitUntil(table.fetch('https://internal',{method:'POST',body:JSON.stringify({
+        op:'channelMessage',guild:message.guild_id,channel:message.channel_id,messageId:message.id
+      })}).catch(()=>{}));
+    }
     if (!message.author?.id || message.author.bot || message.author.id === this.botId) return;
     const mentioned = (message.mentions || []).some(user => user.id === this.botId) ||
       new RegExp("<@!?" + this.botId + ">").test(String(message.content || ""));

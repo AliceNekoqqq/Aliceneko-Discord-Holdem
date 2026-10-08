@@ -40,7 +40,10 @@ export class LiarController {
    else throw Error('无效操作。');
   }catch(e){return json(isPanel&&p?panelReply(e.message):isManager?managerReply(e.message):priv(e.message));}
   if(effective&&t.phase!=='closed')game.touch(t);if(effective)t.version++;await this.save(t);await this.storage.put('recentInteractions',[...seen.slice(-99),i.id]);await this.host.queuePanels(t);
-  if(isConfirm||isSocial)return json({type:7,data:{content:notice,components:[],embeds:[],attachments:[],allowed_mentions:{parse:[]}}});if(isPanel&&p)return json(panelReply(notice));if(isManager)return json(t.phase==='closed'||!t.players.some(p=>p.id===id)?{type:7,data:{content:notice,components:[],embeds:[],attachments:[],allowed_mentions:{parse:[]}}}:managerReply(notice));return json({type:6});
+  if(isConfirm||isSocial)return json({type:7,data:{content:notice,components:[],embeds:[],attachments:[],allowed_mentions:{parse:[]}}});if(isPanel&&p)return json(panelReply(notice));if(isManager)return json(t.phase==='closed'||!t.players.some(p=>p.id===id)?{type:7,data:{content:notice,components:[],embeds:[],attachments:[],allowed_mentions:{parse:[]}}}:managerReply(notice));
+  // Establish an explicitly private original reply before automatic hand updates.
+  if(['join','ready','start'].includes(action))return json({type:4,data:handPanel(t,id,notice)});
+  return json({type:6});
  }
  async alarm(t){const now=Date.now();await this.progress(t,now);if(t.phase==='active'&&t.computerDue&&t.computerDue<=now&&game.computerTurn(t,undefined,now)){t.version++;await this.save(t);await this.host.queuePanels(t);}
   // A due board update wins over private work so animation states reach the table.

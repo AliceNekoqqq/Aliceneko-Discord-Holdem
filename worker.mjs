@@ -107,6 +107,10 @@ export class PokerTable extends DurableObject {
         try{const results=await Promise.all([command,unoCommand,ghostCommand,liarCommand,aiCommand].map(c=>discordApi(this.env,`/applications/${this.env.DISCORD_APPLICATION_ID}/commands`,'POST',c)));if(results.every(r=>r.ok))await this.ctx.storage.put('commandVersion',COMMAND_VERSION);return json({registered:results.every(r=>r.ok)});}catch{return json({registered:false});}
       }
       let t=await this.ctx.storage.get('table');
+      if(payload.op==='channelMessage'){
+        if(t?.channel===payload.channel&&t.guild===payload.guild&&await this.boards.follow(t,payload.messageId))await this.armAlarm(t);
+        return json({ok:true});
+      }
       if(payload.op==='bind'){if(t&&t.epoch===payload.epoch&&!t.messageId&&/^\d+$/.test(payload.messageId)){t.messageId=payload.messageId;await this.save(t);await this.syncBoard(t);}return json({ok:true});}
       if(payload.op!=='interaction')return new Response('Not found',{status:404});
       const i=payload.interaction,id=i.member?.user?.id;

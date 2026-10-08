@@ -31,7 +31,7 @@ export function handPanel(t,id,notice=''){
  if(mine&&t.pending)components.push(row(button(t,`p~${id}~challenge`,'🧐 质疑上一手',4),...(!t.forced?[button(t,`p~${id}~believe`,'相信，准备出牌',3)]:[])));
  components.push(row(button(t,`p~${id}~hand`,'刷新手牌'),button(t,'manage','牌桌管理')));
  const status=!p.alive?'💥 你已出局，可以旁观到本局结束。':mine?t.forced?'⚠️ 必须质疑上一手。':'👉 轮到你；直接选择牌即表示相信上一手并出牌。':t.phase==='active'?`等待 ${name(t.players.find(q=>q.id===t.turn))}；你的手牌自动更新。`:t.phase==='lobby'?'入座后准备，开局自动显示手牌。':t.phase==='settled'?'本局已结束，可以准备下一局。':'正在揭晓，下一轮自动更新手牌。';
- return {content:[notice,status].filter(Boolean).join('\n'),embeds:[{title:'你的手牌 · 仅自己可见',description:`${t.tableRank?`本轮 **${t.tableRank}桌**，Joker万能。\n`:''}${p.cards.length?p.cards.map((c,n)=>`**${n+1}** · ${cardName(c)}`).join('　'):'本轮手牌已出完。'}\n${p.alive?`安全轮盘 ${p.shots} 次；下次风险 **1/${6-p.shots}**。`:'你已出局。'}`,color:0xa76682}],components,attachments:[],allowed_mentions:mentions};
+ return {flags:64,content:[notice,status].filter(Boolean).join('\n'),embeds:[{title:'你的手牌 · 仅自己可见',description:`${t.tableRank?`本轮 **${t.tableRank}桌**，Joker万能。\n`:''}${p.cards.length?p.cards.map((c,n)=>`**${n+1}** · ${cardName(c)}`).join('　'):'本轮手牌已出完。'}\n${p.alive?`安全轮盘 ${p.shots} 次；下次风险 **1/${6-p.shots}**。`:'你已出局。'}`,color:0xa76682}],components,attachments:[],allowed_mentions:mentions};
 }
 export function management(t,id,admin,notice=''){
  const p=t.players.find(q=>q.id===id&&!q.bot),waiting=['lobby','settled'].includes(t.phase);const buttons=[];
