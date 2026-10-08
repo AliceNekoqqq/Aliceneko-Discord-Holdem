@@ -1,0 +1,52 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {canViewChannel,discordChatContext} from './discord-chat-context.mjs';
+const roles=[{id:'10',permissions:'1024'},{id:'20',permissions:'0'},{id:'30',permissions:'8'}];
+const guild={id:'10',owner_id:'99'};
+
+test('member visibility follows everyone, role and personal overwrites',()=>{
+  const channel={permission_overwrites:[{id:'10',type:0,deny:'1024',allow:'0'},{id:'20',type:0,allow:'1024',deny:'0'},{id:'1',type:1,deny:'1024',allow:'0'}]};
+  assert.equal(canViewChannel({user:{id:'2'},roles:[]},roles,channel,guild),false);
+  assert.equal(canViewChannel({user:{id:'2'},roles:['20']},roles,channel,guild),true);
+  assert.equal(canViewChannel({user:{id:'1'},roles:['20']},roles,channel,guild),false);
+  assert.equal(canViewChannel({user:{id:'3'},roles:['30']},roles,channel,guild),true);
+  assert.equal(canViewChannel({user:{id:'99'},roles:[]},roles,channel,guild),true);
+});
+
+test('reply context names current speaker and original author, preserving image references',async()=>{
+  const fetcher=async url=>Response.json(url.endsWith('/roles')?roles:url.endsWith('/guilds/10')?guild:url.includes('/members?')?[{user:{id:'1',username:'alice',global_name:'小猫'},nick:'阿猫',roles:[]},{user:{id:'2',username:'bob',global_name:'小猫'},nick:'阿猫',roles:[]}]:{id:'11',guild_id:'10',type:0,permission_overwrites:[]});
+  const reference={id:'101',channel_id:'11',author:{id:'2',username:'bob'},member:{nick:'阿猫'},content:'我画了一只猫',attachments:[{url:'https://cdn.discordapp.com/attachments/11/101/cat.png',content_type:'image/png'}]};
+  const result=await discordChatContext({BOT_TOKEN:'token'},{guild_id:'10',channel_id:'11',author:{id:'1',username:'alice'},member:{nick:'阿猫'},content:'阿猫画得怎么样？',message_reference:{message_id:'101',channel_id:'11'},referenced_message:reference},'999',fetcher);
+  assert.equal(result.reference,reference);
+  assert.match(result.text,/当前发消息的人.*"id":"1"/);
+  assert.match(result.text,/被回复消息原作者.*"id":"2"/);
+  assert.match(result.text,/我画了一只猫/);
+  assert.match(result.text,/同名或匹配不明确时询问/);
+  assert.match(result.text,/列表完整/);
+});
+
+test('unavailable member listing uses recent authors and declares incomplete scope',async t=>{
+  t.mock.method(console,'warn',()=>{});
+  const fetcher=async url=>url.includes('/messages?')?Response.json([{author:{id:'4',username:'recent'},member:{nick:'最近成员'},content:'do not inject ordinary channel text'}]):new Response('',{status:403});
+  const result=await discordChatContext({BOT_TOKEN:'token'},{guild_id:'50',channel_id:'51',author:{id:'3',username:'caller'},mentions:[{id:'5',username:'mention'}],message_reference:{message_id:'200'},referenced_message:null},'999',fetcher);
+  assert.equal(result.reference,null);
+  assert.match(result.text,/列表不完整/);
+  assert.match(result.text,/recent/);
+  assert.match(result.text,/mention/);
+  assert.match(result.text,/已删除/);
+  assert.equal(result.text.includes('do not inject ordinary channel text'),false);
+});
+
+test('missing reply fetch is restricted to the same channel',async t=>{
+  t.mock.method(console,'warn',()=>{});
+  const requested=[];
+  const fetcher=async url=>{requested.push(url);return url.endsWith('/messages/300')?Response.json({id:'300',channel_id:'61',author:{id:'8',username:'original'},content:'原文'}):new Response('',{status:403});};
+  const message={guild_id:'60',channel_id:'61',author:{id:'7',username:'current'},message_reference:{message_id:'300',channel_id:'61'}};
+  const result=await discordChatContext({BOT_TOKEN:'token'},message,'999',fetcher);
+  assert.match(result.text,/原文/);
+  requested.length=0;
+  const cross=await discordChatContext({BOT_TOKEN:'token'},{...message,message_reference:{message_id:'301',channel_id:'62'}},'999',fetcher);
+  assert.equal(cross.reference,null);
+  assert.equal(requested.some(url=>url.includes('/channels/62/')),false);
+  assert.match(cross.text,/跨频道/);
+});

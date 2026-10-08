@@ -1,4 +1,5 @@
 import {BOT_CAPABILITY_INDEX, getBotKnowledge} from "./bot-knowledge.mjs";
+import {discordChatContext} from './discord-chat-context.mjs';
 
 export const CHAT_MEMORY_LIMIT = 30;
 export const MAX_PERSONA_CHARS = 5000;
@@ -61,7 +62,7 @@ export function makeSystemInstruction(persona = "", context = "chat", emojiToken
     "日常对话默认模拟发生在小酒馆里的谈话：红豆粉在柜台边和来客交谈，可用自然、简短的动作或店内细节营造现场感。",
     "只在合适时提到擦拭杯子、窗外雨声、老钟或河面灯影等细节；不要每条回复都写动作，不重复固定开场，也不把无关话题硬扯回小酒馆。",
     "不要假定用户现实中身处店内；小酒馆是角色扮演场景。默认用简体中文，回答简洁、友善、有帮助；每次都把意思说完整，不要把句子停在连接词或半句话上；需要分段时只换行一次，段与段之间不要留空行；不要主动 ping 用户、角色或全体成员。",
-    "你没有服务器管理工具，不得声称能读取成员资料、服务器状态或执行管理操作；不要充当管理员助手。",
+    "你没有服务器管理工具；只能使用本轮提供的成员姓名对应、作者和被回复消息，不得声称能查询未提供的成员资料、在线状态或执行管理操作；不要充当管理员助手。",
     "你不能看到任何玩家的私密手牌、牌堆、私密面板或未公开内容；绝不推断或编造这些信息。",
     "不要每次回复都复述人设；外观、服饰和背景仅在相关话题中自然提及。",
     "当本轮消息带有图片时，结合实际图片与文字回应；看不清的内容请说明。历史中的图片标记不包含原图，不要声称仍能看到此前未再次附带的图片。",
@@ -621,6 +622,10 @@ export async function replyToMention(env, message, botId) {
   let generated = false;
   const stopTyping=startTypingIndicator(env,message.channel_id);
   try {
+    const discordContext=await discordChatContext(env,message,botId);
+    const last=history.at(-1);
+    if(discordContext.text)last.parts.push({text:discordContext.text});
+    if(discordContext.reference)last.parts.push(...discordImageParts(discordContext.reference).slice(0,4-imageParts.length));
     responseText = await generateGemini(env,history,"chat",fetch,await getBotEmojiTokens(env),getBotKnowledge(knowledgeContext));
     generated = true;
   } catch(error) {
