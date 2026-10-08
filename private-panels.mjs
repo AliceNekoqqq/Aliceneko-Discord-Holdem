@@ -1,11 +1,13 @@
+import {handPanel as ghostHand,button as ghostButton} from './ghost-ui.mjs';
+import {imageMessage as ghostImage} from './ghost-image.mjs';
 import { handPanel as pokerHand, button as pokerButton, row, panelAction } from './ui.mjs';
 import { imageMessage as pokerImage } from './card-image.mjs';
 
 import { handPanel as unoHand, button as unoButton } from './uno-ui.mjs';
 import { imageMessage as unoImage } from './uno-image.mjs';
-const handPanel=(t,...args)=>(t.game==='uno'?unoHand:pokerHand)(t,...args);
-const button=(t,...args)=>(t.game==='uno'?unoButton:pokerButton)(t,...args);
-const imageMessage=(t,...args)=>(t.game==='uno'?unoImage:pokerImage)(t,...args);
+const handPanel=(t,...args)=>(t.game==='ghost'?ghostHand:t.game==='uno'?unoHand:pokerHand)(t,...args);
+const button=(t,...args)=>(t.game==='ghost'?ghostButton:t.game==='uno'?unoButton:pokerButton)(t,...args);
+const imageMessage=(t,...args)=>(t.game==='ghost'?ghostImage:t.game==='uno'?unoImage:pokerImage)(t,...args);
 const TTL=14*60*1000;
 const encode=s=>new TextEncoder().encode(s);
 const pack=a=>btoa(String.fromCharCode(...new Uint8Array(a)));
@@ -47,6 +49,7 @@ export class PrivatePanels {
     await this.write(records);
   }
   async remember(t,i,reply){
+    if(t.game==='ghost'&&(reply.type===9||i.type===5||reply.data?.content?.includes('确认认输')))return false;
     const action=i.data?.custom_id?.split(':')[3]||'';
     if(t.game==='uno'&&(action==='social'||action.startsWith('s~')))return false;
     const id=i.member?.user?.id;
@@ -61,11 +64,11 @@ export class PrivatePanels {
       const sourceId=reply.type===7?i.message?.id:null;
       if(s.panel&&(!sourceId||(s.panel.id&&s.panel.id!==sourceId)))s.retire.push(s.panel);
       const previous=s.panel;
-      s.panel={...s.send,ref:'@original',id:sourceId,hand:t.handNo,version:t.version,image:sourceId&&(t.game==='uno'||previous?.hand===t.handNo)?previous?.image:null};
+      s.panel={...s.send,ref:'@original',id:sourceId,hand:t.handNo,version:t.version,image:sourceId&&(['uno','ghost'].includes(t.game)||previous?.hand===t.handNo)?previous?.image:null};
       s.hidden=reply.data.content==='底牌已收起。';
       // Initial HTTP acknowledgements stay fast and text-only. Enrich that exact
       // private reply afterwards so a confirmation is never replaced by navigation.
-      if(!s.hidden&&(reply.deferred||t.game==='uno'||t.players.find(p=>p.id===id).cards.length===2)){s.panel.pending=structuredClone(reply.data);delete s.panel.pending.flags;}
+      if(!s.hidden&&(reply.deferred||['uno','ghost'].includes(t.game)||t.players.find(p=>p.id===id).cards.length===2)){s.panel.pending=structuredClone(reply.data);delete s.panel.pending.flags;}
     }
     s.retire=s.retire.slice(-5);
     await this.write(records);return true;
@@ -86,14 +89,14 @@ export class PrivatePanels {
       const eligible=s.epoch===t.epoch&&t.phase!=='closed'&&t.players.some(p=>p.id===id&&!p.bot);
       if(!eligible&&s.panel){s.retire.push(s.panel);delete s.panel;delete s.send;}
       const newHand=eligible&&s.panel&&s.panel.hand!==t.handNo;
-      if(newHand&&t.game!=='uno'){s.retire.push(s.panel);delete s.panel;s.hidden=false;}
+      if(newHand&&!['uno','ghost'].includes(t.game)){s.retire.push(s.panel);delete s.panel;s.hidden=false;}
       const pending=[];
       await Promise.all((s.retire||[]).map(async p=>{if(p.expires>Date.now()&&!await this.api(p,'PATCH',retired(),p.ref))pending.push(p);}));
       s.retire=pending;
       let failed=pending.length>0;
       if(eligible){
-        if(!s.panel&&s.send?.expires>Date.now()&&!(t.game==='uno'&&t.phase==='lobby')){
-          const data=handPanel(t,id,t.game==='uno'?(t.handNo?'新一局已发牌，绿框表示可出。':'已入座，开始后会自动显示手牌。'):t.handNo?'新的一手已发牌，这是你本手的两张底牌。':'已入座，发牌后会自动显示你的底牌。');
+        if(!s.panel&&s.send?.expires>Date.now()&&!(['uno','ghost'].includes(t.game)&&t.phase==='lobby')){
+          const data=handPanel(t,id,t.game==='ghost'?'双人快局已开始，点击对方牌背抽牌。':t.game==='uno'?(t.handNo?'新一局已发牌，绿框表示可出。':'已入座，开始后会自动显示手牌。'):t.handNo?'新的一手已发牌，这是你本手的两张底牌。':'已入座，发牌后会自动显示你的底牌。');
           const prepared=await imageMessage(t,id,{...data,flags:64});
           const sent=await this.api(s.send,'POST',prepared.body);
           if(sent?.id){s.panel={...s.send,ref:sent.id,id:sent.id,hand:t.handNo,version:t.version,image:sent.attachments?.[0]?.id?{id:sent.attachments[0].id,signature:prepared.signature}:null};s.hidden=false;}else failed=true;
@@ -110,4 +113,3 @@ export class PrivatePanels {
     await this.write(records);return retry;
   }
 }
-

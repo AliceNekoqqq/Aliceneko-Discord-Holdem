@@ -1,7 +1,9 @@
+import {board as ghostBoard} from './ghost-ui.mjs';
+import {boardImageMessage as ghostImage} from './ghost-image.mjs';
 import { board as pokerBoard } from './ui.mjs';
 import { board as unoBoard } from './uno-ui.mjs';
 import { boardImageMessage } from './uno-image.mjs';
-const board=t=>(t.game==='uno'?unoBoard:pokerBoard)(t);
+const board=t=>(t.game==='ghost'?ghostBoard:t.game==='uno'?unoBoard:pokerBoard)(t);
 
 // This queue is the sole writer of existing public table messages. Interactions
 // acknowledge without editing the board; the alarm publishes under the table lock.
@@ -11,7 +13,7 @@ export class BoardSync {
   async queue(t,now=Date.now()){
     if(!t.messageId||!this.env.BOT_TOKEN)return;
     const jobs=await this.storage.get('boardJobs')||{},old=jobs[t.messageId];
-    jobs[t.messageId]={epoch:t.epoch,channel:t.channel,body:{...board(t),...(t.game==='uno'?{attachments:[]}: {})},due:Math.max(now+250,old?.retryAt||0),attempts:0,retryAt:old?.retryAt||null};
+    jobs[t.messageId]={epoch:t.epoch,channel:t.channel,body:{...board(t),...(['uno','ghost'].includes(t.game)?{attachments:[]}: {})},due:Math.max(now+250,old?.retryAt||0),attempts:0,retryAt:old?.retryAt||null};
     await this.storage.put('boardJobs',jobs);await this.schedule(jobs);
   }
   async flush(current,now=Date.now()){
@@ -20,7 +22,7 @@ export class BoardSync {
       if(job.due>now)continue;
       const live=current?.epoch===job.epoch&&current.messageId===id,body=live?board(current):job.body;
       const images=await this.storage.get('boardImages')||{};
-      const prepared=live&&current.game==='uno'?await boardImageMessage(current,body,images[id]):{body,signature:null};
+      const prepared=live&&current.game==='ghost'?await ghostImage(current,body,images[id]):live&&current.game==='uno'?await boardImageMessage(current,body,images[id]):{body,signature:null};
       const send=data=>fetch(`https://discord.com/api/v10/channels/${job.channel}/messages/${id}`,{method:'PATCH',headers:data instanceof FormData?{Authorization:`Bot ${this.env.BOT_TOKEN}`}:{Authorization:`Bot ${this.env.BOT_TOKEN}`,'Content-Type':'application/json'},body:data instanceof FormData?data:JSON.stringify(data),signal:AbortSignal.timeout(2000)});
       let response;try{response=await send(prepared.body);if(prepared.body instanceof FormData&&[400,413,415].includes(response.status))response=await send({...body,attachments:[]});}catch{}
       if(response?.ok){let data;try{data=await response.json();}catch{}const attachment=data?.attachments?.[0];if(attachment?.id&&prepared.signature)images[id]={id:attachment.id,signature:prepared.signature};else delete images[id];await this.storage.put('boardImages',Object.fromEntries(Object.entries(images).slice(-3)));}

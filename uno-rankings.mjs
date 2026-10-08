@@ -6,7 +6,7 @@ const order='wins DESC, CAST(wins AS REAL)/played DESC, last_win ASC, id ASC';
 export const wearsCrown=(t,id,now=Date.now())=>t.crown?.id===id&&t.crown?.choice==='title'&&t.crown.validUntil>now;
 export function rankedRound(result){return !!result&&['round','match','teams'].includes(result.mode)&&Array.isArray(result.players)&&result.players.length>=2&&result.players.length<=10&&result.players.every(p=>!p.bot&&/^\d+$/.test(p.id))&&new Set(result.players.map(p=>p.id)).size===result.players.length&&result.players.some(p=>p.won&&!p.surrendered);}
 export class UnoRankings {
- constructor(storage,env){this.storage=storage;this.sql=storage.sql;this.env=env;this.profiles=new UnoProfiles(this.sql);
+ constructor(storage,env,config={}){this.roleKey=config.roleKey||'unoRole';this.roleName=config.roleName||'UNO 大王';this.roleColor=config.roleColor||0xFFD166;this.storage=storage;this.sql=storage.sql;this.env=env;this.profiles=new UnoProfiles(this.sql);
   this.sql.exec('CREATE TABLE IF NOT EXISTS uno_results (id TEXT PRIMARY KEY, at INTEGER NOT NULL)');
   this.sql.exec("CREATE TABLE IF NOT EXISTS uno_stats (id TEXT PRIMARY KEY, name TEXT NOT NULL, wins INTEGER NOT NULL DEFAULT 0, played INTEGER NOT NULL DEFAULT 0, forfeits INTEGER NOT NULL DEFAULT 0, last_win INTEGER NOT NULL DEFAULT 0, choice TEXT NOT NULL DEFAULT 'none')");
  }
@@ -25,30 +25,30 @@ export class UnoRankings {
   return {counted,crown:this.crown()};
  }
  async scheduleRole(guild){await this.storage.put('rankGuild',guild);await this.storage.setAlarm(Date.now()+1);}
- async view(id){const top=this.sql.exec(`SELECT * FROM uno_stats ORDER BY ${order} LIMIT 10`).toArray();const mine=this.sql.exec(`SELECT * FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY ${order}) AS rank FROM uno_stats) WHERE id=?`,id).toArray()[0]||null;return {top,mine,leader:this.leader(),role:await this.storage.get('unoRole')||{}};}
+ async view(id){const top=this.sql.exec(`SELECT * FROM uno_stats ORDER BY ${order} LIMIT 10`).toArray();const mine=this.sql.exec(`SELECT * FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY ${order}) AS rank FROM uno_stats) WHERE id=?`,id).toArray()[0]||null;return {top,mine,leader:this.leader(),role:await this.storage.get(this.roleKey)||{}};}
  async equip(guild,id,choice){if(!['none','title','role'].includes(choice))throw Error('请选择称号菜单里的选项。');if(this.leader()?.id!==id)throw Error('👑 只有当前排行榜第一名可以佩戴；再赢几局，王冠就在前面！');this.sql.exec('UPDATE uno_stats SET choice=? WHERE id=?',choice,id);await this.scheduleRole(guild);await this.reconcile(guild,true);return this.view(id);}
  async api(path,method,body){const r=await fetch(`https://discord.com/api/v10${path}`,{method,headers:{Authorization:`Bot ${this.env.BOT_TOKEN}`,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(5000)});if(!r.ok){const e=Error([401,403].includes(r.status)?'身份组操作被拒绝：请检查 bot 的管理身份组权限及角色层级。':r.status===404?'身份组或成员已不存在，请重试。':'Discord 暂时繁忙，稍后自动重试。');e.status=r.status;e.permanent=[401,403].includes(r.status);throw e;}return r.status===204?null:r.json();}
  async reconcile(guild,force=false){
-  const state=await this.storage.get('unoRole')||{},leader=this.leader(),desired=leader?.choice==='role'?leader.id:null;
-  if(state.holder===desired&&(!desired||state.id&&state.renamed&&state.assigned)){if(state.error){state.error=null;await this.storage.put('unoRole',state);}await this.storage.deleteAlarm();return;}
+  const state=await this.storage.get(this.roleKey)||{},leader=this.leader(),desired=leader?.choice==='role'?leader.id:null;
+  if(state.holder===desired&&(!desired||state.id&&state.renamed&&state.assigned)){if(state.error){state.error=null;await this.storage.put(this.roleKey,state);}await this.storage.deleteAlarm();return;}
   if(state.blocked&&!force){await this.storage.deleteAlarm();return;}
   try{
    // Remove the old king first. Never grant a second holder if removal fails.
-   if(state.holder&&state.holder!==desired){try{await this.api(`/guilds/${guild}/members/${state.holder}/roles/${state.id}`,'DELETE');}catch(e){if(!e.message.includes('已不存在'))throw e;}state.holder=null;state.assigned=false;await this.storage.put('unoRole',state);}
+   if(state.holder&&state.holder!==desired){try{await this.api(`/guilds/${guild}/members/${state.holder}/roles/${state.id}`,'DELETE');}catch(e){if(!e.message.includes('已不存在'))throw e;}state.holder=null;state.assigned=false;await this.storage.put(this.roleKey,state);}
    if(desired){
     if(!state.id){
      // A unique provisional name makes a timed-out POST recoverable without creating duplicates.
-     if(!state.creationName){state.creationName=`UNO 大王 · ${crypto.randomUUID().slice(0,8)}`;state.postAttempted=false;await this.storage.put('unoRole',state);}
+     if(!state.creationName){state.creationName=`${this.roleName} · ${crypto.randomUUID().slice(0,8)}`;state.postAttempted=false;await this.storage.put(this.roleKey,state);}
      if(state.postAttempted){const roles=await this.api(`/guilds/${guild}/roles`,'GET');const found=roles.find(r=>r.name===state.creationName&&String(r.permissions)==='0'&&!r.managed);if(!found)throw Error('身份组创建结果待确认，请稍后重试。');state.id=found.id;}
-     else {state.postAttempted=true;await this.storage.put('unoRole',state);try{const role=await this.api(`/guilds/${guild}/roles`,'POST',{name:state.creationName,permissions:'0',color:0xFFD166,mentionable:false,hoist:false});state.id=role.id;}catch(e){if(e.status>=400&&e.status<500)state.postAttempted=false;throw e;}}
-     await this.storage.put('unoRole',state);
+     else {state.postAttempted=true;await this.storage.put(this.roleKey,state);try{const role=await this.api(`/guilds/${guild}/roles`,'POST',{name:state.creationName,permissions:'0',color:this.roleColor,mentionable:false,hoist:false});state.id=role.id;}catch(e){if(e.status>=400&&e.status<500)state.postAttempted=false;throw e;}}
+     await this.storage.put(this.roleKey,state);
     }
-    if(!state.renamed){await this.api(`/guilds/${guild}/roles/${state.id}`,'PATCH',{name:'UNO 大王'});state.renamed=true;await this.storage.put('unoRole',state);}
-    state.holder=desired;state.assigned=false;await this.storage.put('unoRole',state);
+    if(!state.renamed){await this.api(`/guilds/${guild}/roles/${state.id}`,'PATCH',{name:this.roleName});state.renamed=true;await this.storage.put(this.roleKey,state);}
+    state.holder=desired;state.assigned=false;await this.storage.put(this.roleKey,state);
     await this.api(`/guilds/${guild}/members/${desired}/roles/${state.id}`,'PUT');state.assigned=true;
    }
-   state.error=null;state.blocked=false;state.retries=0;await this.storage.put('unoRole',state);await this.storage.deleteAlarm();
-  }catch(e){state.error=e.message;state.blocked=!!e.permanent;state.retries=(state.retries||0)+1;await this.storage.put('unoRole',state);if(state.blocked)await this.storage.deleteAlarm();else await this.storage.setAlarm(Date.now()+Math.min(300000,5000*2**Math.min(state.retries,6)));}
+   state.error=null;state.blocked=false;state.retries=0;await this.storage.put(this.roleKey,state);await this.storage.deleteAlarm();
+  }catch(e){state.error=e.message;state.blocked=!!e.permanent;state.retries=(state.retries||0)+1;await this.storage.put(this.roleKey,state);if(state.blocked)await this.storage.deleteAlarm();else await this.storage.setAlarm(Date.now()+Math.min(300000,5000*2**Math.min(state.retries,6)));}
  }
  async dispatch(payload){const {guild,action,id}=payload;if(!/^\d+$/.test(guild||''))throw Error('无效服务器。');await this.storage.put('rankGuild',guild);if(action==='record')return this.record(guild,payload.result);if(action==='crown'){const profiles=this.profiles.forPlayers(payload.ids||[]),catalog=await applicationCatalog(this.env);for(const p of Object.values(profiles)){p.appEntrance=catalog.items.find(e=>e.id===p.entranceApp)||null;p.appVictory=catalog.items.find(e=>e.id===p.victoryApp)||null;}return {crown:this.crown(),profiles};}if(action==='profile'){const catalog=await applicationCatalog(this.env),parts=String(payload.key).match(/^(app|set)~(entranceApp|victoryApp)~(\d+)$/);const key=parts?.[1]==='set'?parts[2]:payload.key;const profile=payload.key==='open'||parts?.[1]==='app'?this.profiles.get(id):this.profiles.set(id,key,payload.value,catalog.items);return {profile,catalog:catalog.items,catalogStatus:catalog.status};}if(action==='equip')return this.equip(guild,id,payload.choice);return this.view(id);}
 }
