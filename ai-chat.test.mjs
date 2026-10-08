@@ -31,16 +31,21 @@ test("split cloud persona reaches chat and game requests without a seam or trunc
 });
 
 function fakeDb() {
-  const state = {memoryEnabled:1,settingExists:false,persona:"",gameHost:0,hostFeatures:{host_commentary:0,host_start:0,host_results:0},history:[],processed:new Set()};
+  const state = {memoryEnabled:1,settingExists:false,persona:"",gameHost:0,hostFeatures:{host_commentary:0,host_start:0,host_results:0},history:[],channelHistory:[],channelMemory:new Map(),processed:new Set()};
   return {
     state,
     prepare(sql) {
       const query = {sql,args:[]};
+      const channelKey=(guildId,channelId)=>`${guildId}:${channelId}`;
       return {
         query,
         bind(...args) { query.args=args; return this; },
         async first() {
           if (query.sql.includes("ai_member_settings")) return state.settingExists ? {memory_enabled:state.memoryEnabled} : null;
+          if (query.sql.includes("ai_channel_memory_config")) {
+            const enabled=state.channelMemory.get(channelKey(query.args[0],query.args[1]));
+            return enabled===undefined?null:{enabled};
+          }
           if (query.sql.includes("ai_guild_config")) return {persona:state.persona,game_host:state.gameHost,...state.hostFeatures};
           return null;
         },
@@ -51,6 +56,14 @@ function fakeDb() {
             state.processed.add(id);
           }
           if (query.sql.includes("ai_member_settings")) {state.memoryEnabled=query.args[2];state.settingExists=true;}
+          if (query.sql.includes("INSERT INTO ai_channel_memory_config")) state.channelMemory.set(channelKey(query.args[0],query.args[1]),query.args[2]);
+          if (query.sql.includes("DELETE FROM ai_chat_history")&&!query.sql.includes("id NOT IN")) {
+            state.history=state.history.filter(row=>row.guild_id!==query.args[0]||row.user_id!==query.args[1]);
+          }
+          if (query.sql.includes("DELETE FROM ai_channel_chat_history")&&!query.sql.includes("id NOT IN")) {
+            state.channelHistory=state.channelHistory.filter(row=>row.guild_id!==query.args[0]||
+              (query.sql.includes("user_id = ?")?row.user_id!==query.args[1]:row.channel_id!==query.args[1]));
+          }
           if (query.sql.includes("ai_guild_config") && query.sql.includes("persona")) state.persona=query.args[1];
           if (query.sql.includes("ai_guild_config") && query.sql.includes("host_commentary")) {
             state.gameHost=query.args[1];
@@ -58,13 +71,35 @@ function fakeDb() {
           } else if (query.sql.includes("ai_guild_config") && query.sql.includes("game_host")) state.gameHost=query.args[1];
           return {meta:{changes:1}};
         },
-        async all() { return {results:state.history.filter(row=>row.guild_id===query.args[0]&&row.user_id===query.args[1])}; }
+        async all() {
+          const isChannel=query.sql.includes("ai_channel_chat_history");
+          const rows=(isChannel?state.channelHistory:state.history).filter(row=>isChannel
+            ?row.guild_id===query.args[0]&&row.channel_id===query.args[1]
+            :row.guild_id===query.args[0]&&row.user_id===query.args[1]);
+          const limit=Number(query.args.at(-1))||30;
+          return {results:rows.sort((a,b)=>Number(a.id||0)-Number(b.id||0)).slice(-limit).reverse()};
+        }
       };
     },
     async batch(statements) {
       for(const statement of statements) {
         const {sql,args}=statement.query;
-        if(sql.startsWith("INSERT INTO ai_chat_history")) state.history.push({guild_id:args[0],user_id:args[1],role:args[2],content:args[3],id:state.history.length+1});
+        if(sql.startsWith("INSERT INTO ai_chat_history")) state.history.push({guild_id:args[0],user_id:args[1],role:args[2],content:args[3],created_at:args[4],id:state.history.length+1});
+        if(sql.startsWith("INSERT INTO ai_channel_chat_history")) state.channelHistory.push({guild_id:args[0],channel_id:args[1],user_id:args[2],role:args[3],content:args[4],speaker_name:args[5],created_at:args[6],id:state.channelHistory.length+1});
+        if(sql.includes("DELETE FROM ai_chat_history")&&!sql.includes("id NOT IN")) state.history=state.history.filter(row=>row.guild_id!==args[0]||row.user_id!==args[1]);
+        if(sql.includes("DELETE FROM ai_channel_chat_history")&&!sql.includes("id NOT IN")) state.channelHistory=state.channelHistory.filter(row=>row.guild_id!==args[0]||row.user_id!==args[1]);
+        if(sql.includes("DELETE FROM ai_chat_history")&&sql.includes("id NOT IN")) {
+          const limit=args.at(-1);
+          const scoped=state.history.filter(row=>row.guild_id===args[0]&&row.user_id===args[1]);
+          const retained=new Set(scoped.slice(-limit).map(row=>row.id));
+          state.history=state.history.filter(row=>row.guild_id!==args[0]||row.user_id!==args[1]||retained.has(row.id));
+        }
+        if(sql.includes("DELETE FROM ai_channel_chat_history")&&sql.includes("id NOT IN")) {
+          const limit=args.at(-1);
+          const scoped=state.channelHistory.filter(row=>row.guild_id===args[0]&&row.channel_id===args[1]);
+          const retained=new Set(scoped.slice(-limit).map(row=>row.id));
+          state.channelHistory=state.channelHistory.filter(row=>row.guild_id!==args[0]||row.channel_id!==args[1]||retained.has(row.id));
+        }
       }
       return {success:true};
     }
@@ -245,7 +280,9 @@ test("bot knowledge retrieval adds relevant authoritative facts only", () => {
   assert.match(getBotKnowledge("你都能干嘛"),/功能总览与命令/);
   assert.match(getBotKnowledge("可以用我上传的表情吗"),/自定义应用表情/);
   assert.match(getBotKnowledge("AI 会保存我和它的对话吗"),/最多保留最近 30 条消息/);
-  assert.match(getBotKnowledge("我想清除聊天记录"),/删除该成员在本服务器保存的对话正文/);
+  assert.match(getBotKnowledge("我想清除聊天记录"),/个人记忆和频道共享记忆/);
+  assert.match(getBotKnowledge("本频道有共享记忆吗"),/默认关闭/);
+  assert.match(getBotKnowledge("管理员怎么开启当前频道的总上下文记忆"),/\/ai 频道记忆 开启/);
   assert.match(getBotKnowledge(["我们在玩 UNO", "这桌最多几个人？"]),/2～10 人|2–10 人/);
 });
 
@@ -254,11 +291,12 @@ test("published knowledge document is generated from the Worker knowledge source
   assert.equal(document,BOT_KNOWLEDGE_MARKDOWN);
 });
 
-test("AI command exposes only member memory and independently configurable host features", () => {
+test("AI command exposes member memory, channel memory and independently configurable host features", () => {
   const groups = aiCommand.options.map(group=>group.name);
-  assert.deepEqual(groups,["记忆","主持"]);
+  assert.deepEqual(groups,["记忆","频道记忆","主持"]);
   assert.equal(groups.includes("管理员助手"),false);
   assert.equal(groups.includes("人格"),false);
+  assert.deepEqual(aiCommand.options.find(group=>group.name==="频道记忆").options.map(option=>option.name),["查看","开启","关闭","清除"]);
   const host=aiCommand.options.find(group=>group.name==="主持");
   const featureCommand=host.options.find(option=>option.name==="功能");
   assert.deepEqual(featureCommand.options.map(option=>option.name),["实时吐槽","开局播报","宣布结果"]);
@@ -297,6 +335,46 @@ test("memory off control changes only the calling member setting", async () => {
   assert.equal(db.state.memoryEnabled,0);
   assert.match(reply.data.content,/已关闭/);
   assert.equal(reply.data.flags,64);
+});
+
+test("channel memory is off by default, scoped to the current channel, and admin controlled", async () => {
+  const db=fakeDb();
+  const interaction=(action,permissions="0",channelId="channel-1")=>({
+    guild_id:"guild-1",channel_id:channelId,
+    member:{user:{id:"member-1"},permissions},
+    data:{options:[{name:"频道记忆",options:[{name:action}]}]}
+  });
+  const status=await handleAiCommand({CHAT_DB:db},interaction("查看"));
+  assert.match(status.data.content,/已关闭/);
+  const denied=await handleAiCommand({CHAT_DB:db},interaction("开启"));
+  assert.match(denied.data.content,/管理服务器/);
+  assert.equal(db.state.channelMemory.size,0);
+  const enabled=await handleAiCommand({CHAT_DB:db},interaction("开启","40"));
+  assert.match(enabled.data.content,/已开启当前频道/);
+  assert.equal(db.state.channelMemory.get("guild-1:channel-1"),1);
+  const otherChannel=await handleAiCommand({CHAT_DB:db},interaction("查看","0","channel-2"));
+  assert.match(otherChannel.data.content,/已关闭/);
+  db.state.channelHistory.push({guild_id:"guild-1",channel_id:"channel-1",user_id:"u1",role:"user",content:"旧内容",id:1});
+  const cleared=await handleAiCommand({CHAT_DB:db},interaction("清除","40"));
+  assert.match(cleared.data.content,/已清除/);
+  assert.equal(db.state.channelHistory.length,0);
+  assert.equal(db.state.channelMemory.get("guild-1:channel-1"),1);
+});
+
+test("clearing personal memory also removes that member from channel memory", async () => {
+  const db=fakeDb();
+  db.state.history.push({guild_id:"guild-1",user_id:"member-1",role:"user",content:"个人内容"});
+  db.state.channelHistory.push(
+    {guild_id:"guild-1",channel_id:"channel-1",user_id:"member-1",role:"user",content:"共享内容"},
+    {guild_id:"guild-1",channel_id:"channel-1",user_id:"other",role:"user",content:"他人内容"}
+  );
+  const reply=await handleAiCommand({CHAT_DB:db},{
+    guild_id:"guild-1",channel_id:"channel-1",member:{user:{id:"member-1"},permissions:"0"},
+    data:{options:[{name:"记忆",options:[{name:"清除"}]}]}
+  });
+  assert.match(reply.data.content,/个人记忆和频道共享记忆/);
+  assert.deepEqual(db.state.history,[]);
+  assert.deepEqual(db.state.channelHistory.map(row=>row.user_id),["other"]);
 });
 
 test("full multiline cloud persona is preserved in the shared system instruction", () => {
@@ -338,7 +416,7 @@ test("legacy persona command is not available in Discord", async () => {
     member:{user:{id:"user-1"},permissions:"40"},
     data:{options:[]}
   });
-  assert.match(reply.data.content,/使用 \/ai 记忆 或 \/ai 主持/);
+  assert.match(reply.data.content,/使用 \/ai 记忆、\/ai 频道记忆 或 \/ai 主持/);
   assert.equal(db.state.persona,"");
 });
 
@@ -508,6 +586,65 @@ test("chat memory is scoped to one member and stores only successful direct chat
   assert.equal(db.state.history.length,before);
   const secondRequest=JSON.parse(calls[4].options.body);
   assert.equal(secondRequest.contents.length,1);
+});
+
+test("channel memory combines channel and personal context, with speaker labels", async t => {
+  const db=fakeDb();
+  db.state.channelMemory.set("g1:c1",1);
+  db.state.history.push(
+    {guild_id:"g1",user_id:"u2",role:"user",content:"我之前的个人话题",created_at:10,id:1},
+    {guild_id:"g1",user_id:"u2",role:"model",content:"个人记忆回复",created_at:11,id:2}
+  );
+  db.state.channelHistory.push(
+    {guild_id:"g1",channel_id:"c1",user_id:"u1",role:"user",content:"我们刚才在聊 UNO",speaker_name:"小明",created_at:20,id:1},
+    {guild_id:"g1",channel_id:"c1",user_id:"u1",role:"model",content:"这里的共享上下文",speaker_name:"",created_at:21,id:2}
+  );
+  const calls=[];
+  t.mock.method(globalThis,"fetch",async (url,options)=>{
+    calls.push({url,options});
+    if(String(url).startsWith("https://generativelanguage.googleapis.com/")) {
+      return Response.json({candidates:[{content:{parts:[{text:"接着聊吧。"}]}}]});
+    }
+    return new Response("{}",{status:200});
+  });
+  await replyToMention({BOT_TOKEN:"test",GEMINI_API_KEY:"test",CHAT_DB:db},{
+    id:"m3",guild_id:"g1",channel_id:"c1",author:{id:"u2",username:"小红"},content:"<@bot-1> 那后来呢？"
+  },"bot-1");
+  const request=JSON.parse(calls.find(call=>String(call.url).startsWith("https://generativelanguage.googleapis.com/")).options.body);
+  assert.deepEqual(request.contents.map(item=>item.parts[0].text),[
+    "我之前的个人话题","个人记忆回复","【小明】我们刚才在聊 UNO","这里的共享上下文","【小红】那后来呢？"
+  ]);
+  assert.equal(db.state.history.length,4);
+  assert.equal(db.state.channelHistory.length,4);
+  assert.equal(db.state.channelHistory[2].speaker_name,"小红");
+});
+
+test("member memory opt-out prevents their messages entering shared channel memory", async t => {
+  const db=fakeDb();
+  db.state.channelMemory.set("g1:c1",1);
+  db.state.memoryEnabled=0;
+  db.state.settingExists=true;
+  db.state.channelHistory.push(
+    {guild_id:"g1",channel_id:"c1",user_id:"u1",role:"user",content:"别人留下的上下文",speaker_name:"小明",created_at:20,id:1},
+    {guild_id:"g1",channel_id:"c1",user_id:"u1",role:"model",content:"之前的回答",speaker_name:"",created_at:21,id:2}
+  );
+  const calls=[];
+  t.mock.method(globalThis,"fetch",async (url,options)=>{
+    calls.push({url,options});
+    if(String(url).startsWith("https://generativelanguage.googleapis.com/")) {
+      return Response.json({candidates:[{content:{parts:[{text:"收到。"}]}}]});
+    }
+    return new Response("{}",{status:200});
+  });
+  await replyToMention({BOT_TOKEN:"test",GEMINI_API_KEY:"test",CHAT_DB:db},{
+    id:"m4",guild_id:"g1",channel_id:"c1",author:{id:"u2",username:"小红"},content:"<@bot-1> 不要记住这句"
+  },"bot-1");
+  const request=JSON.parse(calls.find(call=>String(call.url).startsWith("https://generativelanguage.googleapis.com/")).options.body);
+  assert.deepEqual(request.contents.map(item=>item.parts[0].text),[
+    "【小明】别人留下的上下文","之前的回答","【小红】不要记住这句"
+  ]);
+  assert.equal(db.state.history.length,0);
+  assert.equal(db.state.channelHistory.length,2);
 });
 
 test("direct chats receive only the feature knowledge relevant to the question", async t => {
