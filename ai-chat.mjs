@@ -119,7 +119,7 @@ function readOpenAIChatAnswer(data) {
   return {answer,finishReason:choice.finish_reason||""};
 }
 
-const CHAT_CONTINUATION_LIMIT=2;
+const CHAT_CONTINUATION_LIMIT=1;
 const CHAT_CONTINUATION_PROMPT="你上一条回复似乎在句子中途停止。请紧接停止处继续并补完整句，不要重复已说内容，不要另起话题；若内容其实已经完整，只补上合适的结束标点。";
 
 function needsReplyContinuation(text,finishReason="") {
@@ -196,7 +196,12 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
     }
     answer=appendReplyContinuation(answer,result.answer);
     const finishReason=result.finishReason==="MAX_TOKENS"?"max_output_tokens":result.finishReason;
-    if(attempt===CHAT_CONTINUATION_LIMIT||!needsReplyContinuation(result.answer,finishReason)) break;
+    const needsContinuation=needsReplyContinuation(result.answer,finishReason);
+    if(attempt===CHAT_CONTINUATION_LIMIT) {
+      if(needsContinuation) answer=answer.trimEnd()+"…";
+      break;
+    }
+    if(!needsContinuation) break;
     requestContents=[
       ...contents,
       {role:"model",parts:[{text:answer}]},
