@@ -248,3 +248,12 @@
 - AI/Gateway 专项测试 16 项通过，新增自然问法匹配和基于近期上下文回答追问的验证；知识 Markdown 与 Worker 知识源校验一致。
 - Cloudflare Worker 更新上传 HTTP 200；30 个模块读回，AI 聊天与知识模块内容精确匹配 GitHub。模型地址/名称、人设、密钥绑定、D1、Durable Object 与每分钟 Cron 均核验保留。
 - GitHub 主分支提交：bec8eab。
+
+
+## 红豆粉讨好型人设替换（2026-10-08）
+
+- 已先备份线上原 GEMINI_PERSONA 完整人设；备份文件为「红豆粉_线上原提示词_备份_20261008.md」。
+- 替换为用户确认的讨好型稿，保留用户提供的十段对话示例，加入避免每轮重复道歉、解释、补偿、追问流程的限制。未使用 Izumi 预设。
+- 全文 3,349 字符、9,807 UTF-8 字节；Cloudflare 单个文本绑定最多约 5 KB，因此分为 GEMINI_PERSONA 与 GEMINI_PERSONA_CONT 两段，generateGemini 无缝拼接后使用，原单变量配置仍兼容。两段拼接顺序固定，中间不要新增或删除分隔字符；恢复旧版时恢复 GEMINI_PERSONA 原文并删除或清空 GEMINI_PERSONA_CONT。
+- 24 项 AI/Gateway 测试通过，包含超过单变量容量的完整人设同时注入聊天和游戏请求的验证。无命令或数据库迁移。
+- Cloudflare 上传 HTTP 200，保留当前线上全部 30 个模块，仅 ai-chat.mjs 增加续段变量读取；原模型、密钥、D1、Durable Object 配置继承。后续部署应继续保留两个人设变量，不把完整新稿塞回单个文本绑定。
