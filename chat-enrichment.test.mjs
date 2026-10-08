@@ -4,6 +4,8 @@ import {memoryChanges,longMemoryContext,applyMemoryChanges,readLongMemory,liveCo
 
 test('explicit names and response preferences are selective and correctable',()=>{
   assert.deepEqual(memoryChanges('以后请叫我“叶子”。'),[{key:'address',value:'希望被称呼为：叶子'}]);
+  assert.deepEqual(memoryChanges('你是不是把我的名字叶子识别成普通的叶子了，我好伤心'),[{key:'address',value:'希望被称呼为：叶子'}]);
+  assert.deepEqual(memoryChanges('对了，我叫叶子。'),[{key:'address',value:'希望被称呼为：叶子'}]);
   const context=longMemoryContext([{key:'address',value:'希望被称呼为：小叶'}],memoryChanges('叫我叶子'));
   assert.ok(context.includes('叶子'));assert.ok(!context.includes('小叶'));
   assert.equal(memoryChanges('我喜欢猫')[0].key,memoryChanges('我不喜欢猫')[0].key);
@@ -38,7 +40,7 @@ test('date is supplied without search; live queries receive sources and never in
   const now=new Date('2026-10-08T23:00:00Z');let calls=0;
   const ordinary=await liveContext('你好',async()=>{throw Error('should not search');},now);
   assert.match(ordinary,/2026年10月9日/);
-  const web=await liveContext('帮我查今天是什么日子',async(url)=>{calls++;assert.ok(url.startsWith('https://www.bing.com/search?format=rss&q='));return new Response(rss);},now);
+  const web=await liveContext('帮我查今天是什么日子',async(url)=>{calls++;const u=new URL(url);assert.equal(u.searchParams.get('mkt'),'zh-CN');assert.equal(u.searchParams.get('q'),'"2026年10月9日" 节日 节气');return new Response(rss);},now);
   assert.equal(calls,1);assert.match(web,/https:\/\/example.org\/octopus/);assert.match(web,/不可信/);
   const failed=await liveContext('今天是什么日子',async()=>{throw Error('timeout');},now);
   assert.match(failed,/2026年10月9日/);assert.match(failed,/检索未获得可用资料/);
