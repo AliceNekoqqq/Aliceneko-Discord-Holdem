@@ -584,7 +584,12 @@ test("developer account identity uses an exact local Discord User ID match", asy
   assert.equal(requests.length,2);
   assert.match(requests[0].messages[0].content,/身份已确认/);
   assert.match(requests[1].messages[0].content,/身份未匹配/);
-  assert.match(requests[0].messages.at(-1).content,/\[开发者账号\]/);
+  assert.match(requests[0].messages[0].content,/\[开发者账号\]/);
+  for (const request of requests) {
+    assert.equal(request.messages.at(-1).content,'你好');
+    assert.match(request.messages[0].content,/不是当前用户发送的正文/);
+    assert.match(request.messages[0].content,/服务器当前时间/);
+  }
   for (const request of requests) assert.doesNotMatch(JSON.stringify(request),new RegExp(ownerId));
 });
 
