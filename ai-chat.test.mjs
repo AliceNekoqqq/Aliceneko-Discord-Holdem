@@ -12,7 +12,8 @@ import {
   makeSystemInstruction,
   commentOnGameTransition,
   publicGameEvent,
-  replyToMention
+  replyToMention,
+  startTypingIndicator
 } from "./ai-chat.mjs";
 import { DiscordGateway } from "./discord-gateway.mjs";
 
@@ -359,6 +360,35 @@ test("host feature gates announce results independently from live commentary", a
   assert.equal(calls.length,callCount);
 });
 
+test("typing indicator refreshes while waiting and stops when the request finishes", async t => {
+  const calls=[];
+  let refresh;
+  let cleared=false;
+  t.mock.method(globalThis,"setInterval",(callback,ms)=>{
+    assert.equal(ms,8000);
+    refresh=callback;
+    return 42;
+  });
+  t.mock.method(globalThis,"clearInterval",timer=>{
+    assert.equal(timer,42);
+    cleared=true;
+  });
+  const stop=startTypingIndicator({BOT_TOKEN:"test-token"},"channel-1",async (url,options)=>{
+    calls.push({url,options});
+    return new Response(null,{status:204});
+  });
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].url,"https://discord.com/api/v10/channels/channel-1/typing");
+  assert.equal(calls[0].options.method,"POST");
+  assert.equal(calls[0].options.headers.Authorization,"Bot test-token");
+  refresh();
+  assert.equal(calls.length,2);
+  stop();
+  assert.equal(cleared,true);
+  refresh();
+  assert.equal(calls.length,2);
+});
+
 test("Gateway replies to direct mentions and ignores ordinary guild messages", async t => {
   const sent=[];
   t.mock.method(globalThis,"fetch",async (url,options)=> {
@@ -437,9 +467,10 @@ test("chat memory is scoped to one member and stores only successful direct chat
   assert.equal(db.state.history[0].guild_id,"g1");
   assert.equal(db.state.history[0].user_id,"u1");
   assert.equal(db.state.history[0].content,"我喜欢蓝色");
-  assert.equal(JSON.parse(calls[1].options.body).content,"嗨，记住啦。");
-  assert.doesNotMatch(calls[1].options.body,/会保存最近 30 条/);
-  const request=JSON.parse(calls[0].options.body);
+  assert.equal(JSON.parse(calls[2].options.body).content,"嗨，记住啦。");
+  assert.equal(calls[0].url,"https://discord.com/api/v10/channels/c1/typing");
+  assert.doesNotMatch(calls[2].options.body,/会保存最近 30 条/);
+  const request=JSON.parse(calls[1].options.body);
   assert.equal(request.contents.at(-1).parts[0].text,"我喜欢蓝色");
   assert.match(request.systemInstruction.parts[0].text,/# 红豆粉｜完整人设\n姓名：红豆粉/);
   assert.match(request.systemInstruction.parts[0].text,/<:redbean:123456789>/);
@@ -451,7 +482,7 @@ test("chat memory is scoped to one member and stores only successful direct chat
     id:"m2",guild_id:"g1",channel_id:"c1",author:{id:"u1"},content:"<@bot-1> 这条不要保存"
   },"bot-1");
   assert.equal(db.state.history.length,before);
-  const secondRequest=JSON.parse(calls[2].options.body);
+  const secondRequest=JSON.parse(calls[4].options.body);
   assert.equal(secondRequest.contents.length,1);
 });
 
@@ -467,10 +498,10 @@ test("direct chats receive only the feature knowledge relevant to the question",
   await replyToMention({BOT_TOKEN:"test",GEMINI_API_KEY:"test"},{
     id:"uno-question",guild_id:"g1",channel_id:"c1",author:{id:"u1"},content:"<@bot-1> UNO 的 +2 可以叠 +4 吗？"
   },"bot-1");
-  const request=JSON.parse(calls[0].options.body);
+  const request=JSON.parse(calls[1].options.body);
   assert.match(request.systemInstruction.parts[0].text,/默认混合叠加：\+2 可接 \+2 或 \+4/);
   assert.doesNotMatch(request.systemInstruction.parts[0].text,/起始虚拟筹码 2,000/);
-  assert.equal(JSON.parse(calls[1].options.body).content,"可以呀。");
+  assert.equal(JSON.parse(calls[2].options.body).content,"可以呀。");
 });
 
 test("recent chat context resolves follow-up questions about the current game", async t => {
@@ -491,7 +522,7 @@ test("recent chat context resolves follow-up questions about the current game", 
   await replyToMention(env,{
     id:"follow-up",guild_id:"g1",channel_id:"c1",author:{id:"u1"},content:"<@bot-1> 这桌最多几个人？"
   },"bot-1");
-  const prompt=JSON.parse(calls[0].options.body).systemInstruction.parts[0].text;
+  const prompt=JSON.parse(calls[1].options.body).systemInstruction.parts[0].text;
   assert.match(prompt,/2～10 人|2–10 人/);
   assert.match(prompt,/电脑陪练/);
 });
