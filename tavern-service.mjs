@@ -2,6 +2,7 @@ import {TavernMapService} from './tavern-map-service.mjs';
 import {WELCOME_COINS,DAILY_REWARD_CAP,DAILY_GIFT_COINS,ROSTER_DAILY_LIMIT,rosterRewardRate,ORDER_TTL,REWARDS,validId,dayKey,cleanText,menuItem,makeOrderDetails,SWEETNESS,TEMPERATURE,SEATS} from './tavern-catalog.mjs';
 import {TavernRenovation} from './tavern-renovation.mjs';
 import {TavernOperations} from './tavern-operations.mjs';
+import {PetService} from './pet-service.mjs';
 
 export class TavernService {
  constructor(storage){
@@ -21,6 +22,7 @@ export class TavernService {
  get renovation(){return this._renovation??=new TavernRenovation(this);}
  get map(){return this.mapService??=new TavernMapService(this);}
  get operations(){return this._operations??=new TavernOperations(this);}
+ get pets(){return this._pets??=new PetService(this);}
  rows(q,...args){return this.sql.exec(q,...args).toArray();}
  one(q,...args){return this.rows(q,...args)[0]||null;}
  member(id,name='',now=Date.now(),insideTransaction=false){
@@ -141,6 +143,7 @@ export class TavernService {
   if(!validId(p.guild))throw Error('无效服务器。');
   const bound=await this.storage.get('tavernGuild');if(bound&&bound!==p.guild)throw Error('服务器不匹配。');if(!bound)await this.storage.put('tavernGuild',p.guild);
   if(p.action?.startsWith('map'))return this.map.dispatch(p);
+  if(p.action?.startsWith('pet'))return this.pets.dispatch(p);
   if(p.action==='context'&&p.recordVisit===true&&validId(p.id)&&validId(p.channel)){try{this.map.touch({id:p.id,name:p.name,channel:p.channel,kind:'visit'});}catch{}}
   if(validId(p.id)&&validId(p.channel)&&!['context','confirm'].includes(p.action)){try{this.map.touch({id:p.id,name:p.name,channel:p.channel,kind:'visit'});}catch{}}
   if(p.action==='reward')return this.reward(p.guild,p.result);
@@ -162,4 +165,5 @@ export class TavernService {
 }
 export const tavernStub=(env,guild)=>env.TABLES.get(env.TABLES.idFromName(`tavern:${guild}`));
 export async function tavernRequest(env,p){const r=await tavernStub(env,p.guild).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'tavern',...p})});if(!r.ok)throw Error('酒馆暂时繁忙，请稍后重试。');const data=await r.json();if(data?.error)throw Error(data.error);return data;}
+
 

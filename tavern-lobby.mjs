@@ -78,7 +78,7 @@ export function tavernLobbyData(board,guild,owner='any',operations=null,live=nul
 }
 export function tavernLobbyGames(guild){
  const games=[['poker','♠️ 德州'],['uno','🃏 UNO'],['ghost','👻 抽鬼牌'],['liar','🃏 骗子酒馆'],['table','🎴 当前牌桌']];
- return {content:'🎮 **小酒馆游戏区**\n选择一款游戏，打开当前频道的牌桌。小游戏奖励按既有规则结算。',components:[row(...games.map(([g,label])=>button(guild,'any',`lobbyPlay~${g}`,label,1))),row(button(guild,'any','lobby','返回大厅'))],allowed_mentions:mentions};
+ return {content:'🎮 **小酒馆游戏区**\n牌桌游戏在当前频道游玩；「我的伙伴」打开本人私密养成面板。伙伴每人限一只，同行奖励计入小游戏总日额度。',components:[row(...games.map(([g,label])=>button(guild,'any',`lobbyPlay~${g}`,label,1))),row(button(guild,'any','lobbyPet','🐾 我的伙伴',1),button(guild,'any','lobby','返回大厅'))],allowed_mentions:mentions};
 }
 export async function answerLobby(env,i){
  const p=validate(i);if(p.action==='lobbyGames')return tavernLobbyGames(p.g);
@@ -98,4 +98,5 @@ export async function answerLobby(env,i){
  const live=await tavernRequest(env,{guild:p.g,id:p.u,channel:p.ch,name,action:'mapRender',scene:true}).catch(()=>null);
  return tavernLobbyData(board,p.g,p.publicEntry?'any':(i.data?.custom_id?.split(':')[2]||'any'),operations,live);
 }
+
 
