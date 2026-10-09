@@ -33,6 +33,65 @@ test('pet UI payloads disable mentions and stay within Discord component bounds'
  const data=await answerPet(stub,interaction('view'));assert.deepEqual(data.allowed_mentions,{parse:[]});assert(data.components.length<=5);for(const r of data.components){assert(r.components.length<=5);for(const c of r.components)assert(c.custom_id.length<=100);}
 });
 
+test('real pet UI message branches satisfy Discord legacy component payload constraints',async()=>{
+ const owned={...view,pet:{...view.pet,unlockedHabits:['friendly']}};
+ const walking={...owned,walk:{id:'walk-abc',version:7,phase:'playing',energy:6,bag:[],bagCapacity:3},walkView:{location:'灯巷',intent:'sniff',intentName:'闻一闻',choices:[{id:'bakery-friend',label:'和摊主聊聊雨天生意',cost:1,effect:'结识摊主',preferred:true},{id:'alley-scent',label:'循着雨后的花香走石阶',cost:1,effect:'记下花香'}]}};
+ const routes=[
+  ['empty panel',interaction('view'),{...view,pet:null}],
+  ['owned panel',interaction('view'),owned],
+  ['walking panel',interaction('view'),walking],
+  ['coat menu',interaction('coatMenu'),owned],
+  ['coat preview',interaction('coatPreview~silver'),owned],
+  ['adoption preview',interaction('preview~dusk-rabbit~peach'),{...view,pet:null}],
+  ['material shop',interaction('materials'),{...owned,materialBudget:{gathered:2,gatherCap:3,bought:4,buyCap:6}}],
+  ['home and item shop',interaction('home'),owned],
+  ['habits',interaction('habits'),owned],
+  ['journal',interaction('journal'),owned],
+  ['item purchase preview',interaction('buyPreview~bell-charm'),owned],
+  ['material purchase preview',interaction('materialBuyPreview~cloth'),owned],
+ ];
+ for(const [label,i,result] of routes){
+  const payload=await answerPet(mockEnv(result).env,i);
+  assert.deepEqual(payload.allowed_mentions,{parse:[]},label);
+  assert(Array.isArray(payload.components),`${label}: components array`);
+  assert(payload.components.length<=5,`${label}: at most five action rows`);
+  const ids=new Set();
+  for(const actionRow of payload.components){
+   assert.equal(actionRow.type,1,`${label}: action row type`);
+   assert(Array.isArray(actionRow.components)&&actionRow.components.length>=1,`${label}: non-empty row`);
+   assert(actionRow.components.length<=5,`${label}: at most five children per row`);
+   const children=actionRow.components;
+   const selects=children.filter(c=>c.type===3);
+   assert(selects.length===0||children.length===1,`${label}: a select occupies its own row`);
+   for(const c of children){
+    assert([2,3].includes(c.type),`${label}: supported interactive component type`);
+    assert.equal(typeof c.custom_id,'string',`${label}: custom_id is a string`);
+    const idLength=Array.from(c.custom_id).length;
+    assert(idLength>=1&&idLength<=100,`${label}: custom_id length ${idLength}`);
+    assert(!ids.has(c.custom_id),`${label}: duplicate custom_id ${c.custom_id}`);ids.add(c.custom_id);
+    if(c.type===2){
+     const labelLength=Array.from(c.label||'').length;
+     assert(labelLength>=1&&labelLength<=80,`${label}: button label length ${labelLength}`);
+     assert([1,2,3,4].includes(c.style),`${label}: valid interactive button style`);
+    }else{
+     assert(Array.isArray(c.options)&&c.options.length>=1&&c.options.length<=25,`${label}: select option count`);
+     assert(Array.from(c.placeholder||'').length<=150,`${label}: select placeholder length`);
+     assert(Number.isInteger(c.min_values)&&Number.isInteger(c.max_values)&&c.min_values>=0&&c.min_values<=c.max_values&&c.max_values<=25,`${label}: valid select bounds`);
+     for(const option of c.options){
+      for(const field of ['label','value'])assert(Array.from(option[field]||'').length>=1&&Array.from(option[field]).length<=100,`${label}: option ${field} length`);
+      if(option.description!==undefined)assert(Array.from(option.description).length<=100,`${label}: option description length`);
+     }
+    }
+   }
+  }
+  if(payload.content!==undefined)assert(Array.from(payload.content).length<=2000,`${label}: content length`);
+  if(payload.embeds!==undefined){
+   assert(payload.embeds.length<=10,`${label}: embed count`);
+   for(const embed of payload.embeds)if(embed.image?.url)assert(Array.from(embed.image.url).length<=2048,`${label}: image URL length`);
+  }
+ }
+});
+
 test('adoption modal enforces the service 24-character limit and claims only on submit',async()=>{
  const {env,calls}=mockEnv({...view,pet:{...view.pet,name:'新伙伴'}});const click=interaction('name~lamp-cat');const modal=immediatePetReply(click);assert.equal(modal.data.components[0].components[0].max_length,24);
  const submit={...click,type:5,message:{flags:64},data:{custom_id:'p:34:12:save~lamp-cat',components:[{components:[{custom_id:'petName',value:'团团'}]}]}};
@@ -86,6 +145,36 @@ test('finishPet turns service errors into a private, usable return panel',async(
  globalThis.fetch=async(_url,options)=>{payload=JSON.parse(options.body);return new Response(null,{status:204});};
  try{await finishPet({...env,DISCORD_APPLICATION_ID:'77',BOT_TOKEN:'token'},interaction('care','12',64,{data:{custom_id:'p:34:12:care'}}));}finally{globalThis.fetch=old;}
  assert.match(payload.content,/当前没有伙伴/);assert(payload.components?.some(r=>r.components.some(c=>c.custom_id==='p:34:12:view')));assert.deepEqual(payload.allowed_mentions,{parse:[]});
+});
+
+test('finishPet falls back after HTTP failure without repeating a purchase mutation',async()=>{
+ const {env,calls}=mockEnv();const oldFetch=globalThis.fetch,oldWarn=console.warn;const payloads=[],warnings=[];let n=0;
+ globalThis.fetch=async(_url,options)=>{payloads.push(JSON.parse(options.body));return new Response(null,{status:++n===1?400:204});};console.warn=(...args)=>warnings.push(args);
+ try{
+  const result=await finishPet({...env,DISCORD_APPLICATION_ID:'77',BOT_TOKEN:'secret-token'},interaction('buy~bell-charm~30~v1'));
+  assert.equal(result.content,'🐾 伙伴页面暂时显示失败，请重新打开「我的伙伴」查看已保存的结果。');
+ }finally{globalThis.fetch=oldFetch;console.warn=oldWarn;}
+ assert.equal(payloads.length,2);assert.equal(payloads[0].content.includes('伙伴小窝'),true);
+ assert.deepEqual(payloads[1],{content:'🐾 伙伴页面暂时显示失败，请重新打开「我的伙伴」查看已保存的结果。',components:[],embeds:[],attachments:[],allowed_mentions:{parse:[]}});
+ assert.equal(calls.filter(c=>c.action==='petBuy').length,1);assert.deepEqual(warnings,[['pet_panel_update_failed',400]]);
+ assert(!JSON.stringify(warnings).includes('secret-token'));
+});
+
+test('finishPet falls back after network failure and does not expose error details',async()=>{
+ const {env,calls}=mockEnv();const oldFetch=globalThis.fetch,oldWarn=console.warn;const payloads=[],warnings=[];let n=0;
+ globalThis.fetch=async(_url,options)=>{payloads.push(JSON.parse(options.body));if(++n===1)throw Error('sensitive URL and token');return new Response(null,{status:204});};console.warn=(...args)=>warnings.push(args);
+ try{await finishPet({...env,DISCORD_APPLICATION_ID:'77',BOT_TOKEN:'secret-token'},interaction('care'));}finally{globalThis.fetch=oldFetch;console.warn=oldWarn;}
+ assert.equal(payloads.length,2);assert.deepEqual(payloads[1].components,[]);assert.deepEqual(payloads[1].embeds,[]);assert.deepEqual(payloads[1].attachments,[]);
+ assert.equal(calls.filter(c=>c.action==='petCare').length,1);assert.deepEqual(warnings,[['pet_panel_update_failed','network']]);
+ assert(!JSON.stringify(warnings).includes('sensitive URL'));assert(!JSON.stringify(warnings).includes('secret-token'));
+});
+
+test('finishPet throws a safe error when both message updates fail',async()=>{
+ const {env,calls}=mockEnv();const oldFetch=globalThis.fetch,oldWarn=console.warn;const warnings=[];let n=0;
+ globalThis.fetch=async()=>new Response(null,{status:++n===1?400:503});console.warn=(...args)=>warnings.push(args);
+ try{await assert.rejects(finishPet({...env,DISCORD_APPLICATION_ID:'77',BOT_TOKEN:'secret-token'},interaction('care')),/初次 HTTP 400；备用面板 HTTP 503/);}finally{globalThis.fetch=oldFetch;console.warn=oldWarn;}
+ assert.equal(n,2);assert.equal(calls.filter(c=>c.action==='petCare').length,1);assert.deepEqual(warnings,[['pet_panel_update_failed',400]]);
+ assert(!JSON.stringify(warnings).includes('secret-token'));
 });
 
 test('long Discord snowflakes and 22-hex walk ids still fit Discord custom_id limit',async()=>{

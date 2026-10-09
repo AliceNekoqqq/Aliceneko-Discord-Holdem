@@ -91,7 +91,7 @@ function panel(view,g,u,notice=''){
  if(!walk||walk.phase!=='playing'){
    components.push(row({type:3,custom_id:key(g,u,'startMaterial'),placeholder:'选本局基础材料，再开始同行',min_values:1,max_values:1,options:MATERIALS.map(id=>({label:`${materialNames[id]} · 持有${view.materials?.[id]||0}`,value:id,description:'奖励资格有效时，每局基础获得1份'}))}));
    components.push(row({type:3,custom_id:key(g,u,'gatherMaterial'),placeholder:`免费采集 · 今日剩余${gatherLeft}份`,min_values:1,max_values:1,options:MATERIALS.map(id=>({label:materialNames[id],value:id}))}));
-   components.push(row(button(g,u,'care','🫶 今日护理'),button(g,u,'materials','🧺 材料铺'),button(g,u,'coatMenu','🎨 更换花色'),button(g,u,'home','🛏️ 小窝')));
+   components.push(row(button(g,u,'care','🫶 今日护理'),button(g,u,'materials','🧺 材料铺'),button(g,u,'home','🛏️ 小窝')));
  }
  else {
    const choices=walkView?.choices||[];
@@ -192,6 +192,21 @@ export async function finishPet(env,i){
   if(p)data.components=[row(button(p.guild,p.id,'view','返回伙伴面板'))];
  }
  const url=`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${i.token}/messages/@original`;
- const response=await fetch(url,{method:'PATCH',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({...data,allowed_mentions:mentions}),signal:AbortSignal.timeout(5000)});
- if(!response.ok)throw Error(`伙伴面板更新失败：${response.status}`);return data;
+ const patch=body=>fetch(url,{method:'PATCH',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(5000)});
+ let firstStatus='network';
+ try{
+  const response=await patch({...data,allowed_mentions:mentions});
+  if(response.ok)return data;
+  firstStatus=response.status;
+ }catch{}
+ try{console.warn('pet_panel_update_failed',firstStatus==='network'?'network':firstStatus);}catch{}
+ const fallback={content:'🐾 伙伴页面暂时显示失败，请重新打开「我的伙伴」查看已保存的结果。',components:[],embeds:[],attachments:[],allowed_mentions:mentions};
+ try{
+  const response=await patch(fallback);
+  if(response.ok)return fallback;
+  throw Error(`备用面板 HTTP ${response.status}`);
+ }catch(e){
+  const fallbackFailure=/^备用面板 HTTP \d+$/.test(String(e?.message||''))?e.message:'备用面板 network';
+  throw Error(`伙伴面板更新失败（${firstStatus==='network'?'初次 network':`初次 HTTP ${firstStatus}`}；${fallbackFailure}）`);
+ }
 }

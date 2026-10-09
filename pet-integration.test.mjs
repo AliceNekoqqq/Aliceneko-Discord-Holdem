@@ -14,7 +14,10 @@ async function setup(t){
  const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);
  const env={DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex'),BOT_TOKEN:'fake-test-token'},instances=new Map(),posts=[];
  env.TABLES={idFromName:n=>n,get:n=>{if(!instances.has(n)){const ctx=context();instances.set(n,{ctx,object:new PokerTable(ctx,env)});}return {fetch:(url,options)=>instances.get(n).object.fetch(new Request(url,options))};}};
- const original=globalThis.fetch;globalThis.fetch=async(url,options)=>{posts.push({url:String(url),method:options?.method,data:options?.body?JSON.parse(options.body):null});return Response.json({id:'99'});};t.after(()=>globalThis.fetch=original);
+ const original=globalThis.fetch;globalThis.fetch=async(url,options)=>{posts.push({url:String(url),method:options?.method,data:options?.body?JSON.parse(options.body):null});return Response.json({id:'99'});};t.after(()=>{
+  globalThis.fetch=original;
+  for(const post of posts){const ids=(post.data?.components||[]).flatMap(r=>r.components||[]).map(c=>c.custom_id).filter(Boolean);assert.equal(new Set(ids).size,ids.length,'outgoing Discord message has duplicate custom_id');}
+ });
  let serial=0;
  const call=async(extra={},repeatId)=>{
   const i={type:3,application_id:'123',guild_id:'3',channel_id:'2',id:repeatId||String(++serial),token:'transient-test-token',member:{user:{id:'1',username:'Alice'}},message:{id:'55',flags:64},...extra};
