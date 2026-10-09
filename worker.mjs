@@ -115,7 +115,7 @@ export class PokerTable extends DurableObject {
   }
   async dispatch(payload){
       if(payload.op==='petHome'){try{return json(await dispatchPetHome(this.ctx.storage,payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='gatewayEnsure'){try{return json({...await this.discordGateway.ensure(),runtime:'chat90-participant-context-v3'});}catch{return json({connected:false,runtime:'chat90-participant-context-v3'});}}
+      if(payload.op==='gatewayEnsure'){try{return json({...await this.discordGateway.ensure(),runtime:'chat50-channel-order-speaker-map'});}catch{return json({connected:false,runtime:'chat50-channel-order-speaker-map'});}}
       if(payload.op==='aiProbe'){
         const started=Date.now();
         try{

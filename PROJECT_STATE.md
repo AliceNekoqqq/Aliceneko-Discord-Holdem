@@ -6,8 +6,10 @@
 - Gateway队列由服务器+频道+作者改为服务器+频道。A/B/A在同频道按收到顺序处理，等前轮发送与存档结束再读取后轮上下文；不同频道/服务器继续并行，90秒模型期限保持。保存失败仅记录messageId/channelId/标准错误类别，无正文/原始异常。
 - 关键回归：真实replyToMention+fake D1延迟batch，A的回复已发送但未保存时，B未读取个人/频道历史或启动模型；放行后B看到A的完整user/model对及正确speaker/bot replyTo，每条Discord回复引用自己触发的消息。还覆盖同名/改名/引用/公开记忆映射、确切ID去重、跨频道/跨服并行、队列清理、发送失败恢复、实际原生与兼容请求/图片。
 - 验证：稳定代码聊天四组73/73全部通过（node --test --test-concurrency=1 --test-reporter=tap ai-chat.test.mjs chat-enrichment.test.mjs discord-chat-context.test.mjs gateway-concurrency.test.mjs），两身份模块node --check通过。测试使用模拟身份/数据库/HTTP，没有读真实玩家数据或发Discord测试聊天。运行标记chat50-channel-order-speaker-map；数据库/schema无变更，无需重注册。
-- 当前发布：待GitHub提交、Cloudflare完整上传及Gateway实际执行核验。
-- 发布范围：只替换线上ai-chat.mjs、discord-chat-context.mjs、discord-gateway.mjs；从当前beta.49完整模块包保留其余模块/配置/人设，设备菜单beta.48仍待单独上线，不上传本地旧worker或main尚未部署的设备知识。当前线上知识精确快照仍为docs/ai/RUNTIME_KNOWLEDGE_CHAT49_BASE47.mjs。
+- 已发布：GitHub功能提交e7bd3cd267a2ed1b16387b5a0c5f0f9a2219971b在main；其后同步worker的Gateway运行标记与发布证据。生产活跃87f26343-e90d-4b6e-971d-3774ee704f4b，部署a64ef9b3-bb5b-44bd-9fcb-b713dd96bd7e，100%流量，2026-10-09T20:53:48Z。完整92模块中本批仅四项变更：ai-chat/discord-chat-context/discord-gateway及worker的一行运行标记；其余88模块字节保持。非秘密与秘密绑定、人设、D1、DO namespace、兼容/observability、migration v1与每分钟Cron逐项保持。/health HTTP200、ok:true。
+- 实际Gateway核验：首次上传后的探测仍返回旧标记，不能只凭活跃版本宣称连接已切换。随后同步worker标记并完整重新上传；短期只读探测同一system-discord-gateway DO最终返回connected:true、connecting:false、chatRuntime:chat50-channel-order-speaker-map，证实真实Gateway执行了本批新代码。未发送Discord测试聊天或调用真实模型；临时探测Worker在核验后删除。部署传播的旧版本窗口是实测现象，未认定第二次上传必然是切换原因。
+- SHA256读回精确一致：ai-chat=9c75bc97583a8e2b8608037cb48186087edd001c6821993f3c9396835812653c；discord-chat-context=43fafbd3927b7dab9ecf402b08502d132740daeb34e3c2c61500986d878f6dd1；discord-gateway=08d1b76d08e2dbedb9faec267b2e86ff8cbde95f2e98d122fa0a9fecebdccac6；worker=af24539da7941e2d5118811e4bee9d45e103c4c75184d9c405c63eb018335ee2。worker从实际生产下载内容只替换chat90标记为chat50；GitHub的worker也只同步该行，保留main全部未上线设备改动，不能直接把main worker当作本批生产包。
+- 发布范围：保留beta.49人设、公开长期记忆共享及当前线上知识快照docs/ai/RUNTIME_KNOWLEDGE_CHAT49_BASE47.mjs。设备菜单beta.48仍待单独上线，不上传main尚未部署的设备知识/菜单；设备上线时需保留本批四模块变化与云端新persona。最后成功动作为代码/配置/健康/Gateway核验及GitHub状态文档同步。
 - 能力边界：频道记忆默认关闭、仍仅收成功@问答且本人开启记忆才保存；不新增普通群聊采集。频道串行会让同频道后来的请求等待。结构回归不等于真人自然输出永不误称，下一步观察A/B连续回复、同名改名与引用对象实际表现。
 
 ## beta.49 · 人设成长与公开长期记忆共享（2026-10-10，北京时间）

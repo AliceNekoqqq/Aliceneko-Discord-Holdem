@@ -1,6 +1,6 @@
 # 红豆粉小酒馆 · 新对话交接文档
 
-> 当前任务beta.50：用户已授权修复多人归属，完成本轮统一账号键（含名单/引用/公开记忆ownerKey）、完整频道时间线和服务器+频道FIFO（含等待历史保存）；正在统一验证与发布，最终证据见PROJECT_STATE顶部。保留beta.49人设与同服公开长期记忆共享。设备菜单beta.48在main但尚未上线，不能用本地旧worker或main设备知识覆盖当前生产；本批只替换ai-chat/discord-chat-context/discord-gateway三模块，其余线上模块与配置原样保留。频道记忆默认关闭且仅成功@范围不变，自然回复仍待真人观察。
+> 当前已发布beta.50：完成本轮统一账号键（含名单/引用/公开记忆ownerKey）、完整频道时间线和服务器+频道FIFO（含等待历史保存），聊天四组73/73通过，实际Gateway已返回chatRuntime=chat50-channel-order-speaker-map且连接正常；发布版本/哈希/证据见PROJECT_STATE顶部。保留beta.49人设与同服公开长期记忆共享。设备菜单beta.48在main但尚未上线，不能用main worker或设备知识覆盖当前生产；本批仅更新ai-chat/discord-chat-context/discord-gateway及实际生产worker的一行运行标记，其余88模块与配置原样保留。GitHub worker只同步标记，保留全部设备改动。频道记忆默认关闭且仅成功@范围不变，自然回复仍待真人观察。
 
 > 更新日期：2026-10-10（Asia/Shanghai）。本文件保存项目方向、用户长期要求和接续入口；执行约定见 [AGENTS.md](AGENTS.md)，每次工作的证据与版本记录见 [PROJECT_STATE.md](PROJECT_STATE.md)。用户最新明确指令优先，随后核对源码和最新状态；不要把旧版本记录当作当前行为。
 
