@@ -2,11 +2,34 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFile} from 'node:fs/promises';
+import {MENU} from './tavern-catalog.mjs';
 
 function storage(){
  const db=new DatabaseSync(':memory:'),map=new Map();
  return {map,sql:{exec(q,...args){const s=db.prepare(q);if(s.columns().length){const rows=s.all(...args);return {toArray:()=>rows,one:()=>rows[0]};}s.run(...args);return {toArray:()=>[]};}},transactionSync(fn){db.exec('BEGIN');try{const v=fn();db.exec('COMMIT');return v;}catch(e){db.exec('ROLLBACK');throw e;}},get:async k=>structuredClone(map.get(k)),put:async(k,v)=>{if(typeof k==='object')for(const [key,value]of Object.entries(k))map.set(key,structuredClone(value));else map.set(k,structuredClone(v));},delete:async k=>map.delete(k),setAlarm:async v=>map.set('alarm',v),deleteAlarm:async()=>map.delete('alarm')};
 }
+
+test('signed menu categories browse publicly without a wallet and food preview stays private until confirmation',async t=>{
+ const s=await setup(t);
+ assert.deepEqual(await s.call(s.component('t:3:any:menuCat~savory')),{type:6});
+ const service=s.instances.get('tavern:3').tavern;
+ assert.equal(service.rows('SELECT * FROM tavern_members').length,0);
+ assert.match(s.lastReply().content,/香菇清汤面/);assert(!s.lastReply().content.includes('余额'));
+ assert.deepEqual(await s.call(s.component('t:3:any:menu')),{type:5,data:{flags:64}});
+ await s.call(s.component('t:3:1:menuCat~savory',64));
+ const select=s.lastReply().components.flatMap(r=>r.components).find(c=>c.type===3);
+ assert.equal(select.options.length,6);
+ await s.call(s.component(select.custom_id,64,{data:{custom_id:select.custom_id,values:['mushroom-noodles']}}));
+ const preview=s.lastReply();assert.match(preview.content,/食材：.*香菇/);assert.match(preview.content,/搭配：/);assert.match(preview.content,/按菜品原味 · 温热/);
+ assert.equal(service.view('1').member.balance,60);assert.equal(service.rows('SELECT * FROM tavern_orders').length,0);
+ const confirm=preview.components.flatMap(r=>r.components).find(c=>c.custom_id.includes('confirm~')).custom_id;
+ await s.call(s.component(confirm,64));await s.call(s.component(confirm,64));
+ assert.equal(service.view('1').member.balance,60-MENU.find(p=>p.id==='mushroom-noodles').price);
+ assert.equal(service.rows('SELECT * FROM tavern_orders').length,1);
+ assert.equal(s.sent.filter(r=>r.url.endsWith('/channels/2/messages')).length,1);
+ const other=await s.call(s.component('t:3:1:menuCat~savory',64,{member:{user:{id:'2',username:'Bob'}}}));assert.equal(other.type,4);
+ const malformed=await s.call(s.component('t:4:any:menuCat~savory'));assert.equal(malformed.type,4);
+});
 async function setup(t){
  const source=(await readFile(new URL('./worker.mjs',import.meta.url),'utf8')).replace("import { DurableObject } from 'cloudflare:workers';","class DurableObject {constructor(ctx,env){this.ctx=ctx;this.env=env;}}").replace(/from '(\.\/[^']+)'/g,(_,p)=>`from ${JSON.stringify(new URL(p,import.meta.url).href)}`);
  const {default:worker,PokerTable}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
