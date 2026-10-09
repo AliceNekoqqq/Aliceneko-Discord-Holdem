@@ -1,0 +1,2041 @@
+{
+  "catalogVersion": "0.2",
+  "boundaryChecks": 13,
+  "seedsPerCell": 64,
+  "isolatedBattles": {
+    "lantern_rat/tinder/aggressive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2,
+      "p90Turns": 2,
+      "meanEndHp": 26.88,
+      "p10EndHp": 24,
+      "meanHeal": 2.25,
+      "lostLight": 0
+    },
+    "lantern_rat/tinder/balanced": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2.45,
+      "p90Turns": 3,
+      "meanEndHp": 28.44,
+      "p10EndHp": 26,
+      "meanHeal": 0.38,
+      "lostLight": 0
+    },
+    "lantern_rat/tinder/defensive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2.5,
+      "p90Turns": 3,
+      "meanEndHp": 28.59,
+      "p10EndHp": 26,
+      "meanHeal": 0.38,
+      "lostLight": 0
+    },
+    "lantern_rat/brooch/aggressive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2.22,
+      "p90Turns": 3,
+      "meanEndHp": 25.22,
+      "p10EndHp": 24,
+      "meanHeal": 0.53,
+      "lostLight": 0
+    },
+    "lantern_rat/brooch/balanced": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2.91,
+      "p90Turns": 3,
+      "meanEndHp": 28.84,
+      "p10EndHp": 26,
+      "meanHeal": 0.72,
+      "lostLight": 0
+    },
+    "lantern_rat/brooch/defensive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2.94,
+      "p90Turns": 3,
+      "meanEndHp": 28.92,
+      "p10EndHp": 26,
+      "meanHeal": 0.62,
+      "lostLight": 0
+    },
+    "lantern_rat/badge/aggressive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2,
+      "p90Turns": 2,
+      "meanEndHp": 26.88,
+      "p10EndHp": 24,
+      "meanHeal": 2.25,
+      "lostLight": 0
+    },
+    "lantern_rat/badge/balanced": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2.45,
+      "p90Turns": 3,
+      "meanEndHp": 28.44,
+      "p10EndHp": 26,
+      "meanHeal": 0.38,
+      "lostLight": 0
+    },
+    "lantern_rat/badge/defensive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2.5,
+      "p90Turns": 3,
+      "meanEndHp": 28.59,
+      "p10EndHp": 26,
+      "meanHeal": 0.38,
+      "lostLight": 0
+    },
+    "ash_guard/tinder/aggressive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2.22,
+      "p90Turns": 3,
+      "meanEndHp": 25.78,
+      "p10EndHp": 23,
+      "meanHeal": 0.28,
+      "lostLight": 0
+    },
+    "ash_guard/tinder/balanced": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2.42,
+      "p90Turns": 3,
+      "meanEndHp": 27.2,
+      "p10EndHp": 23,
+      "meanHeal": 0.12,
+      "lostLight": 0
+    },
+    "ash_guard/tinder/defensive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2.72,
+      "p90Turns": 3,
+      "meanEndHp": 27.56,
+      "p10EndHp": 23,
+      "meanHeal": 0.38,
+      "lostLight": 0
+    },
+    "ash_guard/brooch/aggressive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 3,
+      "p90Turns": 3,
+      "meanEndHp": 25.06,
+      "p10EndHp": 23,
+      "meanHeal": 1.78,
+      "lostLight": 0
+    },
+    "ash_guard/brooch/balanced": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 3.03,
+      "p90Turns": 3,
+      "meanEndHp": 27.88,
+      "p10EndHp": 23,
+      "meanHeal": 0.41,
+      "lostLight": 0
+    },
+    "ash_guard/brooch/defensive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 3.14,
+      "p90Turns": 4,
+      "meanEndHp": 28.34,
+      "p10EndHp": 25,
+      "meanHeal": 0.44,
+      "lostLight": 0
+    },
+    "ash_guard/badge/aggressive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2.22,
+      "p90Turns": 3,
+      "meanEndHp": 27.66,
+      "p10EndHp": 27,
+      "meanHeal": 0.28,
+      "lostLight": 0
+    },
+    "ash_guard/badge/balanced": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2.42,
+      "p90Turns": 3,
+      "meanEndHp": 28.06,
+      "p10EndHp": 25,
+      "meanHeal": 0.12,
+      "lostLight": 0
+    },
+    "ash_guard/badge/defensive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 2.72,
+      "p90Turns": 3,
+      "meanEndHp": 28.19,
+      "p10EndHp": 25,
+      "meanHeal": 0.38,
+      "lostLight": 0
+    },
+    "cinder_knight/tinder/aggressive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 3.94,
+      "p90Turns": 5,
+      "meanEndHp": 18.08,
+      "p10EndHp": 17,
+      "meanHeal": 0.91,
+      "lostLight": 0
+    },
+    "cinder_knight/tinder/balanced": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.58,
+      "p90Turns": 6,
+      "meanEndHp": 26.48,
+      "p10EndHp": 22,
+      "meanHeal": 2.73,
+      "lostLight": 0
+    },
+    "cinder_knight/tinder/defensive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.8,
+      "p90Turns": 6,
+      "meanEndHp": 26.95,
+      "p10EndHp": 22,
+      "meanHeal": 2.72,
+      "lostLight": 0
+    },
+    "cinder_knight/brooch/aggressive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5,
+      "p90Turns": 5,
+      "meanEndHp": 16.83,
+      "p10EndHp": 13,
+      "meanHeal": 2.28,
+      "lostLight": 0
+    },
+    "cinder_knight/brooch/balanced": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.94,
+      "p90Turns": 6,
+      "meanEndHp": 26.19,
+      "p10EndHp": 20,
+      "meanHeal": 2.53,
+      "lostLight": 0
+    },
+    "cinder_knight/brooch/defensive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 6.19,
+      "p90Turns": 7,
+      "meanEndHp": 26.3,
+      "p10EndHp": 21,
+      "meanHeal": 2.53,
+      "lostLight": 0
+    },
+    "cinder_knight/badge/aggressive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 3.94,
+      "p90Turns": 5,
+      "meanEndHp": 18.08,
+      "p10EndHp": 17,
+      "meanHeal": 0.91,
+      "lostLight": 0
+    },
+    "cinder_knight/badge/balanced": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.58,
+      "p90Turns": 6,
+      "meanEndHp": 26.48,
+      "p10EndHp": 22,
+      "meanHeal": 2.73,
+      "lostLight": 0
+    },
+    "cinder_knight/badge/defensive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.8,
+      "p90Turns": 6,
+      "meanEndHp": 26.95,
+      "p10EndHp": 22,
+      "meanHeal": 2.72,
+      "lostLight": 0
+    },
+    "dark_lantern/tinder/aggressive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 4.38,
+      "p90Turns": 5,
+      "meanEndHp": 16.91,
+      "p10EndHp": 12,
+      "meanHeal": 1.03,
+      "lostLight": 0
+    },
+    "dark_lantern/tinder/balanced": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.66,
+      "p90Turns": 6,
+      "meanEndHp": 23.47,
+      "p10EndHp": 19,
+      "meanHeal": 3.39,
+      "lostLight": 0
+    },
+    "dark_lantern/tinder/defensive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 6.12,
+      "p90Turns": 7,
+      "meanEndHp": 23.86,
+      "p10EndHp": 19,
+      "meanHeal": 2.81,
+      "lostLight": 0
+    },
+    "dark_lantern/brooch/aggressive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 4.91,
+      "p90Turns": 5,
+      "meanEndHp": 13.5,
+      "p10EndHp": 10,
+      "meanHeal": 1.78,
+      "lostLight": 0
+    },
+    "dark_lantern/brooch/balanced": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.86,
+      "p90Turns": 7,
+      "meanEndHp": 23.3,
+      "p10EndHp": 18,
+      "meanHeal": 3.59,
+      "lostLight": 0
+    },
+    "dark_lantern/brooch/defensive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 6.45,
+      "p90Turns": 7,
+      "meanEndHp": 24.3,
+      "p10EndHp": 19,
+      "meanHeal": 2.78,
+      "lostLight": 0
+    },
+    "dark_lantern/badge/aggressive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 4.38,
+      "p90Turns": 5,
+      "meanEndHp": 16.91,
+      "p10EndHp": 12,
+      "meanHeal": 1.03,
+      "lostLight": 0
+    },
+    "dark_lantern/badge/balanced": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.66,
+      "p90Turns": 6,
+      "meanEndHp": 23.47,
+      "p10EndHp": 19,
+      "meanHeal": 3.39,
+      "lostLight": 0
+    },
+    "dark_lantern/badge/defensive": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 6.12,
+      "p90Turns": 7,
+      "meanEndHp": 23.86,
+      "p10EndHp": 19,
+      "meanHeal": 2.81,
+      "lostLight": 0
+    }
+  },
+  "growthBoss": {
+    "cinder_cut/burn_bonus": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 4.52,
+      "p90Turns": 5,
+      "meanEndHp": 19.05,
+      "p10EndHp": 15,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "cinder_cut/reflect": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 4.89,
+      "p90Turns": 5,
+      "meanEndHp": 18.97,
+      "p10EndHp": 10,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "cinder_cut/echo": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 4.08,
+      "p90Turns": 5,
+      "meanEndHp": 19.59,
+      "p10EndHp": 15,
+      "meanHeal": 3.94,
+      "lostLight": 0
+    },
+    "coal_screen/burn_bonus": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.44,
+      "p90Turns": 6,
+      "meanEndHp": 20.42,
+      "p10EndHp": 13,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "coal_screen/reflect": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.52,
+      "p90Turns": 6,
+      "meanEndHp": 21.23,
+      "p10EndHp": 16,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "coal_screen/echo": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 4.98,
+      "p90Turns": 6,
+      "meanEndHp": 21.25,
+      "p10EndHp": 14,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "riposte_stance/burn_bonus": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 6.23,
+      "p90Turns": 7,
+      "meanEndHp": 21.58,
+      "p10EndHp": 17,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "riposte_stance/reflect": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.89,
+      "p90Turns": 7,
+      "meanEndHp": 21.73,
+      "p10EndHp": 17,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "riposte_stance/echo": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.36,
+      "p90Turns": 6,
+      "meanEndHp": 21.7,
+      "p10EndHp": 17,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "heavy_blow/burn_bonus": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.23,
+      "p90Turns": 6,
+      "meanEndHp": 19.64,
+      "p10EndHp": 15,
+      "meanHeal": 3.31,
+      "lostLight": 0
+    },
+    "heavy_blow/reflect": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 4.94,
+      "p90Turns": 6,
+      "meanEndHp": 19.72,
+      "p10EndHp": 16,
+      "meanHeal": 3.31,
+      "lostLight": 0
+    },
+    "heavy_blow/echo": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 3.66,
+      "p90Turns": 5,
+      "meanEndHp": 21.12,
+      "p10EndHp": 16,
+      "meanHeal": 2.31,
+      "lostLight": 0
+    },
+    "ember_burst/burn_bonus": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.67,
+      "p90Turns": 7,
+      "meanEndHp": 18.69,
+      "p10EndHp": 12,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "ember_burst/reflect": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.62,
+      "p90Turns": 7,
+      "meanEndHp": 18.59,
+      "p10EndHp": 12,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "ember_burst/echo": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.14,
+      "p90Turns": 6,
+      "meanEndHp": 19.12,
+      "p10EndHp": 14,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "field_dressing/burn_bonus": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 6.31,
+      "p90Turns": 7,
+      "meanEndHp": 22.69,
+      "p10EndHp": 16,
+      "meanHeal": 8.55,
+      "lostLight": 0
+    },
+    "field_dressing/reflect": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 6.14,
+      "p90Turns": 7,
+      "meanEndHp": 22.84,
+      "p10EndHp": 16,
+      "meanHeal": 8.56,
+      "lostLight": 0
+    },
+    "field_dressing/echo": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.55,
+      "p90Turns": 7,
+      "meanEndHp": 22.89,
+      "p10EndHp": 19,
+      "meanHeal": 8.14,
+      "lostLight": 0
+    },
+    "measured_thrust/burn_bonus": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.97,
+      "p90Turns": 7,
+      "meanEndHp": 18.8,
+      "p10EndHp": 12,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "measured_thrust/reflect": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.8,
+      "p90Turns": 7,
+      "meanEndHp": 19.05,
+      "p10EndHp": 12,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "measured_thrust/echo": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.17,
+      "p90Turns": 6,
+      "meanEndHp": 19.89,
+      "p10EndHp": 15,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "ash_wall/burn_bonus": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 6.2,
+      "p90Turns": 7,
+      "meanEndHp": 21.91,
+      "p10EndHp": 18,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "ash_wall/reflect": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.91,
+      "p90Turns": 7,
+      "meanEndHp": 22.11,
+      "p10EndHp": 18,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "ash_wall/echo": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.42,
+      "p90Turns": 6,
+      "meanEndHp": 22.05,
+      "p10EndHp": 18,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "kindle/burn_bonus": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.44,
+      "p90Turns": 7,
+      "meanEndHp": 18.44,
+      "p10EndHp": 10,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "kindle/reflect": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 5.47,
+      "p90Turns": 6,
+      "meanEndHp": 18.16,
+      "p10EndHp": 10,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "kindle/echo": {
+      "n": 64,
+      "wins": 64,
+      "meanTurns": 4.94,
+      "p90Turns": 6,
+      "meanEndHp": 19.34,
+      "p10EndHp": 14,
+      "meanHeal": 4,
+      "lostLight": 0
+    }
+  },
+  "fullFirstAct": {
+    "tinder/aggressive/camp_heal": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 18.38,
+      "p10EndHp": 12,
+      "meanTotalTurns": 5.92,
+      "meanBossTurns": 3.86
+    },
+    "tinder/aggressive/camp_upgrade": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 16.42,
+      "p10EndHp": 11,
+      "meanTotalTurns": 5.5,
+      "meanBossTurns": 3.44
+    },
+    "tinder/aggressive/elite": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 8.16,
+      "p10EndHp": 3,
+      "meanTotalTurns": 8.91,
+      "meanBossTurns": 3.48
+    },
+    "tinder/balanced/camp_heal": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 23.69,
+      "p10EndHp": 19,
+      "meanTotalTurns": 7.38,
+      "meanBossTurns": 5.05
+    },
+    "tinder/balanced/camp_upgrade": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 22.38,
+      "p10EndHp": 17,
+      "meanTotalTurns": 7.05,
+      "meanBossTurns": 4.72
+    },
+    "tinder/balanced/elite": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 20.52,
+      "p10EndHp": 14,
+      "meanTotalTurns": 11.81,
+      "meanBossTurns": 4.66
+    },
+    "tinder/defensive/camp_heal": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 25.56,
+      "p10EndHp": 19,
+      "meanTotalTurns": 8.42,
+      "meanBossTurns": 5.95
+    },
+    "tinder/defensive/camp_upgrade": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 24.06,
+      "p10EndHp": 16,
+      "meanTotalTurns": 8.47,
+      "meanBossTurns": 6
+    },
+    "tinder/defensive/elite": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 24.28,
+      "p10EndHp": 19,
+      "meanTotalTurns": 14.14,
+      "meanBossTurns": 5.86
+    },
+    "brooch/aggressive/camp_heal": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 17.22,
+      "p10EndHp": 10,
+      "meanTotalTurns": 7.03,
+      "meanBossTurns": 4.44
+    },
+    "brooch/aggressive/camp_upgrade": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 14.2,
+      "p10EndHp": 10,
+      "meanTotalTurns": 6.5,
+      "meanBossTurns": 3.91
+    },
+    "brooch/aggressive/elite": {
+      "n": 64,
+      "checkpoints": 61,
+      "meanEndHp": 5.89,
+      "p10EndHp": 1,
+      "meanTotalTurns": 10.36,
+      "meanBossTurns": 3.78
+    },
+    "brooch/balanced/camp_heal": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 23.39,
+      "p10EndHp": 18,
+      "meanTotalTurns": 8.28,
+      "meanBossTurns": 5.36
+    },
+    "brooch/balanced/camp_upgrade": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 23.59,
+      "p10EndHp": 19,
+      "meanTotalTurns": 8.03,
+      "meanBossTurns": 5.11
+    },
+    "brooch/balanced/elite": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 22.34,
+      "p10EndHp": 16,
+      "meanTotalTurns": 13.36,
+      "meanBossTurns": 5.25
+    },
+    "brooch/defensive/camp_heal": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 26.38,
+      "p10EndHp": 20,
+      "meanTotalTurns": 9.56,
+      "meanBossTurns": 6.61
+    },
+    "brooch/defensive/camp_upgrade": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 26.14,
+      "p10EndHp": 20,
+      "meanTotalTurns": 9.48,
+      "meanBossTurns": 6.53
+    },
+    "brooch/defensive/elite": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 25.42,
+      "p10EndHp": 20,
+      "meanTotalTurns": 15.56,
+      "meanBossTurns": 6.38
+    },
+    "badge/aggressive/camp_heal": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 18.44,
+      "p10EndHp": 12,
+      "meanTotalTurns": 6,
+      "meanBossTurns": 3.94
+    },
+    "badge/aggressive/camp_upgrade": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 17,
+      "p10EndHp": 14,
+      "meanTotalTurns": 5.52,
+      "meanBossTurns": 3.45
+    },
+    "badge/aggressive/elite": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 8.39,
+      "p10EndHp": 4,
+      "meanTotalTurns": 9.09,
+      "meanBossTurns": 3.55
+    },
+    "badge/balanced/camp_heal": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 23.3,
+      "p10EndHp": 18,
+      "meanTotalTurns": 7.5,
+      "meanBossTurns": 5.17
+    },
+    "badge/balanced/camp_upgrade": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 22.81,
+      "p10EndHp": 18,
+      "meanTotalTurns": 7.16,
+      "meanBossTurns": 4.83
+    },
+    "badge/balanced/elite": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 21.05,
+      "p10EndHp": 15,
+      "meanTotalTurns": 12.25,
+      "meanBossTurns": 4.91
+    },
+    "badge/defensive/camp_heal": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 25.84,
+      "p10EndHp": 20,
+      "meanTotalTurns": 8.59,
+      "meanBossTurns": 6.12
+    },
+    "badge/defensive/camp_upgrade": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 24.36,
+      "p10EndHp": 18,
+      "meanTotalTurns": 8.55,
+      "meanBossTurns": 6.08
+    },
+    "badge/defensive/elite": {
+      "n": 64,
+      "checkpoints": 64,
+      "meanEndHp": 24.31,
+      "p10EndHp": 18,
+      "meanTotalTurns": 14.34,
+      "meanBossTurns": 5.95
+    }
+  },
+  "lowHpStress": {
+    "tinder/aggressive/startHP8": {
+      "n": 64,
+      "wins": 28,
+      "meanTurns": 4.5,
+      "p90Turns": 5,
+      "meanEndHp": 1,
+      "p10EndHp": 0,
+      "meanHeal": 2,
+      "lostLight": 0
+    },
+    "tinder/balanced/startHP8": {
+      "n": 64,
+      "wins": 54,
+      "meanTurns": 5.88,
+      "p90Turns": 7,
+      "meanEndHp": 4,
+      "p10EndHp": 0,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "tinder/defensive/startHP8": {
+      "n": 64,
+      "wins": 57,
+      "meanTurns": 6.34,
+      "p90Turns": 7,
+      "meanEndHp": 4.42,
+      "p10EndHp": 0,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "brooch/aggressive/startHP8": {
+      "n": 64,
+      "wins": 33,
+      "meanTurns": 4.89,
+      "p90Turns": 6,
+      "meanEndHp": 1.45,
+      "p10EndHp": 0,
+      "meanHeal": 2.44,
+      "lostLight": 0
+    },
+    "brooch/balanced/startHP8": {
+      "n": 64,
+      "wins": 49,
+      "meanTurns": 6.06,
+      "p90Turns": 7,
+      "meanEndHp": 4.19,
+      "p10EndHp": 0,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "brooch/defensive/startHP8": {
+      "n": 64,
+      "wins": 57,
+      "meanTurns": 6.67,
+      "p90Turns": 7,
+      "meanEndHp": 5.75,
+      "p10EndHp": 0,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "badge/aggressive/startHP8": {
+      "n": 64,
+      "wins": 28,
+      "meanTurns": 4.5,
+      "p90Turns": 5,
+      "meanEndHp": 1,
+      "p10EndHp": 0,
+      "meanHeal": 2,
+      "lostLight": 0
+    },
+    "badge/balanced/startHP8": {
+      "n": 64,
+      "wins": 54,
+      "meanTurns": 5.88,
+      "p90Turns": 7,
+      "meanEndHp": 4,
+      "p10EndHp": 0,
+      "meanHeal": 4,
+      "lostLight": 0
+    },
+    "badge/defensive/startHP8": {
+      "n": 64,
+      "wins": 57,
+      "meanTurns": 6.34,
+      "p90Turns": 7,
+      "meanEndHp": 4.42,
+      "p10EndHp": 0,
+      "meanHeal": 4,
+      "lostLight": 0
+    }
+  },
+  "sampleRuns": [
+    {
+      "seed": 7,
+      "starter": "brooch",
+      "strategy": "balanced",
+      "route": "camp_upgrade",
+      "run": {
+        "result": "CHECKPOINT",
+        "hp": 22,
+        "stages": [
+          {
+            "room": "ash_guard",
+            "hp": 26,
+            "turns": 3,
+            "result": "win",
+            "trace": [
+              {
+                "turn": 1,
+                "before": {
+                  "hp": 30,
+                  "enemyHp": 24,
+                  "enemyShield": 0,
+                  "enemyBurn": 0,
+                  "hand": [
+                    [
+                      "slash",
+                      2,
+                      false
+                    ],
+                    [
+                      "bandage",
+                      7,
+                      false
+                    ],
+                    [
+                      "pierce",
+                      5,
+                      false
+                    ],
+                    [
+                      "rush",
+                      6,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "guard",
+                    "value": 4,
+                    "label": "举盾"
+                  }
+                },
+                "played": [
+                  "slash",
+                  "rush"
+                ],
+                "hp": 28,
+                "enemyHp": 9,
+                "enemyBurn": 0,
+                "result": null
+              },
+              {
+                "turn": 2,
+                "before": {
+                  "hp": 28,
+                  "enemyHp": 9,
+                  "enemyShield": 4,
+                  "enemyBurn": 0,
+                  "hand": [
+                    [
+                      "slash",
+                      0,
+                      false
+                    ],
+                    [
+                      "guard",
+                      3,
+                      false
+                    ],
+                    [
+                      "slash",
+                      1,
+                      false
+                    ],
+                    [
+                      "guard",
+                      4,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "attack",
+                    "value": 5,
+                    "label": "盾击"
+                  }
+                },
+                "played": [
+                  "slash",
+                  "guard"
+                ],
+                "hp": 28,
+                "enemyHp": 7,
+                "enemyBurn": 0,
+                "result": null
+              },
+              {
+                "turn": 3,
+                "before": {
+                  "hp": 28,
+                  "enemyHp": 7,
+                  "enemyShield": 0,
+                  "enemyBurn": 0,
+                  "hand": [
+                    [
+                      "guard",
+                      3,
+                      false
+                    ],
+                    [
+                      "guard",
+                      4,
+                      false
+                    ],
+                    [
+                      "rush",
+                      6,
+                      false
+                    ],
+                    [
+                      "pierce",
+                      5,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "attack",
+                    "value": 4,
+                    "label": "短斩"
+                  }
+                },
+                "played": [
+                  "rush"
+                ],
+                "hp": 26,
+                "enemyHp": 0,
+                "enemyBurn": 0,
+                "result": "win"
+              }
+            ]
+          },
+          {
+            "room": "normal_reward",
+            "candidates": [
+              "ember_burst",
+              "riposte_stance",
+              "measured_thrust"
+            ],
+            "selected": "ember_burst"
+          },
+          {
+            "room": "camp",
+            "choice": "upgrade",
+            "entityId": 0,
+            "card": "slash",
+            "hp": 26
+          },
+          {
+            "room": "dark_lantern",
+            "hp": 22,
+            "turns": 4,
+            "result": "win",
+            "trace": [
+              {
+                "turn": 1,
+                "before": {
+                  "hp": 26,
+                  "enemyHp": 40,
+                  "enemyShield": 0,
+                  "enemyBurn": 0,
+                  "hand": [
+                    [
+                      "slash",
+                      2,
+                      false
+                    ],
+                    [
+                      "guard",
+                      4,
+                      false
+                    ],
+                    [
+                      "ember_burst",
+                      8,
+                      false
+                    ],
+                    [
+                      "guard",
+                      3,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "charge",
+                    "value": 0,
+                    "label": "蓄力：下轮重击"
+                  }
+                },
+                "played": [
+                  "ember_burst"
+                ],
+                "hp": 26,
+                "enemyHp": 34,
+                "enemyBurn": 5,
+                "result": null
+              },
+              {
+                "turn": 2,
+                "before": {
+                  "hp": 26,
+                  "enemyHp": 34,
+                  "enemyShield": 0,
+                  "enemyBurn": 5,
+                  "hand": [
+                    [
+                      "bandage",
+                      7,
+                      false
+                    ],
+                    [
+                      "slash",
+                      1,
+                      false
+                    ],
+                    [
+                      "slash",
+                      0,
+                      true
+                    ],
+                    [
+                      "rush",
+                      6,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "attack",
+                    "value": 8,
+                    "label": "重击"
+                  }
+                },
+                "played": [
+                  "bandage",
+                  "slash"
+                ],
+                "hp": 22,
+                "enemyHp": 22,
+                "enemyBurn": 4,
+                "result": null
+              },
+              {
+                "turn": 3,
+                "before": {
+                  "hp": 22,
+                  "enemyHp": 22,
+                  "enemyShield": 0,
+                  "enemyBurn": 4,
+                  "hand": [
+                    [
+                      "pierce",
+                      5,
+                      false
+                    ],
+                    [
+                      "slash",
+                      0,
+                      true
+                    ],
+                    [
+                      "rush",
+                      6,
+                      false
+                    ],
+                    [
+                      "slash",
+                      2,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "guard",
+                    "value": 6,
+                    "label": "守盾"
+                  }
+                },
+                "played": [
+                  "slash",
+                  "slash"
+                ],
+                "hp": 22,
+                "enemyHp": 6,
+                "enemyBurn": 3,
+                "result": null
+              },
+              {
+                "turn": 4,
+                "before": {
+                  "hp": 22,
+                  "enemyHp": 6,
+                  "enemyShield": 6,
+                  "enemyBurn": 3,
+                  "hand": [
+                    [
+                      "guard",
+                      3,
+                      false
+                    ],
+                    [
+                      "guard",
+                      4,
+                      false
+                    ],
+                    [
+                      "slash",
+                      1,
+                      false
+                    ],
+                    [
+                      "slash",
+                      0,
+                      true
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "attack",
+                    "value": 8,
+                    "label": "守盾后重击"
+                  }
+                },
+                "played": [
+                  "slash",
+                  "slash"
+                ],
+                "hp": 22,
+                "enemyHp": 0,
+                "enemyBurn": 3,
+                "result": "win"
+              }
+            ]
+          }
+        ],
+        "completed": 3,
+        "embers": 28,
+        "deck": [
+          [
+            "slash",
+            0,
+            true
+          ],
+          [
+            "slash",
+            1,
+            false
+          ],
+          [
+            "slash",
+            2,
+            false
+          ],
+          [
+            "guard",
+            3,
+            false
+          ],
+          [
+            "guard",
+            4,
+            false
+          ],
+          [
+            "pierce",
+            5,
+            false
+          ],
+          [
+            "rush",
+            6,
+            false
+          ],
+          [
+            "bandage",
+            7,
+            false
+          ],
+          [
+            "ember_burst",
+            8,
+            false
+          ]
+        ],
+        "relics": [
+          "brooch"
+        ]
+      }
+    },
+    {
+      "seed": 7,
+      "starter": "brooch",
+      "strategy": "balanced",
+      "route": "elite",
+      "run": {
+        "result": "CHECKPOINT",
+        "hp": 22,
+        "stages": [
+          {
+            "room": "ash_guard",
+            "hp": 26,
+            "turns": 3,
+            "result": "win",
+            "trace": [
+              {
+                "turn": 1,
+                "before": {
+                  "hp": 30,
+                  "enemyHp": 24,
+                  "enemyShield": 0,
+                  "enemyBurn": 0,
+                  "hand": [
+                    [
+                      "slash",
+                      2,
+                      false
+                    ],
+                    [
+                      "bandage",
+                      7,
+                      false
+                    ],
+                    [
+                      "pierce",
+                      5,
+                      false
+                    ],
+                    [
+                      "rush",
+                      6,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "guard",
+                    "value": 4,
+                    "label": "举盾"
+                  }
+                },
+                "played": [
+                  "slash",
+                  "rush"
+                ],
+                "hp": 28,
+                "enemyHp": 9,
+                "enemyBurn": 0,
+                "result": null
+              },
+              {
+                "turn": 2,
+                "before": {
+                  "hp": 28,
+                  "enemyHp": 9,
+                  "enemyShield": 4,
+                  "enemyBurn": 0,
+                  "hand": [
+                    [
+                      "slash",
+                      0,
+                      false
+                    ],
+                    [
+                      "guard",
+                      3,
+                      false
+                    ],
+                    [
+                      "slash",
+                      1,
+                      false
+                    ],
+                    [
+                      "guard",
+                      4,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "attack",
+                    "value": 5,
+                    "label": "盾击"
+                  }
+                },
+                "played": [
+                  "slash",
+                  "guard"
+                ],
+                "hp": 28,
+                "enemyHp": 7,
+                "enemyBurn": 0,
+                "result": null
+              },
+              {
+                "turn": 3,
+                "before": {
+                  "hp": 28,
+                  "enemyHp": 7,
+                  "enemyShield": 0,
+                  "enemyBurn": 0,
+                  "hand": [
+                    [
+                      "guard",
+                      3,
+                      false
+                    ],
+                    [
+                      "guard",
+                      4,
+                      false
+                    ],
+                    [
+                      "rush",
+                      6,
+                      false
+                    ],
+                    [
+                      "pierce",
+                      5,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "attack",
+                    "value": 4,
+                    "label": "短斩"
+                  }
+                },
+                "played": [
+                  "rush"
+                ],
+                "hp": 26,
+                "enemyHp": 0,
+                "enemyBurn": 0,
+                "result": "win"
+              }
+            ]
+          },
+          {
+            "room": "normal_reward",
+            "candidates": [
+              "ember_burst",
+              "riposte_stance",
+              "measured_thrust"
+            ],
+            "selected": "ember_burst"
+          },
+          {
+            "room": "cinder_knight",
+            "hp": 26,
+            "turns": 5,
+            "result": "win",
+            "trace": [
+              {
+                "turn": 1,
+                "before": {
+                  "hp": 26,
+                  "enemyHp": 28,
+                  "enemyShield": 0,
+                  "enemyBurn": 0,
+                  "hand": [
+                    [
+                      "slash",
+                      1,
+                      false
+                    ],
+                    [
+                      "slash",
+                      0,
+                      false
+                    ],
+                    [
+                      "pierce",
+                      5,
+                      false
+                    ],
+                    [
+                      "slash",
+                      2,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "charge",
+                    "value": 0,
+                    "label": "蓄力：下轮重击"
+                  }
+                },
+                "played": [
+                  "slash",
+                  "pierce"
+                ],
+                "hp": 26,
+                "enemyHp": 21,
+                "enemyBurn": 0,
+                "result": null
+              },
+              {
+                "turn": 2,
+                "before": {
+                  "hp": 26,
+                  "enemyHp": 21,
+                  "enemyShield": 0,
+                  "enemyBurn": 0,
+                  "hand": [
+                    [
+                      "guard",
+                      3,
+                      false
+                    ],
+                    [
+                      "guard",
+                      4,
+                      false
+                    ],
+                    [
+                      "bandage",
+                      7,
+                      false
+                    ],
+                    [
+                      "rush",
+                      6,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "attack",
+                    "value": 8,
+                    "label": "重击"
+                  }
+                },
+                "played": [
+                  "guard",
+                  "bandage"
+                ],
+                "hp": 28,
+                "enemyHp": 21,
+                "enemyBurn": 0,
+                "result": null
+              },
+              {
+                "turn": 3,
+                "before": {
+                  "hp": 28,
+                  "enemyHp": 21,
+                  "enemyShield": 0,
+                  "enemyBurn": 0,
+                  "hand": [
+                    [
+                      "ember_burst",
+                      8,
+                      false
+                    ],
+                    [
+                      "slash",
+                      2,
+                      false
+                    ],
+                    [
+                      "guard",
+                      4,
+                      false
+                    ],
+                    [
+                      "slash",
+                      0,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "guard",
+                    "value": 5,
+                    "label": "立盾"
+                  }
+                },
+                "played": [
+                  "ember_burst"
+                ],
+                "hp": 28,
+                "enemyHp": 15,
+                "enemyBurn": 5,
+                "result": null
+              },
+              {
+                "turn": 4,
+                "before": {
+                  "hp": 28,
+                  "enemyHp": 15,
+                  "enemyShield": 5,
+                  "enemyBurn": 5,
+                  "hand": [
+                    [
+                      "slash",
+                      1,
+                      false
+                    ],
+                    [
+                      "pierce",
+                      5,
+                      false
+                    ],
+                    [
+                      "rush",
+                      6,
+                      false
+                    ],
+                    [
+                      "guard",
+                      3,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "attack",
+                    "value": 5,
+                    "label": "轻击"
+                  }
+                },
+                "played": [
+                  "guard"
+                ],
+                "hp": 28,
+                "enemyHp": 10,
+                "enemyBurn": 4,
+                "result": null
+              },
+              {
+                "turn": 5,
+                "before": {
+                  "hp": 28,
+                  "enemyHp": 10,
+                  "enemyShield": 0,
+                  "enemyBurn": 4,
+                  "hand": [
+                    [
+                      "guard",
+                      4,
+                      false
+                    ],
+                    [
+                      "rush",
+                      6,
+                      false
+                    ],
+                    [
+                      "slash",
+                      1,
+                      false
+                    ],
+                    [
+                      "guard",
+                      3,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "charge",
+                    "value": 0,
+                    "label": "蓄力：下轮重击"
+                  }
+                },
+                "played": [
+                  "rush"
+                ],
+                "hp": 26,
+                "enemyHp": 0,
+                "enemyBurn": 3,
+                "result": "win"
+              }
+            ]
+          },
+          {
+            "room": "elite_reward",
+            "candidates": [
+              "kindle",
+              "ember_burst",
+              "ash_wall"
+            ],
+            "selected": "ember_burst",
+            "relic": "reflect"
+          },
+          {
+            "room": "dark_lantern",
+            "hp": 22,
+            "turns": 5,
+            "result": "win",
+            "trace": [
+              {
+                "turn": 1,
+                "before": {
+                  "hp": 26,
+                  "enemyHp": 40,
+                  "enemyShield": 0,
+                  "enemyBurn": 0,
+                  "hand": [
+                    [
+                      "slash",
+                      2,
+                      false
+                    ],
+                    [
+                      "guard",
+                      4,
+                      false
+                    ],
+                    [
+                      "ember_burst",
+                      8,
+                      false
+                    ],
+                    [
+                      "guard",
+                      3,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "charge",
+                    "value": 0,
+                    "label": "蓄力：下轮重击"
+                  }
+                },
+                "played": [
+                  "ember_burst"
+                ],
+                "hp": 26,
+                "enemyHp": 34,
+                "enemyBurn": 5,
+                "result": null
+              },
+              {
+                "turn": 2,
+                "before": {
+                  "hp": 26,
+                  "enemyHp": 34,
+                  "enemyShield": 0,
+                  "enemyBurn": 5,
+                  "hand": [
+                    [
+                      "bandage",
+                      7,
+                      false
+                    ],
+                    [
+                      "ember_burst",
+                      9,
+                      false
+                    ],
+                    [
+                      "slash",
+                      1,
+                      false
+                    ],
+                    [
+                      "slash",
+                      0,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "attack",
+                    "value": 8,
+                    "label": "重击"
+                  }
+                },
+                "played": [
+                  "bandage",
+                  "slash"
+                ],
+                "hp": 22,
+                "enemyHp": 24,
+                "enemyBurn": 4,
+                "result": null
+              },
+              {
+                "turn": 3,
+                "before": {
+                  "hp": 22,
+                  "enemyHp": 24,
+                  "enemyShield": 0,
+                  "enemyBurn": 4,
+                  "hand": [
+                    [
+                      "rush",
+                      6,
+                      false
+                    ],
+                    [
+                      "pierce",
+                      5,
+                      false
+                    ],
+                    [
+                      "slash",
+                      1,
+                      false
+                    ],
+                    [
+                      "slash",
+                      0,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "guard",
+                    "value": 6,
+                    "label": "守盾"
+                  }
+                },
+                "played": [
+                  "slash",
+                  "slash"
+                ],
+                "hp": 22,
+                "enemyHp": 10,
+                "enemyBurn": 3,
+                "result": null
+              },
+              {
+                "turn": 4,
+                "before": {
+                  "hp": 22,
+                  "enemyHp": 10,
+                  "enemyShield": 6,
+                  "enemyBurn": 3,
+                  "hand": [
+                    [
+                      "slash",
+                      2,
+                      false
+                    ],
+                    [
+                      "guard",
+                      3,
+                      false
+                    ],
+                    [
+                      "guard",
+                      4,
+                      false
+                    ],
+                    [
+                      "ember_burst",
+                      9,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "attack",
+                    "value": 8,
+                    "label": "守盾后重击"
+                  }
+                },
+                "played": [
+                  "guard",
+                  "guard"
+                ],
+                "hp": 22,
+                "enemyHp": 6,
+                "enemyBurn": 2,
+                "result": null
+              },
+              {
+                "turn": 5,
+                "before": {
+                  "hp": 22,
+                  "enemyHp": 6,
+                  "enemyShield": 0,
+                  "enemyBurn": 2,
+                  "hand": [
+                    [
+                      "slash",
+                      0,
+                      false
+                    ],
+                    [
+                      "slash",
+                      1,
+                      false
+                    ],
+                    [
+                      "guard",
+                      3,
+                      false
+                    ],
+                    [
+                      "rush",
+                      6,
+                      false
+                    ]
+                  ],
+                  "intent": {
+                    "kind": "attack",
+                    "value": 5,
+                    "label": "轻击"
+                  }
+                },
+                "played": [
+                  "slash",
+                  "slash"
+                ],
+                "hp": 22,
+                "enemyHp": 0,
+                "enemyBurn": 2,
+                "result": "win"
+              }
+            ]
+          }
+        ],
+        "completed": 3,
+        "embers": 42,
+        "deck": [
+          [
+            "slash",
+            0,
+            false
+          ],
+          [
+            "slash",
+            1,
+            false
+          ],
+          [
+            "slash",
+            2,
+            false
+          ],
+          [
+            "guard",
+            3,
+            false
+          ],
+          [
+            "guard",
+            4,
+            false
+          ],
+          [
+            "pierce",
+            5,
+            false
+          ],
+          [
+            "rush",
+            6,
+            false
+          ],
+          [
+            "bandage",
+            7,
+            false
+          ],
+          [
+            "ember_burst",
+            8,
+            false
+          ],
+          [
+            "ember_burst",
+            9,
+            false
+          ]
+        ],
+        "relics": [
+          "brooch",
+          "reflect"
+        ]
+      }
+    }
+  ],
+  "limitations": [
+    "known-current-turn greedy strategy; not human play",
+    "first act only; no second/third act or full-run payout",
+    "static reward preferences; no skip-reward or optimal path search",
+    "no timing model or human mistakes or information reading costs",
+    "no Discord or durable storage or wallet",
+    "catalog-specific reference engine, not production engine"
+  ]
+}

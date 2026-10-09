@@ -1,0 +1,532 @@
+{
+  "version": "0.2",
+  "player": {
+    "maxHp": 30,
+    "energy": 2,
+    "draw": 4,
+    "playLimit": 2,
+    "turnLimit": 12
+  },
+  "starterDeck": [
+    "slash",
+    "slash",
+    "slash",
+    "guard",
+    "guard",
+    "pierce",
+    "rush",
+    "bandage"
+  ],
+  "cards": {
+    "slash": {
+      "name": "斩击",
+      "cost": 1,
+      "selfCost": 0,
+      "exhaust": false,
+      "replayable": true,
+      "effects": [
+        {
+          "kind": "damage",
+          "value": 6
+        }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 0,
+        "effects": [
+          {
+            "kind": "damage",
+            "value": 8
+          }
+        ]
+      }
+    },
+    "guard": {
+      "name": "格挡",
+      "cost": 1,
+      "selfCost": 0,
+      "exhaust": false,
+      "replayable": true,
+      "effects": [
+        {
+          "kind": "block",
+          "value": 5
+        }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 0,
+        "effects": [
+          {
+            "kind": "block",
+            "value": 7
+          }
+        ]
+      }
+    },
+    "pierce": {
+      "name": "突刺",
+      "cost": 1,
+      "selfCost": 0,
+      "exhaust": false,
+      "replayable": true,
+      "effects": [
+        {
+          "kind": "damage",
+          "value": 4,
+          "ignoreArmor": true
+        }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 0,
+        "effects": [
+          {
+            "kind": "damage",
+            "value": 6,
+            "ignoreArmor": true
+          }
+        ]
+      }
+    },
+    "rush": {
+      "name": "抢攻",
+      "cost": 1,
+      "selfCost": 2,
+      "exhaust": false,
+      "replayable": true,
+      "effects": [
+        {
+          "kind": "damage",
+          "value": 9
+        }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 1,
+        "effects": [
+          {
+            "kind": "damage",
+            "value": 11
+          }
+        ]
+      }
+    },
+    "bandage": {
+      "name": "包扎",
+      "cost": 1,
+      "selfCost": 0,
+      "exhaust": true,
+      "replayable": false,
+      "effects": [
+        {
+          "kind": "heal",
+          "value": 4
+        }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 0,
+        "effects": [
+          {
+            "kind": "heal",
+            "value": 6
+          }
+        ]
+      }
+    },
+    "kindle": {
+      "name": "引火",
+      "cost": 1,
+      "selfCost": 0,
+      "exhaust": false,
+      "replayable": true,
+      "effects": [
+        {
+          "kind": "burn",
+          "value": 3
+        }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 0,
+        "effects": [
+          {
+            "kind": "burn",
+            "value": 5
+          }
+        ]
+      }
+    },
+    "cinder_cut": {
+      "name": "烬刃",
+      "cost": 1,
+      "selfCost": 0,
+      "exhaust": false,
+      "replayable": true,
+      "effects": [
+        {
+          "kind": "damage",
+          "value": 5
+        },
+        {
+          "kind": "burn",
+          "value": 2
+        }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 0,
+        "effects": [
+          {
+            "kind": "damage",
+            "value": 7
+          },
+          {
+            "kind": "burn",
+            "value": 3
+          }
+        ]
+      }
+    },
+    "coal_screen": {
+      "name": "炭幕",
+      "cost": 1,
+      "selfCost": 0,
+      "exhaust": false,
+      "replayable": true,
+      "effects": [
+        {
+          "kind": "block",
+          "value": 4
+        },
+        {
+          "kind": "burn",
+          "value": 2
+        }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 0,
+        "effects": [
+          {
+            "kind": "block",
+            "value": 6
+          },
+          {
+            "kind": "burn",
+            "value": 3
+          }
+        ]
+      }
+    },
+    "riposte_stance": {
+      "name": "迎击架势",
+      "cost": 1,
+      "selfCost": 0,
+      "exhaust": false,
+      "replayable": true,
+      "effects": [
+        {
+          "kind": "block",
+          "value": 7
+        }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 0,
+        "effects": [
+          {
+            "kind": "block",
+            "value": 9
+          }
+        ]
+      }
+    },
+    "heavy_blow": {
+      "name": "重斩",
+      "cost": 2,
+      "selfCost": 0,
+      "exhaust": false,
+      "replayable": true,
+      "effects": [
+        {
+          "kind": "damage",
+          "value": 14
+        }
+      ],
+      "upgrade": {
+        "cost": 2,
+        "selfCost": 0,
+        "effects": [
+          {
+            "kind": "damage",
+            "value": 17
+          }
+        ]
+      }
+    },
+    "ember_burst": {
+      "name": "余烬爆发",
+      "cost": 2,
+      "selfCost": 0,
+      "exhaust": true,
+      "replayable": true,
+      "effects": [
+        {
+          "kind": "burn",
+          "value": 6
+        }
+      ],
+      "upgrade": {
+        "cost": 2,
+        "selfCost": 0,
+        "effects": [
+          {
+            "kind": "burn",
+            "value": 8
+          }
+        ]
+      }
+    },
+    "field_dressing": {
+      "name": "战地包扎",
+      "cost": 1,
+      "selfCost": 0,
+      "exhaust": true,
+      "replayable": false,
+      "effects": [
+        {
+          "kind": "heal",
+          "value": 5
+        }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 0,
+        "effects": [
+          {
+            "kind": "heal",
+            "value": 7
+          }
+        ]
+      }
+    },
+    "measured_thrust": {
+      "name": "蓄势突刺",
+      "cost": 1,
+      "selfCost": 0,
+      "exhaust": false,
+      "replayable": true,
+      "effects": [
+        {
+          "kind": "damage",
+          "value": 5,
+          "ignoreArmor": true
+        }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 0,
+        "effects": [
+          {
+            "kind": "damage",
+            "value": 7,
+            "ignoreArmor": true
+          }
+        ]
+      }
+    },
+    "ash_wall": {
+      "name": "灰墙",
+      "cost": 1,
+      "selfCost": 0,
+      "exhaust": false,
+      "replayable": true,
+      "effects": [
+        {
+          "kind": "block",
+          "value": 8
+        }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 0,
+        "effects": [
+          {
+            "kind": "block",
+            "value": 10
+          }
+        ]
+      }
+    }
+  },
+  "relics": {
+    "tinder": {
+      "name": "余温火绒",
+      "trigger": "first_attack_burn",
+      "value": 2,
+      "description": "每战首次主动攻击牌造成直接生命伤害后，令敌人灼烧2。"
+    },
+    "brooch": {
+      "name": "门廊扣",
+      "trigger": "first_block_per_turn",
+      "value": 1,
+      "description": "每轮首次主动打出护盾牌时，额外获得护盾1。"
+    },
+    "badge": {
+      "name": "旧巡夜徽章",
+      "trigger": "first_attack_damage",
+      "value": 3,
+      "description": "每战首次主动攻击牌的直接伤害增加3。"
+    },
+    "burn_bonus": {
+      "name": "炽芯",
+      "trigger": "burn_bonus",
+      "value": 1,
+      "description": "每次主动施加灼烧时，额外施加灼烧1。"
+    },
+    "reflect": {
+      "name": "镜面护符",
+      "trigger": "reflect",
+      "value": 2,
+      "description": "每次敌方攻击被护盾吸收至少1点后，反击造成2点直接伤害；每次敌方攻击最多触发一次。"
+    },
+    "echo": {
+      "name": "回声铃",
+      "trigger": "echo",
+      "value": 1,
+      "description": "每战首次主动打出的可重放牌，下轮免费重放一次。"
+    }
+  },
+  "starterRelics": [
+    "tinder",
+    "brooch",
+    "badge"
+  ],
+  "enemies": {
+    "lantern_rat": {
+      "name": "灯鼠",
+      "role": "普通",
+      "hp": 22,
+      "armor": 0,
+      "intents": [
+        {
+          "kind": "attack",
+          "value": 4,
+          "label": "扑咬"
+        },
+        {
+          "kind": "guard",
+          "value": 3,
+          "label": "缩身护头"
+        },
+        {
+          "kind": "attack",
+          "value": 5,
+          "label": "扑咬"
+        }
+      ]
+    },
+    "ash_guard": {
+      "name": "灰烬守卫",
+      "role": "普通",
+      "hp": 24,
+      "armor": 0,
+      "intents": [
+        {
+          "kind": "guard",
+          "value": 4,
+          "label": "举盾"
+        },
+        {
+          "kind": "attack",
+          "value": 5,
+          "label": "盾击"
+        },
+        {
+          "kind": "attack",
+          "value": 4,
+          "label": "短斩"
+        }
+      ]
+    },
+    "cinder_knight": {
+      "name": "余烬骑士",
+      "role": "精英",
+      "hp": 28,
+      "armor": 3,
+      "intents": [
+        {
+          "kind": "charge",
+          "value": 0,
+          "label": "蓄力：下轮重击"
+        },
+        {
+          "kind": "attack",
+          "value": 8,
+          "label": "重击"
+        },
+        {
+          "kind": "guard",
+          "value": 5,
+          "label": "立盾"
+        },
+        {
+          "kind": "attack",
+          "value": 5,
+          "label": "轻击"
+        }
+      ]
+    },
+    "dark_lantern": {
+      "name": "无灯执炬者",
+      "role": "Boss",
+      "hp": 40,
+      "armor": 1,
+      "intents": [
+        {
+          "kind": "charge",
+          "value": 0,
+          "label": "蓄力：下轮重击"
+        },
+        {
+          "kind": "attack",
+          "value": 8,
+          "label": "重击"
+        },
+        {
+          "kind": "guard",
+          "value": 6,
+          "label": "守盾"
+        },
+        {
+          "kind": "attack",
+          "value": 8,
+          "label": "守盾后重击"
+        },
+        {
+          "kind": "attack",
+          "value": 5,
+          "label": "轻击"
+        }
+      ]
+    }
+  },
+  "cardRewards": [
+    "cinder_cut",
+    "coal_screen",
+    "riposte_stance",
+    "heavy_blow",
+    "ember_burst",
+    "field_dressing",
+    "measured_thrust",
+    "ash_wall",
+    "kindle"
+  ],
+  "eliteRelics": [
+    "burn_bonus",
+    "reflect",
+    "echo"
+  ]
+}
