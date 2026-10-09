@@ -2,6 +2,7 @@ import {MENU,WELCOME_COINS,DAILY_REWARD_CAP,ROSTER_DAILY_LIMIT,SWEETNESS,TEMPERA
 import {tavernRequest} from './tavern-service.mjs';
 import {renoCommandOptions, tavernRenovationInteraction, immediateRenovationReply, answerRenovation, tavernDeferredReply as renovationDeferredReply} from './tavern-renovation-ui.mjs';
 import {lobbyCommandOption,tavernLobbyInteraction,tavernLobbyCommand,immediateLobbyReply,answerLobby,tavernLobbyData} from './tavern-lobby.mjs';
+import {operationsInteraction,immediateOperationsReply,operationsDeferredReply,answerOperations} from './tavern-operations-ui.mjs';
 const mentions={parse:[]};
 const row=(...components)=>({type:1,components});
 const key=(guild,id,action)=>`t:${guild}:${id}:${action}`;
@@ -16,11 +17,12 @@ export const tavernCommand={name:'酒馆',description:'红豆粉的小酒馆：�
 ]};
 tavernCommand.options.push(...renoCommandOptions);
 tavernCommand.options.unshift(lobbyCommandOption);
-export const TAVERN_HELP=`🍵 **红豆粉的小酒馆**\n先用大厅按钮：吧台点单、钱包、常客卡、店内、共同装修、捐赠档案、贡献榜、小游戏和刷新。自然语言也可说“打开酒馆”或“走进酒馆”。\n快捷入口：\`/酒馆 大厅\`、\`/酒馆 菜单\`、\`/酒馆 点单\`、\`/酒馆 钱包\`、\`/酒馆 常客卡\`；装修也可用\`/酒馆 店内\`、\`/酒馆 装修\`、\`/酒馆 贡献榜\`、\`/酒馆 捐赠档案\`。\n每服务器独立共用一家店，跨频道共用装修。确认餐饮消费和主动出资按1币=1建设值，消费不再扣一次；装修先预览，3分钟内本人在原频道确认才扣款，余额流水仅本人可见。\n新客欢迎金 **${WELCOME_COINS}币**，每服务器一次。${Object.values(REWARDS).map(r=>`${r.name} +${r.base}，胜者另 +${r.bonus}`).join('；')}。只计真人完成局；每日上限${DAILY_REWARD_CAP}币、同组每日前${ROSTER_DAILY_LIMIT}局。UNO按小局结算；德州筹码不兑换酒馆币。饮品无酒精；自然语言点单仍需按钮确认。`;
+export const TAVERN_HELP=`🍵 **红豆粉的小酒馆**\n先用大厅按钮：吧台点单、钱包、常客卡、店内、共同装修、捐赠档案、贡献榜、小游戏、今日经营、季节菜单、共同活动和刷新。自然语言也可说“打开酒馆”或“走进酒馆”。\n快捷入口：\`/酒馆 大厅\`、\`/酒馆 菜单\`、\`/酒馆 点单\`、\`/酒馆 钱包\`、\`/酒馆 常客卡\`；装修也可用\`/酒馆 店内\`、\`/酒馆 装修\`、\`/酒馆 贡献榜\`、\`/酒馆 捐赠档案\`。\n每服务器独立共用一家店，跨频道共用装修。确认餐饮消费和主动出资按1币=1建设值，消费不再扣一次；装修先预览，3分钟内本人在原频道确认才扣款，余额流水仅本人可见。\n新客欢迎金 **${WELCOME_COINS}币**，每服务器一次。${Object.values(REWARDS).map(r=>`${r.name} +${r.base}，胜者另 +${r.bonus}`).join('；')}。只计真人完成局；每日上限${DAILY_REWARD_CAP}币、同组每日前${ROSTER_DAILY_LIMIT}局。UNO按小局结算；德州筹码不兑换酒馆币。饮品无酒精；自然语言点单仍需按钮确认。`;
 const navigation=(g,id)=>row(button(g,id,'lobby','🏡 大厅'),button(g,id,'menu','🍵 菜单'),button(g,id,'wallet','🪙 钱包'),button(g,id,'card','🦋 常客卡'),button(g,id,'reno','🔧 装修'));
 export function menuData(data,id,guild,publicView=false){
- const content=`🍵 **红豆粉的小酒馆 · 今日菜单**\n${MENU.map(p=>`${p.emoji} **${p.name}** · ${p.price?`${p.price}币`:'免费'}\n${p.description}`).join('\n')}\n${publicView?'选好后打开自己的点单面板。':`你的余额：**${data.member.balance}币** · 选好后还会再请你确认。`}\n全店无酒精饮品。`;
- const components=publicView?[row(button(guild,'any','menu','打开我的点单面板',1),button(guild,'any','renoEnter','🔧 打开装修面板'))]:[row({type:3,custom_id:key(guild,id,'pick'),placeholder:'今天想喝点什么？',options:MENU.map(p=>({label:p.name,value:p.id,description:`${p.price?`${p.price}币`:'免费'} · ${p.description}`,emoji:{name:p.emoji}}))}),navigation(guild,id)];
+ const menu=data?.menu||MENU;
+ const content=`🍵 **红豆粉的小酒馆 · 今日菜单**\n${menu.map(p=>`${p.emoji} **${p.name}** · ${p.price?`${p.price}币`:'免费'}\n${p.description}`).join('\n')}\n${publicView?'选好后打开自己的点单面板。':`你的余额：**${data.member.balance}币** · 选好后还会再请你确认。`}\n全店无酒精饮品。`;
+ const components=publicView?[row(button(guild,'any','menu','打开我的点单面板',1),button(guild,'any','renoEnter','🔧 打开装修面板'))]:[row({type:3,custom_id:key(guild,id,'pick'),placeholder:'今天想喝点什么？',options:menu.map(p=>({label:p.name,value:p.id,description:`${p.price?`${p.price}币`:'免费'} · ${p.description}`,emoji:{name:p.emoji}}))}),navigation(guild,id)];
  return {content,components,allowed_mentions:mentions};
 }
 export function walletData(data,id,guild){return {content:`🪙 **我的酒馆钱包**\n余额：**${data.member.balance}币**\n今日小游戏收入：${data.earned} / ${data.cap}币（北京时间）\n\n最近流水：\n${data.ledger.map(l=>`${l.amount>=0?'+':''}${l.amount} · ${displayText(l.note)}`).join('\n')||'还没有流水。'}\n\n德州筹码与酒馆币分别计算。`,components:[navigation(guild,id)],allowed_mentions:mentions};}
@@ -31,10 +33,10 @@ export function cardData(data,id,guild,notice=''){
 }
 export function draftData(d,id,guild,publicView=false){
  const p=menuItem(d.item),detail=d.details,expired=d.expires<=Date.now()||d.status!=='pending';
- return {content:`${p?.emoji||'🍵'} **点单预览 · ${displayText(detail.itemName)}**\n${SWEETNESS[detail.sweetness]} · ${TEMPERATURE[detail.temperature]}${d.item==='special'?` · 心情：${MOODS[detail.mood]}`:''}\n本单 **${d.price}币**${publicView?'':` · 当前余额 ${d.balance}币\n位置：${SEATS[detail.seat]}${detail.restrictions?`\n备注：${displayText(detail.restrictions)}`:''}`}\n${expired?'这张预览已经处理或过期，请重新打开菜单。':'尚未扣款；3分钟内由本人确认。确认后会在本频道显示上桌消息。'}`,
+ return {content:`${p?.emoji||d.details.emoji||'🍵'} **点单预览 · ${displayText(detail.itemName)}**\n${SWEETNESS[detail.sweetness]} · ${TEMPERATURE[detail.temperature]}${d.item==='special'?` · 心情：${MOODS[detail.mood]}`:''}\n本单 **${d.price}币**${publicView?'':` · 当前余额 ${d.balance}币\n位置：${SEATS[detail.seat]}${detail.restrictions?`\n备注：${displayText(detail.restrictions)}`:''}`}\n${expired?'这张预览已经处理或过期，请重新打开菜单。':'尚未扣款；3分钟内由本人确认。确认后会在本频道显示上桌消息。'}`,
  components:expired?[navigation(guild,id)]:[row(button(guild,id,`${publicView?'review':'confirm'}~${d.id}`,publicView?'打开我的确认窗口':`确认点单 · ${d.price}币`,1)),...(!publicView?[navigation(guild,id)]:[])],allowed_mentions:mentions};
 }
-export function receiptData(answer,id,guild,served=true){const o=answer.order,p=menuItem(o.item);return {content:`${p?.emoji||'🍵'} **已上桌 · ${displayText(o.details.itemName)}**\n红豆粉${p?.serve||'把这一份送到你手边。'}\n${SWEETNESS[o.details.sweetness]} · ${TEMPERATURE[o.details.temperature]}\n本单 ${o.price}币 · 余额 **${answer.balance}币**${answer.repeated?'\n这份订单已经完成，没有再次扣款。':''}${!served?'\n订单已保存，频道上桌消息暂时未送达。':''}`,components:[navigation(guild,id)],allowed_mentions:mentions};}
+export function receiptData(answer,id,guild,served=true){const o=answer.order,p=menuItem(o.item)||o.details;return {content:`${p?.emoji||'🍵'} **已上桌 · ${displayText(o.details.itemName)}**\n红豆粉${p?.serve||'把这一份送到你手边。'}\n${SWEETNESS[o.details.sweetness]} · ${TEMPERATURE[o.details.temperature]}\n本单 ${o.price}币 · 余额 **${answer.balance}币**${answer.repeated?'\n这份订单已经完成，没有再次扣款。':''}${!served?'\n订单已保存，频道上桌消息暂时未送达。':''}`,components:[navigation(guild,id)],allowed_mentions:mentions};}
 export function tavernInteraction(i){const action=String(i.data?.custom_id||'').split(':')[3]||'';return i.type===2&&i.data?.name==='酒馆'||[3,5].includes(i.type)&&i.data?.custom_id?.startsWith('t:')&&!action.startsWith('lobbyPlay~');}
 function interactionParts(i){
  const id=i.member?.user?.id,guild=i.guild_id;if(!validId(id)||!validId(guild)||!validId(i.channel_id))throw Error('请在服务器文字频道内使用。');
@@ -46,6 +48,7 @@ function interactionParts(i){
  return {id,guild,action};
 }
 export function immediateTavernReply(i){
+ if(operationsInteraction(i))return immediateOperationsReply(i);
  if(tavernLobbyInteraction(i)||tavernLobbyCommand(i))return immediateLobbyReply(i);
  if(tavernRenovationInteraction(i))return immediateRenovationReply(i);
  let p;try{p=interactionParts(i);}catch(e){return {type:4,data:{content:e.message,flags:64,allowed_mentions:mentions}};}
@@ -54,12 +57,13 @@ export function immediateTavernReply(i){
 }
 async function sendServing(env,answer,name){
  if(answer.repeated)return true;
- const o=answer.order,p=menuItem(o.item);try{
+ const o=answer.order,p=menuItem(o.item)||o.details;try{
   const r=await fetch(`https://discord.com/api/v10/channels/${o.channel}/messages`,{method:'POST',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({content:`${p?.emoji||'🍵'} **${displayText(name)||'来客'}的 ${displayText(o.details.itemName)}**\n红豆粉${p?.serve||'把这一份送上桌。'}`,allowed_mentions:mentions,nonce:o.id,enforce_nonce:true}),signal:AbortSignal.timeout(5000)});
   return r.ok;
  }catch{return false;}
 }
 export async function answerTavern(env,i){
+ if(operationsInteraction(i))return answerOperations(env,i);
  if(tavernLobbyInteraction(i)||tavernLobbyCommand(i)){
   const action=tavernLobbyCommand(i)?'lobby':String(i.data.custom_id).split(':')[3],id=i.member?.user?.id,guild=i.guild_id,name=i.member?.nick||i.member?.user?.global_name||i.member?.user?.username||'来客';
   if(['lobbyMenu','lobbyWallet','lobbyCard'].includes(action)){
@@ -96,16 +100,23 @@ export async function answerTavern(env,i){
  if(['菜单','menu'].includes(action))return menuData(data,id,guild);
  throw Error('请重新打开 `/酒馆 菜单`。');
 }
-export function tavernDeferredReply(i){return renovationDeferredReply(i);}
+export function tavernDeferredReply(i){return operationsDeferredReply(i)||renovationDeferredReply(i);}
 export async function finishTavern(env,i){
  let data;try{data=await answerTavern(env,i);}catch(e){data={content:`🍵 ${e.message}`,components:[],allowed_mentions:mentions};}
  const announcement=data._renovationAnnouncement;delete data._renovationAnnouncement;
  if(announcement){let sent=false;try{const r=await fetch(`https://discord.com/api/v10/channels/${i.channel_id}/messages`,{method:'POST',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({content:announcement.content,allowed_mentions:mentions,nonce:announcement.nonce,enforce_nonce:true}),signal:AbortSignal.timeout(5000)});sent=r.ok;}catch{}
   if(!sent)data.content+=`\n\n📨 频道公告未能送达；这张收据仍有效，出资没有回滚。`;
  }
- try{await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${encodeURIComponent(i.token)}/messages/@original`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({...data,embeds:[],attachments:[]}),signal:AbortSignal.timeout(6000)});}catch{}
+ try{const r=await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${encodeURIComponent(i.token)}/messages/@original`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({...data,embeds:[],attachments:[]}),signal:AbortSignal.timeout(6000)});
+  const action=i.type===2?i.data.options?.[0]?.name:String(i.data?.custom_id||'').split(':')[3];
+  if(r.ok&&['大厅','lobby'].includes(action)&&!(Number(i.message?.flags)&64)){
+   const message=await r.json();if(validId(message.id)&&!(Number(message.flags)&64))await tavernRequest(env,{guild:i.guild_id,action:'opsBindLobby',channel:i.channel_id,message:message.id});
+  }else if(r.ok&&i.type===3&&validId(i.message?.id)&&!(Number(i.message.flags)&64)&&tavernDeferredReply(i)?.type===6){
+   await tavernRequest(env,{guild:i.guild_id,action:'opsUnbindLobby',channel:i.channel_id,message:i.message.id});
+  }
+ }catch{}
 }
-export function parseTavernIntent(text){
+export function parseTavernIntent(text,menu=MENU){
  const original=String(text||'').trim();
  const s=original.replace(/[。！!]+$/,'');
  // Cancellation and question marks must be checked before broad menu/order phrases.
@@ -115,17 +126,27 @@ export function parseTavernIntent(text){
  if(/^(点单|我要点单|我想(喝|点).{0,20})$/.test(s))return {action:'menu'};
  // Negations, quoted examples and questions are conversation, never transaction requests.
  if(!/^(给我|帮我点|来|点|我要)/.test(s)||/[“”"「」？?]|不是|别给|不要点|取消|能不能|可以吗|多少钱|知道|介绍|如果|假如|比如|怎么|为什么/.test(s))return null;
- const item=MENU.find(p=>s.includes(p.name));
+ const item=menu.find(p=>s.includes(p.name));
  if(!item){if(!/^(给我|帮我|来)(来)?一杯/.test(s)||!/(甜|热|冰|冷|常温|少糖|清爽|不加糖|不要酒精|无酒精|推荐)/.test(s))return null;return {action:'prepare',item:'milk',options:{sweetness:/少糖|不甜|不加糖/.test(s)?'light':/甜一点|甜点|偏甜/.test(s)?'sweet':'normal',temperature:/冰|冷/.test(s)?'cold':'warm'}};}
  const options={};if(/少糖|不甜|不加糖/.test(s))options.sweetness='light';else if(/甜一点|偏甜/.test(s))options.sweetness='sweet';if(/冰|冷/.test(s))options.temperature='cold';else if(/常温/.test(s))options.temperature='room';
  for(const [value,label]of Object.entries(MOODS))if(s.includes(label))options.mood=value;
  return {action:'prepare',item:item.id,options};
 }
 export async function handleNaturalTavern(env,message,text){
- if(!env.TABLES||!validId(message.guild_id)||!validId(message.author?.id)||!validId(message.id))return false;
- const intent=parseTavernIntent(text);if(!intent)return false;
+ if(!env.TABLES||message.author?.bot||!validId(message.guild_id)||!validId(message.author?.id)||!validId(message.id))return false;
  const base={guild:message.guild_id,id:message.author.id,name:message.member?.nick||message.author.global_name||message.author.username||'来客',channel:message.channel_id};
- let data;try{data=intent.action==='lobby'?tavernLobbyData(await tavernRequest(env,{guild:base.guild,action:'renoBoard'}),base.guild,'any'):intent.action==='menu'?menuData(null,base.id,base.guild,true):draftData(await tavernRequest(env,{...base,...intent,requestKey:`m${message.id}`}),base.id,base.guild,true);}catch(e){data={content:`🍵 ${e.message}`,allowed_mentions:mentions};}
- try{await fetch(`https://discord.com/api/v10/channels/${message.channel_id}/messages`,{method:'POST',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({...data,message_reference:{message_id:message.id,fail_if_not_exists:false},nonce:`t${message.id}`,enforce_nonce:true}),signal:AbortSignal.timeout(6000)});}catch{}
+ let intent=parseTavernIntent(text),menu;
+ if((!intent||intent.action==='prepare'&&!MENU.some(p=>String(text||'').includes(p.name)))&&/^(给我|帮我点|来|点|我要)/.test(String(text||''))&&!/[？?“”"「」]|不要了|算了|取消|如果|多少钱|介绍/.test(text)){
+  try{menu=await tavernRequest(env,{guild:base.guild,action:'opsMenu'});intent=parseTavernIntent(text,menu);}catch{}
+ }
+ if(!intent)return false;
+ let data;try{
+  if(intent.action==='lobby')data=tavernLobbyData(await tavernRequest(env,{guild:base.guild,action:'renoBoard'}),base.guild,'any',await tavernRequest(env,{...base,action:'opsBoard'}));
+  else if(intent.action==='menu')data=menuData({menu:menu||await tavernRequest(env,{...base,action:'opsMenu'})},base.id,base.guild,true);
+  else data=draftData(await tavernRequest(env,{...base,...intent,requestKey:`m${message.id}`}),base.id,base.guild,true);
+ }catch(e){data={content:`🍵 ${e.message}`,allowed_mentions:mentions};}
+ try{const r=await fetch(`https://discord.com/api/v10/channels/${message.channel_id}/messages`,{method:'POST',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({...data,message_reference:{message_id:message.id,fail_if_not_exists:false},nonce:`t${message.id}`,enforce_nonce:true}),signal:AbortSignal.timeout(6000)});
+  if(r.ok&&intent.action==='lobby'){const out=await r.json();if(validId(out.id)&&!(Number(out.flags)&64))await tavernRequest(env,{guild:base.guild,action:'opsBindLobby',channel:base.channel,message:out.id});}
+ }catch{}
  return true;
 }

@@ -138,3 +138,25 @@ test('signed tavern commands bypass occupied tables, defer privately and confirm
  assert.equal(sent.filter(r=>r.url.endsWith('/channels/2/messages')).length,1);assert(sent.find(r=>r.url.endsWith('/channels/2/messages')).body.enforce_nonce);
  const bad=await call(interaction(`confirm~${d.id}`,{member:{user:{id:'2'}}}));assert.equal(bad.type,4);assert.equal(bad.data.flags,64);
 });
+
+test('seasonal order confirmation is atomic and idempotent; retired-month previews do not charge',async t=>{
+ const now=Date.parse('2026-10-31T23:59:00+08:00');t.mock.method(Date,'now',()=>now);
+ const {service:s}=setup(),ops=s.operations;ops.vote({id:'1',name:'Alice',month:'202610',candidate:'c3'},now);
+ for(let n=0;n<29;n++)ops.recordGame(`research:${n}`,{at:now},[{id:'1',name:'Alice'}],false);
+ const basic=prepare(s,'milk','unlock',now);s.confirm('1',basic.id,'2',now);assert.equal(ops.board(null,now).season.unlocked,true);
+ const drink=ops.menu(now).at(-1),d=prepare(s,drink.id,'season',now+11000),retired=prepare(s,drink.id,'retired',now+22000);
+ const before=s.view('1','Alice',now).member.balance,record=ops.recordOrder.bind(ops);ops.recordOrder=()=>{throw Error('research disk');};
+ assert.throws(()=>s.confirm('1',d.id,'2',now+22000),/research disk/);assert.equal(s.view('1','Alice',now).member.balance,before);assert.equal(s.one('SELECT id FROM tavern_orders WHERE id=?',d.id),null);ops.recordOrder=record;
+ const bought=s.confirm('1',d.id,'2',now+22000);assert.equal(bought.balance,before-drink.price);assert.equal(bought.order.details.serve,drink.serve);
+ const next=Date.parse('2026-11-01T00:00:00+08:00');assert.equal(s.confirm('1',d.id,'2',next).repeated,true);
+ assert.throws(()=>s.confirm('1',retired.id,'2',next),/菜单|商品/);assert.equal(s.view('1','Alice',next).member.balance,bought.balance);
+ assert.equal(s.rows('SELECT * FROM tavern_orders').length,2);
+});
+
+test('unlocked seasonal menu works through natural order preview without a second model or charge',async t=>{
+ const {service:s}=setup(),now=Date.now(),month=dayKey(now).slice(0,7).replace('-',''),ops=s.operations;
+ ops.vote({id:'1',name:'Alice',month,candidate:'c1'},now);for(let i=0;i<30;i++)ops.recordGame(`natural:${i}`,{at:now},[{id:'1',name:'Alice'}],false);
+ const drink=ops.menu(now).at(-1),env=environment(s),oldFetch=globalThis.fetch,sent=[];globalThis.fetch=async(u,o)=>{sent.push(JSON.parse(o.body));return Response.json({id:'4'});};t.after(()=>globalThis.fetch=oldFetch);
+ assert(await handleNaturalTavern(env,{guild_id:'3',channel_id:'2',id:'777',author:{id:'1',username:'Alice'}},`来一杯${drink.name}`));
+ assert.match(sent[0].content,new RegExp(drink.name));assert.match(sent[0].content,/尚未扣款/);assert.equal(s.view('1').member.balance,60);assert.equal(s.rows('SELECT * FROM tavern_orders').length,0);
+});

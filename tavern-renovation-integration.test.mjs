@@ -75,3 +75,27 @@ test('signed unified lobby opens private services and returns through buttons wi
  assert.match(s.lastReply().components.flatMap(r=>r.components).find(b=>b.custom_id.endsWith('~ghost')).label,/抽鬼牌/);
  assert.equal(service.rows("SELECT * FROM tavern_ledger WHERE kind='welcome'").length,1);
 });
+
+test('signed operations buttons keep public board wallet-free and enforce daily manager ownership',async t=>{
+ const s=await setup(t);await s.call({type:2,data:{name:'酒馆',options:[{name:'大厅'}]}});
+ const service=s.instances.get('tavern:3').tavern,hub=s.lastReply();assert.match(hub.content,/今日一日店长.*Alice/);assert.equal(service.rows('SELECT * FROM tavern_members').length,0);
+ const enter=hub.components.flatMap(r=>r.components).find(b=>b.custom_id.endsWith(':opsBoard')).custom_id;
+ assert.deepEqual(await s.call(s.component(enter)),{type:6});assert(!s.lastReply().content.includes('余额'));
+ const manage=s.lastReply().components.flatMap(r=>r.components).find(b=>b.custom_id.endsWith(':opsEnter')).custom_id;
+ assert.deepEqual(await s.call(s.component(manage)),{type:5,data:{flags:64}});
+ const panel=s.lastReply(),select=panel.components.flatMap(r=>r.components).find(c=>c.custom_id?.includes(':opsSet~')&&c.custom_id.endsWith('~ambience'));
+ assert(select);assert(panel.components.filter(r=>r.components.some(c=>c.type===3)).every(r=>r.components.length===1));
+ const other=await s.call(s.component(select.custom_id,64,{member:{user:{id:'7',username:'Bob'}},data:{custom_id:select.custom_id,values:['starlight']}}));assert.equal(other.type,4);
+ const publicMutation=await s.call(s.component(select.custom_id,0,{data:{custom_id:select.custom_id,values:['starlight']}}));assert.equal(publicMutation.type,4);
+ assert.deepEqual(await s.call(s.component(select.custom_id,64,{data:{custom_id:select.custom_id,values:['starlight']}})),{type:6});assert.equal(service.operations.board().settings.ambience,'starlight');
+ assert.equal(service.rows('SELECT * FROM tavern_members').length,0);
+ const stale=select.custom_id.replace(service.operations.board().day,'2020-01-01');await s.call(s.component(stale,64,{data:{custom_id:stale,values:['soft_lights']}}));assert.match(s.lastReply().content,/过期|重新/);assert.equal(service.operations.board().settings.ambience,'starlight');
+ const bot=await s.call(s.component(enter,0,{member:{user:{id:'8',username:'Bot',bot:true}}}));assert.equal(bot.type,4);assert.equal(service.operations.one('SELECT user_id FROM tavern_ops_visits WHERE user_id=?','8'),null);
+});
+
+test('signed lobby tracking survives private entries and stops on public page navigation',async t=>{
+ const s=await setup(t);await s.call({type:2,data:{name:'酒馆',options:[{name:'大厅'}]}});
+ const store=s.instances.get('tavern:3').ctx.storage;assert.equal(store.map.get('tavernLobbyLive').boards[0].message,'444');
+ await s.call({...s.component('t:3:any:lobbyWallet'),message:{id:'444',flags:0}});assert.equal(store.map.get('tavernLobbyLive').boards.length,1);
+ await s.call({...s.component('t:3:any:opsBoard'),message:{id:'444',flags:0}});assert.equal(store.map.get('tavernLobbyLive').boards.length,0);assert.equal(store.map.has('alarm'),false);
+});

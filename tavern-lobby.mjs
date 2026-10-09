@@ -2,6 +2,7 @@ import {RENOVATION_ITEMS} from './tavern-renovation-catalog.mjs';
 import {cleanText} from './tavern-catalog.mjs';
 import {tavernRequest} from './tavern-service.mjs';
 import {answerRenovation} from './tavern-renovation-ui.mjs';
+import {operationsBanner} from './tavern-operations-ui.mjs';
 
 const mentions={parse:[]};
 const row=(...components)=>({type:1,components});
@@ -42,7 +43,7 @@ export function lobbyDeferredReply(i){
  if(i.type===3)return {type:6};
  return {type:5};
 }
-export function tavernLobbyData(board,guild,owner='any'){
+export function tavernLobbyData(board,guild,owner='any',operations=null){
  const stage=board.stage,assets=[...(board.assets||[])].sort((a,b)=>(Number(b.at)||0)-(Number(a.at)||0));
  const latestAssets=assets.slice(0,3).map(a=>{const item=RENOVATION_ITEMS.find(x=>x.id===(typeof a.item==='string'?a.item:a.item?.id));const scene=item?.levels?.[(a.level||1)-1]?.scene;return `${item?.emoji||'🪑'} **${safe(item?.name||a.item,32)}** Lv.${a.level}「${safe(a.levelName||a.name,24)}」${scene?` · ${safe(scene,48)}`:''}`;});
  const recent=(board.recent||[]).slice(0,3).map(x=>`${safe(x.donor_name||x.name,32)} · ${safe(x.item_name||RENOVATION_ITEMS.find(it=>it.id===x.item)?.name||x.item,32)} Lv.${x.level}「${safe(x.name,24)}」 · ${x.kind==='upgrade'?'升级':'购置'}`);
@@ -51,9 +52,11 @@ export function tavernLobbyData(board,guild,owner='any'){
  const prose=(latestAssets[0]||stage.description||'店里亮着暖灯，吧台留着空位，欢迎慢慢坐下。');
  const components=[
   row(button(guild,'any','lobbyMenu','🍵 吧台点单',1),button(guild,'any','lobbyWallet','🪙 我的钱包'),button(guild,'any','lobbyCard','🦋 常客卡'),button(guild,'any','lobbyRoom','🏮 店内'),button(guild,'any','renoEnter','🔧 共同装修')),
-  row(button(guild,'any','renoHistory~0','📜 捐赠档案'),button(guild,'any','renoLeaders','🏅 贡献榜'),button(guild,'any','lobbyGames','🎮 小游戏'),button(guild,owner,'lobby','🔄 刷新大厅'))
+  row(button(guild,'any','renoHistory~0','📜 捐赠档案'),button(guild,'any','renoLeaders','🏅 贡献榜'),button(guild,'any','lobbyGames','🎮 小游戏'),button(guild,owner,'lobby','🔄 刷新大厅')),
+  row(button(guild,'any','opsBoard','👑 今日经营',1),button(guild,'any','opsSeason','🌱 季节菜单'),button(guild,'any','opsActivity','🎉 共同活动'))
  ];
- return {content:`🍵 **红豆粉的小酒馆 · 大厅**\n${safe(stage.name,32)} · ${safe(prose,120)}\n\n**共同建设** ${board.total}（餐饮 ${board.consumption} + 装修 ${board.direct}）\n${bar} ${Math.round(progress*100)}% · ${destination}\n\n**最近落地**\n${latestAssets.join('\n')||'还没有玩家添置的陈设，来一起装修吧。'}\n\n**最近捐赠**\n${recent.join('\n')||'还没有主动装修出资；每一笔确认出资都会留下记录。'}`,components,allowed_mentions:mentions};
+ const daily=operations?`${operationsBanner(operations)}\n🌱 ${safe(operations.season.title,24)}研发 ${operations.season.points}/${operations.season.goal}${operations.season.unlocked?' · 新品已上菜单':''} · 🎉 ${safe(operations.activity.title,24)}${operations.activity.completed?'已完成':''}\n\n`:'';
+ return {content:`${daily}🍵 **红豆粉的小酒馆 · 大厅**\n${safe(stage.name,32)} · ${safe(prose,120)}\n\n**共同建设** ${board.total}（餐饮 ${board.consumption} + 装修 ${board.direct}）\n${bar} ${Math.round(progress*100)}% · ${destination}\n\n**最近落地**\n${latestAssets.join('\n')||'还没有玩家添置的陈设，来一起装修吧。'}\n\n**最近捐赠**\n${recent.join('\n')||'还没有主动装修出资；每一笔确认出资都会留下记录。'}`,components,allowed_mentions:mentions};
 }
 export function tavernLobbyGames(guild){
  const games=[['poker','♠️ 德州'],['uno','🃏 UNO'],['ghost','👻 抽鬼牌'],['liar','🃏 骗子酒馆'],['table','🎴 当前牌桌']];
@@ -63,5 +66,6 @@ export async function answerLobby(env,i){
  const p=validate(i);if(p.action==='lobbyGames')return tavernLobbyGames(p.g);
  if(p.action==='lobbyRoom')return answerRenovation(env,{...i,type:3,message:i.message||{flags:0},data:{custom_id:`t:${p.g}:any:renoBoard~0`}});
  const board=await tavernRequest(env,{guild:p.g,action:'renoBoard'});
- return tavernLobbyData(board,p.g,p.publicEntry?'any':(i.data?.custom_id?.split(':')[2]||'any'));
+ const operations=await tavernRequest(env,{guild:p.g,id:p.u,name:i.member?.nick||i.member?.user?.global_name||i.member?.user?.username||'来客',action:'opsBoard'});
+ return tavernLobbyData(board,p.g,p.publicEntry?'any':(i.data?.custom_id?.split(':')[2]||'any'),operations);
 }

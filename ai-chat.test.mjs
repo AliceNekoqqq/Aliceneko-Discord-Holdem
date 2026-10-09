@@ -1022,3 +1022,11 @@ test("recent chat context resolves follow-up questions about the current game", 
   assert.match(prompt,/电脑陪练/);
 });
 
+
+test('daily operations scene stays public and separate from personal tavern context',async()=>{
+ const scene={source:'program_confirmed_operations',manager:'Alice',season:{points:12},activity:{completed:false}},requests=[];
+ const env={TABLES:{idFromName:n=>n,get:n=>({fetch:async(_url,o)=>{const p=JSON.parse(o.body);requests.push(p);if(p.action==='context')throw Error('private unavailable');return Response.json(p.action==='opsScene'?scene:null);}})}};
+ assert.deepEqual(await tavernRuntimeData(env,'3','2','4'),{tavernOperations:scene});assert.equal(requests.find(p=>p.action==='opsScene').id,undefined);
+ assert.match(makeSystemInstruction(''),/模型不能任命或更换店长、代投票/);
+ assert.match(getBotKnowledge('一日店长 季节研发 纪念章'),/北京时间.*随机/);
+});
