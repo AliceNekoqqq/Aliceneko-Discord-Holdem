@@ -9,6 +9,26 @@
     "sha256": "c1d4967962810b9d5aed4488550b9993449688043f09259eaf7c7094e57c696f",
     "version": "v1"
   },
+  "water": {
+    "id": "water",
+    "filename": "water-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 59305,
+    "sha256": "6a5e996bf5785f6ababf6499fe7fb4b406c95a4b390ba4de84d24a381c571061",
+    "version": "v1"
+  },
+  "tea": {
+    "id": "tea",
+    "filename": "tea-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 62622,
+    "sha256": "f9f54617c537d6cb89594cd2b8e916aa53f76c806500dd729b2fa2c1b225ab74",
+    "version": "v1"
+  },
   "milk": {
     "id": "milk",
     "filename": "milk-v1.jpg",
@@ -17,6 +37,26 @@
     "height": 512,
     "bytes": 60418,
     "sha256": "3e699eed7a0a46030c7ccdfc6dc639c13850192d3749933f59b8f20502ec13a9",
+    "version": "v1"
+  },
+  "soda": {
+    "id": "soda",
+    "filename": "soda-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 72928,
+    "sha256": "49cb61649f0b57ab010262f77e332e85486d35e4deb61f040eb0a8d398f8c270",
+    "version": "v1"
+  },
+  "special": {
+    "id": "special",
+    "filename": "special-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 57810,
+    "sha256": "73b6193d6330d773af71b9346d7d04e858cd52adeb6d96dfb9caafc75c49382d",
     "version": "v1"
   },
   "cake": {
@@ -29,6 +69,96 @@
     "sha256": "f81325647a3d87790154b170ee5b33b2ac7a516548cbb5c780eaa5e72f65ade9",
     "version": "v1"
   },
+  "snack": {
+    "id": "snack",
+    "filename": "snack-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 67472,
+    "sha256": "344f80df3b374c2d049cea3812060615905b7bd7e1b2657a6fd89032b26b11d1",
+    "version": "v1"
+  },
+  "plum-tea": {
+    "id": "plum-tea",
+    "filename": "plum-tea-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 68164,
+    "sha256": "5488835d6ae2e99fae8b83e7a2033a1e0436f321a10e28f3d2ca9a28b4c03f0c",
+    "version": "v1"
+  },
+  "pear-soup": {
+    "id": "pear-soup",
+    "filename": "pear-soup-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 62803,
+    "sha256": "b3f6879058032adadd73f4feb841392faec9e4c595cc6252b0efb714d92c6bc4",
+    "version": "v1"
+  },
+  "lemon-honey": {
+    "id": "lemon-honey",
+    "filename": "lemon-honey-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 69445,
+    "sha256": "df0a0cd6ba3ad2d2b5d3fe530ce498d75e7191ed3dccbc658d95f6f1397023d7",
+    "version": "v1"
+  },
+  "redbean-soy": {
+    "id": "redbean-soy",
+    "filename": "redbean-soy-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 64402,
+    "sha256": "853bf665f4a74761996323aace48673a116a92b8c0eadb313c49661f2c812bc8",
+    "version": "v1"
+  },
+  "postcard-pudding": {
+    "id": "postcard-pudding",
+    "filename": "postcard-pudding-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 59950,
+    "sha256": "0ac5b5b959c62a1370f39aa734a196e69e78ab77d5a705e25bae96593bdf84b9",
+    "version": "v1"
+  },
+  "river-mochi": {
+    "id": "river-mochi",
+    "filename": "river-mochi-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 72243,
+    "sha256": "18efbc1bfc21a3eff908f0cf0d8695876e661fc314e7c2f2fb075dcbd49d077c",
+    "version": "v1"
+  },
+  "oldstreet-cookie": {
+    "id": "oldstreet-cookie",
+    "filename": "oldstreet-cookie-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 63497,
+    "sha256": "5abc4bf984d52e0a6b992b976c5a74eb409763b4f6c615cbe043d27c976d0eaf",
+    "version": "v1"
+  },
+  "postcard-jelly": {
+    "id": "postcard-jelly",
+    "filename": "postcard-jelly-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 62443,
+    "sha256": "e12114a5fab1ab664db3e81cd7f9708fa96b3dce9b0e64f837e01f6cc6806f1b",
+    "version": "v1"
+  },
   "mushroom-noodles": {
     "id": "mushroom-noodles",
     "filename": "mushroom-noodles-v1.jpg",
@@ -37,6 +167,46 @@
     "height": 512,
     "bytes": 73406,
     "sha256": "ee502b9bbe414dd9b1952927c46d9e8bed670591c05c6d230c8a97b6a1f4c368",
+    "version": "v1"
+  },
+  "scallion-pancake": {
+    "id": "scallion-pancake",
+    "filename": "scallion-pancake-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 60434,
+    "sha256": "8b82ee5a0b5adfbc767ce1921440e573a358353c219b45dff06e911196c8d239",
+    "version": "v1"
+  },
+  "tomato-rice": {
+    "id": "tomato-rice",
+    "filename": "tomato-rice-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 67056,
+    "sha256": "6aeee3af94f3dc37ee5dc24b0f2cc2131f75298e6c30f897adc69ecd6c4da489",
+    "version": "v1"
+  },
+  "sweet-potato": {
+    "id": "sweet-potato",
+    "filename": "sweet-potato-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 61125,
+    "sha256": "c936ae64bff195b1b58b11c726ad728ebbf25f4aee630ed2dcd28d87ed548cef",
+    "version": "v1"
+  },
+  "dumpling-soup": {
+    "id": "dumpling-soup",
+    "filename": "dumpling-soup-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 62749,
+    "sha256": "7fa3a604c4815c06d73c9326b3140e2baea0002d5aecd8d4a75749dfa8346986",
     "version": "v1"
   }
 }

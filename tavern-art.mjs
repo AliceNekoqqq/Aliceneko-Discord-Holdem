@@ -1,14 +1,7 @@
+import manifest from './tavern-art-manifest.mjs';
+
 const ART_VERSION = 'v1';
 const ART_ORIGIN = 'https://discord-holdem.aliceneko.workers.dev';
-
-const manifest = {
-  room: { id: 'room', filename: 'room-v1.jpg', mime: 'image/jpeg', bytes: 165608, width: 960, height: 640, version: ART_VERSION },
-  milk: { id: 'milk', filename: 'milk-v1.jpg', mime: 'image/jpeg', bytes: 60418, width: 512, height: 512, version: ART_VERSION },
-  cake: { id: 'cake', filename: 'cake-v1.jpg', mime: 'image/jpeg', bytes: 63275, width: 512, height: 512, version: ART_VERSION },
-  'mushroom-noodles': {
-    id: 'mushroom-noodles', filename: 'mushroom-noodles-v1.jpg', mime: 'image/jpeg', bytes: 73406, width: 512, height: 512, version: ART_VERSION,
-  },
-};
 
 export const ART_MANIFEST = Object.freeze(
   Object.fromEntries(Object.entries(manifest).map(([id, asset]) => [id, Object.freeze({ ...asset })])),
@@ -80,3 +73,4 @@ export async function serveArt(request) {
   if (!loaded) return new Response('Not Found', { status: 404 });
   return new Response(loaded.data, { headers });
 }
+

@@ -1,9 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { MENU } from './tavern-catalog.mjs';
 import { ART_MANIFEST, artEmbed, decodeArt, getArtUrl, imageAsset, loadArt, serveArt } from './tavern-art.mjs';
 
-test('manifest has four stable JPEG asset IDs', () => {
-  assert.deepEqual(Object.keys(ART_MANIFEST), ['room', 'milk', 'cake', 'mushroom-noodles']);
+test('every permanent menu dish has a stable JPEG asset and the room is preserved', () => {
+  assert.deepEqual(Object.keys(ART_MANIFEST), ['room', ...MENU.map(item => item.id)]);
   for (const id of Object.keys(ART_MANIFEST)) {
     assert.equal(imageAsset(id).filename, `${id}-v1.jpg`);
     assert.equal(imageAsset(id).mime, 'image/jpeg');
@@ -11,6 +14,13 @@ test('manifest has four stable JPEG asset IDs', () => {
     assert.equal(imageAsset(id).version, 'v1');
   }
   assert.equal(imageAsset('constructor'), null);
+  const originalHashes = {
+    room: 'c1d4967962810b9d5aed4488550b9993449688043f09259eaf7c7094e57c696f',
+    milk: '3e699eed7a0a46030c7ccdfc6dc639c13850192d3749933f59b8f20502ec13a9',
+    cake: 'f81325647a3d87790154b170ee5b33b2ac7a516548cbb5c780eaa5e72f65ade9',
+    'mushroom-noodles': 'ee502b9bbe414dd9b1952927c46d9e8bed670591c05c6d230c8a97b6a1f4c368',
+  };
+  for (const [id, sha] of Object.entries(originalHashes)) assert.equal(imageAsset(id).sha256, sha, id);
 });
 
 test('art URLs and embeds are generated only for allowlisted IDs', () => {
@@ -29,19 +39,29 @@ test('payload decoder returns JPEG bytes and rejects missing or malformed record
   assert.equal(decodeArt({ mime: 'image/jpeg', base64: '%' }), null);
 });
 
-test('generated payload is served with correct JPEG metadata and cached immutably', async () => {
+test('all generated payloads match disk bytes and SHA and serve immutable GET and HEAD', async () => {
   assert.equal(await loadArt('unknown-id'), null);
-  const art = await loadArt('room');
+  for (const id of Object.keys(ART_MANIFEST)) {
+  const art = await loadArt(id);
   assert.ok(art.data instanceof Uint8Array);
-  assert.equal(art.data.byteLength, imageAsset('room').bytes);
+  assert.equal(art.data.byteLength, imageAsset(id).bytes);
+  assert.ok(art.data.byteLength <= 180 * 1024);
+  const disk = readFileSync(new URL(`./assets/art/${id}-v1.jpg`, import.meta.url));
+  assert.deepEqual(Buffer.from(art.data), disk);
+  assert.equal(createHash('sha256').update(art.data).digest('hex'), imageAsset(id).sha256);
   assert.deepEqual([...art.data.slice(0, 2)], [0xff, 0xd8]);
-  const response = await serveArt(new Request('https://unit.test/art/room/v1.jpg'));
+  const response = await serveArt(new Request(`https://unit.test/art/${id}/v1.jpg`));
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('Content-Type'), 'image/jpeg');
   assert.equal(response.headers.get('Content-Length'), String(art.data.byteLength));
   assert.equal(response.headers.get('X-Content-Type-Options'), 'nosniff');
   assert.equal(response.headers.get('Cache-Control'), 'public, max-age=31536000, immutable');
   assert.equal((await response.arrayBuffer()).byteLength, art.data.byteLength);
+  const head = await serveArt(new Request(`https://unit.test/art/${id}/v1.jpg`, { method: 'HEAD' }));
+  assert.equal(head.status, 200);
+  assert.equal(head.body, null);
+  assert.equal(head.headers.get('Content-Length'), String(art.data.byteLength));
+  }
 });
 
 test('HEAD avoids response bytes; invalid paths and methods are rejected', async () => {
@@ -55,3 +75,4 @@ test('HEAD avoids response bytes; invalid paths and methods are rejected', async
   assert.equal(post.status, 405);
   assert.equal(post.headers.get('Allow'), 'GET, HEAD');
 });
+

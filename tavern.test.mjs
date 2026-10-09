@@ -114,8 +114,12 @@ test('natural dish image display creates neither a wallet nor a purchase draft',
  const {service:s}=setup(),sent=[],previous=globalThis.fetch;
  globalThis.fetch=async(url,options)=>{sent.push(JSON.parse(options.body));return Response.json({id:'111'});};t.after(()=>globalThis.fetch=previous);
  const message={guild_id:'3',channel_id:'2',id:'457',author:{id:'1',username:'Alice'}};
- assert(await handleNaturalTavern({...environment(s),BOT_TOKEN:'test'},message,'给我看看红豆牛奶的图片'));
- assert.match(sent[0].embeds[0].image.url,/\/art\/milk\/v1\.jpg$/);assert(!JSON.stringify(sent).includes('余额'));
+ for(const item of MENU){
+  assert(await handleNaturalTavern({...environment(s),BOT_TOKEN:'test'},message,`给我看看${item.name}的图片`),item.id);
+  assert.equal(sent.at(-1).embeds[0].image.url,`https://discord-holdem.aliceneko.workers.dev/art/${item.id}/v1.jpg`,item.id);
+  assert(!sent.at(-1).content.includes('补图清单'),item.id);
+ }
+ assert.equal(sent.length,MENU.length);assert(!JSON.stringify(sent).includes('余额'));
  assert.equal(s.rows('SELECT * FROM tavern_members').length,0);assert.equal(s.rows('SELECT * FROM tavern_drafts').length,0);
 });
 test('reward outbox survives restart and a lost response; backoff clears when delivered',async()=>{
@@ -171,3 +175,4 @@ test('unlocked seasonal menu works through natural order preview without a secon
  assert(await handleNaturalTavern(env,{guild_id:'3',channel_id:'2',id:'777',author:{id:'1',username:'Alice'}},`来一杯${drink.name}`));
  assert.match(sent[0].content,new RegExp(drink.name));assert.match(sent[0].content,/尚未扣款/);assert.equal(s.view('1').member.balance,60);assert.equal(s.rows('SELECT * FROM tavern_orders').length,0);
 });
+
