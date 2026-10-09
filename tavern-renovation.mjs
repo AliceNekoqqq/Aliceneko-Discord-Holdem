@@ -38,7 +38,17 @@ export class TavernRenovation {
     this.sql.exec("INSERT INTO tavern_reno_meta(key,value) VALUES('legacy_backfill_v1','1')");
    });
   }
+  if(!this.one("SELECT value FROM tavern_reno_meta WHERE key='economy_v2_stage_floor'")){
+   this.storage.transactionSync(()=>{
+    if(this.one("SELECT value FROM tavern_reno_meta WHERE key='economy_v2_stage_floor'"))return;
+    const {consumption,direct}=this._totals(),total=consumption+direct;
+    const floor=total>=6000?4:total>=2500?3:total>=1000?2:total>=300?1:0;
+    this.sql.exec("INSERT INTO tavern_reno_meta(key,value) VALUES('economy_v2_stage_floor',?)",String(floor));
+   });
+  }
+  this.stageFloor=Number(this.one("SELECT value FROM tavern_reno_meta WHERE key='economy_v2_stage_floor'")?.value)||0;
  }
+ _stage(total){return SHOP_STAGES[Math.max(shopStage(total).level,this.stageFloor)]||SHOP_STAGES.at(-1)}
  recordConsumption(order,insideTransaction=false){
   if(!order||!order.id||!order.user_id||!(Number(order.price)>0))return false;
   const write=()=>{
@@ -52,7 +62,7 @@ export class TavernRenovation {
  _totals(){return {consumption:this.one('SELECT COALESCE(SUM(amount),0) AS n FROM tavern_reno_consumption')?.n||0,direct:this.one('SELECT COALESCE(SUM(price),0) AS n FROM tavern_reno_direct')?.n||0}}
  board(id,name){
   if(id)this.host.member(id,name);
-  const totals=this._totals(),total=totals.consumption+totals.direct,stage=shopStage(total),si=stage.level;
+  const totals=this._totals(),total=totals.consumption+totals.direct,stage=this._stage(total),si=stage.level;
   const next=SHOP_STAGES[si+1]||null;
   const storedAssets=this.rows('SELECT * FROM tavern_reno_assets ORDER BY item');
   const levelNames=new Map();for(const r of this.rows('SELECT item,level,name FROM tavern_reno_direct ORDER BY at DESC,id DESC')){const key=`${r.item}:${r.level}`;if(!levelNames.has(key))levelNames.set(key,r.name);}
@@ -74,7 +84,7 @@ export class TavernRenovation {
   return result;
  }
  scene(){
-  const totals=this._totals(),total=totals.consumption+totals.direct,stage=shopStage(total);
+  const totals=this._totals(),total=totals.consumption+totals.direct,stage=this._stage(total);
   const latest=this.rows('SELECT * FROM tavern_reno_assets ORDER BY at DESC,item DESC LIMIT 12');
   const levels=new Map();for(const r of this.rows('SELECT item,level,name FROM tavern_reno_direct ORDER BY at DESC,id DESC')){const key=`${r.item}:${r.level}`;if(!levels.has(key))levels.set(key,r.name);}
   const assets=latest.map(a=>{const i=renovationItem(a.item),lvl=i?.levels[a.level-1];return i?{item:i.name,name:a.name,level:a.level,levelName:levels.get(`${a.item}:${a.level}`)||a.name,scene:lvl?.scene||i.description,founder:a.founder_name,updatedBy:a.updated_name}:null}).filter(Boolean);
@@ -111,7 +121,7 @@ export class TavernRenovation {
    const item=renovationItem(d.item);if(!item)throw Error('装修目录已更新。');
    const current=this.one('SELECT * FROM tavern_reno_assets WHERE item=?',d.item),before=current?.level||0,level=item.kind==='object'?1:before+1,spec=item.levels[level-1];
    if(before!==d.before_level||level!==d.level||!spec||spec.price!==d.price||level>item.levels.length)throw Error('这件物品已被其他常客更新，请重新预览。');
-   const totals=this._totals(),stage=shopStage(totals.consumption+totals.direct);if(stage.level<spec.stage)throw Error(`店铺成长至${SHOP_STAGES[spec.stage].name}后才能购置。`);
+   const totals=this._totals(),stage=this._stage(totals.consumption+totals.direct);if(stage.level<spec.stage)throw Error(`店铺成长至${SHOP_STAGES[spec.stage].name}后才能购置。`);
    if(member.balance<d.price)throw Error(`酒馆币不足，还差${d.price-member.balance}币。`);
    this.sql.exec('UPDATE tavern_members SET balance=balance-? WHERE id=?',d.price,user);
    this.sql.exec('INSERT INTO tavern_reno_direct VALUES(?,?,?,?,?,?,?,?,?,?)',d.id,user,d.donor_name,d.item,level,before,d.name,d.price,d.kind,at);

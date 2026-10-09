@@ -64,10 +64,10 @@ test('public room paginates every asset with long donor names and titles without
 });
 
 test('private title modal, preview and confirmation charge once and yield nonce-deduplicated public announcement',async()=>{
- const e=env(),modalOpen=comp('renoTitle~coat_rack');const modal=immediateRenovationReply(modalOpen);assert.equal(modal.type,9);assert(modal.data.custom_id.length<=100);
+ const e=env();e.service.view('1','Alice');e.service.sql.exec('UPDATE tavern_members SET balance=balance+100 WHERE id=?','1');const modalOpen=comp('renoTitle~coat_rack');const modal=immediateRenovationReply(modalOpen);assert.equal(modal.type,9);assert(modal.data.custom_id.length<=100);
  const submit={type:5,...base,data:{custom_id:modal.data.custom_id,components:[{components:[{custom_id:'title',value:'邻窗木衣架'}]}]}};
  assert.deepEqual(tavernDeferredReply(submit),{type:5,data:{flags:64}});
- const preview=await answerRenovation(e,submit);bounds(preview);assert(preview.content.includes('尚未扣款'));assert(preview.content.includes('60币'));
+ const preview=await answerRenovation(e,submit);bounds(preview);assert(preview.content.includes('尚未扣款'));assert(preview.content.includes('160币'));
  const confirmId=preview.components[0].components[0].custom_id.split(':')[3];
  const receipt=await answerRenovation(e,comp(confirmId));assert(receipt.content.includes('余额 0币'));assert(receipt._renovationAnnouncement.nonce);assert(receipt._renovationAnnouncement.content.includes('邻窗木衣架'));
  const again=await answerRenovation(e,comp(confirmId));assert(again.content.includes('没有再次扣款'));assert.equal(again._renovationAnnouncement,null);
@@ -75,7 +75,7 @@ test('private title modal, preview and confirmation charge once and yield nonce-
 });
 
 test('a failed public announcement keeps the private receipt and confirmed debit',async t=>{
- const e=env(),modal=immediateRenovationReply(comp('renoTitle~coat_rack'));
+ const e=env();e.service.view('1','Alice');e.service.sql.exec('UPDATE tavern_members SET balance=balance+100 WHERE id=?','1');const modal=immediateRenovationReply(comp('renoTitle~coat_rack'));
  const preview=await answerRenovation(e,{type:5,...base,data:{custom_id:modal.data.custom_id,components:[{components:[{custom_id:'title',value:'安静衣帽架'}]}]}});
  const confirmId=preview.components[0].components[0].custom_id.split(':')[3],sent=[];
  const old=globalThis.fetch;globalThis.fetch=async(url,options)=>{sent.push({url,body:options.body&&JSON.parse(options.body)});return url.includes('/channels/')?new Response('',{status:500}):Response.json({id:'message'});};t.after(()=>globalThis.fetch=old);

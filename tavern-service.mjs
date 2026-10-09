@@ -1,5 +1,5 @@
 import {TavernMapService} from './tavern-map-service.mjs';
-import {WELCOME_COINS,DAILY_REWARD_CAP,ROSTER_DAILY_LIMIT,ORDER_TTL,REWARDS,validId,dayKey,cleanText,menuItem,makeOrderDetails,SWEETNESS,TEMPERATURE,SEATS} from './tavern-catalog.mjs';
+import {WELCOME_COINS,DAILY_REWARD_CAP,DAILY_GIFT_COINS,ROSTER_DAILY_LIMIT,rosterRewardRate,ORDER_TTL,REWARDS,validId,dayKey,cleanText,menuItem,makeOrderDetails,SWEETNESS,TEMPERATURE,SEATS} from './tavern-catalog.mjs';
 import {TavernRenovation} from './tavern-renovation.mjs';
 import {TavernOperations} from './tavern-operations.mjs';
 
@@ -35,8 +35,25 @@ export class TavernService {
  }
  view(id,name,now=Date.now()){
   const member=this.member(id,name,now),daily=this.one('SELECT earned FROM tavern_daily WHERE user_id=? AND day=?',id,dayKey(now));
+  const dailyGiftClaimed=!!this.one('SELECT id FROM tavern_ledger WHERE id=?',`dailyGift:${id}:${dayKey(now)}`);
   this.operations.visit(id,member.name,now);
-  return {member,menu:this.operations.menu(now),earned:daily?.earned||0,cap:DAILY_REWARD_CAP,orders:this.rows('SELECT * FROM tavern_orders WHERE user_id=? ORDER BY at DESC LIMIT 5',id).map(o=>({...o,details:JSON.parse(o.details)})),ledger:this.rows('SELECT amount,kind,note,at FROM tavern_ledger WHERE user_id=? ORDER BY at DESC LIMIT 6',id),frequent:this.one('SELECT item,COUNT(*) AS count FROM tavern_orders WHERE user_id=? AND price>0 GROUP BY item ORDER BY count DESC,MAX(at) DESC LIMIT 1',id),count:this.one('SELECT COUNT(*) AS n FROM tavern_orders WHERE user_id=?',id)?.n||0};
+  return {member,menu:this.operations.menu(now),dailyGiftClaimed,dailyGiftAvailable:dailyGiftClaimed?0:Math.max(0,Math.min(DAILY_GIFT_COINS,DAILY_REWARD_CAP-(daily?.earned||0))),earned:daily?.earned||0,cap:DAILY_REWARD_CAP,orders:this.rows('SELECT * FROM tavern_orders WHERE user_id=? ORDER BY at DESC LIMIT 5',id).map(o=>({...o,details:JSON.parse(o.details)})),ledger:this.rows('SELECT amount,kind,note,at FROM tavern_ledger WHERE user_id=? ORDER BY at DESC LIMIT 6',id),frequent:this.one('SELECT item,COUNT(*) AS count FROM tavern_orders WHERE user_id=? AND price>0 GROUP BY item ORDER BY count DESC,MAX(at) DESC LIMIT 1',id),count:this.one('SELECT COUNT(*) AS n FROM tavern_orders WHERE user_id=?',id)?.n||0};
+ }
+ claimDaily(id,name,now=Date.now()){
+  if(!validId(id))throw Error('请打开自己的酒馆钱包。');
+  const day=dayKey(now),key=`dailyGift:${id}:${day}`;let dailyGift;
+  this.storage.transactionSync(()=>{
+   const prior=this.one('SELECT amount FROM tavern_ledger WHERE id=?',key);
+   if(prior){dailyGift={amount:prior.amount,repeated:true};return;}
+   this.member(id,name,now,true);
+   const earned=this.one('SELECT earned FROM tavern_daily WHERE user_id=? AND day=?',id,day)?.earned||0;
+   const amount=Math.max(0,Math.min(DAILY_GIFT_COINS,DAILY_REWARD_CAP-earned));
+   dailyGift={amount,repeated:false};if(!amount)return;
+   this.sql.exec('UPDATE tavern_members SET balance=balance+? WHERE id=?',amount,id);
+   this.sql.exec('INSERT INTO tavern_daily VALUES(?,?,?) ON CONFLICT(user_id,day) DO UPDATE SET earned=earned+excluded.earned',id,day,amount);
+   this.sql.exec('INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)',key,id,amount,'daily_gift','每日到店礼',now);
+  });
+  return {...this.view(id,name,now),dailyGift};
  }
  profile(id,name,key,value){
   this.member(id,name);
@@ -100,7 +117,7 @@ export class TavernService {
      for(const p of actors){
       this.member(p.id,p.name,now,true);
       const earned=this.one('SELECT earned FROM tavern_daily WHERE user_id=? AND day=?',p.id,day)?.earned||0;
-      const amount=Math.max(0,Math.min(rule.base+(p.won?rule.bonus:0),DAILY_REWARD_CAP-earned));if(!amount)continue;
+      const amount=Math.max(0,Math.min(Math.floor((rule.base+(p.won?rule.bonus:0))*rosterRewardRate(count)),DAILY_REWARD_CAP-earned));if(!amount)continue;
       this.sql.exec('UPDATE tavern_members SET balance=balance+? WHERE id=?',amount,p.id);
       this.sql.exec('INSERT INTO tavern_daily VALUES(?,?,?) ON CONFLICT(user_id,day) DO UPDATE SET earned=earned+excluded.earned',p.id,day,amount);
       this.sql.exec('INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)',`reward:${key}:${p.id}`,p.id,amount,'game',`${rule.name}${p.won?'胜利':'完成'}奖励`,r.at);
@@ -134,6 +151,7 @@ export class TavernService {
   if(p.action==='draft'){const d=this.one('SELECT * FROM tavern_drafts WHERE id=?',p.draftId);if(!d||d.user_id!==p.id||d.channel!==p.channel)throw Error('这不是你的点单窗口。');return {...d,details:JSON.parse(d.details),balance:this.member(p.id,p.name).balance};}
   if(p.action==='prepare'){const draft=this.prepare(p);try{this.map.move({id:p.id,area:'bar'});}catch{}return draft;}
   if(p.action==='confirm'){const answer=this.confirm(p.id,p.draftId,p.channel);if(!answer.repeated){try{this.map.touch({id:p.id,name:p.name,channel:p.channel,kind:'order'});this.map.move({id:p.id,area:'bar'});}catch{}}return answer;}
+  if(p.action==='claimDaily')return this.claimDaily(p.id,p.name);
   if(p.action==='profile'){
    const data=this.profile(p.id,p.name,p.key,p.value);
    if(p.key==='seat'&&validId(p.channel)){const area={counter:'bar',window:'window',sofa:'commons',quiet:'quiet',any:'commons'}[p.value];if(area)try{this.map.move({id:p.id,area});}catch{}}

@@ -77,7 +77,7 @@ test('signed title modal and private confirmation purchase once; public or other
  const submitted=await s.call({type:5,data:{custom_id:modal.data.custom_id,components:[{components:[{custom_id:'title',value:'旧街挂衣处'}]}]}});
  assert.deepEqual(submitted,{type:5,data:{flags:64}});
  const confirm=s.lastReply().components.flatMap(r=>r.components).find(c=>c.custom_id.includes(':renoConfirm~')).custom_id;
- const service=s.instances.get('tavern:3').tavern;assert.equal(service.view('1').member.balance,60);
+ const service=s.instances.get('tavern:3').tavern;assert.equal(service.view('1').member.balance,60);service.sql.exec('UPDATE tavern_members SET balance=160 WHERE id=?','1');
  const other=await s.call(s.component(confirm,64,{member:{user:{id:'2',username:'Bob'}}}));assert.equal(other.type,4);assert.equal(other.data.flags,64);
  const publicClick=await s.call(s.component(confirm));assert.equal(publicClick.type,4);
  assert.deepEqual(await s.call(s.component(confirm,64)),{type:6});await s.call(s.component(confirm,64));
@@ -153,3 +153,14 @@ test('signed game creation propagates only public table data to guild map, with 
  const service=s.instances.get('tavern:3').tavern,map=service.map.board();assert.equal(map.tableCount,1);assert.equal(map.visitorCount,1);assert.equal(service.rows('SELECT * FROM tavern_members').length,0);
 });
 
+
+
+test('signed daily gift click credits privately once through the real Worker and rejects forged owners',async t=>{
+ const s=await setup(t);assert.deepEqual(await s.call({type:2,data:{name:'酒馆',options:[{name:'钱包'}]}}),{type:5,data:{flags:64}});
+ const service=s.instances.get('tavern:3').tavern;assert.equal(service.view('1').earned,0);
+ const claim=s.lastReply().components.flatMap(r=>r.components).find(c=>c.custom_id.endsWith(':claimDaily')).custom_id;
+ const forged=await s.call(s.component(claim,64,{member:{user:{id:'2',username:'Bob'}}}));assert.equal(forged.type,4);assert.equal(service.rows("SELECT * FROM tavern_ledger WHERE kind='daily_gift'").length,0);
+ assert.equal((await s.call(s.component(claim))).type,4);
+ assert.deepEqual(await s.call(s.component(claim,64)),{type:6});assert.match(s.lastReply().content,/已到账.*20/);assert.equal(service.view('1').member.balance,80);assert.equal(service.view('1').earned,20);
+ await s.call(s.component(claim,64));assert.equal(service.view('1').member.balance,80);assert.equal(service.rows("SELECT * FROM tavern_ledger WHERE kind='daily_gift'").length,1);assert.equal(s.sent.filter(r=>r.url.endsWith('/channels/2/messages')).length,0);
+});

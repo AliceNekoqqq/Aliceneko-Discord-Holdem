@@ -1,5 +1,5 @@
 // Program-owned catalogue, preferences and reward rules. No model can edit prices or balances.
-export const WELCOME_COINS=60, DAILY_REWARD_CAP=150, ROSTER_DAILY_LIMIT=8, ORDER_TTL=180000;
+export const WELCOME_COINS=60, DAILY_REWARD_CAP=150, DAILY_GIFT_COINS=20, ROSTER_DAILY_LIMIT=8, ORDER_TTL=180000;
 export const MENU_CATEGORIES=Object.freeze([
  {id:'drinks',name:'饮品',emoji:'🍵'},
  {id:'desserts',name:'甜点',emoji:'🥮'},
@@ -33,7 +33,8 @@ export const TEMPERATURE=Object.freeze({warm:'温热',cold:'冰凉',room:'常温
 export const SEATS=Object.freeze({counter:'柜台边',window:'窗边',sofa:'软沙发',quiet:'安静角落',any:'随意坐'});
 export const MOODS=Object.freeze({calm:'平静',happy:'开心',tired:'疲惫',blue:'低落',bold:'想冒险'});
 const SPECIAL_NAMES={calm:'河面微光',happy:'糖纸晴天',tired:'晚灯慢慢',blue:'雨后回信',bold:'蝴蝶越过旧街'};
-export const REWARDS=Object.freeze({ghost:{name:'抽鬼牌',base:6,bonus:8,minMs:15000},poker:{name:'德州扑克',base:8,bonus:6,minMs:10000},uno:{name:'UNO',base:12,bonus:8,minMs:20000},liar:{name:'骗子酒馆',base:18,bonus:12,minMs:30000}});
+export const REWARDS=Object.freeze({ghost:{name:'抽鬼牌',base:6,bonus:4,minMs:15000},poker:{name:'德州扑克',base:8,bonus:4,minMs:30000},uno:{name:'UNO',base:12,bonus:6,minMs:45000},liar:{name:'骗子酒馆',base:14,bonus:6,minMs:60000}});
+export const rosterRewardRate=played=>played<3?1:played<6?0.5:played<ROSTER_DAILY_LIMIT?0.25:0;
 export const validId=id=>typeof id==='string'&&/^\d{1,20}$/.test(id);
 export const dayKey=now=>new Date(now+8*3600000).toISOString().slice(0,10);
 export const cleanText=(s,max=100)=>String(s||'').replace(/[\x00-\x1f\x7f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g,'').trim().slice(0,max);

@@ -68,7 +68,7 @@ test('per-roster limits span games and channels; daily caps are atomic and reset
  assert.equal(s.reward('3',result('table:9','uno',now),now).reason,'roster_limit');
  for(let n=10;n<=25;n++){const r=result(`other:${n}`,'uno',now);r.players[1].id=String(n);s.reward('3',r,now);}
  assert.equal(s.view('1','',now).earned,DAILY_REWARD_CAP);const balance=s.view('1','',now).member.balance;
- const tomorrow=Date.parse('2026-10-08T16:01:00Z');assert.notEqual(dayKey(now),dayKey(tomorrow));assert(s.reward('3',result('tomorrow:1','uno',tomorrow),tomorrow).counted);assert.equal(s.view('1','',tomorrow).member.balance,balance+20);
+ const tomorrow=Date.parse('2026-10-08T16:01:00Z');assert.notEqual(dayKey(now),dayKey(tomorrow));assert(s.reward('3',result('tomorrow:1','uno',tomorrow),tomorrow).counted);assert.equal(s.view('1','',tomorrow).member.balance,balance+18);
 });
 test('reward rollback leaves neither result claims nor partial welcome credits',()=>{
  const {store,service:s}=setup(),original=store.sql.exec;
@@ -176,3 +176,44 @@ test('unlocked seasonal menu works through natural order preview without a secon
  assert.match(sent[0].content,new RegExp(drink.name));assert.match(sent[0].content,/尚未扣款/);assert.equal(s.view('1').member.balance,60);assert.equal(s.rows('SELECT * FROM tavern_orders').length,0);
 });
 
+
+
+test('daily gift is explicit, persists once across restart, and resets at Beijing midnight',()=>{
+ const {store,service:s}=setup(),before=Date.parse('2026-10-09T15:59:59Z'),after=before+1000;
+ const first=s.view('1','Alice',before);assert.equal(first.member.balance,60);assert.equal(first.dailyGiftClaimed,false);assert.equal(first.dailyGiftAvailable,20);assert.equal(first.earned,0);
+ const gift=s.claimDaily('1','Alice',before);assert.deepEqual(gift.dailyGift,{amount:20,repeated:false});assert.equal(gift.member.balance,80);assert.equal(gift.earned,20);assert(gift.dailyGiftClaimed);assert.equal(gift.dailyGiftAvailable,0);
+ const restarted=new TavernService(store),repeat=restarted.claimDaily('1','Alice',before);assert(repeat.dailyGift.repeated);assert.equal(repeat.member.balance,80);assert.equal(repeat.earned,20);
+ assert.equal(s.rows("SELECT * FROM tavern_ledger WHERE kind='daily_gift'").length,1);
+ assert.equal(restarted.claimDaily('1','Alice',after).member.balance,100);assert.equal(restarted.view('1','',after).earned,20);
+ assert.equal(setup().service.claimDaily('1','Alice',before).member.balance,80);
+});
+test('daily gift and games share cumulative cap; spending and replay never restore allowance',()=>{
+ const {service:s}=setup(),now=Date.now();s.claimDaily('1','Alice',now);
+ for(let n=1;n<=20;n++){const r=result(`cap:${n}`,'uno',now);r.players[1].id=String(n+20);s.reward('3',r,now);}
+ const before=s.view('1','',now);assert.equal(before.earned,150);assert.equal(before.member.balance,210);
+ const draft=prepare(s,'milk','capSpend',now);s.confirm('1',draft.id,'2',now);assert.equal(s.view('1','',now).member.balance,195);assert.equal(s.view('1','',now).earned,150);
+ const r=result('cap:21','uno',now);r.players[1].id='90';s.reward('3',r,now);assert.equal(s.view('1','',now).member.balance,195);assert.equal(s.view('1','',now).earned,150);
+ assert(s.claimDaily('1','Alice',now).dailyGift.repeated);assert.equal(s.view('1','',now).member.balance,195);
+});
+test('partial daily gift uses only remaining budget and cannot be topped up; full cap creates no gift ledger',()=>{
+ const {service:s}=setup(),now=Date.now();s.member('1','Alice',now);s.sql.exec('INSERT INTO tavern_daily VALUES(?,?,?)','1',dayKey(now),145);
+ const gift=s.claimDaily('1','Alice',now);assert.equal(gift.dailyGift.amount,5);assert.equal(gift.member.balance,65);assert.equal(gift.earned,150);assert(s.claimDaily('1','Alice',now).dailyGift.repeated);
+ s.member('2','Bob',now);s.sql.exec('INSERT INTO tavern_daily VALUES(?,?,?)','2',dayKey(now),150);assert.equal(s.claimDaily('2','Bob',now).dailyGift.amount,0);assert.equal(s.view('2','',now).member.balance,60);assert.equal(s.rows("SELECT * FROM tavern_ledger WHERE user_id='2' AND kind='daily_gift'").length,0);
+});
+test('daily gift transaction failure rolls back wallet, allowance and ledger together',()=>{
+ const {store,service:s}=setup(),now=Date.now(),original=store.sql.exec;
+ store.sql.exec=(q,...a)=>{if(q==='INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)'&&a[3]==='daily_gift')throw Error('gift disk');return original(q,...a);};
+ assert.throws(()=>s.claimDaily('1','Alice',now),/gift disk/);store.sql.exec=original;
+ assert.equal(s.rows('SELECT * FROM tavern_members').length,0);assert.equal(s.rows('SELECT * FROM tavern_daily').length,0);assert.equal(s.rows('SELECT * FROM tavern_ledger').length,0);assert.equal(s.claimDaily('1','Alice',now).member.balance,80);
+});
+test('same roster earns full, half then quarter rewards with canonical order and retry preserving tier',()=>{
+ const {service:s}=setup(),now=Date.now(),expected=[18,18,18,9,9,9,4,4];
+ for(let n=0;n<8;n++){const r=result(`tier:${n+1}`,'uno',now);if(n%2)r.players.reverse();r.channel=n%2?'5':'2';const outcome=s.reward('3',r,now);assert.equal(outcome.rewards.find(p=>p.id==='1').amount,expected[n]);assert.equal(outcome.rewards.find(p=>p.id==='2').amount,n<3?12:n<6?6:3);assert(s.reward('3',r,now).repeated);}
+ assert.equal(s.reward('3',result('tier:9','ghost',now),now).reason,'roster_limit');assert.equal(s.view('1','',now).earned,89);assert.equal(s.one('SELECT played FROM tavern_rosters').played,8);
+});
+test('daily gift UI keeps privacy and ownership and rejects cross-guild dispatch before credit',async()=>{
+ const {service:s}=setup(),env=environment(s);const wallet=await answerTavern(env,interaction('wallet'));assert.equal(s.view('1').earned,0);assert(wallet.components.flatMap(r=>r.components).some(c=>c.custom_id==='t:3:1:claimDaily'));
+ for(const i of [interaction('claimDaily',{member:{user:{id:'2'}}}),interaction('claimDaily',{message:{flags:0}}),interaction('claimDaily',{guild_id:'4'})]){assert.equal(immediateTavernReply(i).type,4);await assert.rejects(()=>answerTavern(env,i));}
+ await assert.rejects(()=>s.dispatch({...base,guild:'4',action:'claimDaily'}),/不匹配/);assert.equal(s.view('1').earned,0);
+ const reply=await answerTavern(env,interaction('claimDaily'));assert.match(reply.content,/20/);assert.equal(s.view('1').earned,20);await answerTavern(env,interaction('claimDaily'));assert.equal(s.view('1').member.balance,80);
+});

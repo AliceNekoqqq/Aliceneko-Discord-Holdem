@@ -19,7 +19,7 @@ export const tavernCommand={name:'酒馆',description:'红豆粉的小酒馆：�
 ]};
 tavernCommand.options.push(...renoCommandOptions);
 tavernCommand.options.unshift(lobbyCommandOption);
-export const TAVERN_HELP=`🍵 **红豆粉的小酒馆**\n先用大厅按钮：吧台点单、钱包、常客卡、店内、共同装修、捐赠档案、贡献榜、小游戏、今日经营、季节菜单、共同活动和刷新。自然语言也可说“打开酒馆”或“走进酒馆”。\n快捷入口：\`/酒馆 大厅\`、\`/酒馆 菜单\`、\`/酒馆 点单\`、\`/酒馆 钱包\`、\`/酒馆 常客卡\`；装修也可用\`/酒馆 店内\`、\`/酒馆 装修\`、\`/酒馆 贡献榜\`、\`/酒馆 捐赠档案\`。\n每服务器独立共用一家店，跨频道共用装修。确认餐饮消费和主动出资按1币=1建设值，消费不再扣一次；装修先预览，3分钟内本人在原频道确认才扣款，余额流水仅本人可见。\n新客欢迎金 **${WELCOME_COINS}币**，每服务器一次。${Object.values(REWARDS).map(r=>`${r.name} +${r.base}，胜者另 +${r.bonus}`).join('；')}。只计真人完成局；每日上限${DAILY_REWARD_CAP}币、同组每日前${ROSTER_DAILY_LIMIT}局。UNO按小局结算；德州筹码不兑换酒馆币。饮品无酒精；自然语言点单仍需按钮确认。`;
+export const TAVERN_HELP=`🍵 **红豆粉的小酒馆**\n先用大厅按钮：吧台点单、钱包、常客卡、店内、共同装修、捐赠档案、贡献榜、小游戏、今日经营、季节菜单、共同活动和刷新。自然语言也可说“打开酒馆”或“走进酒馆”。\n快捷入口：\`/酒馆 大厅\`、\`/酒馆 菜单\`、\`/酒馆 点单\`、\`/酒馆 钱包\`、\`/酒馆 常客卡\`；装修也可用\`/酒馆 店内\`、\`/酒馆 装修\`、\`/酒馆 贡献榜\`、\`/酒馆 捐赠档案\`。\n每服务器独立共用一家店，跨频道共用装修。确认餐饮消费和主动出资按1币=1建设值，消费不再扣一次；装修先预览，3分钟内本人在原频道确认才扣款，余额流水仅本人可见。\n新客欢迎金 **${WELCOME_COINS}币**，每服务器一次。${Object.values(REWARDS).map(r=>`${r.name} +${r.base}，胜者另 +${r.bonus}`).join('；')}。钱包内可手动领取每日到店礼20币，每天一次，北京时间零点刷新；与游戏奖励共用每日${DAILY_REWARD_CAP}币上限。至少两位真人实际行动才算合格；抽鬼牌/德州/UNO/骗子酒馆需分别达到15/30/45/60秒。同组每日前${ROSTER_DAILY_LIMIT}局跨游戏累计，奖励依次为全额、半额、四分之一（向下取整），之后为零。挂机、陪练局、取消局不发币，也没有按聊天条数发币。UNO按小局结算；德州筹码不兑换酒馆币。饮品无酒精；自然语言点单仍需按钮确认。`;
 const navigation=(g,id)=>row(button(g,id,'lobby','🏡 大厅'),button(g,id,'menu','🍵 菜单'),button(g,id,'wallet','🪙 钱包'),button(g,id,'card','🦋 常客卡'),button(g,id,'reno','🔧 装修'));
 export function menuData(data,id,guild,publicView=false,category='all'){
  const view=renderMenu(data,id,guild,publicView,category);
@@ -27,7 +27,12 @@ export function menuData(data,id,guild,publicView=false,category='all'){
  return view;
 }
 
-export function walletData(data,id,guild){return {content:`🪙 **我的酒馆钱包**\n余额：**${data.member.balance}币**\n今日小游戏收入：${data.earned} / ${data.cap}币（北京时间）\n\n最近流水：\n${data.ledger.map(l=>`${l.amount>=0?'+':''}${l.amount} · ${displayText(l.note)}`).join('\n')||'还没有流水。'}\n\n德州筹码与酒馆币分别计算。`,components:[navigation(guild,id)],allowed_mentions:mentions};}
+export function walletData(data,id,guild,notice=''){
+ const remaining=Math.max(0,data.cap-data.earned),gift=data.dailyGiftAvailable||0;
+ const claim=button(guild,id,'claimDaily',data.dailyGiftClaimed?'今日到店礼已领取':gift?'领取今日到店礼':'今日收入已达上限',gift&&!data.dailyGiftClaimed?1:2);
+ if(!gift||data.dailyGiftClaimed)claim.disabled=true;
+ return {content:`🪙 **我的酒馆钱包**${notice?`\n${notice}`:''}\n余额：**${data.member.balance}币**\n今日总收入：${data.earned} / ${data.cap}币（北京时间）· 还可赚 ${remaining}币\n到店礼：${data.dailyGiftClaimed?'今日已领取':gift?`可手动领取 ${gift}币`:'今日收入上限已满'}（与游戏奖励共用每日上限）\n\n最近流水：\n${data.ledger.map(l=>`${l.amount>=0?'+':''}${l.amount} · ${displayText(l.note)}`).join('\n')||'还没有流水。'}\n\n德州筹码与酒馆币分别计算。首次欢迎金${WELCOME_COINS}币独立发放一次。`,components:[row(claim),navigation(guild,id)],allowed_mentions:mentions};
+}
 const select=(guild,id,field,label,map,current)=>row({type:3,custom_id:key(guild,id,`pref~${field}`),placeholder:label,options:Object.entries(map).map(([value,label])=>({label,value,default:value===current}))});
 export function cardData(data,id,guild,notice=''){
  const p=data.member,latest=data.orders[0],frequent=menuItem(data.frequent?.item);
@@ -80,6 +85,11 @@ export async function answerTavern(env,i){
  if(tavernRenovationInteraction(i))return answerRenovation(env,i);
  if(i.type===2&&i.data?.name==='酒馆'&&renoCommandOptions.some(o=>o.name===i.data.options?.[0]?.name))return answerRenovation(env,i);
  const {id,guild,action}=interactionParts(i),name=i.member.nick||i.member.user.global_name||i.member.user.username||'来客',base={guild,id,name,channel:i.channel_id};
+ if(action==='claimDaily'){
+  const result=await tavernRequest(env,{...base,action:'claimDaily'}),gift=result.dailyGift;
+  const notice=gift.repeated?'今天的到店礼已经领过了。':gift.amount?`今日到店礼已到账 **${gift.amount}币**。`:'今日共享收入上限已满，暂时无法领取到店礼。';
+  return walletData(result,id,guild,notice);
+ }
  if(action.startsWith('menuCat~')){
   const category=action.slice(8);if(!MENU_CATEGORIES.some(c=>c.id===category))throw Error('请从菜单分类中选择。');
   const publicView=String(i.data.custom_id).split(':')[2]==='any';
