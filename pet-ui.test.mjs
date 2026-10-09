@@ -36,7 +36,7 @@ test('pet UI payloads disable mentions and stay within Discord component bounds'
 
 test('real pet UI message branches satisfy Discord legacy component payload constraints',async()=>{
  const owned={...view,pet:{...view.pet,unlockedHabits:['friendly']}};
- const walking={...owned,walk:{id:'walk-abc',version:7,phase:'playing',energy:6,bag:[],bagCapacity:3},walkView:{location:'灯巷',intent:'sniff',intentName:'闻一闻',choices:[{id:'bakery-friend',label:'和摊主聊聊雨天生意',cost:1,effect:'结识摊主',preferred:true},{id:'alley-scent',label:'循着雨后的花香走石阶',cost:1,effect:'记下花香'}]}};
+ const walking={...owned,walk:{id:'walk-abc',version:7,step:2,phase:'playing',energy:6,bag:[],bagCapacity:3},walkView:{location:'灯巷',intent:'sniff',intentName:'闻一闻',choices:[{id:'bakery-friend',label:'和摊主聊聊雨天生意',cost:1,effect:'结识摊主',preferred:true},{id:'alley-scent',label:'循着雨后的花香走石阶',cost:1,effect:'记下花香'},{id:'blocked',label:'穿过栅栏',cost:1,effect:'前进',disabled:true,reason:'脚力不足'}]}};
  const routes=[
   ['empty panel',interaction('view'),{...view,pet:null}],
   ['owned panel',interaction('view'),owned],
@@ -45,7 +45,7 @@ test('real pet UI message branches satisfy Discord legacy component payload cons
   ['coat preview',interaction('coatPreview~silver'),owned],
   ['adoption preview',interaction('preview~dusk-rabbit~peach'),{...view,pet:null}],
   ['material shop',interaction('materials'),{...owned,materialBudget:{gathered:2,gatherCap:3,bought:4,buyCap:6}}],
-  ['home and item shop',interaction('home'),owned],
+  ['home and item shop',interaction('home'),{...owned,items:['bed','bell-charm'],decor:{sleep:'bed',charm:'bell-charm'}}],
   ['habits',interaction('habits'),owned],
   ['journal',interaction('journal'),owned],
   ['item purchase preview',interaction('buyPreview~bell-charm'),owned],
@@ -90,6 +90,22 @@ test('real pet UI message branches satisfy Discord legacy component payload cons
    assert(payload.embeds.length<=10,`${label}: embed count`);
    for(const embed of payload.embeds)if(embed.image?.url)assert(Array.from(embed.image.url).length<=2048,`${label}: image URL length`);
   }
+  if(label==='walking panel'){
+   assert.equal(payload.embeds.length,2,'scene and map are the two main visuals');
+   assert(payload.embeds[0].thumbnail?.url.endsWith('/art/pets/lamp-cat/amber/v2.jpg'),'portrait stays a thumbnail on the scene');
+   assert(!payload.embeds[1].thumbnail,'map does not repeat the portrait');
+   assert(payload.embeds[0].image.url.includes('/scenes/drain/'),'scene follows the saved step');
+   assert(payload.embeds[1].image.url.includes('/maps/2/'),'map follows step, not interaction version');
+   assert(payload.content.includes('脚力 6')&&payload.content.includes('闻一闻'),'current location context remains visible');
+   assert(payload.components.flatMap(r=>r.components).some(c=>c.custom_id.endsWith('act~walk-abc~7~bakery-friend')),'route choices remain actionable');
+   const blocked=payload.components.flatMap(r=>r.components).find(c=>c.custom_id.endsWith('act~walk-abc~7~blocked'));assert(blocked.disabled&&blocked.label.includes('脚力不足'),'disabled routes explain why');
+  }
+  if(label==='home and item shop'){
+   assert(payload.content.includes('小铃铛挂件 · 挂饰'),'shows what is actually placed');
+   assert(payload.content.includes('基础睡垫 · 睡垫'),'shows the active base furnishing');
+   assert.equal(payload.components.length,3,'four shop entries fit in two rows plus the base bed and return actions');
+   assert(payload.embeds[0].description.includes('实际布置见下方物品栏'),'scene art is described as atmosphere, with actual setup listed');
+  }
  }
 });
 
@@ -117,7 +133,7 @@ test('starting selects one Chinese-labeled material and habits use an array',asy
 });
 
 test('owned items have an equip action and purchase preview remains read-only',async()=>{
- const {env,calls}=mockEnv({...view,items:['bell-charm']});const data=await answerPet(env,interaction('home'));assert(data.content.includes('金属片'));
+ const {env,calls}=mockEnv({...view,items:['bell-charm']});const data=await answerPet(env,interaction('home'));assert(data.content.includes('金属片'));assert(data.content.includes('已拥有'));assert(data.content.includes('当前布置'));assert(data.content.includes('▫️ 未拥有'));
  const equip=data.components.flatMap(r=>r.components).find(c=>c.custom_id==='p:34:12:equip~bell-charm');assert(equip&&!equip.disabled);await answerPet(env,interaction('equip~bell-charm'));assert.equal(calls.at(-1).action,'petEquip');assert.equal(calls.at(-1).item,'bell-charm');
  const before=calls.length;await answerPet(env,interaction('buyPreview~paper-pinwheel'));assert.equal(calls.length,before);
 });
@@ -138,7 +154,13 @@ test('experience history and panel content are bounded',async()=>{
 
 test('completed receipt displays zero coins but retains XP and selected-material award',async()=>{
  const receiptView={...view,materials:{cloth:3},reward:{...view.reward,earned:20,totalEarned:150,totalCap:150},receipt:{coins:0,growth:10,materials:2,material:'cloth',rewarded:true}};
- const {env}=mockEnv(receiptView);const data=await answerPet(env,interaction('view'));assert(data.content.includes('0金币'));assert(data.content.includes('10成长点'));assert(data.content.includes('布料+2'));assert(data.content.length<=2000);
+ const {env}=mockEnv(receiptView);const data=await answerPet(env,interaction('view'));assert(data.content.includes('本趟结算：0币'));assert(data.content.includes('10成长'));assert(data.content.includes('材料2份'));assert(data.content.length<=2000);
+});
+
+test('idle home state reflects a completed trip and the next growth unlock clearly',async()=>{
+ const completed={...view,pet:{...view.pet,growth:15},reward:{...view.reward,used:1},receipt:{coins:0,growth:4,materials:1,material:'cloth',rewarded:true}};
+ const data=await answerPet(mockEnv(completed).env,interaction('view'));
+ assert(data.content.includes('下一习惯位 50'));assert(data.content.includes('上一趟已结束'));assert(!data.content.includes('今天还没出门'));
 });
 
 test('finishPet turns service errors into a private, usable return panel',async()=>{
@@ -155,7 +177,7 @@ test('finishPet falls back after HTTP failure without repeating a purchase mutat
   const result=await finishPet({...env,DISCORD_APPLICATION_ID:'77',BOT_TOKEN:'secret-token'},interaction('buy~bell-charm~30~v1'));
   assert.equal(result.content,'🐾 伙伴页面暂时显示失败，请重新打开「我的伙伴」查看已保存的结果。');
  }finally{globalThis.fetch=oldFetch;console.warn=oldWarn;}
- assert.equal(payloads.length,2);assert.equal(payloads[0].content.includes('伙伴小窝'),true);
+ assert.equal(payloads.length,2);assert(payloads[0].content.includes('灯灯'));
  assert.deepEqual(payloads[1],{content:'🐾 伙伴页面暂时显示失败，请重新打开「我的伙伴」查看已保存的结果。',components:[],embeds:[],attachments:[],allowed_mentions:{parse:[]}});
  assert.equal(calls.filter(c=>c.action==='petBuy').length,1);assert.deepEqual(warnings,[['pet_panel_update_failed',400]]);
  assert(!JSON.stringify(warnings).includes('secret-token'));
@@ -180,10 +202,10 @@ test('finishPet throws a safe error when both message updates fail',async()=>{
 
 test('long Discord snowflakes and 22-hex walk ids still fit Discord custom_id limit',async()=>{
  const g='12345678901234567890',u='98765432109876543210',walk='abcdef0123456789abcdef';
- const longView={...view,walk:{id:walk,version:1234567,phase:'playing',energy:6,bag:[],bagCapacity:3},walkView:{location:'灯巷',intent:'sniff',intentName:'闻一闻',choices:[{id:'bakery-friend',label:'和摊主聊聊雨天生意',cost:1,effect:'结识摊主',preferred:true},{id:'alley-scent',label:'循着雨后的花香走石阶',cost:1,effect:'记下花香'}],goalProgress:[{id:'explore',name:'发现一条新线索',complete:false}]}};
+ const longView={...view,walk:{id:walk,version:1234567,step:2,phase:'playing',energy:6,bag:[],bagCapacity:3},walkView:{location:'灯巷',intent:'sniff',intentName:'闻一闻',choices:[{id:'bakery-friend',label:'和摊主聊聊雨天生意',cost:1,effect:'结识摊主',preferred:true},{id:'alley-scent',label:'循着雨后的花香走石阶',cost:1,effect:'记下花香'}],goalProgress:[{id:'explore',name:'发现一条新线索',complete:false}]}};
  const {env}=mockEnv(longView);const i={type:3,id:'901',guild_id:g,channel_id:'56',member:{user:{id:u}},message:{flags:64},data:{custom_id:`p:${g}:${u}:view`}};const data=await answerPet(env,i);
  for(const r of data.components)for(const c of r.components)assert(c.custom_id.length<=100,c.custom_id);
- assert(data.content.includes('闻一闻'));assert(data.content.includes('发现一条新线索'));
+ assert(data.content.includes('灯巷'));assert(data.content.includes('闻一闻'));assert(data.content.includes('目标 0/1 · 发现一条新线索'));
 });
 
 test('cross-server ownership error names the home server and cannot call pet service',async()=>{
@@ -240,9 +262,10 @@ test('material shop preview is read-only and confirmation carries fixed price, q
  await assert.rejects(answerPet(env,interaction('materialBuy~cloth~5~2~materials-v1')),/预览已失效/);
 });
 
-test('daily gathering submits one selected material and panel shows daily limits and inventory',async()=>{
+test('daily gathering is reachable from the materials page and submits one selected material',async()=>{
  const withBudget={...view,materialBudget:{gathered:2,gatherCap:3,bought:4,buyCap:6}};const {env,calls}=mockEnv(withBudget);
- const panel=await answerPet(env,interaction('view'));assert.match(panel.content,/每日免费采集：剩余 1\/3份/);assert.match(panel.content,/每日材料铺：剩余 2\/6份/);assert.match(panel.content,/纸片×2/);
+ const panel=await answerPet(env,interaction('view'));assert(!panel.content.includes('每日免费采集'));assert(panel.components.flatMap(r=>r.components).some(c=>c.custom_id==='p:34:12:materials'));
+ const store=await answerPet(env,interaction('materials'));assert.match(store.content,/免费采集剩余 1\/3份/);assert.match(store.content,/材料购买剩余 2\/6份/);assert.match(store.content,/纸片×2/);
  const choose=interaction('gatherMaterial','12',64,{data:{custom_id:'p:34:12:gatherMaterial',values:['flower']}});await answerPet(env,choose);assert.equal(calls.at(-1).action,'petGather');assert.equal(calls.at(-1).material,'flower');
 });
 
@@ -256,7 +279,7 @@ test('invalid coat ids are rejected while legacy species-only and explicit rando
  await assert.rejects(answerPet(env,interaction('setCoat~not-a-coat')),/外形信息已失效/);
  assert.equal(calls.filter(c=>c.action==='petCoat'||c.action==='petAdopt').length,0);
  const legacy={...view,pet:{...view.pet}};delete legacy.pet.coat;const legacyPanel=await answerPet(mockEnv(legacy).env,interaction('view'));
- assert(legacyPanel.content.includes('外形：琥珀狸花短毛'));
+ assert(legacyPanel.content.includes('琥珀狸花短毛'));
  const invalidSave={...interaction('unused'),type:5,message:{flags:64},data:{custom_id:'p:34:12:save~lamp-cat~not-a-coat',components:[{components:[{custom_id:'petName',value:'团团'}]}]}};
  await assert.rejects(answerPet(env,invalidSave),/信息已失效/);
 });

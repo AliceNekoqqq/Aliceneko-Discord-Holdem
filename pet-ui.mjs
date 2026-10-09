@@ -2,6 +2,7 @@ import { tavernRequest } from './tavern-service.mjs';
 import { petHomeRequest } from './pet-registry.mjs';
 import { PETS, HABITS, ITEMS, STAGES } from './pet-catalog.mjs';
 import { petArtEmbed } from './pet-art.mjs';
+import { petWalkMapEmbed, petWalkSceneEmbed, petHomeSceneEmbed } from './pet-walk-map.mjs';
 
 const mentions = { parse: [] };
 const row = (...components) => ({ type: 1, components });
@@ -71,41 +72,41 @@ export function petDeferredReply(i){
 
 function panel(view,g,u,notice=''){
  const pet=view.pet;
- if(!pet){
-  return {content:`🐾 **领养一位小伙伴**${notice?`\n${notice}`:''}\n先预览物种与外形，再为TA取名。领养免费，每位来客限一只。`,components:PETS.map(p=>row(button(g,u,`preview~${p.id}`,`${p.emoji} ${p.name}`))),allowed_mentions:mentions};
- }
- const s=species(pet.species),walk=view.walk,walkView=view.walkView;
- const routeText=walkView?.choices?.length?`\n${walkView.choices.map(c=>`· ${c.label}（${c.cost}脚力${c.preferred?' · 顺心':''}）：${c.effect}${c.disabled?`（${c.reason||'暂不可选'}）`:''}`).join('\n')}`:'';
- const goals=walkView?.goalProgress||[];
- const goalText=goals.length?`\n旅途目标：${goals.map(x=>`${x.complete?'✅':'▫️'}${x.name}`).join(' · ')}`:'';
- const slot=nextSlot(pet),growthText=slot?`下一习惯位 ${pet.growth||0}/${slot}成长点`:'习惯位已全部解锁';
+ if(!pet)return {content:`🐾 **领养一位小伙伴**${notice?`\n${notice}`:''}\n先预览物种与外形，再为TA取名。领养免费，每位来客限一只。`,components:PETS.map(p=>row(button(g,u,`preview~${p.id}`,`${p.emoji} ${p.name}`))),allowed_mentions:mentions};
+ const walk=view.walk,walkView=view.walkView,s=species(pet.species),currentCoat=coat(pet.species,pet.coat)||coats(pet.species)[0];
+ const goals=walkView?.goalProgress||[],goalText=goals.length?` · 目标 ${goals.filter(x=>x.complete).length}/${goals.length} · ${clean(goals.find(x=>!x.complete)?.name||'全部完成',36)}`:'';
+ const slot=nextSlot(pet),growth=slot?`成长 ${pet.growth||0} · 下一习惯位 ${slot}`:`成长 ${pet.growth||0} · 习惯位已全部解锁`;
  const used=view.reward?.used||0,remaining=Math.max(0,2-used),total=view.reward?.totalEarned??view.reward?.earned??0,totalCap=view.reward?.totalCap??view.reward?.cap??20;
- const receipt=view.receipt;
- const receiptMaterial=receipt?.material?materialNames[receipt.material]||receipt.material:Object.entries(view.materials||{}).filter(([,n])=>n>0).map(([id,n])=>`${materialNames[id]||id}×${n}`).join('、');
- const receiptText=receipt?`\n📜 本趟结算：${receipt.coins||0}金币 · ${receipt.growth||0}成长点 · 材料 ${receipt.materials||0}份${receiptMaterial?`（${receipt.material?`${receiptMaterial}+${receipt.materials||0}`:`现有${receiptMaterial}`}）`:''}${receipt.rewarded===false?' · 练习局':''}`:'';
- const currentCoat=coat(pet.species,pet.coat)||coats(pet.species)[0],budget=view.materialBudget||{};
- const gatherLeft=Math.max(0,(budget.gatherCap??3)-(budget.gathered??0)),buyLeft=Math.max(0,(budget.buyCap??6)-(budget.bought??0));
- const materialsText=Object.entries(view.materials||{}).map(([id,n])=>`${materialNames[id]||id}×${n}`).join('、')||'暂无';
- const content=bounded(`${s?.emoji||'🐾'} **${clean(pet.name)}的伙伴小窝**${notice||view.notice?`\n${clean(notice||view.notice,180)}`:''}${receiptText}\n${s?.name||'小伙伴'} · 外形：${currentCoat?.name||'默认'} · 成长 ${pet.growth||0} · ${growthText} · 🪙 ${view.balance??'—'}\n${walk?`\n🗺️ 同行：${walkView?.location||'进行中'} · 心意「${walkView?.intentName||walkView?.intent||'探索'}」 · 第${(walk.version||0)+1}步 · 脚力 ${walk.energy} · 纪念物 ${walk.bag?.length||0}/${walk.bagCapacity}${goalText}${routeText}`:'\n今天还没有出门同行。'}\n今日可领奖同行 ${remaining}/2 次 · 伙伴收入 ${view.reward?.earned||0}/${view.reward?.cap??20}币 · 全游戏收入 ${total}/${totalCap}币\n每日免费采集：剩余 ${gatherLeft}/${budget.gatherCap??3}份（每次1份）；每日材料铺：剩余 ${buyLeft}/${budget.buyCap??6}份（每次2份/6币）\n背包材料：${materialsText}\n陪伴免费；每日护理额外布料×1；无奖励次数时仍可开始练习同行。`);
- const components=[];
+ const receipt=view.receipt,receiptText=receipt?`\n本趟结算：${receipt.coins||0}币 · ${receipt.growth||0}成长 · 材料${receipt.materials||0}份${receipt.rewarded===false?'（练习局）':''}`:'';
+ const idleText=receipt?`上一趟已结束，${used?`今日已同行 ${used} 次`:'已回到小窝'}，可以准备下一趟。`:(used?`今日已同行 ${used} 次，可准备下一趟。`:'今天还没出门。陪伴免费；没有奖励次数时仍可练习同行。');
+ const content=bounded(`${s?.emoji||'🐾'} **${clean(pet.name)}** · ${currentCoat?.name||'伙伴'}\n${growth} · 🪙 ${view.balance??'—'} · 今日领奖同行 ${remaining}/2${notice||view.notice?`\n${clean(notice||view.notice,180)}`:''}${walk?`\n\n🚶 **同行中** · ${walkView?.location||'位置待确认'}\n心意：${walkView?.intentName||walkView?.intent||'探索'} · 脚力 ${walk.energy} · 纪念物 ${walk.bag?.length||0}/${walk.bagCapacity}${goalText}`:`\n\n${idleText}`} ${receiptText}\n伙伴收入 ${view.reward?.earned||0}/${view.reward?.cap??20}币 · 全游戏 ${total}/${totalCap}币`);
+ const components=[],portrait=petArtEmbed(pet.species,pet.coat)?.[0],embeds=walk?[]:(petArtEmbed(pet.species,pet.coat)||[]);
  if(!walk||walk.phase!=='playing'){
-   components.push(row({type:3,custom_id:key(g,u,'startMaterial'),placeholder:'选本局基础材料，再开始同行',min_values:1,max_values:1,options:MATERIALS.map(id=>({label:`${materialNames[id]} · 持有${view.materials?.[id]||0}`,value:id,description:'奖励资格有效时，每局基础获得1份'}))}));
-   components.push(row({type:3,custom_id:key(g,u,'gatherMaterial'),placeholder:`免费采集 · 今日剩余${gatherLeft}份`,min_values:1,max_values:1,options:MATERIALS.map(id=>({label:materialNames[id],value:id}))}));
-   components.push(row(button(g,u,'care','🫶 今日护理'),button(g,u,'materials','🧺 材料铺'),button(g,u,'home','🛏️ 小窝')));
+  components.push(row({type:3,custom_id:key(g,u,'startMaterial'),placeholder:'选基础材料并开始同行',min_values:1,max_values:1,options:MATERIALS.map(id=>({label:`${materialNames[id]} · 持有${view.materials?.[id]||0}`,value:id,description:'奖励资格有效时，每局基础获得1份'}))}));
+  components.push(row(button(g,u,'care','🫶 护理'),button(g,u,'materials','🧺 材料与采集'),button(g,u,'home','🛏️ 小窝')));
+ } else {
+  const choices=walkView?.choices||[];
+  for(let n=0;n<choices.length&&components.length<3;n+=5)components.push(row(...choices.slice(n,n+5).map(c=>button(g,u,`act~${walk.id}~${walk.version}~${c.id}`,`${c.label} · ${c.cost}${c.disabled?` · ${c.reason||'暂不可选'}`:''}`,1,c.disabled))));
+  components.push(row(button(g,u,`redirect~${walk.id}~${walk.version}`,'调整心意'),button(g,u,'home','小窝')));
+  const scene=petWalkSceneEmbed(view),map=petWalkMapEmbed(view);
+  if(scene){
+   const routeNotes=choices.map(c=>`${c.preferred?'💛 顺心 · ':''}${c.label}：${c.effect}${c.disabled?`（${c.reason||'暂不可选'}）`:''}`).slice(0,8);
+   scene.description=[scene.description,...routeNotes].filter(Boolean).join('\n');
+   if(portrait?.image?.url)scene.thumbnail={url:portrait.image.url};embeds.push(scene);
+  }
+  if(map)embeds.push(map);embeds.splice(2);
  }
- else {
-   const choices=walkView?.choices||[];
-   for(let n=0;n<choices.length;n+=5)components.push(row(...choices.slice(n,n+5).map(c=>button(g,u,`act~${walk.id}~${walk.version}~${c.id}`,`${c.label} · ${c.cost}`,1,c.disabled))));
-   components.push(row(button(g,u,`redirect~${walk.id}~${walk.version}`,'调整心意'),button(g,u,'home','小窝与商店')));
- }
- components.push(row(button(g,u,'habits','🌱 习惯'),button(g,u,'journal','📖 经历册'),button(g,u,'rename','✏️ 改名'),button(g,u,'coatMenu','🎨 外形')));
- return {...art(pet.species,pet.coat),content,components:components.slice(0,5),allowed_mentions:mentions};
+ if(components.length<5)components.push(row(button(g,u,'habits','🌱 习惯'),button(g,u,'journal','📖 经历册'),button(g,u,'rename','✏️ 改名'),button(g,u,'coatMenu','🎨 外形')));
+ return {content,embeds,components:components.slice(0,5),allowed_mentions:mentions};
 }
 
 function homeData(view,g,u){
- const own=new Set(view.items||[]), lines=ITEMS.map(x=>`${own.has(x.id)?'✅':'▫️'} **${x.name}** · ${x.price}币${Object.keys(x.materials||{}).length?` + ${Object.entries(x.materials).map(([a,n])=>`${materialNames[a]||a}×${n}`).join(' ')}`:''}\n${x.description}`);
- const buttons=ITEMS.map(x=>own.has(x.id)?button(g,u,`equip~${x.id}`,`摆放 · ${x.name}`):button(g,u,`buyPreview~${x.id}`,`预览 · ${x.name}`));
- return {...(view.pet?art(view.pet.species,view.pet.coat):{}),content:bounded(`🛏️ **小窝与商店**\n余额 ${view.balance??'—'}币 · 材料：${Object.entries(view.materials||{}).map(([a,n])=>`${materialNames[a]||a}×${n}`).join('、')||'暂无'}\n🛏️ 基础睡垫：免费提供，可随时摆放。\n${lines.join('\n')}`),components:[...buttons.map(b=>row(b)),row(button(g,u,'equip~bed','摆放基础睡垫'),button(g,u,'view','返回伙伴'))],allowed_mentions:mentions};
+ const own=new Set(view.items||[]),decor=view.decor||{},lines=ITEMS.map(x=>`${own.has(x.id)?'✅ 已拥有':'▫️ 未拥有'} **${x.name}** · ${x.price}币${Object.keys(x.materials||{}).length?` + ${Object.entries(x.materials).map(([a,n])=>`${materialNames[a]||a}×${n}`).join(' ')}`:''}`);
+ const placedIds=new Set(Object.values(decor)),buttons=ITEMS.map(x=>own.has(x.id)?button(g,u,`equip~${x.id}`,`${placedIds.has(x.id)?'已摆放':'摆放'} · ${x.name}`,2,placedIds.has(x.id)):button(g,u,`buyPreview~${x.id}`,`预览 · ${x.name}`));
+ const slotNames={sleep:'睡垫',charm:'挂饰',toy:'玩具',furniture:'家具',corner:'角落'};
+ const placed=Object.entries(decor).map(([slot,id])=>`${ITEMS.find(x=>x.id===id)?.name||(id==='bed'?'基础睡垫':id)} · ${slotNames[slot]||''}`),scene=petHomeSceneEmbed(view);
+ const components=[row(...buttons.slice(0,2)),row(...buttons.slice(2,4)),row(button(g,u,'equip~bed',placedIds.has('bed')?'已摆放 · 基础睡垫':'摆放基础睡垫',2,placedIds.has('bed')),button(g,u,'view','返回伙伴'))];
+ return {content:bounded(`🛏️ **伙伴小窝** · 余额 ${view.balance??'—'}币\n当前布置：${placed.join('、')||'基础睡垫 · 睡垫'}\n✅ 已拥有 / ▫️ 未拥有 · 未拥有物件不能摆放；价格与材料列于下方\n${lines.join('\n')}`),embeds:scene?[scene]:[],components,allowed_mentions:mentions};
 }
 
 function adoptionPreview(g,u,s,coatId,notice=''){
@@ -119,10 +120,10 @@ function coatPreview(g,u,pet,c,confirmId=c.id,random=false){
 }
 
 function materialsStore(view,g,u){
- const b=view.materialBudget||{},left=Math.max(0,(b.buyCap??6)-(b.bought??0));
+ const b=view.materialBudget||{},left=Math.max(0,(b.buyCap??6)-(b.bought??0)),gatherLeft=Math.max(0,(b.gatherCap??3)-(b.gathered??0));
  const stock=Object.entries(view.materials||{}).map(([id,n])=>`${materialNames[id]||id}×${n}`).join('、')||'暂无';
  const buttons=MATERIALS.map(id=>button(g,u,`materialBuyPreview~${id}`,`预览 · ${materialNames[id]}`));
- return {content:bounded(`🧺 **材料铺**\n余额 ${view.balance??'—'}币 · 背包：${stock}\n今天已采集 ${b.gathered??0}/${b.gatherCap??3}份（免费，每次1份，自选材料）\n今天已购入 ${b.bought??0}/${b.buyCap??6}份（每次2份、6币；最多3次）\n选择材料查看确认预览；预览不会扣款或加材料。`),components:[...Array.from({length:Math.ceil(buttons.length/5)},(_,i)=>row(...buttons.slice(i*5,i*5+5))),row(button(g,u,'view','返回伙伴'))],allowed_mentions:mentions};
+ return {content:bounded(`🧺 **材料与采集** · 余额 ${view.balance??'—'}币\n背包：${stock}\n免费采集剩余 ${gatherLeft}/${b.gatherCap??3}份（自选一种，每次1份）\n材料购买剩余 ${left}/${b.buyCap??6}份（每次2份、6币）\n当日首次护理额外获得布料×1。\n预览商品不会扣款；确认后购买。`),components:[row({type:3,custom_id:key(g,u,'gatherMaterial'),placeholder:`免费采集 · 剩余${gatherLeft}份`,min_values:1,max_values:1,options:MATERIALS.map(id=>({label:materialNames[id],value:id}))}),...Array.from({length:Math.ceil(buttons.length/5)},(_,i)=>row(...buttons.slice(i*5,i*5+5))),row(button(g,u,'view','返回伙伴'))],allowed_mentions:mentions};
 }
 
 export async function answerPet(env,i){

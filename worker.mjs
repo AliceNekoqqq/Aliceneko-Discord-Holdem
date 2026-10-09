@@ -1,5 +1,6 @@
 import {serveArt} from './tavern-art.mjs';
 import {servePetArt} from './pet-art.mjs';
+import {servePetWalkArt} from './pet-walk-map.mjs';
 import {LiarController} from './liar-controller.mjs';
 import {TavernService} from './tavern-service.mjs';
 import {TavernBridge} from './tavern-bridge.mjs';
@@ -298,6 +299,7 @@ async function bindOriginal(env,stub,i,epoch){
 }
 async function handle(request,env,ctx){
   const path=new URL(request.url).pathname;
+  if(path.startsWith('/art/pet-walk/'))return servePetWalkArt(request);
   if(path.startsWith('/art/pets/'))return servePetArt(request);
   if(path.startsWith('/art/'))return serveArt(request);
   if(path==='/health'&&request.method==='GET')return env.TABLES.get(env.TABLES.idFromName('system-health')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'health'})});
@@ -324,7 +326,7 @@ async function handle(request,env,ctx){
 }
 export default {
   async fetch(request,env,ctx){let response;try{response=await handle(request,env,ctx);}catch{response=json(privateReply('服务暂时繁忙，请稍后重试。'));}
-    const asset=response.status===200&&new URL(request.url).pathname.startsWith('/art/')&&response.headers.get('Content-Type')==='image/jpeg';
+    const asset=[200,304].includes(response.status)&&new URL(request.url).pathname.startsWith('/art/')&&/^public,/.test(response.headers.get('Cache-Control')||'');
     const headers=new Headers(response.headers);for(const [key,value]of Object.entries({'Cache-Control':asset?response.headers.get('Cache-Control'):'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow'}))headers.set(key,value);
     return new Response(response.body,{status:response.status,headers});
   },
