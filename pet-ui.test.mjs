@@ -208,9 +208,10 @@ test('long Discord snowflakes and 22-hex walk ids still fit Discord custom_id li
  assert(data.content.includes('灯巷'));assert(data.content.includes('闻一闻'));assert(data.content.includes('目标 0/1 · 发现一条新线索'));
 });
 
-test('cross-server ownership error names the home server and cannot call pet service',async()=>{
- const calls=[];const env={TABLES:{idFromName:x=>x,get:()=>({fetch:async(_url,req)=>{const body=JSON.parse(req.body);calls.push(body);return new Response(JSON.stringify({guild:'99'}),{status:200});}})}};
- await assert.rejects(answerPet(env,interaction('care')),/服务器 99/);assert.equal(calls.length,1);
+test('pet-home registry lookup is scoped to the current server',async()=>{
+ const calls=[],names=[];const env={TABLES:{idFromName:x=>{names.push(x);return x;},get:()=>({fetch:async(_url,req)=>{const body=JSON.parse(req.body);calls.push(body);return new Response(JSON.stringify(body.op==='petHome'?{guild:null}:view),{status:200});}})}};
+ await answerPet(env,interaction('care'));
+ assert.deepEqual(names,['pet-owner:34:12','tavern:34']);assert.equal(calls[0].op,'petHome');assert.equal(calls[0].guild,'34');
 });
 
 test('five species are offered and a selected coat preview carries its real pet art URL',async()=>{

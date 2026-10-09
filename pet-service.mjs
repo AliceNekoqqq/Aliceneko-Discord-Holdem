@@ -62,13 +62,13 @@ export class PetService{
    if(prior){if(prior.owner!==p.id||prior.kind!==p.action)throw Error('操作凭证不匹配。');notice=prior.notice+'（这次操作已处理，没有重复扣款或领奖。）';return;}
    let pet=this.profile(p.id);const today=dayKey(now);
    if(p.action==='petAdopt'){
-    if(pet)throw Error('你已经有一位伙伴了，每人暂时只能领养一只。');
+    if(pet)throw Error('你在本服务器已经有一位伙伴了，每位用户在本服务器暂时只能领养一只。');
     if(!PETS.some(x=>x.id===p.species))throw Error('请选择酒馆里的伙伴。');
     const name=safeName(p.petName);if(!name)throw Error('给伙伴起一个1～24字的名字吧。');
     pet={...createPet(p.species,name,now),coat:chooseCoat(p.species,p.coat),items:['bed'],materials:{},decor:{sleep:'bed'}};
     this.host.member(p.id,p.name,now,true);
     this.sql.exec('INSERT INTO pet_profiles(owner,body,version) VALUES(?,?,0)',p.id,JSON.stringify(pet));
-    notice=`${name}已经住进你的小窝。基础照护免费，每人暂时只领养一只。`;
+    notice=`${name}已经住进你的小窝。基础照护免费，每位用户在本服务器暂时只能领养一只。`;
    }else{
     if(!pet)throw Error('先领养一位伙伴吧。');
     if(p.action==='petStart'){

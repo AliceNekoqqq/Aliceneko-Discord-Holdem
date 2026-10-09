@@ -29,7 +29,7 @@ async function setup(t){
  const adopt=async(guild='3',species='lamp-cat')=>call({...action(`save~${species}`,guild),type:5,data:{custom_id:`p:${guild}:1:save~${species}`,components:[{components:[{custom_id:'petName',value:'灯灯'}]}]}});
  return {env,instances,posts,call,action,adopt};
 }
-test('signed public entry, private naming, single pet across servers, and no public wallet leak',async t=>{
+test('signed public entry, private naming, one pet per server, and no public wallet leak',async t=>{
  const s=await setup(t);
  const opened=await s.call({message:{id:'10',flags:0},data:{custom_id:'t:3:any:lobbyPet'}});
  assert.deepEqual(opened.reply,{type:5,data:{flags:64}});assert(opened.patched.content.includes('领养'));assert(!opened.patched.content.includes('余额'));
@@ -37,7 +37,26 @@ test('signed public entry, private naming, single pet across servers, and no pub
  const modal=await s.call(s.action('name~lamp-cat'));assert.equal(modal.reply.type,9);
  const first=await s.adopt();assert.equal(first.reply.data.flags,64);assert(first.patched.content.includes('灯灯'));assert.equal(privateState.pets.profile('1').species,'lamp-cat');
  const again=await s.adopt();assert(again.patched.content.includes('只能领养一只'));assert.equal(privateState.rows("SELECT * FROM tavern_ledger WHERE kind='welcome'").length,1);
- const other=await s.adopt('4','moss-dog');assert(other.patched.content.includes('另一家酒馆')||other.patched.content.includes('服务器'));assert(!s.instances.has('tavern:4'));
+ // Preserve an old global registry claim from the previous key scheme. It must
+ // not block this user's independent adoption in another guild.
+ s.env.TABLES.get(s.env.TABLES.idFromName('pet-owner:1'));
+ const legacyContext=s.instances.get('pet-owner:1').ctx;
+ await legacyContext.storage.put({petRegistryOwner:'1',petHomeGuild:'3'});
+ await s.call({...s.action('gatherMaterial'),data:{custom_id:'p:3:1:gatherMaterial',values:['metal']}});
+ const started=await s.call({...s.action('startMaterial'),data:{custom_id:'p:3:1:startMaterial',values:['paper']}});assert.equal(started.reply.type,6);
+ const beforeOtherGuild=privateState.pets.view('1');assert(beforeOtherGuild.walk);
+ const other=await s.adopt('4','moss-dog');assert.equal(other.reply.data.flags,64);assert(other.patched.content.includes('灯灯'));
+ assert(s.instances.has('tavern:4'));
+ const guild4=s.instances.get('tavern:4').object.tavern;
+ assert.equal(guild4.pets.profile('1').species,'moss-dog');
+ await s.call({...s.action('care','4'),guild_id:'4'});
+ const afterOtherGuild=privateState.pets.view('1');
+ assert.equal(afterOtherGuild.pet.species,beforeOtherGuild.pet.species);assert.equal(afterOtherGuild.pet.coat,beforeOtherGuild.pet.coat);
+ assert.equal(afterOtherGuild.pet.growth,beforeOtherGuild.pet.growth);assert.deepEqual(afterOtherGuild.materials,beforeOtherGuild.materials);
+ assert.equal(afterOtherGuild.balance,beforeOtherGuild.balance);
+ assert.deepEqual({id:afterOtherGuild.walk.id,version:afterOtherGuild.walk.version,step:afterOtherGuild.walk.step},{id:beforeOtherGuild.walk.id,version:beforeOtherGuild.walk.version,step:beforeOtherGuild.walk.step});
+ const crossGuildButton=await s.call({...s.action('care','3'),guild_id:'4'});assert.equal(crossGuildButton.reply.type,4);assert.equal(crossGuildButton.reply.data.flags,64);
+ assert.equal(privateState.pets.view('1').pet.growth,beforeOtherGuild.pet.growth);
  const foreign=await s.call({data:{custom_id:'p:3:2:start'}});assert.equal(foreign.reply.type,4);assert.equal(foreign.reply.data.flags,64);
  const publicAction=await s.call({...s.action('start'),message:{id:'10',flags:0}});assert.equal(publicAction.reply.type,4);assert(publicAction.reply.data.content.includes('私密'));
  for(const p of s.posts){assert(p.url.includes('/webhooks/'));assert.equal(p.method,'PATCH');assert.deepEqual(p.data.allowed_mentions,{parse:[]});assert(!JSON.stringify(p.data).includes('fake-test-token'));}

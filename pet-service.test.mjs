@@ -108,13 +108,27 @@ test('existing daily-budget table upgrades in place and keeps consumed runs and 
  const daily=host.pets.daily('1',today);assert.equal(daily.used,2);assert.equal(daily.earned,18);assert.equal(daily.xp,25);assert.equal(daily.care,1);assert.equal(daily.gathered,0);assert.equal(daily.bought,0);
  assert.equal(new TavernService(store).pets.daily('1',today).used,2);
 });
-test('global immutable adoption home rejects a second server and cannot be rebound by another owner',async()=>{
- const store=storage();assert.deepEqual(await dispatchPetHome(store,{id:'1',guild:'3'}),{guild:null});
- assert.deepEqual(await dispatchPetHome(store,{id:'1',guild:'3',claim:true}),{guild:'3'});
- assert.deepEqual(await dispatchPetHome(store,{id:'1',guild:'4',claim:true}),{guild:'3'});
- await assert.rejects(()=>dispatchPetHome(store,{id:'2',guild:'4',claim:true}),/归属不匹配/);
- const env={TABLES:{idFromName:n=>n,get:n=>({fetch:async(_,o)=>{assert.equal(n,'pet-owner:1');return Response.json(await dispatchPetHome(store,JSON.parse(o.body)));}})}};
- assert.deepEqual(await petHomeRequest(env,{id:'1',guild:'4',claim:true}),{guild:'3'});
+test('adoption registry is per server, ignores legacy global records and validates owner and guild',async()=>{
+ const first=storage(),second=storage();
+ assert.deepEqual(await dispatchPetHome(first,{id:'1',guild:'3'}),{guild:null});
+ assert.deepEqual(await dispatchPetHome(first,{id:'1',guild:'3',claim:true}),{guild:'3'});
+ assert.deepEqual(await dispatchPetHome(second,{id:'1',guild:'4',claim:true}),{guild:'4'});
+ await assert.rejects(()=>dispatchPetHome(first,{id:'2',guild:'3',claim:true}),/归属不匹配/);
+ await assert.rejects(()=>dispatchPetHome(first,{id:'1',guild:'4',claim:true}),/服务器归属不匹配/);
+ const legacy=storage();legacy.map.set('legacyPetRegistryOwner','other');legacy.map.set('legacyPetHomeGuild','99');
+ assert.deepEqual(await dispatchPetHome(legacy,{id:'1',guild:'3',claim:true}),{guild:'3'});
+ const partial=storage();partial.map.set('petHomeGuild','3');
+ await assert.rejects(()=>dispatchPetHome(partial,{id:'1',guild:'3',claim:true}),/归属不匹配/);
+ const env={TABLES:{idFromName:n=>n,get:n=>({fetch:async(_,o)=>{assert.equal(n,'pet-owner:4:1');return Response.json(await dispatchPetHome(second,JSON.parse(o.body)));}})}};
+ assert.deepEqual(await petHomeRequest(env,{id:'1',guild:'4',claim:true}),{guild:'4'});
+});
+test('a user can adopt once in each server while the service blocks duplicates within either server',()=>{
+ const one=setup(),twoStore=storage(),twoHost=new TavernService(twoStore);let serial=0;
+ const adoptIn=(host,guild)=>host.pets.dispatch({guild,id:'1',name:'Alice',channel:'2',action:'petAdopt',requestKey:String(++serial),species:'lamp-cat',petName:'灯灯'});
+ assert.equal(adoptIn(one.host,'3').pet.name,'灯灯');
+ assert.equal(adoptIn(twoHost,'4').pet.name,'灯灯');
+ assert.throws(()=>adoptIn(one.host,'3'),/本服务器.*领养一只/);
+ assert.throws(()=>adoptIn(twoHost,'4'),/本服务器.*领养一只/);
 });
 test('two reward opportunities are reserved once; starting resumes instead of rerolling and practice gives no assets',()=>{
  const s=setup(),now=Date.now();adopt(s,now);

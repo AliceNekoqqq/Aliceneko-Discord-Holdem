@@ -72,7 +72,7 @@ export function petDeferredReply(i){
 
 function panel(view,g,u,notice=''){
  const pet=view.pet;
- if(!pet)return {content:`🐾 **领养一位小伙伴**${notice?`\n${notice}`:''}\n先预览物种与外形，再为TA取名。领养免费，每位来客限一只。`,components:PETS.map(p=>row(button(g,u,`preview~${p.id}`,`${p.emoji} ${p.name}`))),allowed_mentions:mentions};
+ if(!pet)return {content:`🐾 **领养一位小伙伴**${notice?`\n${notice}`:''}\n先预览物种与外形，再为TA取名。领养免费；每位用户在本服务器限一只，可在不同服务器各领养一只。`,components:PETS.map(p=>row(button(g,u,`preview~${p.id}`,`${p.emoji} ${p.name}`))),allowed_mentions:mentions};
  const walk=view.walk,walkView=view.walkView,s=species(pet.species),currentCoat=coat(pet.species,pet.coat)||coats(pet.species)[0];
  const goals=walkView?.goalProgress||[],goalText=goals.length?` · 目标 ${goals.filter(x=>x.complete).length}/${goals.length} · ${clean(goals.find(x=>!x.complete)?.name||'全部完成',36)}`:'';
  const slot=nextSlot(pet),growth=slot?`成长 ${pet.growth||0} · 下一习惯位 ${slot}`:`成长 ${pet.growth||0} · 习惯位已全部解锁`;
@@ -157,7 +157,7 @@ export async function answerPet(env,i){
  if(action.startsWith('redirect~')){const [,walkId,version]=action.split('~');return {content:'💭 **调整伙伴心意**\n改主意会消耗一次机会；选择顺心的路线能获得额外情境效果。',components:[row(button(p.guild,p.id,`redirectIntent~${walkId}~${version}~sniff`,'闻一闻',1),button(p.guild,p.id,`redirectIntent~${walkId}~${version}~friend`,'交朋友'),button(p.guild,p.id,`redirectIntent~${walkId}~${version}~fetch`,'叼回家')),row(button(p.guild,p.id,'view','返回伙伴'))],allowed_mentions:mentions};}
  const claim=action==='adopt';
  const registry=await petHomeRequest(env,{id:p.id,guild:p.guild,claim});
- if(registry?.guild&&registry.guild!==p.guild)throw Error(`你已在服务器 ${registry.guild} 领养伙伴，请回到所属服务器继续照顾。`);
+ if(registry?.guild&&registry.guild!==p.guild)throw Error('伙伴服务器归属不匹配，请重新打开本服务器的伙伴面板。');
  if(action==='open'||action==='view')action='petView';
  else if(action.startsWith('name~'))action='petView';
  else if(action.startsWith('act~')){const [,walkId,version,choice]=action.split('~');action='petAct';p.walkId=walkId;p.version=Number(version);p.choice=choice;}
