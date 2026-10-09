@@ -132,7 +132,7 @@ export class PokerTable extends DurableObject {
         if(payload.action==='opsBindLobby')return json(await this.tavernLive.track(payload));
         if(payload.action==='opsUnbindLobby')return json(await this.tavernLive.untrack(payload));
         const answer=await this.tavern.dispatch(payload);
-        const acceptedMapMutation=['mapTouch','mapTable'].includes(payload.action)&&answer===true;
+        const acceptedMapMutation=['mapTouch','mapTable','mapMove'].includes(payload.action)&&answer===true;
         const visitorAction=!payload.action?.startsWith('map')&&!['context','draft'].includes(payload.action)||payload.action==='context'&&payload.recordVisit===true;
         if(acceptedMapMutation||visitorAction||payload.action==='mapBoard')await this.tavernLive.changed().catch(()=>{});
         return json(answer);

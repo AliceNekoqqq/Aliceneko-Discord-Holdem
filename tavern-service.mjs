@@ -132,9 +132,13 @@ export class TavernService {
   if(!validId(p.id))throw Error('无效来客。');
   if(p.action==='context')return this.context(p.id,p.channel);
   if(p.action==='draft'){const d=this.one('SELECT * FROM tavern_drafts WHERE id=?',p.draftId);if(!d||d.user_id!==p.id||d.channel!==p.channel)throw Error('这不是你的点单窗口。');return {...d,details:JSON.parse(d.details),balance:this.member(p.id,p.name).balance};}
-  if(p.action==='prepare')return this.prepare(p);
-  if(p.action==='confirm'){const answer=this.confirm(p.id,p.draftId,p.channel);if(!answer.repeated){try{this.map.touch({id:p.id,name:p.name,channel:p.channel,kind:'order'});}catch{}}return answer;}
-  if(p.action==='profile')return this.profile(p.id,p.name,p.key,p.value);
+  if(p.action==='prepare'){const draft=this.prepare(p);try{this.map.move({id:p.id,area:'bar'});}catch{}return draft;}
+  if(p.action==='confirm'){const answer=this.confirm(p.id,p.draftId,p.channel);if(!answer.repeated){try{this.map.touch({id:p.id,name:p.name,channel:p.channel,kind:'order'});this.map.move({id:p.id,area:'bar'});}catch{}}return answer;}
+  if(p.action==='profile'){
+   const data=this.profile(p.id,p.name,p.key,p.value);
+   if(p.key==='seat'&&validId(p.channel)){const area={counter:'bar',window:'window',sofa:'commons',quiet:'quiet',any:'commons'}[p.value];if(area)try{this.map.move({id:p.id,area});}catch{}}
+   return data;
+  }
   return this.view(p.id,p.name);
  }
 }

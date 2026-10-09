@@ -14,7 +14,7 @@ export class TavernOperationsLive {
   const operations=this.host.tavern.operations.board(null,now),room=this.host.tavern.renovation.board();
   const map=this.host.tavern?.map?.board(now),live=map?{visitorCount:map.visitorCount,tableCount:map.tableCount}:null;
   const data=tavernLobbyData(room,guild,'any',operations,live);
-  if(map)data._liveState={light:lightKey(now),visitors:map.visitors.map(v=>({name:v.name,kind:v.kind})),tables:map.tables.slice(0,4).map(t=>({at:t.at,game:t.game,phase:t.phase,players:t.players.map(p=>({name:p.name,bot:p.bot}))})),room:{name:room.stage.name,level:room.stage.level,assets:room.assets.map(a=>({id:a.id||a.item?.id||a.item,level:a.level,name:a.name||a.levelName}))},operations:this.host.tavern.operations.scene(now)};
+  if(map)data._liveState={light:lightKey(now),visitors:map.visitors.map(v=>({id:v.id,name:v.name,kind:v.kind,location:v.location})),tables:map.tables.map(t=>({at:t.at,displaySlot:t.displaySlot,game:t.game,phase:t.phase,players:t.players.map(p=>({id:p.id,name:p.name,bot:p.bot}))})),room:{name:room.stage.name,level:room.stage.level,assets:room.assets.map(a=>({id:a.id||a.item?.id||a.item,level:a.level,name:a.name||a.levelName}))},operations:this.host.tavern.operations.scene(now)};
   return data;
  }
  async renderData(data,guild,now,channel){

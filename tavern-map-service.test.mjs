@@ -55,7 +55,7 @@ test('table snapshots allow nonnumeric bot IDs, retain bot markers, exclude bots
  assert.equal(map.recordTable(snap({epoch:'round-2',at:100003,expires:220000,players:[{id:'2',name:'Bob',bot:false}]}),100003),false); // tombstone blocks resurrection
  assert.equal(map.recordTable(snap({epoch:'round-3',at:100003,expires:220000,players:[{id:'2',name:'@B\nob',bot:false}]}),100003),true);
  const board=map.board(100004);assert.equal(board.tableCount,1);assert.equal(board.tables[0].players[0].name,'Bob');
- assert.deepEqual(Object.keys(board.tables[0]).sort(),['at','channel','closed','epoch','expires','game','guild','phase','players']);
+ assert.deepEqual(Object.keys(board.tables[0]).sort(),['at','channel','closed','displaySlot','epoch','expires','game','guild','phase','players']);
  assert.equal(s.db.prepare('SELECT snapshot FROM tavern_map_tables').get().snapshot.includes('secret'),false);
  assert.equal(map.recordTable(snap({at:100005,expires:100004}),100005),false);
  assert.equal(map.recordTable(snap({at:100006}),100005),false); // future event
@@ -75,6 +75,69 @@ test('expired snapshots are hidden from board and visitor/table output is bounde
  const s=storage(),map=new TavernMapService(s);
  for(let i=1;i<=10;i++)map.recordTable(snap({channel:String(200+i),epoch:`e${i}`,at:100000+i,expires:i===1?100005:300000,players:[]}),100020);
  const b=map.board(100020);assert.equal(b.tableCount,9);assert.equal(b.tables.length,8);assert(!b.tables.some(t=>t.channel==='201'));
+});
+
+test('mapMove saves whitelisted areas, ignores stale moves, and active games override saved position',()=>{
+ const s=storage(),map=new TavernMapService(s);
+ assert.equal(map.dispatch({action:'mapMove',id:'1',channel:'2',name:'Alice',area:'window'},1000),true);
+ assert.equal(map.dispatch({action:'mapMove',id:'1',channel:'2',name:'Alice',area:'quiet'},900),false);
+ assert.equal(map.dispatch({action:'mapMove',id:'1',channel:'2',name:'Alice',area:'wallet'},1100),false);
+ assert.equal(map.dispatch({action:'mapTouch',id:'1',channel:'2',name:'Alice'},1050),false); // existing visit throttling remains
+ assert.equal(map.dispatch({action:'mapTable',table:snap({at:1200,expires:800000}),},1200),true);
+ let v=map.board(1201).visitors[0];assert.deepEqual(v.location,{area:'game',changedAt:1200,tableChannel:'200'});
+ assert.equal(map.dispatch({action:'mapTable',table:snap({at:1300,expires:800000,closed:true,players:[]})},1300),true);
+ v=map.board(1301).visitors[0];assert.equal(v.location.area,'window');
+ assert.equal(s.db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='tavern_members'").get().n,0);
+});
+
+test('display slots remain stable across updates and are recycled after close/expiry',()=>{
+ const s=storage(),map=new TavernMapService(s);
+ for(let i=0;i<4;i++)map.recordTable(snap({channel:String(200+i),epoch:`e${i}`,at:100000+i,expires:300000,players:[]}),100010);
+ const initial=map.board(100011).tables;
+ const slot=initial.find(t=>t.channel==='201').displaySlot;
+ map.recordTable(snap({channel:'201',epoch:'e1',at:100020,expires:300000,players:[]}),100020);
+ assert.equal(map.board(100021).tables.find(t=>t.channel==='201').displaySlot,slot);
+ map.recordTable(snap({channel:'200',epoch:'e0',at:100030,expires:300000,closed:true,players:[]}),100030);
+ map.recordTable(snap({channel:'999',epoch:'new',at:100031,expires:300000,players:[]}),100031);
+ assert.equal(map.board(100032).tables.find(t=>t.channel==='999').displaySlot,0);
+});
+
+test('position and table slots survive service reconstruction over the same durable store',()=>{
+ const s=storage(),first=new TavernMapService(s);
+ first.dispatch({action:'mapMove',id:'8',channel:'9',name:'Guest',area:'bar'},5000);
+ first.recordTable(snap({channel:'201',epoch:'restart-e',at:5100,expires:200000,players:[]}),5100);
+ const slot=first.board(5200).tables[0].displaySlot;
+ const restarted=new TavernMapService(s);
+ assert.equal(restarted.board(5201).visitors[0].location.area,'bar');
+ assert.equal(restarted.board(5201).tables[0].displaySlot,slot);
+});
+
+test('board returns four slotted plus four overflow tables and closed updates cannot crowd out active members',()=>{
+ const s=storage(),map=new TavernMapService(s);
+ for(let i=0;i<8;i++) map.recordTable(snap({channel:String(300+i),epoch:`live${i}`,at:100000+i,expires:300000,players:[{id:String(30+i),name:`P${i}`,bot:false}]}),100010);
+ for(let i=0;i<8;i++) {
+  const channel=String(400+i),epoch=`closed${i}`;
+  map.recordTable(snap({channel,epoch,at:100100+i,expires:300000,players:[]}),100110);
+  map.recordTable(snap({channel,epoch,at:100200+i,expires:300000,closed:true,players:[]}),100210);
+ }
+ const b=map.board(100300);
+ assert.equal(b.tableCount,8);assert.equal(b.tables.length,8);
+ assert.equal(b.tables.filter(t=>t.displaySlot!==null).length,4);
+ assert.deepEqual(b.tables.map(t=>t.displaySlot).filter(x=>x!==null).sort(),[0,1,2,3]);
+ for(let i=0;i<8;i++) assert.deepEqual(b.visitors.find(v=>v.id===String(30+i)).location,{area:'game',changedAt:100000+i,tableChannel:String(300+i)});
+});
+
+test('visitor on a ninth active table remains located at that table even when it is not returned',()=>{
+ const s=storage(),map=new TavernMapService(s),now=100010;
+ for(let i=0;i<9;i++) {
+  const at=i===8?99990:100000+i;
+  map.recordTable(snap({channel:String(500+i),epoch:`overflow${i}`,at,expires:200000,players:i===8?[{id:'900',name:'Ninth player',bot:false}]:[]}),now);
+ }
+ const board=map.board(now),guest=board.visitors.find(v=>v.id==='900');
+ assert.equal(board.tables.length,8);
+ assert(!board.tables.some(t=>t.channel==='508'));
+ assert.equal(guest.location.area,'game');
+ assert.equal(guest.location.tableChannel,'508');
 });
 
 test('table update and participant touch roll back together on transaction failure',()=>{

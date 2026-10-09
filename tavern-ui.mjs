@@ -31,7 +31,7 @@ export function walletData(data,id,guild){return {content:`🪙 **我的酒馆�
 const select=(guild,id,field,label,map,current)=>row({type:3,custom_id:key(guild,id,`pref~${field}`),placeholder:label,options:Object.entries(map).map(([value,label])=>({label,value,default:value===current}))});
 export function cardData(data,id,guild,notice=''){
  const p=data.member,latest=data.orders[0],frequent=menuItem(data.frequent?.item);
- return {content:`🦋 **我的常客卡**${notice?`\n${notice}`:''}\n已确认上桌 ${data.count} 份\n口味：${SWEETNESS[p.sweetness]} · ${TEMPERATURE[p.temperature]}\n常坐：${SEATS[p.seat]}\n忌口 / 备注：${displayText(p.restrictions)||'未设置'}\n${frequent?`常点：${frequent.name}（${data.frequent.count}次，不代表已认定为最爱）`:'还没有常点饮品。'}\n${latest?`最近一份：${displayText(latest.details.itemName)}`:'第一次来，选一杯喜欢的吧。'}\n每次选择会立即保存；聊天时只给红豆粉提供你自己的偏好。`,components:[select(guild,id,'sweetness','我的甜度',SWEETNESS,p.sweetness),select(guild,id,'temperature','我的温度',TEMPERATURE,p.temperature),select(guild,id,'seat','常坐位置',SEATS,p.seat),row(button(guild,id,'notes','编辑忌口备注'),button(guild,id,'reset','清除口味偏好'),button(guild,id,'menu','返回菜单',1),button(guild,id,'lobby','🏡 大厅'))],allowed_mentions:mentions};
+ return {content:`🦋 **我的常客卡**${notice?`\n${notice}`:''}\n已确认上桌 ${data.count} 份\n口味：${SWEETNESS[p.sweetness]} · ${TEMPERATURE[p.temperature]}\n常坐：${SEATS[p.seat]}\n忌口 / 备注：${displayText(p.restrictions)||'未设置'}\n${frequent?`常点：${frequent.name}（${data.frequent.count}次，不代表已认定为最爱）`:'还没有常点饮品。'}\n${latest?`最近一份：${displayText(latest.details.itemName)}`:'第一次来，选一杯喜欢的吧。'}\n每次选择会立即保存；座位选择也会同步大厅地图，牌局中仍优先显示桌边。聊天时只提供你自己的偏好。`,components:[select(guild,id,'sweetness','我的甜度',SWEETNESS,p.sweetness),select(guild,id,'temperature','我的温度',TEMPERATURE,p.temperature),select(guild,id,'seat','常坐位置 · 同步地图',SEATS,p.seat),row(button(guild,id,'notes','编辑忌口备注'),button(guild,id,'reset','清除口味偏好'),button(guild,id,'menu','返回菜单',1),button(guild,id,'lobby','🏡 大厅'))],allowed_mentions:mentions};
 }
 const orderTaste=detail=>`${detail.category==='savory'?'按菜品原味':detail.category==='desserts'?'手作甜度':SWEETNESS[detail.sweetness]} · ${TEMPERATURE[detail.temperature]}`;
 export function draftData(d,id,guild,publicView=false){
@@ -71,7 +71,7 @@ export async function answerTavern(env,i){
   const action=tavernLobbyCommand(i)?'lobby':String(i.data.custom_id).split(':')[3],id=i.member?.user?.id,guild=i.guild_id,name=i.member?.nick||i.member?.user?.global_name||i.member?.user?.username||'来客';
   if(['lobbyMenu','lobbyWallet','lobbyCard'].includes(action)){
    const data=await tavernRequest(env,{guild,id,name,action:'view'});
-   if(action==='lobbyMenu')return menuData(data,id,guild);
+   if(action==='lobbyMenu'){await tavernRequest(env,{guild,id,name,channel:i.channel_id,action:'mapMove',area:'bar'});return menuData(data,id,guild);}
    if(action==='lobbyWallet')return walletData(data,id,guild);
    return cardData(data,id,guild);
   }
@@ -84,6 +84,7 @@ export async function answerTavern(env,i){
   const category=action.slice(8);if(!MENU_CATEGORIES.some(c=>c.id===category))throw Error('请从菜单分类中选择。');
   const publicView=String(i.data.custom_id).split(':')[2]==='any';
   const data=publicView?{menu:await tavernRequest(env,{...base,action:'opsMenu'})}:await tavernRequest(env,{...base,action:'view'});
+  await tavernRequest(env,{...base,action:'mapMove',area:'bar'});
   return menuData(data,id,guild,publicView,category);
  }
  if(['帮助','help'].includes(action))return {content:TAVERN_HELP,components:[navigation(guild,id)],allowed_mentions:mentions};
@@ -106,7 +107,7 @@ export async function answerTavern(env,i){
  const data=await tavernRequest(env,{...base,action:'view'});
  if(['钱包','wallet'].includes(action))return walletData(data,id,guild);
  if(['常客卡','card'].includes(action))return cardData(data,id,guild);
- if(['菜单','menu'].includes(action))return menuData(data,id,guild);
+ if(['菜单','menu'].includes(action)){await tavernRequest(env,{...base,action:'mapMove',area:'bar'});return menuData(data,id,guild);}
  throw Error('请重新打开 `/酒馆 菜单`。');
 }
 export function tavernDeferredReply(i){if(i.type===3&&String(i.data?.custom_id||'').split(':')[3]?.startsWith('menuCat~'))return {type:6};return operationsDeferredReply(i)||lobbyDeferredReply(i)||renovationDeferredReply(i);}
@@ -163,7 +164,7 @@ export async function handleNaturalTavern(env,message,text){
    const live=await tavernRequest(env,{...base,action:'mapRender',scene:true}).catch(()=>null);
    data=tavernLobbyData(board,base.guild,'any',operations,live);
   }
-  else if(intent.action==='menu')data=menuData({menu:menu||await tavernRequest(env,{...base,action:'opsMenu'})},base.id,base.guild,true);
+  else if(intent.action==='menu'){const available=menu||await tavernRequest(env,{...base,action:'opsMenu'});await tavernRequest(env,{...base,action:'mapMove',area:'bar'});data=menuData({menu:available},base.id,base.guild,true);}
   else if(intent.action==='dish'){
    const item=(menu||MENU).find(p=>p.id===intent.item),embeds=artEmbed(item.id);
    data={content:`${renderDishDetails(item)}\n${item.price?`${item.price}酒馆币`:'免费'}${embeds.length?'':'\n这道菜还在补图清单里。'}`,embeds,components:[row(button(base.guild,'any','menu','打开我的点单面板',1))],allowed_mentions:mentions};
