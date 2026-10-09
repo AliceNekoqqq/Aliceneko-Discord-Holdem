@@ -1,12 +1,13 @@
 {
   "name": "aliceneko-discord-holdem",
-  "version": "1.0.1-beta.48",
+  "version": "1.0.1-beta.49",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test *.test.mjs"
   }
 }
+
 
 
 

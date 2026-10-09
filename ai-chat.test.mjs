@@ -81,7 +81,7 @@ test("split cloud persona reaches chat and game requests without a seam or trunc
 });
 
 function fakeDb() {
-  const state = {memoryEnabled:1,settingExists:false,persona:"",gameHost:0,hostFeatures:{host_commentary:0,host_start:0,host_results:0},history:[],channelHistory:[],channelMemory:new Map(),processed:new Set()};
+  const state = {memoryEnabled:1,settingExists:false,persona:"",gameHost:0,hostFeatures:{host_commentary:0,host_start:0,host_results:0},history:[],channelHistory:[],longMemory:[],memorySettings:new Map(),channelMemory:new Map(),processed:new Set()};
   return {
     state,
     prepare(sql) {
@@ -122,6 +122,15 @@ function fakeDb() {
           return {meta:{changes:1}};
         },
         async all() {
+          if(query.sql.includes("ai_long_memory")) {
+            const shared=query.sql.includes("m.user_id<>?");
+            const [guildId,currentUserId,...rest]=query.args;
+            if(!shared)return {results:state.longMemory.filter(row=>row.guild_id===guildId&&row.user_id===currentUserId).map(({key,value,updated_at})=>({key,value,updated_at}))};
+            const search=query.sql.includes("m.value LIKE")?String(rest[0]||"").replaceAll("%",""):null;
+            const results=state.longMemory.filter(row=>row.guild_id===guildId&&row.user_id!==currentUserId&&state.memorySettings.get(`${guildId}:${row.user_id}`)!==0&&(!search||String(row.value).includes(search)||String(row.key).includes(search)||String(row.speaker_name||"").includes(search)))
+              .sort((a,b)=>Number(b.updated_at||0)-Number(a.updated_at||0)).slice(0,Number(rest.at(-1))||240);
+            return {results};
+          }
           const isChannel=query.sql.includes("ai_channel_chat_history");
           const rows=(isChannel?state.channelHistory:state.history).filter(row=>isChannel
             ?row.guild_id===query.args[0]&&row.channel_id===query.args[1]
@@ -545,7 +554,8 @@ test("developer identity and Red Bean Powder OC facts are retrieved only when re
   assert.match(profile,/18 岁/);
   assert.match(profile,/167cm/);
   assert.match(profile,/7 月 7 日/);
-  assert.match(profile,/讨好型倾向/);
+  assert.match(profile,/渐渐更从容/);
+  assert.match(profile,/能识别善意打趣和幽默，不一味奉承/);
   const tavern=getBotKnowledge("外婆为什么叫她红豆粉？小酒馆在什么地方？");
   assert.match(tavern,/临河小城的旧街/);
   assert.match(tavern,/红豆甜点/);
@@ -952,6 +962,34 @@ test("channel memory stays attributed outside the current member's personal dial
   assert.equal(db.state.channelHistory[2].speaker_name,"小红");
 });
 
+test('reply requests carry same-guild shared alias records separately from current preferences, including when current memory is off',async t=>{
+  const db=fakeDb(),requests=[];
+  db.state.longMemory.push({guild_id:'g1',user_id:'owner-a',key:'alias_cat',value:'自述别名：小猫',speaker_name:'猫猫',updated_at:1});
+  for(let i=0;i<280;i++)db.state.longMemory.push({guild_id:'g1',user_id:`recent-${i}`,key:`interest_${i}`,value:`自述喜欢：新条目${i}`,updated_at:1000+i});
+  db.state.longMemory.push({guild_id:'g1',user_id:'owner-b',key:'address',value:'希望被称呼为：小叶',updated_at:20});
+  db.state.longMemory.push({guild_id:'g2',user_id:'owner-c',key:'alias_cat',value:'自述别名：小猫',speaker_name:'异服猫',updated_at:99999});
+  db.state.longMemory.push({guild_id:'g1',user_id:'opted-out',key:'alias_cat',value:'自述别名：小猫',speaker_name:'关闭记忆者',updated_at:99998});
+  db.state.memorySettings.set('g1:owner-a',1);db.state.memorySettings.set('g1:owner-b',1);db.state.memorySettings.set('g2:owner-c',1);db.state.memorySettings.set('g1:opted-out',0);
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    if(String(url).startsWith('https://generativelanguage.googleapis.com/')){requests.push(JSON.parse(options.body));return Response.json({candidates:[{content:{parts:[{text:'我记得她自称小猫。'}]}}]});}
+    return new Response('{}');
+  });
+  const env={BOT_TOKEN:'test',GEMINI_API_KEY:'test',CHAT_DB:db};
+  const message={guild_id:'g1',channel_id:'c1',author:{id:'owner-b',username:'小叶'},mentions:[{username:'猫猫'}],content:'<@bot> 小猫是谁？'};
+  await replyToMention(env,{...message,id:'shared-on'},'bot');
+  let system=requests[0].systemInstruction.parts[0].text;
+  let background=JSON.parse(system.slice(system.lastIndexOf('\n{')+1));
+  assert.match(background.preferences,/小叶/);assert.doesNotMatch(background.preferences,/小猫/);
+  assert.match(background.sharedLongMemory,/自述别名：小猫/);assert.match(background.sharedLongMemory,/历史发言昵称（未核验真名）：猫猫/);
+  assert.doesNotMatch(background.sharedLongMemory,/异服猫|关闭记忆者/);assert.ok(background.sharedLongMemory.indexOf('自述别名：小猫')<background.sharedLongMemory.indexOf('新条目'));
+  assert.equal((background.sharedLongMemory.match(/"person"/g)||[]).length,4);
+  db.state.memoryEnabled=0;db.state.settingExists=true;
+  await replyToMention(env,{...message,id:'shared-off'},'bot');
+  system=requests[1].systemInstruction.parts[0].text;background=JSON.parse(system.slice(system.lastIndexOf('\n{')+1));
+  assert.equal(background.preferences,undefined);assert.match(background.sharedLongMemory,/自述别名：小猫/);
+  assert.equal(db.state.history.filter(row=>row.user_id==='owner-b').length,2);
+});
+
 test("member memory opt-out prevents their messages entering shared channel memory", async t => {
   const db=fakeDb();
   db.state.channelMemory.set("g1:c1",1);
@@ -1030,3 +1068,4 @@ test('daily operations scene stays public and separate from personal tavern cont
  assert.match(makeSystemInstruction(''),/模型不能任命或更换店长、代投票/);
  assert.match(getBotKnowledge('一日店长 季节研发 纪念章'),/北京时间.*随机/);
 });
+
