@@ -1,9 +1,13 @@
 # 灯下迷城 · Discord单人肉鸽设计草案
 日期：2026-10-09（Asia/Shanghai）
 
+## 尖塔2参考调整（2026-10-10）
+
+用户指定[尖塔2灰机Wiki](https://sts2.huijiwiki.com/wiki/首页)作为参考。已完成[资料札记](docs/roguelike/STS2_REFERENCE_FINDINGS.md)、[独立数值审查](docs/roguelike/ROGUELIKE_BALANCE_REVIEW.md)及[v0.2调整方案](docs/roguelike/STS2_ADAPTATION_PLAN.md)。下一轮优先测试抽4/2能量/最多主动打2张、开局与章节起始遗物、篝火治疗/升级。v0.1公共规范和27→30→23算例保留为对照；v0.2尚待完整规则修订与内容验算，两制不可混用，未证明新版胜率或数值平衡。
+
 ## 当前进度 · 第一阶段已完成（2026-10-10）
 
-用户已要求按步骤开始推进；现完成公共规则、阶段/房间流程及第一幕纸面演算，详见[阶段入口](docs/roguelike/README.md)。具体规则以[公共规范](docs/roguelike/ROGUELIKE_CORE_SPEC.md)为当前基线，本文件早期金额/评分/数值仍是提案。
+用户已要求按步骤开始推进；现完成公共规则、阶段/房间流程及第一幕纸面演算，详见[阶段入口](docs/roguelike/README.md)。具体规则以[公共规范](docs/roguelike/ROGUELIKE_CORE_SPEC.md)为v0.1对照基线，本文件早期金额/评分/数值仍是提案。
 
 第一/第二幕Boss有遗物奖励及撤离检查点，第三幕最终Boss直接通关；旧原型“Boss之后都给遗物”的表述已按本规则统一。第一幕算例普通战后27生命、篝火30、Boss后23，属于纸算而非游戏实测。
 
