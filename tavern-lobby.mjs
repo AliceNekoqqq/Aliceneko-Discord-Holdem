@@ -1,9 +1,7 @@
 import {answerTavernMap} from './tavern-map-ui.mjs';
-import {RENOVATION_ITEMS} from './tavern-renovation-catalog.mjs';
 import {cleanText} from './tavern-catalog.mjs';
 import {tavernRequest} from './tavern-service.mjs';
 import {answerRenovation} from './tavern-renovation-ui.mjs';
-import {operationsBanner} from './tavern-operations-ui.mjs';
 
 const mentions={parse:[]};
 const row=(...components)=>({type:1,components});
@@ -13,6 +11,15 @@ const valid=s=>/^\d{1,20}$/.test(String(s||''));
 const safe=(s,max=64)=>[...cleanText(String(s||''),max*2).replace(/<@!?&?\d+>/g,'＠').replace(/@/g,'＠').replace(/[<>]/g,'').replace(/[\\`*_~|#\[\](){}!]/g,'')].slice(0,max).join('')||'未命名';
 const LOBBY_ACTIONS=new Set(['lobby','lobbyGames','lobbyMenu','lobbyWallet','lobbyCard','lobbyRoom','lobbyMap']);
 export const lobbyCommandOption={type:1,name:'大厅',description:'打开红豆粉小酒馆大厅与常用入口'};
+
+export function tavernSceneEmbed(meta={},filename=null){
+ const embed={color:0x8d5b43};
+ if(typeof meta.title==='string')embed.title=meta.title.slice(0,256);
+ if(typeof meta.description==='string')embed.description=meta.description.slice(0,4096);
+ if(typeof meta.footer==='string')embed.footer={text:meta.footer.slice(0,2048)};
+ if(typeof filename==='string'&&filename)embed.image={url:`attachment://${filename.slice(0,128)}`};
+ return embed;
+}
 
 export function tavernLobbyInteraction(i){
  if(![3,5].includes(i.type)||!i.data?.custom_id?.startsWith('t:'))return false;
@@ -45,22 +52,21 @@ export function lobbyDeferredReply(i){
  return {type:5};
 }
 export function tavernLobbyData(board,guild,owner='any',operations=null,live=null){
- const stage=board.stage,assets=[...(board.assets||[])].sort((a,b)=>(Number(b.at)||0)-(Number(a.at)||0));
- const latestAssets=assets.slice(0,3).map(a=>{const item=RENOVATION_ITEMS.find(x=>x.id===(typeof a.item==='string'?a.item:a.item?.id));const scene=item?.levels?.[(a.level||1)-1]?.scene;return `${item?.emoji||'🪑'} **${safe(item?.name||a.item,32)}** Lv.${a.level}「${safe(a.levelName||a.name,24)}」${scene?` · ${safe(scene,48)}`:''}`;});
- const recent=(board.recent||[]).slice(0,3).map(x=>`${safe(x.donor_name||x.name,32)} · ${safe(x.item_name||RENOVATION_ITEMS.find(it=>it.id===x.item)?.name||x.item,32)} Lv.${x.level}「${safe(x.name,24)}」 · ${x.kind==='upgrade'?'升级':'购置'}`);
- const next=board.next,span=next?Math.max(1,next.threshold-stage.threshold):1,progress=next?Math.max(0,Math.min(1,(board.total-stage.threshold)/span)):1,filled=Math.round(progress*10),bar='▰'.repeat(filled)+'▱'.repeat(10-filled);
- const destination=next?`下一阶段 **${safe(next.name,32)}** · 还差 **${Math.max(0,next.threshold-board.total)}** 建设值`:'已达到最高阶段';
- const prose=(latestAssets[0]||stage.description||'店里亮着暖灯，吧台留着空位，欢迎慢慢坐下。');
+ const stage=board.stage;
+ const next=board.next,span=next?Math.max(1,next.threshold-stage.threshold):1,progress=next?Math.max(0,Math.min(1,(board.total-stage.threshold)/span)):1,filled=Math.round(progress*5),bar='▰'.repeat(filled)+'▱'.repeat(5-filled);
+ const destination=next?`下一阶段 ${safe(next.name,24)} · 还差 ${Math.max(0,next.threshold-board.total)}`:'最高阶段';
  const components=[
-  row(button(guild,'any','lobbyMenu','🍵 吧台点单',1),button(guild,'any','lobbyWallet','🪙 我的钱包'),button(guild,'any','lobbyCard','🦋 常客卡'),button(guild,'any','lobbyRoom','🏮 店内'),button(guild,'any','renoEnter','🔧 共同装修')),
-  row(button(guild,'any','renoHistory~0','📜 捐赠档案'),button(guild,'any','renoLeaders','🏅 贡献榜'),button(guild,'any','lobbyGames','🎮 小游戏'),button(guild,owner,'lobby','🔄 刷新大厅')),
-  row(button(guild,'any','lobbyMap','🗺️ 店内地图',1),button(guild,'any','opsBoard','👑 今日经营',1),button(guild,'any','opsSeason','🌱 季节菜单'),button(guild,'any','opsActivity','🎉 共同活动'))
+  row(button(guild,'any','lobbyMenu','🍵 点单',1),button(guild,'any','lobbyWallet','🪙 钱包'),button(guild,'any','lobbyCard','🦋 常客卡'),button(guild,'any','lobbyRoom','🏮 店内'),button(guild,'any','renoEnter','🔧 共同装修')),
+  row(button(guild,'any','opsBoard','👑 今日经营',1),button(guild,'any','opsSeason','🌱 季节菜单'),button(guild,'any','opsActivity','🎉 共同活动'),button(guild,'any','renoHistory~0','📜 贡献历史'),button(guild,'any','renoLeaders','🏅 贡献榜')),
+  row(button(guild,'any','lobbyGames','🎮 小游戏'),button(guild,'any','lobbyMap','🗺️ 地图实况',1),button(guild,owner,'lobby','🔄 刷新大厅'))
  ];
- const ambience={soft_lights:'柔灯',rain_window:'雨窗',spring_breeze:'春风',starlight:'星灯'}[operations?.settings?.ambience]||'暖灯';
- const crowd=live?`最近30分钟 ${live.visitorCount} 位来客 · ${live.tableCount} 张牌桌`:'最近30分钟实况暂不可用';
- const hud=`🕘 北京时间 · ${safe(ambience,8)}氛围 · ${crowd} · 今日店长 ${safe(operations?.manager?.name||'等待首位来客',16)}\n🌱 ${safe(operations?.season?.title||'本月共创',16)} ${operations?.season?.points??0}/${operations?.season?.goal??30} · 🎉 ${safe(operations?.activity?.title||'今日活动',16)}${operations?.activity?.completed?' 已完成':''}`;
- const daily=operations?`${operationsBanner(operations)}\n${hud}\n\n`:'';
- const response={content:`🍵 **红豆粉的小酒馆 · 河畔游戏大厅**\n${daily}${safe(stage.name,32)} · ${safe(prose,100)}\n\n**共同建设 ${board.total}**（餐饮 ${board.consumption} + 装修 ${board.direct}）\n${bar} ${Math.round(progress*100)}% · ${destination}\n\n**最近落地**\n${latestAssets.join('\n')||'还没有玩家添置的陈设，来一起装修吧。'}\n\n**最近捐赠**\n${recent.join('\n')||'还没有主动装修出资；每一笔确认出资都会留下记录。'}`,components,allowed_mentions:mentions};
+ const crowd=live?`最近30分钟 ${live.visitorCount} 位来客 · ${live.tableCount} 张牌桌`:'地图实况暂不可用';
+ const manager=operations?.manager?.name||'等待首位来客';
+ const season=operations?.season,activity=operations?.activity;
+ const response={content:`🍵 **红豆粉的小酒馆 · 大厅** · ${safe(stage.name,24)}\n👑 今日店长：${safe(manager,32)}${live?'':`\n地图实况暂不可用 · 建设 ${board.total}`}`,
+  _mapEmbed:{title:`🏮 ${safe(stage.name,32)} · 店内实况`,description:`${crowd} · 建设 ${board.total} · ${bar} ${Math.round(progress*100)}% · ${destination}`,
+   footer:`🌱 ${safe(season?.title||'季节菜单',18)} ${season?.points??0}/${season?.goal??30} · 🎉 ${safe(activity?.title||'共同活动',18)}${activity?.completed?' 已完成':''}`},
+  components,allowed_mentions:mentions};
  if(live?.scene)response._mapScene={bytes:Uint8Array.from(atob(live.scene.data),c=>c.charCodeAt(0)),filename:live.scene.filename,mime:live.scene.mime};
  return response;
 }

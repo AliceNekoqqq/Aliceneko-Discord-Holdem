@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {renderTavernMap,renderTavernScene} from './tavern-map-image.mjs';
+import {renderTavernMap,renderTavernScene,TAVERN_SCENE_VERSION} from './tavern-map-image.mjs';
 import {TAVERN_BUILDING} from './tavern-building.mjs';
 
 const snapshot={at:Date.parse('2026-10-09T12:00:00Z'),room:{name:'河畔酒馆',assets:[{id:'window_seat',name:'临窗软座',level:1}]},visitorCount:1,visitors:[{id:'visitor-secret',name:'来客甲'}],tableCount:1,tables:[{game:'uno',phase:'waiting',players:[{id:'player-secret',name:'玩家乙'}]}]};
@@ -9,3 +9,5 @@ test('legacy map API remains a PNG byte array',async()=>{const png=await renderT
 test('scene animation is deterministic, compact GIF with four fully decodable frames',async()=>{const a=await renderTavernScene(snapshot),b=await renderTavernScene(snapshot);assert.equal(a.filename,'tavern-scene.gif');assert.equal(a.mime,'image/gif');assert.ok(a.bytes.length<1_000_000);assert.deepEqual(a.bytes,b.bytes);assert.equal(new TextDecoder().decode(a.bytes.slice(0,6)),'GIF89a');assert.equal(a.bytes.at(-1),0x3b);const frames=readGif(a.bytes);assert.equal(frames.length,4);assert.deepEqual(frames[0],{left:0,top:0,w:1000,h:760});assert.deepEqual(frames[1],{left:420,top:150,w:550,h:315});for(const secret of ['visitor-secret','player-secret','来客甲','玩家乙'])assert.equal(new TextDecoder().decode(a.bytes).includes(secret),false);});
 test('scene can opt out of animation',async()=>{const r=await renderTavernScene(snapshot,{animated:false});assert.equal(r.filename,'tavern-scene.png');assert.equal(r.mime,'image/png');assert.deepEqual([...r.bytes.slice(0,8)],[137,80,78,71,13,10,26,10]);});
 test('canonical floorplan fixes orientation, entrance and all renovation anchors',()=>{assert.equal(TAVERN_BUILDING.footprint.width,850);assert.equal(TAVERN_BUILDING.footprint.depth,470);assert.deepEqual(TAVERN_BUILDING.anchors.entrance,{x:185,y:470});assert.equal(TAVERN_BUILDING.anchors.tables.length,4);assert.equal(Object.keys(TAVERN_BUILDING.fixtures).length,24);assert.equal(TAVERN_BUILDING.reserved.northDeck.y,-42);});
+
+test('scene renderer exposes a cache-busting art version',()=>{assert.equal(TAVERN_SCENE_VERSION,'riverside-ui-v2');});

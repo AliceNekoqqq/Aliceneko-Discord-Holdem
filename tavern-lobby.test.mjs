@@ -14,14 +14,14 @@ const ctx={guild_id:'3',channel_id:'2',member:{user:{id:'1',username:'Alice'}}};
 function i(action,owner='any',flags=0){return {type:3,...ctx,message:{flags},data:{custom_id:`t:3:${owner}:${action}`}};}
 function bounds(data){assert(data.content.length<=2000);assert(data.components.length<=5);for(const r of data.components){assert(r.components.length<=5);for(const c of r.components)assert(c.custom_id.length<=100);}}
 
-test('public lobby renders its shared board without creating a wallet and links every area',async()=>{
+test('public lobby keeps a short status, build/map metadata, three button groups, and all areas',async()=>{
  const e=env(),interaction=i('lobby');assert.equal(immediateTavernReply(interaction),null);assert.deepEqual(tavernDeferredReply(interaction),{type:6});
- const data=await answerTavern(e,interaction);bounds(data);assert(data.content.includes('大厅'));assert(data.content.includes('共同建设'));assert(!data.content.includes('余额'));
+ const data=await answerTavern(e,interaction);bounds(data);assert(data.content.includes('小酒馆'));assert(data.content.includes('大厅'));assert(data.content.includes('建设'));assert(data.content.includes('今日店长'));assert(data.content.includes('地图实况暂不可用'));assert(data._mapEmbed.title.includes('店内实况'));assert(data._mapEmbed.description.includes('%'));assert(data._mapEmbed.footer.includes('🌱'));assert(!data.content.includes('余额'));assert(!data.content.includes('最近落地'));assert(!data.content.includes('最近捐赠'));assert.equal(data.components.length,3);
  assert.equal(e.service.rows('SELECT * FROM tavern_members').length,0);
  const actions=data.components.flatMap(r=>r.components).map(c=>c.custom_id.split(':')[3]);
- for(const action of ['lobbyMenu','lobbyWallet','lobbyCard','lobbyRoom','renoEnter','renoHistory~0','renoLeaders','lobbyGames','lobby'])assert(actions.includes(action));
+ for(const action of ['lobbyMenu','lobbyWallet','lobbyCard','lobbyRoom','renoEnter','renoHistory~0','renoLeaders','lobbyGames','lobby','lobbyMap','opsBoard','opsSeason','opsActivity'])assert(actions.includes(action));
  assert.equal(tavernCommand.options[0].name,'大厅');
- assert(data.content.includes('还没有玩家添置的陈设'));
+ assert(data.content.length<300);
 });
 
 test('public lobby entries open private wallet, card and bar order; identity and guild are checked',async()=>{
@@ -41,10 +41,10 @@ test('game lobby exposes exactly the five worker-owned game actions without tave
 });
 
 test('natural language opens a public lobby without a model request or welcome wallet',async t=>{
- const e=env(),sent=[],old=globalThis.fetch;globalThis.fetch=async(url,options)=>{sent.push({url,body:JSON.parse(options.body)});return Response.json({id:'out'});};t.after(()=>globalThis.fetch=old);
+ const e=env(),sent=[],old=globalThis.fetch;globalThis.fetch=async(url,options)=>{const form=options.body instanceof FormData,raw=form?options.body.get('payload_json'):options.body,json=typeof raw==='string'?raw:await raw.text(),body=JSON.parse(json);sent.push({url,body,form});return Response.json({id:'out'});};t.after(()=>globalThis.fetch=old);
  for(const phrase of ['打开酒馆','打开小酒馆','走进酒馆','进酒馆','小酒馆'])assert.deepEqual(parseTavernIntent(phrase),{action:'lobby'});
  const msg={guild_id:'3',channel_id:'2',id:'333',author:{id:'1',username:'Alice'},member:{nick:'Alice'}};
  assert(await handleNaturalTavern(e,msg,'走进酒馆'));assert.equal(e.service.rows('SELECT * FROM tavern_members').length,0);
- assert(sent[0].body.content.includes('大厅'));assert(!sent.some(x=>x.url.includes('model')));assert.equal(sent[0].body.allowed_mentions.parse.length,0);
+ assert(sent[0].body.content.includes('大厅'));assert(sent[0].body.content.includes('今日店长'));assert(!JSON.stringify(sent[0].body).includes('_mapEmbed'));if(sent[0].form){assert.equal(sent[0].body.embeds[0].image.url,'attachment://tavern-scene.gif');assert(sent[0].body.embeds[0].title.includes('店内实况'));assert(sent[0].body.embeds[0].description.includes('建设'));assert(sent[0].body.embeds[0].footer.text.includes('🌱'));}assert(!sent.some(x=>x.url.includes('model')));assert.equal(sent[0].body.allowed_mentions.parse.length,0);
 });
 

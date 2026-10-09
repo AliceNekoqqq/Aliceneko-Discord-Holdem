@@ -1,5 +1,5 @@
 import {dayKey,validId} from './tavern-catalog.mjs';
-import {tavernLobbyData} from './tavern-lobby.mjs';
+import {tavernLobbyData,tavernSceneEmbed} from './tavern-lobby.mjs';
 
 const STATE='tavernLobbyLive';
 const tomorrow=now=>Math.floor((now+28800000)/86400000)*86400000+86400000-28800000;
@@ -98,10 +98,10 @@ export class TavernOperationsLive {
   return this.host.tavern?.map?.nextExpiry(now)||null;
  }
  discordBody(data){
-  const body={...data};delete body._mapScene;delete body._liveState;body.embeds=[];body.attachments=[];
-  const scene=data._mapScene;if(!scene)return body;
+  const body={...data};delete body._mapScene;delete body._mapEmbed;delete body._liveState;body.embeds=[];body.attachments=[];
+  const scene=data._mapScene;if(!scene){if(data._mapEmbed)body.embeds=[tavernSceneEmbed(data._mapEmbed)];return body;}
   const filename=scene.filename||'tavern-scene.png',bytes=scene.bytes instanceof Uint8Array?scene.bytes:new Uint8Array(scene.bytes||[]);
-  body.embeds=[{image:{url:`attachment://${filename}`}}];body.attachments=[{id:0,filename,description:'红豆粉小酒馆实时地图，按最近来客与公开牌桌生成'}];
+  body.embeds=[tavernSceneEmbed(data._mapEmbed,filename)];body.attachments=[{id:0,filename,description:'红豆粉小酒馆实时地图，按最近来客与公开牌桌生成'}];
   const form=new FormData();form.set('payload_json',JSON.stringify(body));form.set('files[0]',new Blob([bytes],{type:scene.mime||'image/png'}),filename);return form;
  }
 }

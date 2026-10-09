@@ -111,7 +111,7 @@ test('signed unified lobby opens private services and returns through buttons wi
 
 test('signed operations buttons keep public board wallet-free and enforce daily manager ownership',async t=>{
  const s=await setup(t);await s.call({type:2,data:{name:'酒馆',options:[{name:'大厅'}]}});
- const service=s.instances.get('tavern:3').tavern,hub=s.lastReply();assert.match(hub.content,/今日一日店长.*Alice/);assert.equal(service.rows('SELECT * FROM tavern_members').length,0);
+ const service=s.instances.get('tavern:3').tavern,hub=s.lastReply();assert.match(hub.content,/今日店长.*Alice/);assert.equal(service.rows('SELECT * FROM tavern_members').length,0);
  const enter=hub.components.flatMap(r=>r.components).find(b=>b.custom_id.endsWith(':opsBoard')).custom_id;
  assert.deepEqual(await s.call(s.component(enter)),{type:6});assert(!s.lastReply().content.includes('余额'));
  const manage=s.lastReply().components.flatMap(r=>r.components).find(b=>b.custom_id.endsWith(':opsEnter')).custom_id;

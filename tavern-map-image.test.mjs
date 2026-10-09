@@ -32,3 +32,21 @@ test('formal game names and phases are localized before drawing',async()=>{
  assert(drawn.includes('抽鬼牌'));assert(drawn.includes('骗子酒馆'));assert.equal(drawn.filter(x=>x==='游戏中').length,2);assert(!drawn.includes('active'));assert(!drawn.includes('in_progress'));
  const missing=drawn.flatMap(value=>[...value].filter(char=>!glyphs[char]));assert.equal(missing.length,0,[...new Set(missing)].join(''));
 });
+
+
+test('every purchased fixture ID draws and higher levels visibly refine its furniture',async()=>{
+ const ids=['oak_table','window_seat','bookshelf','coat_rack','bar_counter','copper_lamp','paper_lanterns','table_lamp','neon_sign','river_photo','ceramic_vase','chalk_menu','wall_clock','record_player','plant_corner','rain_bell','tea_station','pastry_case','seating','lighting','sound','climate','counter','patio'];
+ const assets=ids.map(id=>({id,level:1})),base=await bytes({at:'2026-10-09T04:05:00Z',room:{name:'小酒馆',assets}});assert.deepEqual([decode(base).width,decode(base).height],[1000,760]);
+ const upgraded=await bytes({at:'2026-10-09T04:05:00Z',room:{name:'小酒馆',assets:assets.map(a=>({...a,level:3}))}});assert.notDeepEqual(upgraded,base);
+});
+
+test('all eight table players remain visible and never duplicate into visitor seating',async()=>{
+ const players=Array.from({length:8},(_,i)=>({id:`p${i+1}`,name:`P${i+1}`,bot:false}));
+ const snapshot={at:safeAt(),visitorCount:8,visitors:[],tableCount:1,tables:[{game:'uno',phase:'active',players}],room:{name:'小酒馆',assets:[]}};
+ const drawn=[],original=Canvas.prototype.text;let base;
+ try{Canvas.prototype.text=function(value,...args){drawn.push(String(value));return original.call(this,value,...args);};base=await bytes(snapshot);}
+ finally{Canvas.prototype.text=original;}
+ for(const p of players)assert(drawn.includes(p.name),`${p.name} remains visible`);
+ assert.deepEqual(await bytes({...snapshot,visitors:players}),base);
+ assert.notDeepEqual(await bytes({...snapshot,tables:[{...snapshot.tables[0],players:players.slice(0,6)}]}),base);
+});

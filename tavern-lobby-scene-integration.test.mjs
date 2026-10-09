@@ -4,6 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFile} from 'node:fs/promises';
 import {TavernService} from './tavern-service.mjs';
 import {tavernRuntimeData} from './ai-chat.mjs';
+import {handleNaturalTavern} from './tavern-ui.mjs';
 
 function storage(){
  const db=new DatabaseSync(':memory:'),map=new Map();
@@ -19,18 +20,30 @@ test('signed public lobby uploads GIF and real map events schedule same message 
  const guild=new PokerTable({storage:store,blockConcurrencyWhile:fn=>fn(),waitUntil:()=>{}},env);
  env.TABLES={idFromName:n=>n,get:()=>({fetch:(url,options)=>guild.fetch(new Request(url,options))})};
  const sent=[],original=globalThis.fetch;t.after(()=>globalThis.fetch=original);
- globalThis.fetch=async(url,options)=>{const form=options.body instanceof FormData;sent.push({url,form,payload:form?JSON.parse(options.body.get('payload_json')):JSON.parse(options.body),file:form?options.body.get('files[0]'):null});return Response.json({id:'4',flags:0});};
+ globalThis.fetch=async(url,options)=>{const form=options.body instanceof FormData,raw=form?options.body.get('payload_json'):options.body,payload=JSON.parse(typeof raw==='string'?raw:await raw.text());sent.push({url,form,payload,file:form?options.body.get('files[0]'):null});return Response.json({id:'4',flags:0});};
  const interaction={id:'101',application_id:'123',guild_id:'3',channel_id:'2',member:{user:{id:'1',username:'Alice'}},token:'fixture-token',type:2,data:{name:'酒馆',options:[{name:'大厅'}]}};
  const body=JSON.stringify(interaction),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex'),tasks=[];
  const response=await worker.fetch(new Request('https://fixture/interactions',{method:'POST',body,headers:{'X-Signature-Timestamp':ts,'X-Signature-Ed25519':sig}}),env,{waitUntil:p=>tasks.push(p)});
  assert.equal((await response.json()).type,5);await Promise.all(tasks);
- const first=sent.find(x=>x.form);assert(first);assert.equal(first.file.type,'image/gif');assert.equal(new TextDecoder().decode(new Uint8Array(await first.file.arrayBuffer()).slice(0,6)),'GIF89a');assert.equal(first.payload.embeds[0].image.url,'attachment://tavern-scene.gif');assert(!JSON.stringify(first.payload).includes('_mapScene'));assert.equal(guild.tavern.context('1','2'),null);
+ const first=sent.find(x=>x.form);assert(first);assert.equal(first.file.type,'image/gif');assert.equal(new TextDecoder().decode(new Uint8Array(await first.file.arrayBuffer()).slice(0,6)),'GIF89a');assert.equal(first.payload.embeds[0].image.url,'attachment://tavern-scene.gif');assert(first.payload.embeds[0].title.includes('店内实况'));assert(first.payload.embeds[0].description.includes('建设'));assert(first.payload.embeds[0].footer.text.includes('🌱'));assert(!JSON.stringify(first.payload).includes('_mapScene'));assert(!JSON.stringify(first.payload).includes('_mapEmbed'));assert.equal(guild.tavern.context('1','2'),null);
  assert.equal(store.map.get('tavernLobbyLive').boards[0].message,'4');
  const now=Date.now(),touch=await guild.dispatch({op:'tavern',guild:'3',id:'2',name:'Bob',channel:'2',action:'mapTouch'});assert.equal(await touch.json(),true);
  const due=store.map.get('tavernLobbyLive').due;assert(due>=now+1900&&due<=Date.now()+2100);
- await guild.tavernLive.flush(due);const refresh=sent.find(x=>x.url.includes('/channels/2/messages/4'));assert(refresh?.form);assert(refresh.payload.content.includes('2'));assert.equal(guild.tavern.context('2','2'),null);assert.equal(store.map.get('tavernLobbyLive').due,null);
+ await guild.tavernLive.flush(due);const refresh=sent.find(x=>x.url.includes('/channels/2/messages/4'));assert(refresh?.form);assert(refresh.payload.embeds[0].image.url===first.payload.embeds[0].image.url);assert(refresh.payload.embeds[0].title.includes('店内实况'));assert(refresh.payload.embeds[0].description.includes('2'));assert(refresh.payload.embeds[0].footer.text.includes('🌱'));assert(!JSON.stringify(refresh.payload).includes('_mapScene'));assert(!JSON.stringify(refresh.payload).includes('_mapEmbed'));assert.equal(guild.tavern.context('2','2'),null);assert.equal(store.map.get('tavernLobbyLive').due,null);
  const table={guild:'3',channel:'5',epoch:'fixture-table',at:Date.now(),expires:Date.now()+1800000,game:'uno',phase:'playing',closed:false,players:[{id:'2',name:'Bob',bot:false}]};
  const accepted=await guild.dispatch({op:'tavern',guild:'3',action:'mapTable',table});assert.equal(await accepted.json(),true);assert(store.map.get('tavernLobbyLive').due);
+});
+test('natural-language lobby sends its first GIF scene and binds a public message without wallet creation',async t=>{
+ const {PokerTable}=await loadWorker(),store=storage();t.after(()=>store.db.close());
+ const env={BOT_TOKEN:'fixture',DISCORD_APPLICATION_ID:'123'},guild=new PokerTable({storage:store,blockConcurrencyWhile:fn=>fn(),waitUntil:()=>{}},env);
+ env.TABLES={idFromName:n=>n,get:()=>({fetch:(url,options)=>guild.fetch(new Request(url,options))})};
+ const sent=[],original=globalThis.fetch;t.after(()=>globalThis.fetch=original);
+ globalThis.fetch=async(url,options)=>{const form=options.body instanceof FormData,raw=form?options.body.get('payload_json'):options.body,payload=JSON.parse(typeof raw==='string'?raw:await raw.text());sent.push({url,form,payload,file:form?options.body.get('files[0]'):null});return Response.json({id:'104',flags:0});};
+ const message={guild_id:'3',channel_id:'2',id:'333',author:{id:'1',username:'Alice'},member:{nick:'Alice'}};
+ assert.equal(await handleNaturalTavern(env,message,'走进酒馆'),true);
+ const first=sent.find(x=>x.url.includes('/channels/2/messages'));assert(first?.form);assert.equal(first.file.type,'image/gif');assert.equal(new TextDecoder().decode(new Uint8Array(await first.file.arrayBuffer()).slice(0,6)),'GIF89a');
+ assert.equal(first.payload.embeds[0].image.url,'attachment://tavern-scene.gif');assert(first.payload.embeds[0].title.includes('店内实况'));assert(first.payload.embeds[0].description.includes('建设'));assert(first.payload.embeds[0].footer.text.includes('🌱'));assert(!JSON.stringify(first.payload).includes('_mapScene'));assert(!JSON.stringify(first.payload).includes('_mapEmbed'));
+ assert.equal(first.payload.content.includes('今日店长'),true);assert.equal(first.payload.message_reference.message_id,'333');assert.equal(store.map.get('tavernLobbyLive').boards[0].message,'104');assert.equal(guild.tavern.rows('SELECT * FROM tavern_members').length,0);assert(!sent.some(x=>x.url.includes('model')));
 });
 test('actual mention context records a recent visitor while passive personal history remains read-only',async t=>{
  const store=storage(),s=new TavernService(store);t.after(()=>store.db.close());

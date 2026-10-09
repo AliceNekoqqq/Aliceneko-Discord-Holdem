@@ -3,7 +3,7 @@ import {tavernRequest} from './tavern-service.mjs';
 import {renderMenu,renderDishDetails,MENU_CATEGORIES} from './tavern-menu-view.mjs';
 import {artEmbed} from './tavern-art.mjs';
 import {renoCommandOptions, tavernRenovationInteraction, immediateRenovationReply, answerRenovation, tavernDeferredReply as renovationDeferredReply} from './tavern-renovation-ui.mjs';
-import {lobbyCommandOption,tavernLobbyInteraction,tavernLobbyCommand,immediateLobbyReply,lobbyDeferredReply,answerLobby,tavernLobbyData} from './tavern-lobby.mjs';
+import {lobbyCommandOption,tavernLobbyInteraction,tavernLobbyCommand,immediateLobbyReply,lobbyDeferredReply,answerLobby,tavernLobbyData,tavernSceneEmbed} from './tavern-lobby.mjs';
 import {operationsInteraction,immediateOperationsReply,operationsDeferredReply,answerOperations} from './tavern-operations-ui.mjs';
 const mentions={parse:[]};
 const row=(...components)=>({type:1,components});
@@ -118,9 +118,10 @@ export async function finishTavern(env,i){
  }
  const mapImage=data._mapImage;delete data._mapImage;
  const mapScene=data._mapScene;delete data._mapScene;
+ const mapEmbed=data._mapEmbed;delete data._mapEmbed;
  const scene=mapScene?.bytes?mapScene:mapImage?{bytes:mapImage,filename:'tavern-map.png',mime:'image/png'}:null;
- const payload={...data,embeds:data.embeds||[],attachments:[]};let body=JSON.stringify(payload),headers={'Content-Type':'application/json'};
- if(scene){payload.attachments=[{id:0,filename:scene.filename,description:'酒馆近期来客与公开牌桌实况；动态河光与暖灯'}];payload.embeds=[{...(payload.embeds[0]||{}),image:{url:`attachment://${scene.filename}`}}];const form=new FormData();form.append('payload_json',JSON.stringify(payload));form.append('files[0]',new Blob([scene.bytes],{type:scene.mime}),scene.filename);body=form;headers={};}
+ const payload={...data,embeds:mapEmbed?[tavernSceneEmbed(mapEmbed)]:data.embeds||[],attachments:[]};let body=JSON.stringify(payload),headers={'Content-Type':'application/json'};
+ if(scene){payload.attachments=[{id:0,filename:scene.filename,description:'酒馆近期来客与公开牌桌实况；动态河光与暖灯'}];payload.embeds=[mapEmbed?tavernSceneEmbed(mapEmbed,scene.filename):{...(payload.embeds[0]||{}),image:{url:`attachment://${scene.filename}`}}];const form=new FormData();form.append('payload_json',JSON.stringify(payload));form.append('files[0]',new Blob([scene.bytes],{type:scene.mime}),scene.filename);body=form;headers={};}
  try{const r=await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${encodeURIComponent(i.token)}/messages/@original`,{method:'PATCH',headers,body,signal:AbortSignal.timeout(6000)});
   const action=i.type===2?i.data.options?.[0]?.name:String(i.data?.custom_id||'').split(':')[3];
   if(r.ok&&['大厅','lobby'].includes(action)&&!(Number(i.message?.flags)&64)){
@@ -157,7 +158,11 @@ export async function handleNaturalTavern(env,message,text){
  }
  if(!intent)return false;
  let data;try{
-  if(intent.action==='lobby')data=tavernLobbyData(await tavernRequest(env,{guild:base.guild,action:'renoBoard'}),base.guild,'any',await tavernRequest(env,{...base,action:'opsBoard'}));
+  if(intent.action==='lobby'){
+   const [board,operations]=await Promise.all([tavernRequest(env,{guild:base.guild,action:'renoBoard'}),tavernRequest(env,{...base,action:'opsBoard'})]);
+   const live=await tavernRequest(env,{...base,action:'mapRender',scene:true}).catch(()=>null);
+   data=tavernLobbyData(board,base.guild,'any',operations,live);
+  }
   else if(intent.action==='menu')data=menuData({menu:menu||await tavernRequest(env,{...base,action:'opsMenu'})},base.id,base.guild,true);
   else if(intent.action==='dish'){
    const item=(menu||MENU).find(p=>p.id===intent.item),embeds=artEmbed(item.id);
@@ -165,7 +170,12 @@ export async function handleNaturalTavern(env,message,text){
   }
   else data=draftData(await tavernRequest(env,{...base,...intent,requestKey:`m${message.id}`}),base.id,base.guild,true);
  }catch(e){data={content:`🍵 ${e.message}`,allowed_mentions:mentions};}
- try{const r=await fetch(`https://discord.com/api/v10/channels/${message.channel_id}/messages`,{method:'POST',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({...data,message_reference:{message_id:message.id,fail_if_not_exists:false},nonce:`t${message.id}`,enforce_nonce:true}),signal:AbortSignal.timeout(6000)});
+ const scene=data._mapScene,meta=data._mapEmbed;delete data._mapScene;delete data._mapEmbed;
+ const payload={...data,message_reference:{message_id:message.id,fail_if_not_exists:false},nonce:`t${message.id}`,enforce_nonce:true};
+ if(meta)payload.embeds=[tavernSceneEmbed(meta)];
+ let body=JSON.stringify(payload),headers={Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'};
+ if(scene){payload.attachments=[{id:0,filename:scene.filename,description:'红豆粉小酒馆近期实况'}];payload.embeds=[tavernSceneEmbed(meta,scene.filename)];const form=new FormData();form.set('payload_json',JSON.stringify(payload));form.set('files[0]',new Blob([scene.bytes],{type:scene.mime}),scene.filename);body=form;headers={Authorization:`Bot ${env.BOT_TOKEN}`};}
+ try{const r=await fetch(`https://discord.com/api/v10/channels/${message.channel_id}/messages`,{method:'POST',headers,body,signal:AbortSignal.timeout(6000)});
   if(r.ok&&intent.action==='lobby'){const out=await r.json();if(validId(out.id)&&!(Number(out.flags)&64))await tavernRequest(env,{guild:base.guild,action:'opsBindLobby',channel:base.channel,message:out.id});}
  }catch{}
  return true;

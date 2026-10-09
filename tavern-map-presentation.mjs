@@ -1,4 +1,4 @@
-import {renderTavernMap,renderTavernScene} from './tavern-map-image.mjs';
+import {renderTavernMap,renderTavernScene,TAVERN_SCENE_VERSION} from './tavern-map-image.mjs';
 import {validId} from './tavern-catalog.mjs';
 const CACHE='tavernMapImageCache';
 const SCENE_CACHE='tavernSceneImageCache';
@@ -17,7 +17,7 @@ export class TavernMapPresentation {
   return {...board,at:Math.floor(now/60000)*60000,room:{name:room.stage.name,level:room.stage.level,assets:room.assets},operations};
  }
  async _render(p,now,animated){
-  const snapshot=await this.snapshot(p,now),signature=await hash(snapshot),cacheKey=animated?SCENE_CACHE:CACHE,cached=await this.storage.get(cacheKey);
+  const snapshot=await this.snapshot(p,now),signature=await hash({version:TAVERN_SCENE_VERSION,snapshot}),cacheKey=animated?SCENE_CACHE:CACHE,cached=await this.storage.get(cacheKey);
   let result=cached?.signature===signature?(animated?{filename:cached.filename,mime:cached.mime,bytes:Uint8Array.from(atob(cached.data),c=>c.charCodeAt(0))}:{filename:'tavern-scene.png',mime:'image/png',bytes:Uint8Array.from(atob(cached.png),c=>c.charCodeAt(0))}):null;
   if(!result){
    try{result=animated?await renderTavernScene(snapshot):{filename:'tavern-scene.png',mime:'image/png',bytes:await renderTavernMap(snapshot)};}

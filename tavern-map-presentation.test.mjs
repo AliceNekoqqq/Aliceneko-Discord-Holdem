@@ -17,3 +17,17 @@ test('scene renderer is passive during live refresh, while the legacy map route 
  assert.equal(map.visitorCount,1);assert.equal(new TextDecoder().decode(Uint8Array.from(atob(map.png),c=>c.charCodeAt(0)).slice(1,4)),'PNG');
  assert.equal(h.tavern.rows('SELECT * FROM tavern_members').length,0);
 });
+
+test('art updates replace cached images even when the room snapshot has not changed',async()=>{
+ const h=host(),view=new TavernMapPresentation(h),now=Date.parse('2026-10-09T12:00:00Z'),p={guild:'3',id:'1',channel:'2',passive:true};
+ const snapshot=await view.snapshot(p,now);
+ const oldSignature=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(snapshot))))).map(n=>n.toString(16).padStart(2,'0')).join('');
+ await h.ctx.storage.put('tavernSceneImageCache',{signature:oldSignature,filename:'old.gif',mime:'image/gif',data:btoa('stale-image')});
+ await h.ctx.storage.put('tavernMapImageCache',{signature:oldSignature,png:btoa('stale-image')});
+ const scene=await view.renderScene(p,now),png=await view.render(p,now);
+ assert.equal(scene.scene.filename,'tavern-scene.gif');
+ assert.equal(atob(scene.scene.data).slice(0,6),'GIF89a');
+ assert.deepEqual([...Uint8Array.from(atob(png.png),c=>c.charCodeAt(0)).slice(0,8)],[137,80,78,71,13,10,26,10]);
+ assert.notEqual((await h.ctx.storage.get('tavernSceneImageCache')).signature,oldSignature);
+ assert.equal(h.tavern.rows('SELECT * FROM tavern_members').length,0);
+});
