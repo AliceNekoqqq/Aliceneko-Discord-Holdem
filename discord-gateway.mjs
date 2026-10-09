@@ -1,5 +1,6 @@
 import { replyToMention } from "./ai-chat.mjs";
 
+export const CHAT_PIPELINE_RUNTIME = 'chat50-channel-order-speaker-map';
 const GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 const GATEWAY_INTENTS = (1 << 0) | (1 << 9); // GUILDS + GUILD_MESSAGES; message content is only used for direct bot mentions.
 
@@ -23,18 +24,18 @@ export class DiscordGateway {
   }
 
   async ensure() {
-    if (!this.env.BOT_TOKEN) return {connected:false,reason:"missing_bot_token"};
+    if (!this.env.BOT_TOKEN) return {connected:false,reason:"missing_bot_token",chatRuntime:CHAT_PIPELINE_RUNTIME};
     await this.storage.put("gatewayMode",true);
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
-      return {connected:true,connecting:this.socket.readyState === WebSocket.CONNECTING};
+      return {connected:true,connecting:this.socket.readyState === WebSocket.CONNECTING,chatRuntime:CHAT_PIPELINE_RUNTIME};
     }
-    if (this.retryTimer) return {connected:false,retryScheduled:true};
+    if (this.retryTimer) return {connected:false,retryScheduled:true,chatRuntime:CHAT_PIPELINE_RUNTIME};
     this.sessionId = await this.storage.get("gatewaySession") || null;
     this.resumeUrl = await this.storage.get("gatewayResumeUrl") || null;
     this.sequence = await this.storage.get("gatewaySequence") ?? null;
     this.botId = await this.storage.get("gatewayBotId") || null;
     this.connect();
-    return {connected:true,connecting:true};
+    return {connected:true,connecting:true,chatRuntime:CHAT_PIPELINE_RUNTIME};
   }
 
   connect() {
@@ -133,7 +134,9 @@ export class DiscordGateway {
     const mentioned = (message.mentions || []).some(user => user.id === this.botId) ||
       new RegExp("<@!?" + this.botId + ">").test(String(message.content || ""));
     if (!mentioned) return;
-    const key = [message.guild_id,message.channel_id,message.author.id].map(String).join(":");
+    // A channel is the conversation boundary: keep different speakers in one
+    // guild/channel in arrival order so each sees the prior completed reply.
+    const key = [message.guild_id,message.channel_id].map(String).join(":");
     const queuedAt = Date.now();
     const diagnostic = {messageId:message.id,channelId:message.channel_id};
     console.info("ai_chat_queued",diagnostic);
@@ -218,4 +221,5 @@ export class DiscordGateway {
     ]);
   }
 }
+
 

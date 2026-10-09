@@ -56,3 +56,22 @@ test('missing reply fetch is restricted to the same channel',async t=>{
   assert.match(cross.text,/跨频道/);
 });
 
+test('bot reply reference resolves its original member target while preserving same-name accounts and notices',async()=>{
+  const botId='999999999999999999',guildId='70',channelId='71';
+  const a={id:'700000000000000001',username:'a',global_name:'同名'},b={id:'700000000000000002',username:'b',global_name:'同名'};
+  const original={id:'701',channel_id:channelId,author:a,member:{nick:'旧名'},content:'普通成员的原话'};
+  const botReply={id:'702',channel_id:channelId,author:{id:botId,username:'bot',bot:true},message_reference:{message_id:original.id,channel_id:channelId},referenced_message:original,content:'本bot的回复'};
+  const fetcher=async url=>Response.json(url.endsWith('/roles')?[{id:guildId,permissions:'1024'}]:url.endsWith('/guilds/'+guildId)?{id:guildId,owner_id:'0'}:url.endsWith('/members?limit=1000')?[{user:a,nick:'旧名',roles:[]},{user:b,nick:'旧名',roles:[]}]:{id:channelId,guild_id:guildId,type:0,permission_overwrites:[]});
+  const result=await discordChatContext({BOT_TOKEN:'token'},{guild_id:guildId,channel_id:channelId,author:b,member:{nick:'旧名'},message_reference:{message_id:botReply.id,channel_id:channelId},referenced_message:botReply},botId,fetcher);
+  assert.equal(result.current.id,b.id);
+  assert.equal(result.replyReference.author.kind,'this_bot');
+  assert.equal(result.replyReference.replyTo.id,a.id);
+  assert.equal(result.replyReference.replyToCurrentUser,false);
+  assert.equal(result.people.filter(person=>person.nick==='旧名').length,2);
+  assert.equal(result.referenceNotice,'');
+  const deleted=await discordChatContext({BOT_TOKEN:'token'},{guild_id:guildId,channel_id:channelId,author:b,message_reference:{message_id:'703'},referenced_message:null},botId,fetcher);
+  assert.match(deleted.referenceNotice,/已删除或不可访问/);
+  assert.equal(deleted.complete,true);
+});
+
+

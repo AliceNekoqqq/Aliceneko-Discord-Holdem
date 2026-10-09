@@ -17,7 +17,8 @@ import {
   publicGameEvent,
   replyToMention,
   startTypingIndicator,
-  tavernRuntimeData
+  tavernRuntimeData,
+  prepareChatContext
 } from "./ai-chat.mjs";
 import { DiscordGateway } from "./discord-gateway.mjs";
 
@@ -362,6 +363,27 @@ test('a mention replies once after recovery and saves only the valid answer',asy
   assert.equal(db.state.history[1].content,'终于等到你啦。');
 });
 
+test('history write failure is safely logged after delivery and later mentions still succeed',async t=>{
+  const db=fakeDb(),originalBatch=db.batch.bind(db),warns=[],replies=[];let fail=true,models=0;
+  db.batch=async statements=>{if(fail){fail=false;throw new TypeError('private prompt body and secret');}return originalBatch(statements);};
+  t.mock.method(console,'warn',(...args)=>warns.push(args));
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    if(url.includes('generativelanguage')){models++;return Response.json({candidates:[{content:{parts:[{text:models===1?'已发送但本轮没有保存。':'后续请求正常。'}]}}]});}
+    if(url.endsWith('/messages'))replies.push(JSON.parse(options.body));
+    return new Response('{}');
+  });
+  const env={BOT_TOKEN:'test',GEMINI_API_KEY:'test',CHAT_DB:db};
+  const first={id:'save-fails',guild_id:'g',channel_id:'c',author:{id:'u'},content:'<@bot> 私密正文'};
+  await replyToMention(env,first,'bot');
+  await replyToMention(env,{...first,id:'save-recovers'},'bot');
+  assert.deepEqual(replies.map(item=>item.content),['已发送但本轮没有保存。','后续请求正常。']);
+  assert.equal(models,2);
+  assert.equal(db.state.history.length,2);
+  const failure=warns.find(([event])=>event==='ai_chat_history_save_failed');
+  assert.deepEqual(failure[1],{messageId:'save-fails',channelId:'c',category:'TypeError'});
+  assert.doesNotMatch(JSON.stringify(warns),/私密正文|private prompt body|secret/);
+});
+
 test("Gemini requests disable request storage and keep the key out of the URL", async () => {
   const body = buildGenerateContentRequest([{role:"user",parts:[{text:"你好"}]}],"爱讲冷笑话");
   assert.equal(body.store,false);
@@ -613,7 +635,7 @@ test("developer account identity uses an exact local Discord User ID match", asy
   assert.equal(requests.length,2);
   assert.match(requests[0].messages[0].content,/身份已确认/);
   assert.match(requests[1].messages[0].content,/身份未匹配/);
-  assert.match(requests[0].messages[0].content,/\[开发者账号\]/);
+  assert.doesNotMatch(requests[0].messages[0].content,new RegExp(ownerId));
   for (const request of requests) {
     assert.equal(request.messages.at(-1).content,'你好');
     assert.match(request.messages[0].content,/不是用户发言/);
@@ -962,6 +984,46 @@ test("channel memory stays attributed outside the current member's personal dial
   assert.equal(db.state.channelHistory[2].speaker_name,"小红");
 });
 
+test('prompt-local speaker keys survive same names, renames, references, shared memory and channel duplicates',()=>{
+  const rows=[
+    {id:1,user_id:'A',role:'user',content:'A旧名发言',speaker_name:'同名',created_at:1},
+    {id:2,user_id:'B',role:'user',content:'B发言',speaker_name:'同名',created_at:2},
+    {id:3,user_id:'A',role:'user',content:'A改名后发言',speaker_name:'新名字',created_at:3},
+    {id:3,user_id:'A',role:'user',content:'数据库重复行',speaker_name:'新名字',created_at:3}
+  ];
+  const personal=[{id:1,user_id:'A',role:'user',content:'A旧名发言',created_at:1}];
+  const discord={current:{id:'A',username:'a'},people:[{id:'A',nick:'新名字',username:'a'},{id:'B',nick:'同名',username:'b'}],mentions:['B'],replyReference:{author:{id:'A',kind:'member'},replyTo:{id:'B'},content:'被引用',replyToCurrentUser:false}};
+  const shared=[{user_id:'A',key:'alias',value:'自述别名：小猫'}];
+  const prepared=prepareChatContext(personal,rows,{author:{id:'A',username:'a'}},discord,shared);
+  assert.deepEqual(prepared.history.map(item=>item.parts[0].text),['A旧名发言']);
+  assert.deepEqual(prepared.channelConversation.records.map(item=>item.content),['A旧名发言','B发言','A改名后发言']);
+  const a=prepared.channelConversation.records[0].speaker,b=prepared.channelConversation.records[1].speaker;
+  assert.equal(a,prepared.channelConversation.records[2].speaker);
+  assert.notEqual(a,b);
+  assert.equal(prepared.currentSpeaker.key,a);
+  assert.equal(prepared.discord.people[0].key,a);
+  assert.equal(prepared.discord.replyReference.author.key,a);
+  assert.equal(prepared.discord.replyReference.replyTo.key,b);
+  assert.equal(prepared.sharedMemory[0].ownerKey,a);
+  assert.doesNotMatch(JSON.stringify({discord:prepared.discord,participants:prepared.channelConversation.participants,shared:prepared.sharedMemory}),/"id"|ownerDiscordId/);
+});
+
+test('both model adapters keep mapped identity payloads and real image parts',()=>{
+  const runtimeData={currentSpeaker:{key:'current_user',name:'同名'},channelConversation:{participants:[{key:'current_user',name:'同名'},{key:'member_1',name:'同名'}],records:[{speaker:'member_1',content:'被引用者发言'}]},discord:{current:{key:'current_user'},people:[{key:'member_1',nick:'改名'}]},replyReference:{author:{key:'member_1',kind:'member'},replyTo:{key:'unknown'},content:'引用正文'},sharedLongMemory:'[{"ownerKey":"member_1","selfReportedAliases":["小猫"]}]'};
+  const image={imageUrl:'https://cdn.discordapp.com/attachments/1/2/a.png',mimeType:'image/png'};
+  const contents=[{role:'user',parts:[{text:'请看图'},image]}];
+  const native=buildGenerateContentRequest(contents,'','chat',[], '', '',runtimeData);
+  const openai=buildOpenAIChatRequest(contents,'','chat','gemini-3.8-flash',[], '', '',runtimeData);
+  const nativeSystem=native.systemInstruction.parts[0].text,openaiSystem=openai.messages[0].content;
+  for(const prompt of [nativeSystem,openaiSystem]){
+    assert.match(prompt,/ownerKey/);assert.match(prompt,/member_1/);
+    assert.match(prompt,/"author"/);assert.match(prompt,/"key":"unknown"/);
+    assert.doesNotMatch(prompt,/ownerDiscordId|112233445566778899/);
+  }
+  assert.deepEqual(native.contents[0].parts[1],image);
+  assert.deepEqual(openai.messages.at(-1).content[1],{type:'image_url',image_url:{url:image.imageUrl}});
+});
+
 test('reply requests carry same-guild shared alias records separately from current preferences, including when current memory is off',async t=>{
   const db=fakeDb(),requests=[];
   db.state.longMemory.push({guild_id:'g1',user_id:'owner-a',key:'alias_cat',value:'自述别名：小猫',speaker_name:'猫猫',updated_at:1});
@@ -988,6 +1050,41 @@ test('reply requests carry same-guild shared alias records separately from curre
   system=requests[1].systemInstruction.parts[0].text;background=JSON.parse(system.slice(system.lastIndexOf('\n{')+1));
   assert.equal(background.preferences,undefined);assert.match(background.sharedLongMemory,/自述别名：小猫/);
   assert.equal(db.state.history.filter(row=>row.user_id==='owner-b').length,2);
+});
+
+test('a real mention request reuses one speaker key across channel, roster, quote and shared owner',async t=>{
+  const db=fakeDb(),requests=[];
+  const guild='710000000000000001',channel='710000000000000002',owner='710000000000000003',current='710000000000000004';
+  db.state.channelMemory.set(`${guild}:${channel}`,1);
+  db.state.channelHistory.push(
+    {guild_id:guild,channel_id:channel,user_id:owner,role:'user',content:'小猫是我的别名',speaker_name:'旧名',created_at:10,id:1},
+    {guild_id:guild,channel_id:channel,user_id:owner,role:'model',content:'我记下了',speaker_name:'',created_at:11,id:2}
+  );
+  db.state.longMemory.push({guild_id:guild,user_id:owner,key:'alias_cat',value:`自述别名：小猫（旧账号 ${owner}）`,speaker_name:'新名',updated_at:20});
+  db.state.memorySettings.set(`${guild}:${owner}`,1);
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    const target=String(url);
+    if(target.includes('generativelanguage')){requests.push(JSON.parse(options.body));return Response.json({candidates:[{content:{parts:[{text:'她自称小猫。'}]}}]});}
+    if(target.endsWith(`/guilds/${guild}`))return Response.json({id:guild,owner_id:'710000000000000099'});
+    if(target.endsWith(`/guilds/${guild}/roles`))return Response.json([{id:guild,permissions:'1024'}]);
+    if(target.endsWith(`/channels/${channel}`))return Response.json({id:channel,guild_id:guild,type:0,permission_overwrites:[]});
+    if(target.endsWith(`/guilds/${guild}/members?limit=1000`))return Response.json([
+      {user:{id:owner,username:'a',global_name:'同名'},nick:'新名',roles:[]},
+      {user:{id:current,username:'b',global_name:'同名'},nick:'同名',roles:[]}
+    ]);
+    return new Response('{}');
+  });
+  const message={id:'identity-link',guild_id:guild,channel_id:channel,author:{id:current,username:'b',global_name:'同名'},member:{nick:'同名'},mentions:[{id:owner,username:'a'}],content:'<@bot> 小猫是谁？',message_reference:{message_id:'quoted',channel_id:channel},referenced_message:{id:'quoted',channel_id:channel,author:{id:owner,username:'a',global_name:'同名'},member:{nick:'新名'},content:'刚才那位的普通引用'}};
+  await replyToMention({BOT_TOKEN:'test',GEMINI_API_KEY:'test',CHAT_DB:db,DEVELOPER_DISCORD_USER_ID:owner},message,'bot');
+  const system=requests[0].systemInstruction.parts[0].text;
+  const background=JSON.parse(system.slice(system.lastIndexOf('\n{')+1));
+  const key=background.channelConversation.records[0].speaker;
+  assert.equal(background.discord.people.find(person=>person.nick==='新名').key,key);
+  assert.equal(background.replyReference.author.key,key);
+  const shared=background.sharedLongMemory.slice(background.sharedLongMemory.lastIndexOf('\n')+1);
+  assert.equal(JSON.parse(shared)[0].ownerKey,key);
+  assert.equal(JSON.stringify(background).includes(owner),false);
+  assert.equal(background.currentSpeaker.key,'current_user');
 });
 
 test("member memory opt-out prevents their messages entering shared channel memory", async t => {

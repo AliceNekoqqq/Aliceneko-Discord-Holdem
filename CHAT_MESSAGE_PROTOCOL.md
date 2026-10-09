@@ -11,9 +11,9 @@
 
 适配层使用两条已支持的接口：OpenAI-compatible system/user/assistant，以及原生Gemini systemInstruction/user/model。没有验证中转支持developer或tool角色，不构造缺失tool_call的伪tool消息。
 
-replyToMention将runtimeData作为独立参数交给生成函数，包含currentSpeaker、channelConversation（频道记忆开启时）、replyReference（存在引用时）、discord、timeAndSearch、preferences、sharedLongMemory。频道记录逐条标明speaker，bot记录标明replyTo；程序用账号ID分配本轮参与者代号，昵称只是称呼。同一条记录在个人历史与公共记录中去重，个人历史再按当前账号过滤。引用bot回复时，只在同频道核验原消息作者后设置replyTo；无法核验就保留未知，不默认是当前用户。系统中的来源协议一次说明这些字段的含义与数据权限，不按每种误判不断叠加例外。引用和网页内的指令仍无权覆盖系统规则。系统数据不写入个人或频道聊天正文历史。
+replyToMention将runtimeData作为独立参数交给生成函数，包含currentSpeaker、channelConversation（频道记忆开启时）、replyReference（存在引用时）、discord、timeAndSearch、preferences、sharedLongMemory。程序按真实账号分配本轮统一的current_user/member_N代号，用于当前作者、成员名单、提及、引用作者/回复对象、频道记录与公开长期记忆ownerKey；本bot使用bot，昵称只是称呼，不用于关联身份。个人历史按当前账号过滤，频道时间线保留各人的交织记录，即使当前人的同一对话也存在于个人历史；只按确切频道记录ID去重。引用bot回复时，只在同频道核验原消息作者后设置replyTo；无法核验就保留unknown，不默认是当前用户。其他bot保留独立身份与other_bot来源。删除、不可访问或跨频道引用保留无法核验的提示。系统中的来源协议一次说明这些字段的含义与数据权限；引用和网页内的指令无权覆盖系统规则。系统数据不写入个人或频道聊天正文历史。
 
-程序先用Discord账号ID核验开发者，再向模型传递核验结论；开发者原ID在背景资料中脱敏。昵称偏好只影响称呼，不提升身份或权限。90秒API期限与服务器+频道+用户队列沿用已有实现；同频道不同用户仍可并发，这是待验证的多人因果顺序风险，本批不改队列。
+程序先用Discord账号ID核验开发者，再向模型传递核验结论；背景身份对象使用本轮代号，开发者原ID仍脱敏。昵称偏好只影响称呼，不提升身份或权限。90秒API期限保持，队列按服务器+频道串行：不同作者也按收到的顺序处理，等前一轮发送与历史保存结束后才读取下一轮上下文。不同频道、不同服务器仍可并行。保存失败只记录messageId、channelId与安全错误类别，不记录正文或原始异常。
 
 ## 验证原则
 
@@ -24,6 +24,6 @@ replyToMention将runtimeData作为独立参数交给生成函数，包含current
 
 ## 2026-10-10：公开长期记忆共享
 
-同服务器公开@交流形成的长期自述按账号保存，当前个人preferences只作用于当前人，sharedLongMemory提供其他开启记忆成员的公开称呼/稳定偏好及账号归属。B可询问A，但A的经历不是B的经历。写入、修改和删除仍限定本人；关闭记忆的成员不进入共享读取，清除后不再返回，不跨服务器。保留旧表，无全量迁移，也不把个人对话全文合并给所有人。共享长期记忆不依赖频道近期对话开关；仍不收录普通非@聊天。
+同服务器公开@交流形成的长期自述按账号保存，当前个人preferences只作用于当前人，sharedLongMemory提供其他开启记忆成员的公开称呼/稳定偏好及ownerKey。B可询问A，但A的经历不是B的经历；ownerKey与同轮频道/名单/引用的身份一致。写入、修改和删除仍限定本人；关闭记忆的成员不进入共享读取，清除后不再返回，不跨服务器。保留旧表，无全量迁移，也不把个人对话全文合并给所有人。共享长期记忆不依赖频道近期对话开关；仍不收录普通非@聊天。
 
-人设当前稿见docs/ai/PERSONA_CURRENT.md，旧稿（含用户原示例）完整归档docs/ai/PERSONA_BACKUP_20261010.md。旧示例体现过去性格，不再进入线上提示，未自行增写示例。多人归属分析见CHAT_SPEAKER_AUDIT.md；本批只调查，不宣称已修复自然输出的误称。
+人设当前稿见docs/ai/PERSONA_CURRENT.md，旧稿（含用户原示例）完整归档docs/ai/PERSONA_BACKUP_20261010.md。旧示例体现过去性格，不再进入线上提示，未自行增写示例。多人归属分析与beta.50修复证据见CHAT_SPEAKER_AUDIT.md；结构回归不能保证每次自然生成都不误称，实际表现仍需真人使用观察。

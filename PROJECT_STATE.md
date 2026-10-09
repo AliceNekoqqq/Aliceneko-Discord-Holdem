@@ -1,3 +1,15 @@
+## beta.50 · 多人发言身份与频道顺序修复（2026-10-10，北京时间）
+
+- 用户明确“第三项看着改”，授权实施原身份排查方案。两名Luna分别负责统一身份/引用/时间线与频道队列，主agent复核集成及发布。
+- 真实账号在程序内统一映射为本轮current_user/member_N；当前作者、频道参与者/records、成员名单、提及、引用作者/原回复对象及公开长期记忆ownerKey复用同一键。同名/改名不合并账号，本bot=bot、其他bot独立，无法核验为unknown；不向模型背景新增原账号ID，开发者背景ID继续脱敏。
+- 个人历史仍按当前账号过滤，频道记录保留自己的行及其他人的交织顺序，只按确切频道记录ID去重；引用无法访问/删除/跨频道的notice及名单截断范围保留。共享记忆、人设成长、用户实际正文与图片来源边界保持。
+- Gateway队列由服务器+频道+作者改为服务器+频道。A/B/A在同频道按收到顺序处理，等前轮发送与存档结束再读取后轮上下文；不同频道/服务器继续并行，90秒模型期限保持。保存失败仅记录messageId/channelId/标准错误类别，无正文/原始异常。
+- 关键回归：真实replyToMention+fake D1延迟batch，A的回复已发送但未保存时，B未读取个人/频道历史或启动模型；放行后B看到A的完整user/model对及正确speaker/bot replyTo，每条Discord回复引用自己触发的消息。还覆盖同名/改名/引用/公开记忆映射、确切ID去重、跨频道/跨服并行、队列清理、发送失败恢复、实际原生与兼容请求/图片。
+- 验证：稳定代码聊天四组73/73全部通过（node --test --test-concurrency=1 --test-reporter=tap ai-chat.test.mjs chat-enrichment.test.mjs discord-chat-context.test.mjs gateway-concurrency.test.mjs），两身份模块node --check通过。测试使用模拟身份/数据库/HTTP，没有读真实玩家数据或发Discord测试聊天。运行标记chat50-channel-order-speaker-map；数据库/schema无变更，无需重注册。
+- 当前发布：待GitHub提交、Cloudflare完整上传及Gateway实际执行核验。
+- 发布范围：只替换线上ai-chat.mjs、discord-chat-context.mjs、discord-gateway.mjs；从当前beta.49完整模块包保留其余模块/配置/人设，设备菜单beta.48仍待单独上线，不上传本地旧worker或main尚未部署的设备知识。当前线上知识精确快照仍为docs/ai/RUNTIME_KNOWLEDGE_CHAT49_BASE47.mjs。
+- 能力边界：频道记忆默认关闭、仍仅收成功@问答且本人开启记忆才保存；不新增普通群聊采集。频道串行会让同频道后来的请求等待。结构回归不等于真人自然输出永不误称，下一步观察A/B连续回复、同名改名与引用对象实际表现。
+
 ## beta.49 · 人设成长与公开长期记忆共享（2026-10-10，北京时间）
 
 - 用户要求减少讨好型表现、识别幽默、不一味奉承；公开长期记忆让同服群友共同询问；多人连续回复先查原因与方案，不急修。
