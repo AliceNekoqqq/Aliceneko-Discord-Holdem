@@ -1,5 +1,5 @@
 import {validId,dayKey,cleanText,DAILY_REWARD_CAP} from './tavern-catalog.mjs';
-import {PETS,HABITS,ITEMS} from './pet-catalog.mjs';
+import {PETS,HABITS,ITEMS,petCoat,MATERIAL_NAMES,MATERIAL_GATHER_CAP,MATERIAL_BUY_CAP,MATERIAL_BUNDLE} from './pet-catalog.mjs';
 import {createPet,createWalk,walkView,actWalk,redirectWalk,finishWalk,setPetHabits} from './pet-engine.mjs';
 
 export const PET_REWARD_CAP=20;
@@ -7,7 +7,19 @@ export const PET_DAILY_RUNS=2;
 const LIFE=7*86400000;
 const safeName=value=>cleanText(String(value||''),24).replace(/[@<>]/g,'').trim();
 const merge=(a=[],b=[])=>[...new Map([...a,...b].map(x=>[typeof x==='object'?x.id||`${x.category}:${x.event}`:x,x])).values()].slice(-80);
-const MATERIALS=new Set(['paper','thread','wood','cloth','flower','metal']);
+const MATERIALS=new Set(Object.keys(MATERIAL_NAMES));
+function chooseCoat(species,value){
+ const pet=PETS.find(p=>p.id===species);if(!pet)throw Error('请选择酒馆里的伙伴。');
+ if(value===undefined||value==='')return pet.coats[0].id;
+ if(value==='random'){
+  const bytes=new Uint32Array(1),bound=Math.floor(4294967296/pet.coats.length)*pet.coats.length;
+  do{crypto.getRandomValues(bytes);}while(bytes[0]>=bound);
+  return pet.coats[bytes[0]%pet.coats.length].id;
+ }
+ if(!petCoat(species,value))throw Error('请选择这位伙伴已有的花色。');
+ return value;
+}
+
 
 export class PetService{
  constructor(host){
@@ -16,19 +28,29 @@ export class PetService{
   this.sql.exec('CREATE TABLE IF NOT EXISTS pet_walks(id TEXT PRIMARY KEY,owner TEXT NOT NULL,body TEXT NOT NULL,day TEXT NOT NULL,phase TEXT NOT NULL,started INTEGER NOT NULL,expires INTEGER NOT NULL)');
   this.sql.exec('CREATE INDEX IF NOT EXISTS pet_walks_owner ON pet_walks(owner,started DESC)');
   this.sql.exec('CREATE TABLE IF NOT EXISTS pet_daily(owner TEXT NOT NULL,day TEXT NOT NULL,used INTEGER NOT NULL DEFAULT 0,earned INTEGER NOT NULL DEFAULT 0,xp INTEGER NOT NULL DEFAULT 0,care INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(owner,day))');
+  const columns=new Set(this.sql.exec('PRAGMA table_info(pet_daily)').toArray().map(c=>c.name));
+  this.storage.transactionSync(()=>{for(const col of ['gathered','bought'])if(!columns.has(col))this.sql.exec(`ALTER TABLE pet_daily ADD COLUMN ${col} INTEGER NOT NULL DEFAULT 0`);});
   this.sql.exec('CREATE TABLE IF NOT EXISTS pet_actions(id TEXT PRIMARY KEY,owner TEXT NOT NULL,kind TEXT NOT NULL,notice TEXT NOT NULL,at INTEGER NOT NULL)');
  }
  one(q,...args){return this.host.one(q,...args);}
- profile(id){const p=this.one('SELECT body,version FROM pet_profiles WHERE owner=?',id);return p?{...JSON.parse(p.body),version:p.version}:null;}
+ profile(id){
+  const row=this.one('SELECT body,version FROM pet_profiles WHERE owner=?',id);if(!row)return null;
+  const pet={...JSON.parse(row.body),version:row.version};
+  if(!petCoat(pet.species,pet.coat)){
+   pet.coat=chooseCoat(pet.species);this.save(id,pet);pet.version++;
+  }
+  return pet;
+ }
+
  save(id,pet){this.sql.exec('UPDATE pet_profiles SET body=?,version=version+1 WHERE owner=?',JSON.stringify(pet),id);}
- daily(id,day){return this.one('SELECT * FROM pet_daily WHERE owner=? AND day=?',id,day)||{used:0,earned:0,xp:0,care:0};}
+ daily(id,day){return this.one('SELECT * FROM pet_daily WHERE owner=? AND day=?',id,day)||{used:0,earned:0,xp:0,care:0,gathered:0,bought:0};}
  active(id,now){const r=this.one("SELECT * FROM pet_walks WHERE owner=? AND phase='playing' ORDER BY started DESC LIMIT 1",id);if(!r)return null;return r.expires<=now?null:JSON.parse(r.body);}
  view(id,now=Date.now(),notice='',receipt=null){
   const pet=this.profile(id),walk=this.active(id,now),daily=this.daily(id,dayKey(now));
   const member=this.one('SELECT balance FROM tavern_members WHERE id=?',id);
   const earned=this.one('SELECT earned FROM tavern_daily WHERE user_id=? AND day=?',id,dayKey(now))?.earned||0;
   if(!walk&&!receipt){const last=this.one("SELECT body FROM pet_walks WHERE owner=? AND phase='done' ORDER BY started DESC LIMIT 1",id);if(last)receipt=JSON.parse(last.body).receipt||null;}
-  return {pet,walk,walkView:walk&&pet?walkView(walk,pet):null,reward:{used:daily.used,cap:PET_REWARD_CAP,earned:daily.earned,growthEarned:daily.xp,careDone:!!daily.care,totalEarned:earned,totalCap:DAILY_REWARD_CAP},balance:member?.balance??null,items:pet?.items||[],materials:pet?.materials||{},decor:pet?.decor||{},notice,receipt};
+  return {materialBudget:{gathered:daily.gathered,gatherCap:MATERIAL_GATHER_CAP,bought:daily.bought,buyCap:MATERIAL_BUY_CAP},pet,walk,walkView:walk&&pet?walkView(walk,pet):null,reward:{used:daily.used,cap:PET_REWARD_CAP,earned:daily.earned,growthEarned:daily.xp,careDone:!!daily.care,totalEarned:earned,totalCap:DAILY_REWARD_CAP},balance:member?.balance??null,items:pet?.items||[],materials:pet?.materials||{},decor:pet?.decor||{},notice,receipt};
  }
  dispatch(p,now=Date.now()){
   if(!validId(p.id)||!validId(p.guild)||!validId(p.channel))throw Error('请在服务器内使用自己的伙伴面板。');
@@ -43,7 +65,7 @@ export class PetService{
     if(pet)throw Error('你已经有一位伙伴了，每人暂时只能领养一只。');
     if(!PETS.some(x=>x.id===p.species))throw Error('请选择酒馆里的伙伴。');
     const name=safeName(p.petName);if(!name)throw Error('给伙伴起一个1～24字的名字吧。');
-    pet={...createPet(p.species,name,now),items:['bed'],materials:{},decor:{sleep:'bed'}};
+    pet={...createPet(p.species,name,now),coat:chooseCoat(p.species,p.coat),items:['bed'],materials:{},decor:{sleep:'bed'}};
     this.host.member(p.id,p.name,now,true);
     this.sql.exec('INSERT INTO pet_profiles(owner,body,version) VALUES(?,?,0)',p.id,JSON.stringify(pet));
     notice=`${name}已经住进你的小窝。基础照护免费，每人暂时只领养一只。`;
@@ -93,8 +115,27 @@ export class PetService{
      this.sql.exec('UPDATE pet_walks SET body=?,phase=? WHERE id=?',JSON.stringify(walk),walk.phase,walk.id);
     }else if(p.action==='petCare'){
      const daily=this.daily(p.id,today),xp=daily.care?0:Math.max(0,Math.min(5,25-daily.xp));
-     if(!daily.care){pet.growth+=xp;this.sql.exec('INSERT INTO pet_daily(owner,day,xp,care) VALUES(?,?,?,1) ON CONFLICT(owner,day) DO UPDATE SET xp=xp+excluded.xp,care=1',p.id,today,xp);this.save(p.id,pet);}
-     notice=xp?'你们一起回顾今天的小愿望，获得5成长点。':'伙伴靠在你身边；今天的陪伴成长已经记录，可以继续免费陪伴。';
+     if(!daily.care){pet.growth+=xp;pet.materials.cloth=(pet.materials.cloth||0)+1;this.sql.exec('INSERT INTO pet_daily(owner,day,xp,care) VALUES(?,?,?,1) ON CONFLICT(owner,day) DO UPDATE SET xp=xp+excluded.xp,care=1',p.id,today,xp);this.save(p.id,pet);}
+     notice=xp?'你们一起整理小窝，获得5成长点和1份布料。':'伙伴靠在你身边；今天的陪伴成长已经记录，可以继续免费陪伴。';
+    }else if(p.action==='petCoat'){
+     pet.coat=chooseCoat(pet.species,p.coat);this.save(p.id,pet);notice=`已换成${petCoat(pet.species,pet.coat).name}；之后会一直保持，直到你再次更改。`;
+    }else if(p.action==='petGather'){
+     if(!MATERIALS.has(p.material))throw Error('请选择有效的基础材料。');
+     const daily=this.daily(p.id,today);if(daily.gathered>=MATERIAL_GATHER_CAP)throw Error('今天的3次采集已完成，明天再来或去材料铺看看。');
+     pet.materials[p.material]=(pet.materials[p.material]||0)+1;
+     this.sql.exec('INSERT INTO pet_daily(owner,day,gathered) VALUES(?,?,1) ON CONFLICT(owner,day) DO UPDATE SET gathered=gathered+1',p.id,today);
+     this.save(p.id,pet);notice=`免费采集到1份${MATERIAL_NAMES[p.material]}；今天还可采集${MATERIAL_GATHER_CAP-daily.gathered-1}次。`;
+    }else if(p.action==='petMaterialBuy'){
+     if(!MATERIALS.has(p.material))throw Error('请选择有效的基础材料。');
+     const offer=MATERIAL_BUNDLE;
+     if(p.expectedPrice!==offer.price||p.expectedQuantity!==offer.quantity||p.expectedShopVersion!==offer.version)throw Error('材料预览已变化，请重新打开材料铺确认。');
+     const daily=this.daily(p.id,today);if(daily.bought+offer.quantity>MATERIAL_BUY_CAP)throw Error('今天购入材料已达6份上限，明天再来。');
+     const member=this.host.member(p.id,p.name,now,true);if(member.balance<offer.price)throw Error(`还差${offer.price-member.balance}酒馆币；也可以先免费采集。`);
+     pet.materials[p.material]=(pet.materials[p.material]||0)+offer.quantity;
+     this.sql.exec('UPDATE tavern_members SET balance=balance-? WHERE id=?',offer.price,p.id);
+     this.sql.exec('INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)',`pet-material:${key}`,p.id,-offer.price,'pet_material',`${MATERIAL_NAMES[p.material]}×${offer.quantity}`,now);
+     this.sql.exec('INSERT INTO pet_daily(owner,day,bought) VALUES(?,?,?) ON CONFLICT(owner,day) DO UPDATE SET bought=bought+excluded.bought',p.id,today,offer.quantity);
+     this.save(p.id,pet);notice=`${offer.price}酒馆币购入${offer.quantity}份${MATERIAL_NAMES[p.material]}；今日还可购入${MATERIAL_BUY_CAP-daily.bought-offer.quantity}份。`;
     }else if(p.action==='petName'){
      const name=safeName(p.petName);if(!name)throw Error('名字需要1～24字。');pet.name=name;this.save(p.id,pet);notice='伙伴的新名字已保存。';
     }else if(p.action==='petHabit'){

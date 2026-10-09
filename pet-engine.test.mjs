@@ -13,8 +13,9 @@ function play(pet, seed, actions) {
   return { walk, result: finishWalk(walk, pet) };
 }
 
-test('catalog provides three looks, six tradeoff habits and six material vocabulary entries', () => {
-  assert.equal(PETS.length, 3);
+test('catalog provides five species with three coats each, six tradeoff habits and six material vocabulary entries', () => {
+  assert.equal(PETS.length, 5);
+  for(const p of PETS)assert.equal(p.coats.length,3);
   assert.equal(HABITS.length, 6);
   assert.deepEqual(STAGES.map((stage) => stage.safeCost), [1, 1, 1, 1, 2]);
 });

@@ -52,3 +52,43 @@ test('signed walks use saved versions, finish once, and the UI resumes after a l
  const resumed=await s.call(s.action('view'));assert(resumed.patched.content.includes('结算'));assert(s.instances.get('tavern:3').object.tavern.pets.view('1').receipt);
  assert(!JSON.stringify([...instance.ctx.map]).includes('transient-test-token'));
 });
+
+test('signed rabbit and otter adoption, stable coat changes, and material purchase confirmations',async t=>{
+ const s=await setup(t);
+ const submit=async(user,species,coat)=>s.call({type:5,member:{user:{id:user,username:`User${user}`}},data:{custom_id:`p:3:${user}:save~${species}~${coat}`,components:[{components:[{custom_id:'petName',value:species==='dusk-rabbit'?'暮暮':'河河'}]}]}});
+ const rabbit=await submit('1','dusk-rabbit','moon');assert.equal(rabbit.reply.data.flags,64);
+ const instance=s.instances.get('tavern:3').object.tavern,profile=()=>instance.pets.profile('1'),view=()=>instance.pets.view('1');
+ assert.equal(profile().species,'dusk-rabbit');assert.equal(profile().coat,'moon');
+ assert.equal(rabbit.patched.embeds[0].image.url,'https://discord-holdem.aliceneko.workers.dev/art/pets/dusk-rabbit/moon/v1.jpg');
+ const beforePreview=profile().version;
+ const preview=await s.call(s.action('coatPreview~peach'));assert.equal(preview.reply.type,6);assert.equal(profile().coat,'moon');assert.equal(profile().version,beforePreview);
+ assert.equal(preview.patched.embeds[0].image.url,'https://discord-holdem.aliceneko.workers.dev/art/pets/dusk-rabbit/peach/v1.jpg');
+ const confirmed=await s.call(s.action('setCoat~peach'));assert.equal(profile().coat,'peach');assert(confirmed.patched.content.includes('蜜桃垂耳'));
+ const randomPreviewVersion=profile().version,randomPreview=await s.call(s.action('coatRandomPreview'));
+ assert.match(randomPreview.patched.content,/确认后免费更换/);assert.equal(profile().version,randomPreviewVersion);
+ const randomId='repeat-random-coat-confirm';await s.call(s.action('setCoat~random'),'repeat-random-coat-confirm');
+ const randomized=profile().coat,versionAfterRandom=profile().version;assert(['lavender','peach','moon'].includes(randomized));
+ await s.call(s.action('setCoat~random'),randomId);assert.equal(profile().coat,randomized);assert.equal(profile().version,versionAfterRandom);
+
+ const balanceBeforeGather=view().balance;
+ await s.call({...s.action('gatherMaterial'),data:{custom_id:'p:3:1:gatherMaterial',values:['flower']}});
+ assert.equal(view().materials.flower,1);assert.equal(view().materialBudget.gathered,1);assert.equal(view().balance,balanceBeforeGather);
+ const balanceBeforePreview=view().balance,clothBeforePreview=view().materials.cloth||0,boughtBeforePreview=view().materialBudget.bought;
+ const materialPreview=await s.call(s.action('materialBuyPreview~cloth'));
+ assert.match(materialPreview.patched.content,/尚未扣款/);assert.equal(view().balance,balanceBeforePreview);assert.equal(view().materials.cloth||0,clothBeforePreview);assert.equal(view().materialBudget.bought,boughtBeforePreview);
+ const purchase=await s.call(s.action('materialBuy~cloth~6~2~materials-v1'));
+ assert.equal(view().balance,balanceBeforePreview-6);assert.equal(view().materials.cloth,clothBeforePreview+2);assert.equal(view().materialBudget.bought,boughtBeforePreview+2);assert.match(purchase.patched.content,/购买结果|酒馆币购入/);
+ const afterPurchase={balance:view().balance,cloth:view().materials.cloth,bought:view().materialBudget.bought};
+ const stale=await s.call(s.action('materialBuy~cloth~5~2~materials-v1'));assert.match(stale.patched.content,/材料铺预览已失效|预览已变化/);
+ assert.equal(view().balance,afterPurchase.balance);assert.equal(view().materials.cloth,afterPurchase.cloth);assert.equal(view().materialBudget.bought,afterPurchase.bought);
+
+ const wrongOwner=await s.call({member:{user:{id:'2',username:'Other'}},data:{custom_id:'p:3:1:gatherMaterial',values:['metal']}});
+ assert.equal(wrongOwner.reply.type,4);assert.equal(wrongOwner.reply.data.flags,64);assert.equal(view().materials.metal||0,0);
+ const publicAction=await s.call({...s.action('materials'),message:{id:'55',flags:0}});
+ assert.equal(publicAction.reply.type,4);assert.equal(publicAction.reply.data.flags,64);assert.equal(view().materialBudget.gathered,1);
+
+ const otter=await submit('2','river-otter','honey');const otterProfile=instance.pets.profile('2');
+ assert.equal(otterProfile.species,'river-otter');assert.equal(otterProfile.coat,'honey');
+ assert.equal(otter.patched.embeds[0].image.url,'https://discord-holdem.aliceneko.workers.dev/art/pets/river-otter/honey/v1.jpg');
+ for(const post of s.posts){assert.equal(post.method,'PATCH');assert.deepEqual(post.data.allowed_mentions,{parse:[]});}
+});

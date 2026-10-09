@@ -37,6 +37,7 @@ test('adoption modal enforces the service 24-character limit and claims only on 
  const {env,calls}=mockEnv({...view,pet:{...view.pet,name:'新伙伴'}});const click=interaction('name~lamp-cat');const modal=immediatePetReply(click);assert.equal(modal.data.components[0].components[0].max_length,24);
  const submit={...click,type:5,message:{flags:64},data:{custom_id:'p:34:12:save~lamp-cat',components:[{components:[{custom_id:'petName',value:'团团'}]}]}};
  await answerPet(env,submit);assert.equal(calls[0].claim,true);assert.equal(calls[1].action,'petAdopt');assert.equal(calls[1].petName,'团团');
+ assert.equal(calls[1].coat,'amber');
 });
 
 test('modal submit requires a private source message and still checks the real owner',async()=>{
@@ -98,4 +99,59 @@ test('long Discord snowflakes and 22-hex walk ids still fit Discord custom_id li
 test('cross-server ownership error names the home server and cannot call pet service',async()=>{
  const calls=[];const env={TABLES:{idFromName:x=>x,get:()=>({fetch:async(_url,req)=>{const body=JSON.parse(req.body);calls.push(body);return new Response(JSON.stringify({guild:'99'}),{status:200});}})}};
  await assert.rejects(answerPet(env,interaction('care')),/服务器 99/);assert.equal(calls.length,1);
+});
+
+test('five species are offered and a selected coat preview carries its real pet art URL',async()=>{
+ const {env}=mockEnv({...view,pet:null});const home=await answerPet(env,interaction('view'));
+ const speciesButtons=home.components.flatMap(r=>r.components);assert.equal(speciesButtons.length,5);
+ for(const id of ['lamp-cat','moss-dog','paper-sparrow','dusk-rabbit','river-otter'])assert(speciesButtons.some(b=>b.custom_id.endsWith(`preview~${id}`)));
+ const preview=await answerPet(env,interaction('preview~dusk-rabbit~peach'));
+ assert(preview.embeds?.[0]?.image?.url.endsWith('/art/pets/dusk-rabbit/peach/v1.jpg'));
+ assert(preview.content.includes('蜜桃垂耳'));
+});
+
+test('random adoption stays read-only through preview and sends random only on named confirmation',async()=>{
+ const {env,calls}=mockEnv({...view,pet:{...view.pet,name:'新伙伴'}});
+ const preview=await answerPet(env,interaction('randomAdopt~river-otter'));assert.match(preview.content,/确认时抽取/);assert.equal(calls.filter(c=>c.op==='tavern').length,0);
+ const modal=immediatePetReply(interaction('name~river-otter~random'));assert.equal(modal.data.custom_id,'p:34:12:save~river-otter~random');
+ const submit={...interaction('unused'),type:5,message:{flags:64},data:{custom_id:modal.data.custom_id,components:[{components:[{custom_id:'petName',value:'河灯'}]}]}};
+ await answerPet(env,submit);assert.equal(calls.find(c=>c.op==='tavern').action,'petAdopt');assert.equal(calls.find(c=>c.op==='tavern').coat,'random');
+});
+
+test('coat previews do not mutate; explicit and random confirmation call petCoat once',async()=>{
+ const {env,calls}=mockEnv();const before=calls.length;
+ const preview=await answerPet(env,interaction('coatPreview~silver'));assert.match(preview.content,/尚未修改伙伴/);assert(preview.embeds[0].image.url.endsWith('/art/pets/lamp-cat/silver/v1.jpg'));assert.equal(calls.filter(c=>c.op==='tavern').length,1);
+ await answerPet(env,interaction('setCoat~silver'));assert.equal(calls.at(-1).action,'petCoat');assert.equal(calls.at(-1).coat,'silver');
+ const random=await answerPet(env,interaction('coatRandomPreview'));assert.match(random.content,/确认时抽取/);assert.equal(calls.at(-1).action,'petView');
+ await answerPet(env,interaction('setCoat~random'));assert.equal(calls.at(-1).action,'petCoat');assert.equal(calls.at(-1).coat,'random');assert(calls.length>before);
+});
+
+test('material shop preview is read-only and confirmation carries fixed price, quantity, version',async()=>{
+ const {env,calls}=mockEnv({...view,materialBudget:{gathered:2,gatherCap:3,bought:4,buyCap:6}});
+ const store=await answerPet(env,interaction('materials'));assert(store.components.length<=5);for(const r of store.components)assert(r.components.length<=5);
+ const preview=await answerPet(env,interaction('materialBuyPreview~cloth'));assert.match(preview.content,/布料×2/);assert.match(preview.content,/尚未扣款/);assert.equal(calls.filter(c=>c.action==='petMaterialBuy').length,0);
+ const confirm=preview.components[0].components[0];assert.equal(confirm.custom_id,'p:34:12:materialBuy~cloth~6~2~materials-v1');
+ await answerPet(env,interaction('materialBuy~cloth~6~2~materials-v1'));const request=calls.at(-1);assert.equal(request.action,'petMaterialBuy');assert.equal(request.material,'cloth');assert.equal(request.expectedPrice,6);assert.equal(request.expectedQuantity,2);assert.equal(request.expectedShopVersion,'materials-v1');
+ await assert.rejects(answerPet(env,interaction('materialBuy~cloth~5~2~materials-v1')),/预览已失效/);
+});
+
+test('daily gathering submits one selected material and panel shows daily limits and inventory',async()=>{
+ const withBudget={...view,materialBudget:{gathered:2,gatherCap:3,bought:4,buyCap:6}};const {env,calls}=mockEnv(withBudget);
+ const panel=await answerPet(env,interaction('view'));assert.match(panel.content,/每日免费采集：剩余 1\/3份/);assert.match(panel.content,/每日材料铺：剩余 2\/6份/);assert.match(panel.content,/纸片×2/);
+ const choose=interaction('gatherMaterial','12',64,{data:{custom_id:'p:34:12:gatherMaterial',values:['flower']}});await answerPet(env,choose);assert.equal(calls.at(-1).action,'petGather');assert.equal(calls.at(-1).material,'flower');
+});
+
+test('invalid coat ids are rejected while legacy species-only and explicit random modals remain valid',async()=>{
+ const badButton=immediatePetReply(interaction('name~lamp-cat~not-a-coat'));assert.equal(badButton.type,4);assert.match(badButton.data.content,/不可领养/);
+ const validRandom=immediatePetReply(interaction('name~lamp-cat~random'));assert.equal(validRandom.type,9);assert.equal(validRandom.data.custom_id,'p:34:12:save~lamp-cat~random');
+ const {env,calls}=mockEnv({...view,pet:{...view.pet}});
+ await assert.rejects(answerPet(env,interaction('preview~lamp-cat~not-a-coat')),/花色信息已失效/);
+ await assert.rejects(answerPet(env,interaction('selectCoat~lamp-cat','12',64,{data:{custom_id:'p:34:12:selectCoat~lamp-cat',values:['not-a-coat']}})),/花色信息已失效/);
+ await assert.rejects(answerPet(env,interaction('coatPreview~not-a-coat')),/花色信息已失效/);
+ await assert.rejects(answerPet(env,interaction('setCoat~not-a-coat')),/花色信息已失效/);
+ assert.equal(calls.filter(c=>c.action==='petCoat'||c.action==='petAdopt').length,0);
+ const legacy={...view,pet:{...view.pet}};delete legacy.pet.coat;const legacyPanel=await answerPet(mockEnv(legacy).env,interaction('view'));
+ assert(legacyPanel.content.includes('花色：琥珀奶油'));
+ const invalidSave={...interaction('unused'),type:5,message:{flags:64},data:{custom_id:'p:34:12:save~lamp-cat~not-a-coat',components:[{components:[{custom_id:'petName',value:'团团'}]}]}};
+ await assert.rejects(answerPet(env,invalidSave),/信息已失效/);
 });

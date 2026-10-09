@@ -1,6 +1,7 @@
 import { tavernRequest } from './tavern-service.mjs';
 import { petHomeRequest } from './pet-registry.mjs';
 import { PETS, HABITS, ITEMS, STAGES } from './pet-catalog.mjs';
+import { petArtEmbed } from './pet-art.mjs';
 
 const mentions = { parse: [] };
 const row = (...components) => ({ type: 1, components });
@@ -8,6 +9,12 @@ const valid = (s) => /^\d{1,20}$/.test(String(s || ''));
 const key = (g, u, a) => `p:${g}:${u}:${a}`;
 const button = (g,u,a,label,style=2,disabled=false) => ({type:2,custom_id:key(g,u,a),label:String(label).slice(0,80),style,disabled});
 const species = (id) => PETS.find((p) => p.id === id);
+const coats = (id) => species(id)?.coats || [];
+const coat = (id, coatId) => coats(id).find((c) => c.id === coatId) || null;
+const art = (id, coatId) => {
+ const embeds=petArtEmbed(id,coatId);
+ return Array.isArray(embeds)?{embeds}:{};
+};
 const item = (id) => ITEMS.find((p) => p.id === id);
 const clean = (s,max=32) => [...String(s||'').replace(/<@!?\d+>/g,'＠').replace(/@/g,'＠').replace(/[<>`*_~|]/g,'').trim()].slice(0,max).join('');
 const materialNames={paper:'纸片',thread:'细绳',flower:'小花',metal:'金属片',cloth:'布料',wood:'木片'};
@@ -44,8 +51,9 @@ export function immediatePetReply(i){
  try {
   const p=readContext(i);
   if(i.type===3&&(p.action.startsWith('name~')||p.action==='rename')){
-   const petId=p.action.startsWith('name~')?p.action.slice(5):'rename';if(petId!=='rename'&&!species(petId))throw Error('这只伙伴不可领养。');
-   return {type:9,data:{custom_id:key(p.guild,p.id,`save~${petId}`),title:petId==='rename'?'给伙伴改名':'给伙伴取个名字',components:[row({type:4,custom_id:'petName',label:'名字 · 1到24字',style:1,min_length:1,max_length:24,required:true,placeholder:'例如：团团'})]}};
+   const parts=p.action.startsWith('name~')?p.action.slice(5).split('~'):['rename'];
+   const petId=parts[0],coatId=parts[1];if(petId!=='rename'&&(!species(petId)||(coatId&&coatId!=='random'&&!coat(petId,coatId))))throw Error('这只伙伴不可领养。');
+   return {type:9,data:{custom_id:key(p.guild,p.id,`save~${petId}${coatId?`~${coatId}`:''}`),title:petId==='rename'?'给伙伴改名':'给伙伴取个名字',components:[row({type:4,custom_id:'petName',label:'名字 · 1到24字',style:1,min_length:1,max_length:24,required:true,placeholder:'例如：团团'})]}};
   }
   if(i.type===5){const parts=String(i.data.custom_id).split(':');if(parts.length===4&&parts[0]==='p'&&parts[1]===i.guild_id&&parts[2]===p.id&&parts[3].startsWith('save~')&&Number(i.message?.flags)&64)return null;}
   return null;
@@ -64,7 +72,7 @@ export function petDeferredReply(i){
 function panel(view,g,u,notice=''){
  const pet=view.pet;
  if(!pet){
-  return {content:`🐾 **领养一位小伙伴**${notice?`\n${notice}`:''}\n选择物种预览，再给TA取一个名字。领养免费，每位来客限一只。`,components:PETS.map(p=>row(button(g,u,`preview~${p.id}`,`${p.emoji} ${p.name}`))),allowed_mentions:mentions};
+  return {content:`🐾 **领养一位小伙伴**${notice?`\n${notice}`:''}\n先预览物种与花色，再为TA取名。领养免费，每位来客限一只。`,components:PETS.map(p=>row(button(g,u,`preview~${p.id}`,`${p.emoji} ${p.name}`))),allowed_mentions:mentions};
  }
  const s=species(pet.species),walk=view.walk,walkView=view.walkView;
  const routeText=walkView?.choices?.length?`\n${walkView.choices.map(c=>`· ${c.label}（${c.cost}脚力${c.preferred?' · 顺心':''}）：${c.effect}${c.disabled?`（${c.reason||'暂不可选'}）`:''}`).join('\n')}`:'';
@@ -75,34 +83,76 @@ function panel(view,g,u,notice=''){
  const receipt=view.receipt;
  const receiptMaterial=receipt?.material?materialNames[receipt.material]||receipt.material:Object.entries(view.materials||{}).filter(([,n])=>n>0).map(([id,n])=>`${materialNames[id]||id}×${n}`).join('、');
  const receiptText=receipt?`\n📜 本趟结算：${receipt.coins||0}金币 · ${receipt.growth||0}成长点 · 材料 ${receipt.materials||0}份${receiptMaterial?`（${receipt.material?`${receiptMaterial}+${receipt.materials||0}`:`现有${receiptMaterial}`}）`:''}${receipt.rewarded===false?' · 练习局':''}`:'';
- const content=bounded(`${s?.emoji||'🐾'} **${clean(pet.name)}的伙伴小窝**${notice||view.notice?`\n${clean(notice||view.notice,180)}`:''}${receiptText}\n${s?.name||'小伙伴'} · 成长 ${pet.growth||0} · ${growthText} · 🪙 ${view.balance??'—'}\n${walk?`\n🗺️ 同行：${walkView?.location||'进行中'} · 心意「${walkView?.intentName||walkView?.intent||'探索'}」 · 第${(walk.version||0)+1}步 · 脚力 ${walk.energy} · 纪念物 ${walk.bag?.length||0}/${walk.bagCapacity}${goalText}${routeText}`:'\n今天还没有出门同行。'}\n今日可领奖同行 ${remaining}/2 次 · 伙伴收入 ${view.reward?.earned||0}/${view.reward?.cap??20}币 · 全游戏收入 ${total}/${totalCap}币\n陪伴免费；无奖励次数时仍可开始练习同行。`);
+ const currentCoat=coat(pet.species,pet.coat)||coats(pet.species)[0],budget=view.materialBudget||{};
+ const gatherLeft=Math.max(0,(budget.gatherCap??3)-(budget.gathered??0)),buyLeft=Math.max(0,(budget.buyCap??6)-(budget.bought??0));
+ const materialsText=Object.entries(view.materials||{}).map(([id,n])=>`${materialNames[id]||id}×${n}`).join('、')||'暂无';
+ const content=bounded(`${s?.emoji||'🐾'} **${clean(pet.name)}的伙伴小窝**${notice||view.notice?`\n${clean(notice||view.notice,180)}`:''}${receiptText}\n${s?.name||'小伙伴'} · 花色：${currentCoat?.name||'默认'} · 成长 ${pet.growth||0} · ${growthText} · 🪙 ${view.balance??'—'}\n${walk?`\n🗺️ 同行：${walkView?.location||'进行中'} · 心意「${walkView?.intentName||walkView?.intent||'探索'}」 · 第${(walk.version||0)+1}步 · 脚力 ${walk.energy} · 纪念物 ${walk.bag?.length||0}/${walk.bagCapacity}${goalText}${routeText}`:'\n今天还没有出门同行。'}\n今日可领奖同行 ${remaining}/2 次 · 伙伴收入 ${view.reward?.earned||0}/${view.reward?.cap??20}币 · 全游戏收入 ${total}/${totalCap}币\n每日免费采集：剩余 ${gatherLeft}/${budget.gatherCap??3}份（每次1份）；每日材料铺：剩余 ${buyLeft}/${budget.buyCap??6}份（每次2份/6币）\n背包材料：${materialsText}\n陪伴免费；每日护理额外布料×1；无奖励次数时仍可开始练习同行。`);
  const components=[];
  if(!walk||walk.phase!=='playing'){
    components.push(row({type:3,custom_id:key(g,u,'startMaterial'),placeholder:'选本局基础材料，再开始同行',min_values:1,max_values:1,options:MATERIALS.map(id=>({label:`${materialNames[id]} · 持有${view.materials?.[id]||0}`,value:id,description:'奖励资格有效时，每局基础获得1份'}))}));
-   components.push(row(button(g,u,'care','🫶 免费陪伴'),button(g,u,'home','🛏️ 小窝商店')));
+   components.push(row({type:3,custom_id:key(g,u,'gatherMaterial'),placeholder:`免费采集 · 今日剩余${gatherLeft}份`,min_values:1,max_values:1,options:MATERIALS.map(id=>({label:materialNames[id],value:id}))}));
+   components.push(row(button(g,u,'care','🫶 今日护理'),button(g,u,'materials','🧺 材料铺'),button(g,u,'coatMenu','🎨 更换花色'),button(g,u,'home','🛏️ 小窝')));
  }
  else {
    const choices=walkView?.choices||[];
    for(let n=0;n<choices.length;n+=5)components.push(row(...choices.slice(n,n+5).map(c=>button(g,u,`act~${walk.id}~${walk.version}~${c.id}`,`${c.label} · ${c.cost}`,1,c.disabled))));
    components.push(row(button(g,u,`redirect~${walk.id}~${walk.version}`,'调整心意'),button(g,u,'home','小窝与商店')));
  }
- components.push(row(button(g,u,'habits','🌱 习惯'),button(g,u,'journal','📖 经历册'),button(g,u,'rename','✏️ 改名')));
- return {content,components:components.slice(0,5),allowed_mentions:mentions};
+ components.push(row(button(g,u,'habits','🌱 习惯'),button(g,u,'journal','📖 经历册'),button(g,u,'rename','✏️ 改名'),button(g,u,'coatMenu','🎨 花色')));
+ return {...art(pet.species,pet.coat),content,components:components.slice(0,5),allowed_mentions:mentions};
 }
 
 function homeData(view,g,u){
  const own=new Set(view.items||[]), lines=ITEMS.map(x=>`${own.has(x.id)?'✅':'▫️'} **${x.name}** · ${x.price}币${Object.keys(x.materials||{}).length?` + ${Object.entries(x.materials).map(([a,n])=>`${materialNames[a]||a}×${n}`).join(' ')}`:''}\n${x.description}`);
  const buttons=ITEMS.map(x=>own.has(x.id)?button(g,u,`equip~${x.id}`,`摆放 · ${x.name}`):button(g,u,`buyPreview~${x.id}`,`预览 · ${x.name}`));
- return {content:bounded(`🛏️ **小窝与商店**\n余额 ${view.balance??'—'}币 · 材料：${Object.entries(view.materials||{}).map(([a,n])=>`${materialNames[a]||a}×${n}`).join('、')||'暂无'}\n🛏️ 基础睡垫：免费提供，可随时摆放。\n${lines.join('\n')}`),components:[...buttons.map(b=>row(b)),row(button(g,u,'equip~bed','摆放基础睡垫'),button(g,u,'view','返回伙伴'))],allowed_mentions:mentions};
+ return {...(view.pet?art(view.pet.species,view.pet.coat):{}),content:bounded(`🛏️ **小窝与商店**\n余额 ${view.balance??'—'}币 · 材料：${Object.entries(view.materials||{}).map(([a,n])=>`${materialNames[a]||a}×${n}`).join('、')||'暂无'}\n🛏️ 基础睡垫：免费提供，可随时摆放。\n${lines.join('\n')}`),components:[...buttons.map(b=>row(b)),row(button(g,u,'equip~bed','摆放基础睡垫'),button(g,u,'view','返回伙伴'))],allowed_mentions:mentions};
+}
+
+function adoptionPreview(g,u,s,coatId,notice=''){
+ const random=coatId==='random',c=random?coats(s.id)[0]:coat(s.id,coatId);if(!c)throw Error('这只伙伴还没有可选花色。');
+ const options=coats(s.id).map(x=>({label:x.name,value:x.id,description:x.description||'选择这个花色',default:!random&&x.id===c.id}));
+ return {...art(s.id,c.id),content:bounded(`${s.emoji} **${s.name} · ${random?'随机花色（确认时抽取）':c.name}**${notice?`\n${notice}`:''}\n${s.description}\n${random?'图片为花色示例；实际花色会在提交领养时抽取一次。':c.description||''}\n\n领养免费，每位来客限一只。取名并提交后才会领养。`),components:[row({type:3,custom_id:key(g,u,`selectCoat~${s.id}`),placeholder:'选择花色',min_values:1,max_values:1,options}),row(button(g,u,`name~${s.id}~${coatId}`,'选这个花色并取名',1),button(g,u,`randomAdopt~${s.id}`,'随机花色')),row(button(g,u,'view','返回物种选择'))],allowed_mentions:mentions};
+}
+
+function coatPreview(g,u,pet,c,confirmId=c.id,random=false){
+ return {...art(pet.species,c.id),content:bounded(`🎨 **更换伙伴花色预览**\n${clean(pet.name)}：${random?'随机花色（确认时抽取）':c.name}\n${random?'图片为花色示例；随机花色只会在明确确认后抽取一次。':c.description||''}\n确认后免费更换；尚未修改伙伴。`),components:[row(button(g,u,`setCoat~${confirmId}`,'确认更换花色',1),button(g,u,'coatMenu','返回选择')),row(button(g,u,'view','返回伙伴'))],allowed_mentions:mentions};
+}
+
+function materialsStore(view,g,u){
+ const b=view.materialBudget||{},left=Math.max(0,(b.buyCap??6)-(b.bought??0));
+ const stock=Object.entries(view.materials||{}).map(([id,n])=>`${materialNames[id]||id}×${n}`).join('、')||'暂无';
+ const buttons=MATERIALS.map(id=>button(g,u,`materialBuyPreview~${id}`,`预览 · ${materialNames[id]}`));
+ return {content:bounded(`🧺 **材料铺**\n余额 ${view.balance??'—'}币 · 背包：${stock}\n今天已采集 ${b.gathered??0}/${b.gatherCap??3}份（免费，每次1份，自选材料）\n今天已购入 ${b.bought??0}/${b.buyCap??6}份（每次2份、6币；最多3次）\n选择材料查看确认预览；预览不会扣款或加材料。`),components:[...Array.from({length:Math.ceil(buttons.length/5)},(_,i)=>row(...buttons.slice(i*5,i*5+5))),row(button(g,u,'view','返回伙伴'))],allowed_mentions:mentions};
 }
 
 export async function answerPet(env,i){
  const p=readContext(i),name=clean(i.member?.nick||i.member?.user?.global_name||i.member?.user?.username||'来客',64);
  const modal=i.type===5;
- let action=p.action, petName, speciesId;
- if(modal){const parts=String(i.data.custom_id||'').split(':');if(parts.length!==4||parts[0]!=='p'||parts[1]!==p.guild||parts[2]!==p.id||!parts[3].startsWith('save~'))throw Error('命名窗口已失效。');speciesId=parts[3].slice(5);petName=i.data.components?.flatMap(r=>r.components||[]).find(c=>c.custom_id==='petName')?.value?.trim();if(!petName||[...petName].length>24)throw Error('名字需要是1到24个字符。');action=speciesId==='rename'?'petName':'adopt';if(action==='adopt'&&!species(speciesId))throw Error('物种信息已失效。');}
- if(action.startsWith('preview~')){const id=action.slice(8),s=species(id);if(!s)throw Error('物种信息已失效。');return {content:`${s.emoji} **${s.name}**\n${s.description}\n\n领养免费，每人一只。确认后为TA取名。`,components:[row(button(p.guild,p.id,`name~${id}`,'确认领养并取名',1)),row(button(p.guild,p.id,'view','返回物种选择'))],allowed_mentions:mentions};}
+ let action=p.action, petName, speciesId, coatId;
+ if(modal){const parts=String(i.data.custom_id||'').split(':');if(parts.length!==4||parts[0]!=='p'||parts[1]!==p.guild||parts[2]!==p.id||!parts[3].startsWith('save~'))throw Error('命名窗口已失效。');const saved=parts[3].slice(5).split('~');speciesId=saved[0];coatId=saved[1];petName=i.data.components?.flatMap(r=>r.components||[]).find(c=>c.custom_id==='petName')?.value?.trim();if(!petName||[...petName].length>24)throw Error('名字需要是1到24个字符。');action=speciesId==='rename'?'petName':'adopt';if(action==='adopt'&&(!species(speciesId)||(coatId&&coatId!=='random'&&!coat(speciesId,coatId))))throw Error('物种或花色信息已失效。');}
+ if(action.startsWith('preview~')){const [,id,selected]=action.split('~'),s=species(id),selectedCoat=selected||coats(id)[0]?.id;if(!s||!selectedCoat||!coat(id,selectedCoat))throw Error('物种或花色信息已失效。');return adoptionPreview(p.guild,p.id,s,selectedCoat);}
+ if(action.startsWith('selectCoat~')){const id=action.slice(11),s=species(id),selected=i.data.values?.[0];if(!s||!coat(id,selected))throw Error('花色信息已失效。');return adoptionPreview(p.guild,p.id,s,selected);}
+ if(action.startsWith('randomAdopt~')){const id=action.slice(12),s=species(id);if(!s||!coats(id).length)throw Error('这只伙伴还没有可选花色。');return adoptionPreview(p.guild,p.id,s,'random');}
  if(action.startsWith('buyPreview~')){const id=action.slice(11),x=item(id);if(!x)throw Error('商品信息已失效。');const materials=Object.entries(x.materials||{}).map(([k,v])=>`${materialNames[k]||k}×${v}`).join('、')||'无需材料';return {content:bounded(`🛍️ **购买预览 · ${x.name}**\n${x.description}\n价格：${x.price}币 · 材料：${materials}\n这是预览，尚未扣款。`),components:[row(button(p.guild,p.id,`buy~${id}~${x.price}~v1`,'确认购买',1)),row(button(p.guild,p.id,'home','返回商店'))],allowed_mentions:mentions};}
+ if(action==='coatMenu'||action.startsWith('coatPreview~')||action==='coatRandomPreview'){
+  const v=await tavernRequest(env,{guild:p.guild,id:p.id,name,channel:p.channel,requestKey:i.id,action:'petView'}),pet=v.pet;
+  if(!pet)throw Error('当前没有伙伴，请先领养。');
+  if(action==='coatMenu')return {content:bounded(`🎨 **选择伙伴花色**\n当前：${(coat(pet.species,pet.coat)||coats(pet.species)[0])?.name||'默认'}。选择一个花色查看图片预览；确认后免费更换。`),components:[...coats(pet.species).map(c=>row(button(p.guild,p.id,`coatPreview~${c.id}`,c.name))),row(button(p.guild,p.id,'coatRandomPreview','🎲 随机预览'),button(p.guild,p.id,'view','返回伙伴'))],allowed_mentions:mentions};
+  const random=action==='coatRandomPreview',id=random?'random':action.slice(12),c=random?coats(pet.species)[0]:coat(pet.species,id);
+  if(!c)throw Error('花色信息已失效。');
+  return coatPreview(p.guild,p.id,pet,c,c.id,random);
+ }
+ if(action==='materials'){
+  const v=await tavernRequest(env,{guild:p.guild,id:p.id,name,channel:p.channel,requestKey:i.id,action:'petView'});
+  if(!v.pet)throw Error('当前没有伙伴，请先领养。');
+  return materialsStore(v,p.guild,p.id);
+ }
+ if(action.startsWith('materialBuyPreview~')){
+  const id=action.slice(19);if(!MATERIALS.includes(id))throw Error('材料信息已失效。');
+  const v=await tavernRequest(env,{guild:p.guild,id:p.id,name,channel:p.channel,requestKey:i.id,action:'petView'}),b=v.materialBudget||{};
+  if(!v.pet)throw Error('当前没有伙伴，请先领养。');
+  return {content:bounded(`🧺 **材料购买预览 · ${materialNames[id]}×2**\n价格：6币 · 今日已购 ${b.bought??0}/${b.buyCap??6}份。\n尚未扣款或增加材料；只有点击明确确认后才会购买。`),components:[row(button(p.guild,p.id,`materialBuy~${id}~6~2~materials-v1`,'确认购买 · 6币',1)),row(button(p.guild,p.id,'materials','返回材料铺'))],allowed_mentions:mentions};
+ }
  if(action.startsWith('redirect~')){const [,walkId,version]=action.split('~');return {content:'💭 **调整伙伴心意**\n改主意会消耗一次机会；选择顺心的路线能获得额外情境效果。',components:[row(button(p.guild,p.id,`redirectIntent~${walkId}~${version}~sniff`,'闻一闻',1),button(p.guild,p.id,`redirectIntent~${walkId}~${version}~friend`,'交朋友'),button(p.guild,p.id,`redirectIntent~${walkId}~${version}~fetch`,'叼回家')),row(button(p.guild,p.id,'view','返回伙伴'))],allowed_mentions:mentions};}
  const claim=action==='adopt';
  const registry=await petHomeRequest(env,{id:p.id,guild:p.guild,claim});
@@ -112,6 +162,9 @@ export async function answerPet(env,i){
  else if(action.startsWith('act~')){const [,walkId,version,choice]=action.split('~');action='petAct';p.walkId=walkId;p.version=Number(version);p.choice=choice;}
  else if(action.startsWith('redirectIntent~')){const [,walkId,version,intent]=action.split('~');action='petRedirect';p.walkId=walkId;p.version=Number(version);p.intent=intent;}
  else if(action.startsWith('buy~')){const [,id,price,version]=action.split('~'),expectedPrice=Number(price);const product=item(id);if(!product||!/^(0|[1-9]\d*)$/.test(price||'')||!Number.isSafeInteger(expectedPrice)||version!=='v1')throw Error('购买预览版本已失效，请重新查看商品价格。');p.item=id;p.expectedPrice=expectedPrice;p.expectedShopVersion=version;action='petBuy';}
+ else if(action.startsWith('setCoat~')){p.coat=action.slice(8);if(p.coat!=='random'){const v=await tavernRequest(env,{guild:p.guild,id:p.id,name,channel:p.channel,requestKey:i.id,action:'petView'});if(!coat(v.pet?.species,p.coat))throw Error('花色信息已失效。');}action='petCoat';}
+ else if(action.startsWith('materialBuy~')){const [,material,price,quantity,version]=action.split('~');if(!MATERIALS.includes(material)||price!=='6'||quantity!=='2'||version!=='materials-v1')throw Error('材料铺预览已失效，请重新确认。');p.material=material;p.expectedPrice=6;p.expectedQuantity=2;p.expectedShopVersion=version;action='petMaterialBuy';}
+ else if(action==='gatherMaterial'){p.material=i.data.values?.[0];if(!MATERIALS.includes(p.material))throw Error('请选择一种有效材料。');action='petGather';}
  else if(action==='startMaterial'){p.material=i.data.values?.[0];if(!MATERIALS.includes(p.material))throw Error('请选择一种有效材料。');action='petStart';}
  else if(action==='start') {p.material='paper';action='petStart';}
  else if(action.startsWith('equip~')){p.item=action.slice(6);action='petEquip';}
@@ -124,7 +177,7 @@ export async function answerPet(env,i){
  } else if(action==='habit'){p.habits=i.data.values||[];action='petHabit';}
  else if(action==='adopt')action='petAdopt';
  else if(action==='petView'||action==='petName'){} else throw Error('这个伙伴操作暂不可用。');
- const body={guild:p.guild,id:p.id,name,channel:p.channel,requestKey:i.id,action,...(claim?{species:speciesId,petName}:{}),...(action==='petName'?{petName}:{}),...(p.walkId?{walkId:p.walkId}:{}),...(p.version!==undefined?{version:p.version}:{}),...(p.choice?{choice:p.choice}:{}),...(p.intent?{intent:p.intent}:{}),...(p.item?{item:p.item}:{}),...(p.expectedPrice!==undefined?{expectedPrice:p.expectedPrice}:{}),...(p.expectedShopVersion?{expectedShopVersion:p.expectedShopVersion}:{}),...(p.habits?{habits:p.habits}:{}),...(p.material?{material:p.material}:{})};
+ const body={guild:p.guild,id:p.id,name,channel:p.channel,requestKey:i.id,action,...(claim?{species:speciesId,petName,coat:coatId||coats(speciesId)[0]?.id}:{}),...(action==='petName'?{petName}:{}),...(p.walkId?{walkId:p.walkId}:{}),...(p.version!==undefined?{version:p.version}:{}),...(p.choice?{choice:p.choice}:{}),...(p.intent?{intent:p.intent}:{}),...(p.item?{item:p.item}:{}),...(p.expectedPrice!==undefined?{expectedPrice:p.expectedPrice}:{}),...(p.expectedQuantity!==undefined?{expectedQuantity:p.expectedQuantity}:{}),...(p.expectedShopVersion?{expectedShopVersion:p.expectedShopVersion}:{}),...(p.coat?{coat:p.coat}:{}),...(p.habits?{habits:p.habits}:{}),...(p.material?{material:p.material}:{})};
  const view=await tavernRequest(env,body);
  if(action==='petAdopt'&&view?.pet)return panel(view,p.guild,p.id,`欢迎${view.pet.name}来到小窝！`);
  if(action==='petBuy')return panel(view,p.guild,p.id,view.notice||'购买结果已更新。');

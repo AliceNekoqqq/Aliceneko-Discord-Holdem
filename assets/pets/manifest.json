@@ -1,0 +1,152 @@
+[
+  {
+    "species": "lamp-cat",
+    "coat": "amber",
+    "path": "assets/pets/lamp-cat-amber-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 59841,
+    "sha256": "439c0327454569dadad73baf4b3116da3dc2b80d2d869f5c08e464703786d723",
+    "source": "imagegen"
+  },
+  {
+    "species": "lamp-cat",
+    "coat": "silver",
+    "path": "assets/pets/lamp-cat-silver-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 66713,
+    "sha256": "f48745e0cc1cff882f75c79b16e0d947e0c78ffa264034461a24869b8969e54a",
+    "source": "imagegen"
+  },
+  {
+    "species": "lamp-cat",
+    "coat": "calico",
+    "path": "assets/pets/lamp-cat-calico-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 74078,
+    "sha256": "7e93e6fa5f7cf5db2aee5e219ad8720e8d6c3a34595c60c1fa5db4d90823b30d",
+    "source": "imagegen"
+  },
+  {
+    "species": "moss-dog",
+    "coat": "moss",
+    "path": "assets/pets/moss-dog-moss-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 84905,
+    "sha256": "06c83fa45cc0bccd9c881b26db3b6b3847c83fda6c5ec0174a8b290d2e1cfa95",
+    "source": "imagegen"
+  },
+  {
+    "species": "moss-dog",
+    "coat": "cocoa",
+    "path": "assets/pets/moss-dog-cocoa-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 96430,
+    "sha256": "ea79513e84764a2a88722515d70d5b4f78d4786fd38ac0bca3524920dc9e4d63",
+    "source": "imagegen"
+  },
+  {
+    "species": "moss-dog",
+    "coat": "cream",
+    "path": "assets/pets/moss-dog-cream-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 87296,
+    "sha256": "ba07975c001e1315ae486a9e34bbc91db40d0974225a8b74c36d4411c960f877",
+    "source": "imagegen"
+  },
+  {
+    "species": "paper-sparrow",
+    "coat": "rice",
+    "path": "assets/pets/paper-sparrow-rice-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 78100,
+    "sha256": "68841360bb4b83154a9fc8323eed3604e34374fbacbe58172b89ee9a1827c9ab",
+    "source": "imagegen"
+  },
+  {
+    "species": "paper-sparrow",
+    "coat": "ink",
+    "path": "assets/pets/paper-sparrow-ink-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 103310,
+    "sha256": "d7939b36155e2f765cee6ff8522760f42249bb94f908c3f9bac2a8afb7ff8b27",
+    "source": "imagegen"
+  },
+  {
+    "species": "paper-sparrow",
+    "coat": "rose",
+    "path": "assets/pets/paper-sparrow-rose-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 100830,
+    "sha256": "fbe5faf272a1e0150ff72fa49716f727d6c94031c8104b3578733c35c418e0df",
+    "source": "imagegen"
+  },
+  {
+    "species": "dusk-rabbit",
+    "coat": "lavender",
+    "path": "assets/pets/dusk-rabbit-lavender-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 82801,
+    "sha256": "b713880e134900e635edc2b5cf1bd8e4ddec7c8607e5a92fb7e013a08bd52d62",
+    "source": "imagegen"
+  },
+  {
+    "species": "dusk-rabbit",
+    "coat": "peach",
+    "path": "assets/pets/dusk-rabbit-peach-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 85473,
+    "sha256": "698070bee1c1046a5e39b62dc8fd388c66b1d82cc2941158211d91936e9d4efc",
+    "source": "imagegen"
+  },
+  {
+    "species": "dusk-rabbit",
+    "coat": "moon",
+    "path": "assets/pets/dusk-rabbit-moon-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 78521,
+    "sha256": "27da925b535b7561d2228a8eee522dec86e1882627f917bc735efe3a1170caf0",
+    "source": "imagegen"
+  },
+  {
+    "species": "river-otter",
+    "coat": "chestnut",
+    "path": "assets/pets/river-otter-chestnut-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 78992,
+    "sha256": "fcd978cbc9d50263a161487651008005e48772a76978c046cdfffb721964ec1b",
+    "source": "imagegen"
+  },
+  {
+    "species": "river-otter",
+    "coat": "slate",
+    "path": "assets/pets/river-otter-slate-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 83859,
+    "sha256": "353fa71616554152580d9f6392f42f78b4713f93861ddc58887b95b88e7911e8",
+    "source": "imagegen"
+  },
+  {
+    "species": "river-otter",
+    "coat": "honey",
+    "path": "assets/pets/river-otter-honey-v1.jpg",
+    "width": 768,
+    "height": 768,
+    "bytes": 87774,
+    "sha256": "2c93fbed81f1ceedcc5a0e19e70f57ee501da7555c07b2e896388e3edabf1fed",
+    "source": "imagegen"
+  }
+]

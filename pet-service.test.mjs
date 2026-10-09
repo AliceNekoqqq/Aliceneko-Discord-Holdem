@@ -4,6 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {TavernService} from './tavern-service.mjs';
 import {dispatchPetHome,petHomeRequest} from './pet-registry.mjs';
 import {DAILY_REWARD_CAP,dayKey} from './tavern-catalog.mjs';
+import {PETS,petCoat} from './pet-catalog.mjs';
 
 function storage(){
  const db=new DatabaseSync(':memory:'),map=new Map();
@@ -29,6 +30,83 @@ test('view does not create wallet; adoption is single, durable and never gives a
  assert.equal(new TavernService(s.store).pets.view('1').pet.species,'lamp-cat');
  assert.equal(s.host.rows("SELECT * FROM tavern_ledger WHERE kind='welcome'").length,1);
  assert.equal(s.host.pets.view('2').pet,null);
+});
+
+test('five species each have three distinct coats; explicit adoption and coat changes preserve identity and assets',()=>{
+ assert.equal(PETS.length,5);
+ for(const species of PETS){
+  assert.equal(new Set(species.coats.map(c=>c.id)).size,3);
+  const s=setup();const first=s.do('petAdopt',{species:species.id,petName:'小灯',coat:species.coats[2].id});
+  assert.equal(first.pet.coat,species.coats[2].id);
+  const changed=s.do('petCoat',{coat:species.coats[1].id});
+  assert.equal(changed.pet.coat,species.coats[1].id);assert.equal(changed.pet.id,first.pet.id);
+  assert.equal(changed.balance,first.balance);assert.equal(changed.pet.growth,first.pet.growth);
+  assert.equal(new TavernService(s.store).pets.view('1').pet.coat,species.coats[1].id);
+  assert.throws(()=>s.do('petCoat',{coat:'not-a-coat'}),/花色/);
+ }
+});
+test('old single-pet storage receives a durable first coat without losing belongings or rerolling',()=>{
+ const s=setup();adopt(s);const before=s.pets.profile('1');delete before.coat;before.materials={paper:7};before.growth=81;
+ s.host.sql.exec('UPDATE pet_profiles SET body=? WHERE owner=?',JSON.stringify(before),'1');
+ const a=s.do('petView'),b=new TavernService(s.store).pets.view('1');
+ assert.equal(a.pet.coat,'amber');assert.equal(b.pet.coat,a.pet.coat);assert.deepEqual(b.materials,{paper:7});assert.equal(b.pet.growth,81);
+ assert.equal(JSON.parse(s.host.one('SELECT body FROM pet_profiles WHERE owner=?','1').body).coat,'amber');
+});
+test('random coat rolls only on committed adoption or change; refresh and duplicate request preserve it',()=>{
+ const s=setup(),original=crypto.getRandomValues;let draws=0;
+ crypto.getRandomValues=array=>{draws++;array[0]=draws===1?1:2;return array;};
+ try{
+  const a=s.do('petAdopt',{species:'dusk-rabbit',petName:'小月',coat:'random'});
+  assert.equal(a.pet.coat,'peach');assert(petCoat('dusk-rabbit',a.pet.coat));
+  assert.equal(s.do('petView').pet.coat,'peach');assert.equal(draws,1);
+  const params={coat:'random',requestKey:'random-change'},changed=s.do('petCoat',params),repeated=s.do('petCoat',params);
+  assert.equal(changed.pet.coat,'moon');assert.equal(repeated.pet.coat,changed.pet.coat);assert.equal(draws,2);
+  assert.equal(new TavernService(s.store).pets.view('1').pet.coat,'moon');
+ }finally{crypto.getRandomValues=original;}
+});
+test('free gathering is selected, capped across materials/channels, idempotent and resets at Beijing midnight',()=>{
+ const s=setup(),now=Date.parse('2026-10-09T15:59:00Z');adopt(s,now);const balance=s.do('petView',{},now).balance;
+ const first=s.do('petGather',{material:'metal',requestKey:'gather-once'},now);assert.equal(first.materials.metal,1);
+ s.do('petGather',{material:'metal',requestKey:'gather-once'},now);assert.equal(s.do('petView',{},now).materialBudget.gathered,1);
+ s.do('petGather',{material:'flower',channel:'7'},now);s.do('petGather',{material:'wood'},now);
+ assert.throws(()=>s.do('petGather',{material:'cloth'},now),/3次/);assert.equal(s.do('petView',{},now).balance,balance);
+ assert.equal(s.do('petGather',{material:'cloth'},Date.parse('2026-10-09T16:00:01Z')).materialBudget.gathered,1);
+ assert.throws(()=>s.do('petGather',{material:'constructor'},now),/有效/);
+});
+test('daily care grants one cloth once, even across restart, independently of gathering',()=>{
+ const s=setup(),now=Date.now();adopt(s,now);let v=s.do('petCare',{},now);assert.equal(v.materials.cloth,1);assert.equal(v.pet.growth,5);
+ v=s.do('petCare',{},now);assert.equal(v.materials.cloth,1);assert.equal(v.pet.growth,5);
+ v=new TavernService(s.store).pets.dispatch({...base,action:'petCare',requestKey:'restarted-care'},now);assert.equal(v.materials.cloth,1);
+ assert.equal(v.materialBudget.gathered,0);
+});
+test('material shop enforces preview, balance, daily cap and idempotency without replenishing income allowance',()=>{
+ const s=setup(),now=Date.now();adopt(s,now);s.host.claimDaily('1','Alice',now);
+ const offer={material:'thread',expectedPrice:6,expectedQuantity:2,expectedShopVersion:'materials-v1'};
+ assert.throws(()=>s.do('petMaterialBuy',{...offer,expectedPrice:0},now),/预览/);
+ const first=s.do('petMaterialBuy',{...offer,requestKey:'material-once'},now);assert.equal(first.materials.thread,2);assert.equal(first.balance,74);
+ s.do('petMaterialBuy',{...offer,requestKey:'material-once'},now);assert.equal(s.do('petView',{},now).balance,74);
+ s.do('petMaterialBuy',{...offer,material:'paper'},now);s.do('petMaterialBuy',{...offer,material:'wood'},now);
+ assert.throws(()=>s.do('petMaterialBuy',offer,now),/6份/);assert.equal(s.do('petView',{},now).reward.totalEarned,20);
+ assert.equal(s.host.one("SELECT COUNT(*) AS n FROM tavern_ledger WHERE kind='pet_material'").n,3);
+ s.host.sql.exec('UPDATE tavern_members SET balance=0 WHERE id=?','1');
+ assert.throws(()=>s.do('petMaterialBuy',offer,now+86400000),/还差6/);
+});
+test('gather and material-shop failures roll back materials, daily limits, money and receipts together',()=>{
+ for(const action of ['petGather','petMaterialBuy']){
+  const s=setup(),now=Date.now();adopt(s,now);const before=s.do('petView',{},now),original=s.store.sql.exec;
+  s.store.sql.exec=(q,...args)=>{if(q==='UPDATE pet_profiles SET body=?,version=version+1 WHERE owner=?')throw Error('material disk');return original(q,...args);};
+  assert.throws(()=>s.do(action,{material:'paper',expectedPrice:6,expectedQuantity:2,expectedShopVersion:'materials-v1',requestKey:'failure'},now),/material disk/);
+  s.store.sql.exec=original;const after=s.do('petView',{},now);assert.equal(after.balance,before.balance);assert.deepEqual(after.materials,before.materials);assert.deepEqual(after.materialBudget,before.materialBudget);
+  assert.equal(s.host.one("SELECT COUNT(*) AS n FROM pet_actions WHERE id=?",'1:failure').n,0);
+  assert.equal(s.host.one("SELECT COUNT(*) AS n FROM tavern_ledger WHERE kind='pet_material'").n,0);
+ }
+});
+test('existing daily-budget table upgrades in place and keeps consumed runs and care flags',()=>{
+ const store=storage(),host=new TavernService(store),today=dayKey(Date.now());
+ host.sql.exec('CREATE TABLE pet_daily(owner TEXT NOT NULL,day TEXT NOT NULL,used INTEGER NOT NULL DEFAULT 0,earned INTEGER NOT NULL DEFAULT 0,xp INTEGER NOT NULL DEFAULT 0,care INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(owner,day))');
+ host.sql.exec('INSERT INTO pet_daily VALUES(?,?,?,?,?,?)','1',today,2,18,25,1);
+ const daily=host.pets.daily('1',today);assert.equal(daily.used,2);assert.equal(daily.earned,18);assert.equal(daily.xp,25);assert.equal(daily.care,1);assert.equal(daily.gathered,0);assert.equal(daily.bought,0);
+ assert.equal(new TavernService(store).pets.daily('1',today).used,2);
 });
 test('global immutable adoption home rejects a second server and cannot be rebound by another owner',async()=>{
  const store=storage();assert.deepEqual(await dispatchPetHome(store,{id:'1',guild:'3'}),{guild:null});
