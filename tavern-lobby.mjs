@@ -9,7 +9,7 @@ const key=(guild,owner,action)=>`t:${guild}:${owner}:${action}`;
 const button=(guild,owner,action,label,style=2)=>({type:2,custom_id:key(guild,owner,action),label:String(label).slice(0,80),style});
 const valid=s=>/^\d{1,20}$/.test(String(s||''));
 const safe=(s,max=64)=>[...cleanText(String(s||''),max*2).replace(/<@!?&?\d+>/g,'＠').replace(/@/g,'＠').replace(/[<>]/g,'').replace(/[\\`*_~|#\[\](){}!]/g,'')].slice(0,max).join('')||'未命名';
-const LOBBY_ACTIONS=new Set(['lobby','lobbyGames','lobbyMenu','lobbyWallet','lobbyCard','lobbyRoom','lobbyMap','lobbySeat','lobbyMove']);
+const LOBBY_ACTIONS=new Set(['lobby','lobbyGames','lobbyMenu','lobbyWallet','lobbyCard','lobbyRoom','lobbyMap','lobbyMapHD','lobbySeat','lobbyMove']);
 const AREAS={commons:'公共客厅',bar:'吧台边',window:'临河窗边',quiet:'安静角落'};
 export const lobbyCommandOption={type:1,name:'大厅',description:'打开红豆粉小酒馆大厅与常用入口'};
 
@@ -52,6 +52,7 @@ export function lobbyDeferredReply(i){
  if(tavernLobbyCommand(i))return {type:5};
  if(!tavernLobbyInteraction(i))return null;
  const p=String(i.data.custom_id).split(':'),action=p[3];
+ if(action==='lobbyMapHD')return Number(i.message?.flags)&64?{type:6}:{type:5,data:{flags:64}};
  if(['lobbyMenu','lobbyWallet','lobbyCard','lobbySeat'].includes(action))return {type:5,data:{flags:64}};
  if(i.type===3)return {type:6};
  return {type:5};
@@ -63,7 +64,7 @@ export function tavernLobbyData(board,guild,owner='any',operations=null,live=nul
  const components=[
   row(button(guild,'any','lobbyMenu','🍵 点单',1),button(guild,'any','lobbyWallet','🪙 钱包'),button(guild,'any','lobbyCard','🦋 常客卡'),button(guild,'any','lobbyRoom','🏮 店内'),button(guild,'any','renoEnter','🔧 共同装修')),
   row(button(guild,'any','opsBoard','👑 今日经营',1),button(guild,'any','opsSeason','🌱 季节菜单'),button(guild,'any','opsActivity','🎉 共同活动'),button(guild,'any','renoHistory~0','📜 贡献历史'),button(guild,'any','renoLeaders','🏅 贡献榜')),
-  row(button(guild,'any','lobbyGames','🎮 小游戏'),button(guild,'any','lobbySeat','📍 换个位置'),button(guild,'any','lobbyMap','🗺️ 地图实况',1),button(guild,owner,'lobby','🔄 刷新大厅'))
+  row(button(guild,'any','lobbyGames','🎮 小游戏'),button(guild,'any','lobbySeat','📍 换个位置'),button(guild,'any','lobbyMap','🗺️ 地图实况',1),button(guild,owner,'lobby','🔄 刷新大厅'),button(guild,'any','lobbyMapHD','🔍 清晰原图'))
  ];
  const crowd=live?`最近30分钟 ${live.visitorCount} 位来客 · ${live.tableCount} 张牌桌`:'地图实况暂不可用';
  const manager=operations?.manager?.name||'等待首位来客';
@@ -87,6 +88,7 @@ export async function answerLobby(env,i){
   return {content:`📍 **换个位置**${p.action==='lobbyMove'?`\n已选择：${AREAS[area]}`:''}\n选择的位置会显示在大厅地图。参与牌局时优先显示在桌边，离桌后恢复你的选择。`,components:[row({type:3,custom_id:key(p.g,p.u,'lobbyMove'),placeholder:'想坐在哪里？',min_values:1,max_values:1,options:Object.entries(AREAS).map(([value,label])=>({value,label,default:p.action==='lobbyMove'&&value===area}))}),row(button(p.g,p.u,'lobbySeat','重新选择'))],allowed_mentions:mentions};
  }
  if(p.action==='lobbyMap')return answerTavernMap(env,i);
+ if(p.action==='lobbyMapHD')return answerTavernMap(env,i,{hd:true});
  if(p.action==='lobbyRoom')return answerRenovation(env,{...i,type:3,message:i.message||{flags:0},data:{custom_id:`t:${p.g}:any:renoBoard~0`}});
  const name=i.member?.nick||i.member?.user?.global_name||i.member?.user?.username||'来客';
  const [board,operations]=await Promise.all([

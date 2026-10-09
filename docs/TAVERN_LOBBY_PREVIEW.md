@@ -5,3 +5,8 @@
 - 动画：[tavern-lobby-preview.gif](tavern-lobby-preview.gif)
 - 白天：[tavern-map-day.png](tavern-map-day.png)
 - 夜晚：[tavern-map-night.png](tavern-map-night.png)
+
+移动端清晰度检查：本批另外将地图缩到320/400像素宽审阅关键区域、牌桌和人物标识。大厅保留动态GIF；「清晰原图」提供本人可见的无损PNG，点击图片可放大。模拟缩略不能替代Discord客户端实测。
+
+- [400像素宽模拟缩略](tavern-map-mobile-400.png)
+- [320像素宽模拟缩略](tavern-map-mobile-320.png)

@@ -4,6 +4,7 @@ import {inflateSync} from 'node:zlib';
 import {renderTavernMap,TAVERN_SCENE_VERSION} from './tavern-map-image.mjs';
 import {Canvas} from './card-image.mjs';
 import {glyphs} from './card-glyphs.mjs';
+import {TAVERN_BUILDING} from './tavern-building.mjs';
 
 const bytes=async s=>Buffer.from(await renderTavernMap(s));
 function decode(png){
@@ -29,7 +30,7 @@ test('formal game names and phases are localized before drawing',async()=>{
  const drawn=[],original=Canvas.prototype.text;
  try{Canvas.prototype.text=function(value,...args){drawn.push(String(value));return original.call(this,value,...args);};await renderTavernMap({at:'2026-10-09T04:05:00Z',visitorCount:0,visitors:[],tableCount:4,tables:[{game:'ghost',phase:'active',players:[]},{game:'liar',phase:'in_progress',players:[]}],room:{name:'小酒馆',assets:[]}});}
  finally{Canvas.prototype.text=original;}
- assert(drawn.includes('抽鬼牌'));assert(drawn.includes('骗子酒馆'));assert.equal(drawn.filter(x=>x==='游戏中').length,2);assert(!drawn.includes('active'));assert(!drawn.includes('in_progress'));
+ assert(drawn.some(x=>x.includes('抽鬼牌')));assert(drawn.some(x=>x.includes('骗子酒馆')));assert.equal(drawn.filter(x=>x.includes('游戏中')).length,2);assert(!drawn.includes('active'));assert(!drawn.includes('in_progress'));
  const missing=drawn.flatMap(value=>[...value].filter(char=>!glyphs[char]));assert.equal(missing.length,0,[...new Set(missing)].join(''));
 });
 
@@ -41,18 +42,18 @@ test('every purchased fixture ID draws and higher levels visibly refine its furn
 });
 
 test('all eight table players remain visible and never duplicate into visitor seating',async()=>{
- const players=Array.from({length:8},(_,i)=>({id:`p${i+1}`,name:`P${i+1}`,bot:false}));
+ const players=[...'甲乙丙丁戊己庚辛'].map((initial,i)=>({id:`p${i+1}`,name:`${initial}来客`,bot:false}));
  const snapshot={at:safeAt(),visitorCount:8,visitors:[],tableCount:1,tables:[{game:'uno',phase:'active',players}],room:{name:'小酒馆',assets:[]}};
  const drawn=[],original=Canvas.prototype.text;let base;
  try{Canvas.prototype.text=function(value,...args){drawn.push(String(value));return original.call(this,value,...args);};base=await bytes(snapshot);}
  finally{Canvas.prototype.text=original;}
- for(const p of players)assert(drawn.includes(p.name),`${p.name} remains visible`);
+ for(const p of players)assert.equal(drawn.filter(x=>x===p.name[0]).length,1,`${p.name} has one visible marker`);
  assert.deepEqual(await bytes({...snapshot,visitors:players}),base);
  assert.notDeepEqual(await bytes({...snapshot,tables:[{...snapshot.tables[0],players:players.slice(0,6)}]}),base);
 });
 
 test('real area changes alter the map; legacy visitors default to commons and input order does not reshuffle seats',async()=>{
- assert.equal(TAVERN_SCENE_VERSION,'riverside-position-v1');
+ assert.equal(TAVERN_SCENE_VERSION,'riverside-mobile-readable-v2');
  const base={at:safeAt(),visitorCount:2,tableCount:0,tables:[],room:{name:'小酒馆',assets:[]}},visitors=[{id:'u2',name:'乙',location:{area:'window',changedAt:1}},{id:'u1',name:'甲',location:{area:'bar',changedAt:2}}];
  const a=await bytes({...base,visitors}),b=await bytes({...base,visitors:[...visitors].reverse()});assert.deepEqual(a,b);
  const moved=await bytes({...base,visitors:[{...visitors[0],location:{area:'quiet',changedAt:3}},visitors[1]]});assert.notDeepEqual(a,moved);
@@ -68,7 +69,7 @@ test('displaySlot keeps visible tables anchored, hides overflow players from com
  const drawn=[],original=Canvas.prototype.text;let image;
  try{Canvas.prototype.text=function(value,...args){drawn.push(String(value));return original.call(this,value,...args);};image=await bytes(s);}
  finally{Canvas.prototype.text=original;}
- assert.equal(drawn.filter(x=>x==='同桌').length,1);assert(!drawn.includes('不重复访客'));assert(!drawn.includes('不落客厅'));assert(drawn.includes('游戏区另有 1 位'));
+ assert.equal(drawn.filter(x=>x==='同').length,1);assert(!drawn.includes('不重复访客'));assert(!drawn.includes('不落客厅'));assert(drawn.includes('游戏区另有 1 位玩家'));
  const permuted=await bytes({...s,tables:[...s.tables].reverse()});assert.deepEqual(image,permuted);
 });
 
@@ -78,5 +79,13 @@ test('area seating capacity is fixed and overflow is summarized without drawing 
  try{Canvas.prototype.text=function(value,...args){drawn.push(String(value));return original.call(this,value,...args);};await bytes({at:safeAt(),visitorCount:40,tables:[],tableCount:0,visitors,room:{name:'小酒馆',assets:[]}});}
  finally{Canvas.prototype.text=original;}
  assert(drawn.some(x=>x.includes('吧台 +')));assert(drawn.some(x=>x.includes('窗边 +')));assert(drawn.some(x=>x.includes('静谧角 +')));assert(drawn.some(x=>x.includes('客厅 +')));
- assert.equal(drawn.filter(x=>/^客\d+$/.test(x)).length,16);
+ assert.equal(drawn.filter(x=>x==='客').length,16);
+});
+
+test('game labels stay with their own table instead of drifting over the lounge or river',async()=>{
+ const games=['poker','uno','ghost','liar'],names=['德州','UNO','抽鬼牌','骗子酒馆'],drawn=[],original=Canvas.prototype.text;
+ try{Canvas.prototype.text=function(value,x,y,size,...rest){drawn.push({text:String(value),x,y,size});return original.call(this,value,x,y,size,...rest);};await bytes({at:safeAt(),tableCount:4,visitors:[],tables:games.map((game,displaySlot)=>({game,displaySlot,phase:'waiting',players:[]})),room:{name:'小酒馆',assets:[]}});}
+ finally{Canvas.prototype.text=original;}
+ const p=TAVERN_BUILDING.projection;
+ names.forEach((name,index)=>{const a=TAVERN_BUILDING.anchors.tables[index],x=p.originX+(a.x-a.y)*p.scaleX,y=p.baseY+(a.x+a.y)*p.scaleY,label=drawn.find(v=>v.text.includes(name));assert(label,`${name} table has a label`);assert(Math.abs(label.x-x)<=60&&Math.abs(label.y-y)<=65,`${name} label belongs to its table`);assert(label.size>=20,'table identity remains readable');});
 });

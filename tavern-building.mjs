@@ -1,7 +1,7 @@
 /** Canonical normalized tavern floorplan. World x runs west→east; world y runs north→south. */
 export const TAVERN_BUILDING = Object.freeze({
   version:1, canvas:{width:1000,height:760}, footprint:{width:850,depth:470},
-  projection:Object.freeze({originX:420,baseY:203,scaleX:.54,scaleY:.255,scaleZ:.72}),
+  projection:Object.freeze({originX:330,baseY:169,scaleX:.64,scaleY:.32,scaleZ:.84}),
   orientation:Object.freeze({north:'river facade with long windows',south:'old street and arched entrance',east:'bar, service and small back kitchen',west:'commons, lounge and window seats'}),
   materials:Object.freeze({walnut:'#795149',cream:'#f7e1c9',oldBrick:'#6f4a4c',berryPink:'#da859e',river:'#86c8ce'}),
   rooms:Object.freeze({commons:{x:30,y:125,width:335,depth:300},windowSeats:{x:180,y:24,width:390,depth:92},gameFloor:{x:380,y:125,width:440,depth:315},bar:{x:735,y:90,width:90,depth:220},backKitchen:{x:738,y:18,width:105,depth:66}}),
