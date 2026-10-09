@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {MENU, MENU_CATEGORIES, WELCOME_COINS, DAILY_REWARD_CAP, ROSTER_DAILY_LIMIT, ORDER_TTL, REWARDS, makeOrderDetails} from './tavern-catalog.mjs';
 
-test('menu catalogue has stable unique ids, complete metadata, and room for one seasonal item',()=>{
- assert.equal(MENU.length,20);
- assert.ok(MENU.length+1<=25);
+test('menu catalogue has stable unique ids, complete metadata, and each category fits a Discord select',()=>{
+ assert.equal(MENU.length,29);
+ assert.ok(MENU_CATEGORIES.every(c=>MENU.filter(x=>x.category===c.id).length+1<=25));
+ assert.equal(MENU.filter(x=>!x.requiresEquipment).length,20);
  assert.equal(new Set(MENU.map(item=>item.id)).size,MENU.length);
  assert.deepEqual(MENU_CATEGORIES.map(({id})=>id),['drinks','desserts','savory','seasonal']);
  assert.ok(MENU.every(item=>['drinks','desserts','savory'].includes(item.category)));

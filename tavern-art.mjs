@@ -1,4 +1,5 @@
 import manifest from './tavern-art-manifest.mjs';
+import {equipmentArtUrl,serveEquipmentArt,equipmentAsset,loadEquipmentArt} from './equipment-art.mjs';
 
 const ART_VERSION = 'v1';
 const ART_ORIGIN = 'https://discord-holdem.aliceneko.workers.dev';
@@ -8,13 +9,14 @@ export const ART_MANIFEST = Object.freeze(
 );
 
 export function imageAsset(id) {
-  if (typeof id !== 'string' || !Object.hasOwn(ART_MANIFEST, id)) return null;
+  if (typeof id !== 'string') return null;
+  if (!Object.hasOwn(ART_MANIFEST, id)) return equipmentAsset(id);
   const asset = ART_MANIFEST[id];
   return { ...asset };
 }
 
 export function getArtUrl(id) {
-  if (!Object.hasOwn(ART_MANIFEST, id)) return null;
+  if (!Object.hasOwn(ART_MANIFEST, id)) return equipmentArtUrl(id);
   return `${ART_ORIGIN}/art/${id}/${ART_VERSION}.jpg`;
 }
 
@@ -38,6 +40,7 @@ export function decodeArt(record) {
 // The compiled image payload is supplied by the build step. Loading is lazy so
 // callers without generated assets can still use the metadata and embeds.
 export async function loadArt(id) {
+  if(equipmentAsset(id))return loadEquipmentArt(id);
   const asset = imageAsset(id);
   if (!asset) return null;
   let records;
@@ -55,6 +58,7 @@ export async function loadArt(id) {
 
 export async function serveArt(request) {
   const url = new URL(request.url);
+  if(url.pathname.startsWith('/art/equipment/'))return serveEquipmentArt(request);
   const match = /^\/art\/([a-z0-9-]+)\/v1\.jpg$/.exec(url.pathname);
   if (!match || !imageAsset(match[1])) return new Response('Not Found', { status: 404 });
   if (request.method !== 'GET' && request.method !== 'HEAD') {

@@ -59,6 +59,7 @@ export class TavernRenovation {
   };
   return insideTransaction?write():(this.storage.transactionSync(write));
  }
+ equipmentLevels(){return new Map(this.rows('SELECT item,level FROM tavern_reno_assets').map(a=>[a.item,a.level]));}
  _totals(){return {consumption:this.one('SELECT COALESCE(SUM(amount),0) AS n FROM tavern_reno_consumption')?.n||0,direct:this.one('SELECT COALESCE(SUM(price),0) AS n FROM tavern_reno_direct')?.n||0}}
  board(id,name){
   if(id)this.host.member(id,name);

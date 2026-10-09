@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-10-09",
+  "generator": "built-in image_gen",
+  "assets": [
+    {
+      "id": "vanilla-sundae",
+      "prompt": "Use case: product-mockup\nAsset type: square menu item illustration for a cozy tavern game\nPrimary request: A vanilla cloud sundae served in a clear glass bowl. The only food ingredient is pure vanilla soft-serve ice cream, gently swirled into a soft cloud-like mound.\nScene/backdrop: A warm wooden tavern tabletop with a softly blurred amber-lit tavern interior, matching a warm watercolor storybook menu illustration.\nSubject: One clear glass dessert bowl filled only with ivory vanilla soft-serve ice cream, with delicate natural vanilla flecks if visible.\nStyle/medium: Warm, detailed watercolor storybook product illustration, painterly paper texture, consistent with a cozy tavern menu.\nComposition/framing: Centered single dessert, bowl fully visible, square crop, clear readable silhouette, uncluttered tabletop.\nLighting/mood: Soft golden tavern light, creamy warm highlights, inviting and gentle.\nColor palette: Cream, warm ivory, honeyed wood, amber browns.\nMaterials/textures: Transparent glass bowl with subtle painted reflections; smooth airy soft-serve folds.\nConstraints: Keep the dessert purely vanilla soft-serve in a clear glass bowl. No other food or garnish.\nAvoid: berries, fruit, red beans, mochi, sesame, eggs, cookies, wafers, sauce, nuts, chocolate, plates, people, hands, lettering, logos, watermark.",
+      "originalPath": "assets/equipment-art/original/vanilla-sundae.png",
+      "finalPath": "assets/equipment-art/vanilla-sundae.jpg"
+    },
+    {
+      "id": "redbean-parfait",
+      "prompt": "Use case: product-mockup\nAsset type: square menu item illustration for a cozy tavern game\nPrimary request: A red bean and glutinous rice parfait in a tall clear glass. Show distinct, appetizing layers of vanilla ice cream, sweet red beans, and small soft glutinous rice balls.\nScene/backdrop: A warm wooden tavern tabletop with a softly blurred amber-lit tavern interior, matching a warm watercolor storybook menu illustration.\nSubject: One tall transparent parfait glass with visible alternating layers of ivory vanilla ice cream and deep red adzuki beans, topped only with a few small white glutinous rice balls and a modest scoop of red beans.\nStyle/medium: Warm, detailed watercolor storybook product illustration, painterly paper texture, consistent with a cozy tavern menu.\nComposition/framing: Centered single parfait, entire tall glass visible, square crop, clear layered silhouette, uncluttered tabletop.\nLighting/mood: Soft golden tavern light, creamy warm highlights, inviting and gentle.\nColor palette: Ivory cream, dark red bean, white rice dumplings, honeyed wood, amber browns.\nMaterials/textures: Clear glass with subtle painted reflections; distinct soft ice cream, glossy cooked red beans, small smooth tender rice balls.\nConstraints: Include only vanilla ice cream, red beans, and small glutinous rice balls as food ingredients. Keep the glass tall and transparent.\nAvoid: berries, fruit, sesame, eggs, cookies, wafers, sauce, nuts, chocolate, leaves, other garnish, plates, people, hands, lettering, logos, watermark.",
+      "originalPath": "assets/equipment-art/original/redbean-parfait.png",
+      "finalPath": "assets/equipment-art/redbean-parfait.jpg"
+    }
+  ]
+}

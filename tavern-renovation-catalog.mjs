@@ -8,6 +8,7 @@ export const SHOP_STAGES=[
 export const RENOVATION_CATEGORIES={furniture:'家具',lighting:'灯光',decor:'装饰',ambience:'氛围',equipment:'设备'};
 const object=(id,name,emoji,category,description,price,stage,scene)=>({id,name,emoji,category,description,kind:'object',levels:[{level:1,price,stage,label:'购置',scene}]});
 const facility=(id,name,emoji,category,description,prices,stage,scenes)=>({id,name,emoji,category,description,kind:'facility',levels:prices.map((price,i)=>({level:i+1,price,stage:Math.min(4,stage+i),label:`${i+1}级`,scene:scenes[i]}))});
+const menuEquipment=(id,name,emoji,description,price,stage,scene,artId,menuUnlocks)=>({...object(id,name,emoji,'equipment',description,price,stage,scene),artId,menuUnlocks});
 export const RENOVATION_ITEMS=[
  object('oak_table','橡木长桌','🪵','furniture','可供邻桌朋友围坐的结实长桌。',360,0,'橡木长桌擦拭得干净，桌面留着温润木纹。'),
  object('window_seat','临窗软座','🪑','furniture','靠窗的软垫座位。',480,0,'临窗软座正好能看见街上的行人。'),
@@ -25,6 +26,10 @@ export const RENOVATION_ITEMS=[
  object('record_player','黑胶唱机','🎶','ambience','播放舒缓背景音乐的唱机。',1200,1,'唱针落下，店里流淌着轻柔的旋律。'),
  object('plant_corner','绿植角','🪴','ambience','几盆耐心照料的绿植。',380,0,'绿植角让室内多了一抹清新的颜色。'),
  object('rain_bell','檐下风铃','🎐','ambience','微风经过时轻响的风铃。',240,0,'檐下风铃偶尔传来清脆而轻的声音。'),
+ menuEquipment('coffee_machine','意式咖啡机','☕','新磨咖啡与蒸汽奶泡，开启咖啡菜单。',900,0,'咖啡机放在吧台，铜色面板映着暖光。','coffee-machine',['河岸美式','红豆拿铁','卡布奇诺']),
+ menuEquipment('baking_oven','暖炉烤箱','🥐','现烤酥点与热吐司，添一份出炉香。',1500,1,'后厨的小烤箱烘出新鲜黄油香。','baking-oven',['暖炉黄油可颂','芝士烤吐司']),
+ menuEquipment('blender','果饮搅拌机','🍓','鲜果与乳品细细打匀，开启浓稠果饮。',2200,2,'果饮搅拌机在吧台备好，玻璃杯干净透亮。','blender',['莓果奶昔','芒果酸奶冰沙']),
+ menuEquipment('ice_cream_maker','软冰淇淋机','🍦','现做绵密软冰淇淋，开启冰甜菜单。',3600,3,'软冰淇淋机安放在后厨，准备今天的冰甜。','ice-cream-maker',['香草云朵圣代','红豆糯米芭菲']),
  object('tea_station','温茶台','🫖','equipment','备好温水与茶具的茶台。',700,1,'温茶台上杯具齐备，热气袅袅。'),
  object('pastry_case','点心展示柜','🍰','equipment','陈列当日小点心的玻璃柜。',1400,2,'点心展示柜里摆着当天新做的小点心。'),
  facility('seating','座位区','🛋️','furniture','逐步扩充舒适座位与相聚空间。',[400, 1000, 2400],0,['添置几把稳当的木椅。','座位铺上柔软坐垫，布局更加宽松。','围合出适合小聚的会客座位区。']),

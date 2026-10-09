@@ -6,6 +6,7 @@ import {TavernService} from './tavern-service.mjs';
 import {TavernBridge} from './tavern-bridge.mjs';
 import {beginTavernRound,noteTavernAction,rewardSnapshot,dayKey,MENU,DAILY_REWARD_CAP} from './tavern-catalog.mjs';
 import {menuData,draftData,cardData,parseTavernIntent,answerTavern,immediateTavernReply,tavernCommand,handleNaturalTavern} from './tavern-ui.mjs';
+import {getArtUrl} from './tavern-art.mjs';
 import * as poker from './engine.mjs';
 import * as ghost from './ghost-engine.mjs';
 import * as liar from './liar-engine.mjs';
@@ -91,7 +92,8 @@ test('context exposes only the current account and current channel confirmed rec
 test('menus fit Discord limits and confirmation/privacy boundaries reject forged owners',async()=>{
  const {service:s}=setup(),env=environment(s),view=s.view('1');
  for(const data of [menuData(view,'1','3'),cardData(view,'1','3'),draftData(prepare(s),'1','3')]){assert(data.content.length<2000);assert(data.components.length<=5);for(const row of data.components){assert(row.components.length<=5);for(const c of row.components){assert(c.custom_id.length<=100);if(c.options)assert(c.options.length<=25);}}}
- assert(tavernCommand.options.length<=25);assert.equal(MENU.length,20);
+ assert(tavernCommand.options.length<=25);assert.equal(MENU.filter(x=>!x.requiresEquipment).length,20);
+ assert(tavernCommand.options.flatMap(x=>x.options||[]).every(x=>!x.choices||x.choices.length<=25));
  for(const i of [interaction('wallet',{member:{user:{id:'2'}}}),interaction('wallet',{message:{flags:0}}),interaction('wallet',{guild_id:'4'})]){assert.equal(immediateTavernReply(i).type,4);await assert.rejects(()=>answerTavern(env,i));}
  assert.equal(immediateTavernReply(interaction('notes')).type,9);const publicOpen=interaction('menu',{message:{flags:0},data:{custom_id:'t:3:any:menu'}});assert((await answerTavern(env,publicOpen)).content.includes('今日菜单'));
 });
@@ -116,7 +118,7 @@ test('natural dish image display creates neither a wallet nor a purchase draft',
  const message={guild_id:'3',channel_id:'2',id:'457',author:{id:'1',username:'Alice'}};
  for(const item of MENU){
   assert(await handleNaturalTavern({...environment(s),BOT_TOKEN:'test'},message,`给我看看${item.name}的图片`),item.id);
-  assert.equal(sent.at(-1).embeds[0].image.url,`https://discord-holdem.aliceneko.workers.dev/art/${item.id}/v1.jpg`,item.id);
+  assert.equal(sent.at(-1).embeds[0].image.url,getArtUrl(item.id),item.id);
   assert(!sent.at(-1).content.includes('补图清单'),item.id);
  }
  assert.equal(sent.length,MENU.length);assert(!JSON.stringify(sent).includes('余额'));

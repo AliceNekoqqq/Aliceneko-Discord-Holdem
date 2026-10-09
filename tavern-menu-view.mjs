@@ -21,6 +21,7 @@ const categoryOf = item => MENU_CATEGORIES.some(category => category.id === item
   ? item.category
   : CATEGORY_BY_ID[item.id] || 'seasonal';
 const categoryItems = (menu, category) => category === 'all' ? menu : menu.filter(item => categoryOf(item) === category);
+const equipmentNames = Object.freeze({ coffee_machine: '咖啡机', baking_oven: '烘焙烤箱', blender: '搅拌机', ice_cream_maker: '冰淇淋机' });
 
 function itemSummary(item) {
   const name = clean(item.name, 80);
@@ -29,7 +30,8 @@ function itemSummary(item) {
 }
 
 export function renderMenu(data, id, guild, publicView = false, category = 'all') {
-  const menu = Array.isArray(data?.menu) ? data.menu : MENU;
+  const menu = Array.isArray(data?.menu) ? data.menu : MENU.filter(item => !item.requiresEquipment);
+  const lockedMenu = Array.isArray(data?.lockedMenu) ? data.lockedMenu : MENU.filter(item => item.requiresEquipment);
   const selectedCategory = MENU_CATEGORIES.some(item => item.id === category) ? category : 'all';
   const items = categoryItems(menu, selectedCategory);
   const categoryButtons = MENU_CATEGORIES.map(item => button(guild, publicView ? 'any' : id, `menuCat~${item.id}`, item.name, item.emoji, item.id === selectedCategory ? 1 : 2));
@@ -38,11 +40,14 @@ export function renderMenu(data, id, guild, publicView = false, category = 'all'
   if (selectedCategory === 'all') {
     const counts = Object.fromEntries(MENU_CATEGORIES.slice(1).map(item => [item.id, menu.filter(dish => categoryOf(dish) === item.id).length]));
     const seasonal = counts.seasonal ? `当季上新 ${counts.seasonal} 款，随季节更新。` : '当季暂无限定上新。';
-    content = `🍵 **红豆粉的小酒馆 · 今日菜单**\n先逛类别，再选一份喜欢的；所有饮品均无酒精。\n🥤 饮品 ${counts.drinks} 款：茶饮与清爽特调。\n🍰 甜点 ${counts.desserts} 款：酥香软甜，适合配茶。\n🥨 小食 ${counts.savory} 款：咸甜小份，聊天时慢慢吃。\n🌸 季节 ${seasonal}\n${publicView ? '选好后打开自己的点单面板，确认后才上桌。' : `你的余额：**${clean(data?.member?.balance, 20) || '0'}币** · 选好后还会再请你确认。`}`;
+    const lockedText = lockedMenu.length ? `\n🔒 **设备新品（购置设备后永久解锁）**\n${lockedMenu.map(item => `${item.emoji || '🍵'} ${clean(item.name, 80)} · 需要${equipmentNames[item.requiresEquipment] || clean(item.requiresEquipment, 40)}`).join('\n')}` : '';
+    content = `🍵 **红豆粉的小酒馆 · 今日菜单**\n先逛类别，再选一份喜欢的；所有饮品均无酒精。\n🥤 饮品 ${counts.drinks} 款：茶饮与清爽特调。\n🍰 甜点 ${counts.desserts} 款：酥香软甜，适合配茶。\n🥨 小食 ${counts.savory} 款：咸甜小份，聊天时慢慢吃。\n🌸 季节 ${seasonal}${lockedText}\n${publicView ? '选好后打开自己的点单面板，确认后才上桌。' : `你的余额：**${clean(data?.member?.balance, 20) || '0'}币** · 选好后还会再请你确认。`}`;
   } else {
     const heading = MENU_CATEGORIES.find(item => item.id === selectedCategory);
     const intro = selectedCategory === 'seasonal' && items.length === 0 ? '当季暂无限定上新。' : `${heading.emoji} ${heading.name} · ${items.length} 款`;
     content = `🍵 **红豆粉的小酒馆 · 今日菜单**\n**${intro}**\n${items.map(itemSummary).join('\n\n') || '这个类别暂时没有商品。'}\n${publicView ? '选好后打开自己的点单面板，确认后才上桌。' : `你的余额：**${clean(data?.member?.balance, 20) || '0'}币** · 选好后还会再请你确认。`}`;
+    const categoryLocked = lockedMenu.filter(item => categoryOf(item) === selectedCategory);
+    if (categoryLocked.length) content += `\n\n🔒 **购置设备后永久解锁**\n${categoryLocked.map(item => `${item.emoji || '🍵'} ${clean(item.name, 80)} · 需要${equipmentNames[item.requiresEquipment] || clean(item.requiresEquipment, 40)}`).join('\n')}`;
   }
   // Discord content limit is 2000 characters; retain the category and privacy notice.
   if (content.length > 1900) content = `${content.slice(0, 1888).trimEnd()}…`;
@@ -50,12 +55,15 @@ export function renderMenu(data, id, guild, publicView = false, category = 'all'
   if (publicView) {
     components.push(row(button(guild, 'any', 'menu', '打开我的点单面板', '🛍️', 1)));
   } else {
-    const options = items.slice(0, 25).map(item => ({
+    // "全部" is a category landing page. Keeping every dish in its select
+    // would make entries beyond Discord's 25-option limit unreachable.
+    const options = (selectedCategory === 'all' && items.length > 25 ? [] : items.slice(0, 25)).map(item => ({
       label: clean(item.name, 100) || '菜单商品', value: clean(item.id, 100),
       description: clean(`${priceText(item)} · ${item.flavor || item.description || '小酒馆手作'}`, 100),
       ...(item.emoji ? { emoji: { name: clean(item.emoji, 32) } } : {}),
     }));
     if (options.length) components.push(row({ type: 3, custom_id: key(guild, id, 'pick'), placeholder: '今天想点哪一份？', options }));
+    else if (!publicView && selectedCategory === 'all' && items.length > 25) content += '\n\n菜单超过25款，请先选择饮品、甜点、小食或季节类别再点选。';
     components.push(row(
       button(guild, id, 'lobby', '大厅', '🏡'), button(guild, id, 'menu', '菜单', '🍵'),
       button(guild, id, 'wallet', '钱包', '🪙'), button(guild, id, 'card', '常客卡', '🦋'), button(guild, id, 'reno', '装修', '🔧'),

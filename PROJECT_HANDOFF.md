@@ -4,7 +4,7 @@
 
 > 已保留修复：beta.45移除伙伴主页重复按钮标识，更新失败时回退为纯文字提示；beta.46继续保留。Discord客户端显示与操作仍待真人验证。
 
-> 当前发布：beta.47已上线小窝/同行界面、五站进度地图及6张独立场景；451项完整回归、最终文案27项、92模块/配置/12新图/健康核验通过。原15款不同品种伙伴图保持，真实Discord显示待用户验证，准确证据见PROJECT_STATE顶部。
+> 当前本地：beta.48已完成4设备/9新品（含卡布奇诺）公共菜单联动与13图，待统一GitHub/Worker发布；生产仍beta.47。规则、价格、QA和发布证据见PROJECT_STATE顶部与EQUIPMENT_MENU_SPEC.md。保留现有伙伴/肉鸽设计文档。
 
 ## 1. 项目是谁的、要做什么
 
@@ -177,5 +177,3 @@
 新对话可直接使用：
 
 > 继续红豆粉小酒馆项目。仓库 AliceNekoqqq/Aliceneko-Discord-Holdem。先读 AGENTS.md、PROJECT_HANDOFF.md 和 PROJECT_STATE.md 最新记录，核对 main 与本地改动；不要重复已完成内容。独立任务按约定交给 Luna，整批检查后统一更新。然后处理我这次的要求。
-
-

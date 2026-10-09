@@ -31,11 +31,11 @@ test('renovation routes separate public reads, private entry and public owner wh
  const wrongChannel={...comp('renoSubmit~99~oak_table'),type:5};await assert.rejects(()=>answerRenovation(e,wrongChannel),/原频道/);
 });
 
-test('all 24 catalogue entries can be inspected, including locked reasons, within Discord limits',async()=>{
+test('all catalogue entries can be inspected, including locked reasons, within Discord limits',async()=>{
  const e=env(),menu=await answerRenovation(e,{type:2,...base,data:{name:'酒馆',options:[{name:'装修'}]}});
- assert.equal(RENOVATION_ITEMS.length,24);bounds(menu);
+ assert.equal(RENOVATION_ITEMS.length,28);bounds(menu);
  const inspect=menu.components.flatMap(r=>r.components).find(c=>c.custom_id.includes('renoInspect'));
- assert.equal(inspect.options.length,24);assert(inspect.options.every(o=>o.value));
+ assert.equal(inspect.options.length,25);assert(inspect.options.every(o=>o.value));
  const category=menu.components.flatMap(r=>r.components).find(c=>c.custom_id.endsWith(':renoCategory'));
  assert.equal(category.options.length,6);assert(category.options.some(o=>o.value==='equipment'));
  assert(menu.content.includes('🔒')||menu.content.includes('可购'));
@@ -46,17 +46,17 @@ test('public room paginates every asset with long donor names and titles without
  const e=env(),reno=e.service.renovation,who='123456789012345678',longName='红豆粉小酒馆共同装修捐赠者昵称甲乙丙丁戊己庚辛';
  for(const item of RENOVATION_ITEMS)reno.sql.exec('INSERT INTO tavern_reno_assets VALUES(?,?,?,?,?,?,?,?)',item.id,1,'春日窗边微光小店共同装修题名甲乙丙丁',who,longName,who,longName,Date.now());
  const all=[];
- for(let page=0;page<4;page++){
+ for(let page=0;page<Math.ceil(RENOVATION_ITEMS.length/6);page++){
   const i={type:3,guild_id:who,channel_id:who,member:{user:{id:who,username:longName}},message:{flags:0},data:{custom_id:`t:${who}:any:renoBoard~${page}`}};
   const data=await answerRenovation(e,i);bounds(data);all.push(data.content);
   assert(!data.content.includes('余额'));assert(data.components.flatMap(r=>r.components).every(c=>c.custom_id.length<=100));
  }
  for(const item of RENOVATION_ITEMS)assert(all.join('\n').includes(item.name));
- assert.equal(all.join('\n').split('\n').filter(line=>line.includes('· Lv.')).length,24);
+ assert.equal(all.join('\n').split('\n').filter(line=>line.includes('· Lv.')).length,RENOVATION_ITEMS.length);
  const privateMenu=await answerRenovation(e,{type:2,guild_id:who,channel_id:who,member:{user:{id:who,username:longName}},data:{name:'酒馆',options:[{name:'装修'}]}});
  bounds(privateMenu);assert(privateMenu.content.length<2000);assert(privateMenu.content.includes('余额'));
  const inspectMenu=privateMenu.components.flatMap(r=>r.components).find(c=>c.custom_id.includes('renoInspect'));
- assert.equal(inspectMenu.options.length,24);
+ assert.equal(inspectMenu.options.length,25);
  const locked=env(),svc=locked.service,lockedReno=svc.renovation;lockedReno.sql.exec('INSERT INTO tavern_reno_assets VALUES(?,?,?,?,?,?,?,?)','sound',1,'原始冠名','123','创始来客','456','升级来客',Date.now());
  const lockedMenu=await answerRenovation(locked,{type:2,guild_id:'3',channel_id:'2',member:{user:{id:'1',username:'Alice'}},data:{name:'酒馆',options:[{name:'装修'}]}});
  assert(lockedMenu.content.includes('店铺达到暖灯酒馆后解锁'));
@@ -72,6 +72,19 @@ test('private title modal, preview and confirmation charge once and yield nonce-
  const receipt=await answerRenovation(e,comp(confirmId));assert(receipt.content.includes('余额 0币'));assert(receipt._renovationAnnouncement.nonce);assert(receipt._renovationAnnouncement.content.includes('邻窗木衣架'));
  const again=await answerRenovation(e,comp(confirmId));assert(again.content.includes('没有再次扣款'));assert.equal(again._renovationAnnouncement,null);
  const publicBoard=comp('renoBoard',{privateView:false});publicBoard.data.custom_id='t:3:any:renoBoard';const publicData=await answerRenovation(e,publicBoard);bounds(publicData);assert(!publicData.content.includes('余额'));
+});
+
+test('equipment details, purchase preview and receipt show permanent public menu unlocks and art',async()=>{
+ const e=env(),item=RENOVATION_ITEMS.find(x=>x.menuUnlocks?.length);assert(item);
+ e.service.view('1','Alice');e.service.sql.exec('UPDATE tavern_members SET balance=balance+? WHERE id=?',item.levels[0].price,'1');
+ const detail=await answerRenovation(e,comp('renoInspect~equipment',{values:[item.id]}));bounds(detail);
+ for(const dish of item.menuUnlocks)assert(detail.content.includes(dish));
+ assert.match(detail.content,/本服务器永久加入公共菜单/);assert.equal(detail.embeds[0]?.image?.url?.includes(`/art/equipment/${item.artId}/v1.jpg`),true);
+ const modal=immediateRenovationReply(comp(`renoTitle~${item.id}`));assert.equal(modal.type,9);
+ const preview=await answerRenovation(e,{type:5,...base,data:{custom_id:modal.data.custom_id,components:[{components:[{custom_id:'title',value:'新设备'}]}]}});bounds(preview);
+ for(const dish of item.menuUnlocks)assert(preview.content.includes(dish));assert.equal(preview.embeds[0]?.image?.url?.includes(`/art/equipment/${item.artId}/v1.jpg`),true);
+ const confirmId=preview.components[0].components[0].custom_id.split(':')[3],receipt=await answerRenovation(e,comp(confirmId));bounds(receipt);
+ for(const dish of item.menuUnlocks)assert(receipt.content.includes(dish));assert.equal(receipt.embeds[0]?.image?.url?.includes(`/art/equipment/${item.artId}/v1.jpg`),true);
 });
 
 test('a failed public announcement keeps the private receipt and confirmed debit',async t=>{

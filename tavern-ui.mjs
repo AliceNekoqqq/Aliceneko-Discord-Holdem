@@ -13,7 +13,7 @@ const button=(guild,id,action,label,style=2)=>({type:2,custom_id:key(guild,id,ac
 const choices=map=>Object.entries(map).map(([value,label])=>({name:label,value}));
 export const tavernCommand={name:'酒馆',description:'红豆粉的小酒馆：点单、钱包和常客卡',type:1,integration_types:[0],contexts:[0],options:[
  {type:1,name:'菜单',description:'看看饮品与小食，打开自己的点单面板'},
- {type:1,name:'点单',description:'选餐饮，确认后才扣酒馆币',options:[{type:3,name:'商品',description:'想点哪一份？',required:true,choices:MENU.map(p=>({name:`${p.name} · ${p.price}币`,value:p.id}))},{type:3,name:'甜度',description:'本单甜度；不选则沿用常客卡',choices:choices(SWEETNESS)},{type:3,name:'温度',description:'饮品温度；固定温度餐饮按菜品供应',choices:choices(TEMPERATURE)},{type:3,name:'心情',description:'心情特调的名字',choices:choices(MOODS)}]},
+ {type:1,name:'点单',description:'选餐饮，确认后才扣酒馆币',options:[{type:3,name:'商品',description:'想点哪一份？',required:true,choices:MENU.filter(p=>!p.requiresEquipment).map(p=>({name:`${p.name} · ${p.price}币`,value:p.id}))},{type:3,name:'甜度',description:'本单甜度；不选则沿用常客卡',choices:choices(SWEETNESS)},{type:3,name:'温度',description:'饮品温度；固定温度餐饮按菜品供应',choices:choices(TEMPERATURE)},{type:3,name:'心情',description:'心情特调的名字',choices:choices(MOODS)}]},
  {type:1,name:'钱包',description:'查看余额、今日游戏收入和最近流水'},
  {type:1,name:'常客卡',description:'设置口味、忌口和常坐的位置'},
  {type:1,name:'帮助',description:'查看赚币规则和点单说明'}
@@ -21,7 +21,7 @@ export const tavernCommand={name:'酒馆',description:'红豆粉的小酒馆：�
 tavernCommand.options.push(...renoCommandOptions);
 tavernCommand.options.unshift(lobbyCommandOption);
 tavernCommand.options.push(petCommandOption);
-export const TAVERN_HELP=`🍵 **红豆粉的小酒馆**\n先用大厅按钮：吧台点单、钱包、常客卡、店内、共同装修、捐赠档案、贡献榜、小游戏、今日经营、季节菜单、共同活动和刷新。自然语言也可说“打开酒馆”或“走进酒馆”。\n快捷入口：\`/酒馆 大厅\`、\`/酒馆 菜单\`、\`/酒馆 点单\`、\`/酒馆 钱包\`、\`/酒馆 常客卡\`；装修也可用\`/酒馆 店内\`、\`/酒馆 装修\`、\`/酒馆 贡献榜\`、\`/酒馆 捐赠档案\`。\n每服务器独立共用一家店，跨频道共用装修。确认餐饮消费和主动出资按1币=1建设值，消费不再扣一次；装修先预览，3分钟内本人在原频道确认才扣款，余额流水仅本人可见。\n新客欢迎金 **${WELCOME_COINS}币**，每服务器一次。${Object.values(REWARDS).map(r=>`${r.name} +${r.base}，胜者另 +${r.bonus}`).join('；')}。钱包内可手动领取每日到店礼20币，每天一次，北京时间零点刷新；与游戏奖励共用每日${DAILY_REWARD_CAP}币上限。至少两位真人实际行动才算合格；抽鬼牌/德州/UNO/骗子酒馆需分别达到15/30/45/60秒。同组每日前${ROSTER_DAILY_LIMIT}局跨游戏累计，奖励依次为全额、半额、四分之一（向下取整），之后为零。挂机、陪练局、取消局不发币，也没有按聊天条数发币。UNO按小局结算；德州筹码不兑换酒馆币。饮品无酒精；自然语言点单仍需按钮确认。`;
+export const TAVERN_HELP=`🍵 **红豆粉的小酒馆**\n先用大厅按钮：吧台点单、钱包、常客卡、店内、共同装修、捐赠档案、贡献榜、小游戏、今日经营、季节菜单、共同活动和刷新。自然语言也可说“打开酒馆”或“走进酒馆”。\n快捷入口：\`/酒馆 大厅\`、\`/酒馆 菜单\`、\`/酒馆 点单\`、\`/酒馆 钱包\`、\`/酒馆 常客卡\`；装修也可用\`/酒馆 店内\`、\`/酒馆 装修\`、\`/酒馆 贡献榜\`、\`/酒馆 捐赠档案\`。\n每服务器独立共用一家店，跨频道共用装修。确认餐饮消费和主动出资按1币=1建设值，消费不再扣一次；装修先预览，3分钟内本人在原频道确认才扣款，余额流水仅本人可见。设备页购置咖啡机、烤箱、搅拌机与冰淇淋机，永久解锁本服务器公共菜单；新品从菜单分类里点单。\n新客欢迎金 **${WELCOME_COINS}币**，每服务器一次。${Object.values(REWARDS).map(r=>`${r.name} +${r.base}，胜者另 +${r.bonus}`).join('；')}。钱包内可手动领取每日到店礼20币，每天一次，北京时间零点刷新；与游戏奖励共用每日${DAILY_REWARD_CAP}币上限。至少两位真人实际行动才算合格；抽鬼牌/德州/UNO/骗子酒馆需分别达到15/30/45/60秒。同组每日前${ROSTER_DAILY_LIMIT}局跨游戏累计，奖励依次为全额、半额、四分之一（向下取整），之后为零。挂机、陪练局、取消局不发币，也没有按聊天条数发币。UNO按小局结算；德州筹码不兑换酒馆币。饮品无酒精；自然语言点单仍需按钮确认。`;
 const navigation=(g,id)=>row(button(g,id,'lobby','🏡 大厅'),button(g,id,'menu','🍵 菜单'),button(g,id,'wallet','🪙 钱包'),button(g,id,'card','🦋 常客卡'),button(g,id,'reno','🔧 装修'));
 export function menuData(data,id,guild,publicView=false,category='all'){
  const view=renderMenu(data,id,guild,publicView,category);
@@ -95,7 +95,7 @@ export async function answerTavern(env,i){
  if(action.startsWith('menuCat~')){
   const category=action.slice(8);if(!MENU_CATEGORIES.some(c=>c.id===category))throw Error('请从菜单分类中选择。');
   const publicView=String(i.data.custom_id).split(':')[2]==='any';
-  const data=publicView?{menu:await tavernRequest(env,{...base,action:'opsMenu'})}:await tavernRequest(env,{...base,action:'view'});
+  const data=publicView?await tavernRequest(env,{...base,action:'opsMenuStatus'}):await tavernRequest(env,{...base,action:'view'});
   await tavernRequest(env,{...base,action:'mapMove',area:'bar'});
   return menuData(data,id,guild,publicView,category);
  }
@@ -126,7 +126,7 @@ export function tavernDeferredReply(i){if(i.type===3&&String(i.data?.custom_id||
 export async function finishTavern(env,i){
  let data;try{data=await answerTavern(env,i);}catch(e){data={content:`🍵 ${e.message}`,components:[],allowed_mentions:mentions};}
  const announcement=data._renovationAnnouncement;delete data._renovationAnnouncement;
- if(announcement){let sent=false;try{const r=await fetch(`https://discord.com/api/v10/channels/${i.channel_id}/messages`,{method:'POST',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({content:announcement.content,allowed_mentions:mentions,nonce:announcement.nonce,enforce_nonce:true}),signal:AbortSignal.timeout(5000)});sent=r.ok;}catch{}
+ if(announcement){let sent=false;try{const r=await fetch(`https://discord.com/api/v10/channels/${i.channel_id}/messages`,{method:'POST',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({content:announcement.content,embeds:announcement.embeds||[],allowed_mentions:mentions,nonce:announcement.nonce,enforce_nonce:true}),signal:AbortSignal.timeout(5000)});sent=r.ok;}catch{}
   if(!sent)data.content+=`\n\n📨 频道公告未能送达；这张收据仍有效，出资没有回滚。`;
  }
  const mapImage=data._mapImage;delete data._mapImage;
@@ -176,7 +176,7 @@ export async function handleNaturalTavern(env,message,text){
    const live=await tavernRequest(env,{...base,action:'mapRender',scene:true}).catch(()=>null);
    data=tavernLobbyData(board,base.guild,'any',operations,live);
   }
-  else if(intent.action==='menu'){const available=menu||await tavernRequest(env,{...base,action:'opsMenu'});await tavernRequest(env,{...base,action:'mapMove',area:'bar'});data=menuData({menu:available},base.id,base.guild,true);}
+  else if(intent.action==='menu'){const status=await tavernRequest(env,{...base,action:'opsMenuStatus'});await tavernRequest(env,{...base,action:'mapMove',area:'bar'});data=menuData(status,base.id,base.guild,true);}
   else if(intent.action==='dish'){
    const item=(menu||MENU).find(p=>p.id===intent.item),embeds=artEmbed(item.id);
    data={content:`${renderDishDetails(item)}\n${item.price?`${item.price}酒馆币`:'免费'}${embeds.length?'':'\n这道菜还在补图清单里。'}`,embeds,components:[row(button(base.guild,'any','menu','打开我的点单面板',1))],allowed_mentions:mentions};

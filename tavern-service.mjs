@@ -39,7 +39,7 @@ export class TavernService {
   const member=this.member(id,name,now),daily=this.one('SELECT earned FROM tavern_daily WHERE user_id=? AND day=?',id,dayKey(now));
   const dailyGiftClaimed=!!this.one('SELECT id FROM tavern_ledger WHERE id=?',`dailyGift:${id}:${dayKey(now)}`);
   this.operations.visit(id,member.name,now);
-  return {member,menu:this.operations.menu(now),dailyGiftClaimed,dailyGiftAvailable:dailyGiftClaimed?0:Math.max(0,Math.min(DAILY_GIFT_COINS,DAILY_REWARD_CAP-(daily?.earned||0))),earned:daily?.earned||0,cap:DAILY_REWARD_CAP,orders:this.rows('SELECT * FROM tavern_orders WHERE user_id=? ORDER BY at DESC LIMIT 5',id).map(o=>({...o,details:JSON.parse(o.details)})),ledger:this.rows('SELECT amount,kind,note,at FROM tavern_ledger WHERE user_id=? ORDER BY at DESC LIMIT 6',id),frequent:this.one('SELECT item,COUNT(*) AS count FROM tavern_orders WHERE user_id=? AND price>0 GROUP BY item ORDER BY count DESC,MAX(at) DESC LIMIT 1',id),count:this.one('SELECT COUNT(*) AS n FROM tavern_orders WHERE user_id=?',id)?.n||0};
+  return {member,menu:this.operations.menu(now),lockedMenu:this.operations.lockedMenu(),dailyGiftClaimed,dailyGiftAvailable:dailyGiftClaimed?0:Math.max(0,Math.min(DAILY_GIFT_COINS,DAILY_REWARD_CAP-(daily?.earned||0))),earned:daily?.earned||0,cap:DAILY_REWARD_CAP,orders:this.rows('SELECT * FROM tavern_orders WHERE user_id=? ORDER BY at DESC LIMIT 5',id).map(o=>({...o,details:JSON.parse(o.details)})),ledger:this.rows('SELECT amount,kind,note,at FROM tavern_ledger WHERE user_id=? ORDER BY at DESC LIMIT 6',id),frequent:this.one('SELECT item,COUNT(*) AS count FROM tavern_orders WHERE user_id=? AND price>0 GROUP BY item ORDER BY count DESC,MAX(at) DESC LIMIT 1',id),count:this.one('SELECT COUNT(*) AS n FROM tavern_orders WHERE user_id=?',id)?.n||0};
  }
  claimDaily(id,name,now=Date.now()){
   if(!validId(id))throw Error('请打开自己的酒馆钱包。');
@@ -67,7 +67,7 @@ export class TavernService {
  }
  prepare(p,now=Date.now()){
   if(!validId(p.channel)||typeof p.requestKey!=='string'||!/^[-a-zA-Z0-9_]{1,80}$/.test(p.requestKey))throw Error('点单窗口无效，请重新打开菜单。');
-  const item=this.operations.item(p.item,now);if(!item)throw Error('这款商品不在当前菜单。');
+  const item=this.operations.item(p.item,now);if(!item){const locked=this.operations.lockedMenu().find(x=>x.id===p.item);throw Error(locked?`${locked.name}尚未解锁；${locked.lockReason}。`:'这款商品不在当前菜单。');}
   const member=this.member(p.id,p.name,now);
   let draft=this.one('SELECT * FROM tavern_drafts WHERE request_key=?',p.requestKey);
   if(draft){if(draft.user_id!==p.id||draft.channel!==p.channel)throw Error('点单窗口不属于你。');return {...draft,details:JSON.parse(draft.details),balance:member.balance};}

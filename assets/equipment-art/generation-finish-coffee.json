@@ -1,0 +1,16 @@
+{
+  "cappuccino": {
+    "prompt": "Use case: product-mockup\nAsset type: square item illustration for a cozy tavern equipment menu\nPrimary request: a single cappuccino served in a white ceramic cup and saucer, with thick velvety milk foam and a soft pale milk-colored ring visible in the coffee center; appetizing and clearly recognizable as cappuccino.\nScene/backdrop: warm wooden tavern tabletop, softly suggested and uncluttered.\nStyle/medium: warm watercolor storybook product illustration matching the project's existing Americano and butter croissant menu art; hand-painted paper texture, gentle outlines, warm natural colors.\nComposition/framing: centered close product view, cup and saucer fully visible, generous clean margins, square image.\nLighting/mood: soft warm indoor light, calm welcoming café mood.\nConstraints: one cup only, clean focal subject, no people, no lettering, no logo, no watermark.",
+    "source": "/workspace/scratch/d1b0bcf48214/generated_images/exec-18ee7ecb-cdf8-4a66-8143-7cb1124b0815.png",
+    "original": "tavern/assets/equipment-art/original/cappuccino.png",
+    "jpeg": "tavern/assets/equipment-art/cappuccino.jpg",
+    "status": "generated and saved"
+  },
+  "cheese-toast": {
+    "prompt": "Use case: product-mockup\nAsset type: square item illustration for a cozy tavern equipment menu\nPrimary request: two halves of golden toasted bread with melted cheese, served together as a simple cheese toast; the cheese is visibly soft and melted over the toast, appetizing and clearly recognizable.\nScene/backdrop: warm wooden tavern tabletop, softly suggested and uncluttered.\nStyle/medium: warm watercolor storybook product illustration matching the project's existing Americano and butter croissant menu art; hand-painted paper texture, gentle outlines, warm natural colors.\nComposition/framing: centered close product view, both toast halves fully visible with a little space between them, square image.\nLighting/mood: soft warm indoor light, calm welcoming café mood.\nConstraints: exactly two toast halves, clean focal subject, no people, no lettering, no logo, no watermark.",
+    "source": "/workspace/scratch/d1b0bcf48214/generated_images/exec-bbd8c290-f34a-40d8-abd7-5e8f4cdc51bd.png",
+    "original": "tavern/assets/equipment-art/original/cheese-toast.png",
+    "jpeg": "tavern/assets/equipment-art/cheese-toast.jpg",
+    "status": "generated and saved"
+  }
+}

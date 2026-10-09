@@ -2,7 +2,7 @@ import {Canvas,encodePNG} from './card-image.mjs';
 import {prepareNicknameFont} from './nickname-font.mjs';
 import {TAVERN_BUILDING} from './tavern-building.mjs';
 
-export const TAVERN_SCENE_VERSION='riverside-mobile-readable-v2';
+export const TAVERN_SCENE_VERSION='riverside-equipment-v3';
 const W=1000,H=760;
 const C={ink:[73,48,48],muted:[127,87,78],cream:[249,229,202],cream2:[239,211,179],walnut:[116,70,55],walnut2:[158,100,69],wood2:[185,132,91],wood3:[211,164,119],woodLine:[125,76,57],brick:[94,61,62],brickLight:[135,86,78],berry:[218,133,158],river:[124,190,198],riverDeep:[65,117,137],green:[84,130,92],gold:[240,185,94],white:[255,247,231],shade:[55,38,45],blue:[114,151,168]};
 const label=(c,s,x,y,n=13,color=C.ink,center=true)=>c.text(s,x,y,n,color,center);
@@ -52,6 +52,10 @@ function drawFurnitureTop(c,x,y,w,d,z,color=C.wood2){quad(c,[[x,y,z],[x+w,y,z],[
 function drawStool(c,x,y,color=C.wood3){cuboid(c,x-3,y-3,6,6,14,C.walnut,C.walnut);cuboid(c,x-3,y+7,6,6,14,C.walnut,C.walnut);drawFurnitureTop(c,x-13,y-9,26,18,17,color);}
 function drawFixture(c,a){const id=a.id,def=TAVERN_BUILDING.fixtures[id];if(!def)return;const {x,y,shape}=def,level=Math.max(1,Math.min(9,Number(a.level)||1)),p=project(x,y,0),pink=C.berry,wood=level>1?C.wood3:C.wood2;
  switch(shape){
+ case'coffee':cuboid(c,x-14,y-10,28,20,34,C.brickLight,C.walnut);c.rect(p[0]-10,p[1]-29,20,13,C.ink,2);dot(c,p[0]-4,p[1]-19,3,C.cream);line(c,[p[0]+9,p[1]-26],[p[0]+12,p[1]-17],C.gold,2);break;
+ case'oven':cuboid(c,x-20,y-14,40,28,28,C.cream2,C.walnut);c.rect(p[0]-13,p[1]-28,26,15,C.ink,2);c.rect(p[0]-9,p[1]-24,18,7,C.gold,1);line(c,[p[0]-10,p[1]-31],[p[0]+10,p[1]-31],C.walnut,2);break;
+ case'blender':cuboid(c,x-9,y-8,18,16,12,C.berry,C.walnut);c.rect(p[0]-7,p[1]-34,14,21,C.blue,3);c.rect(p[0]-5,p[1]-24,10,9,C.berry,2);c.rect(p[0]-9,p[1]-36,18,4,C.cream,1);break;
+ case'icecream':cuboid(c,x-14,y-12,28,24,38,C.cream2,C.walnut);c.rect(p[0]-8,p[1]-33,16,9,C.blue,2);line(c,[p[0],p[1]-22],[p[0],p[1]-14],C.walnut,3);dot(c,p[0],p[1]-10,5,C.white);break;
  case'table':for(const [xx,yy] of [[-27,-20],[22,-20],[-27,15],[22,15]])cuboid(c,x+xx,y+yy,5,5,22,C.walnut,C.walnut);drawFurnitureTop(c,x-34,y-25,68,50,25,wood);break;
  case'seat':cuboid(c,x-12,y-6,5,5,13,C.walnut,C.walnut);cuboid(c,x+24,y-6,5,5,13,C.walnut,C.walnut);drawFurnitureTop(c,x-16,y-12,48,22,16,level>1?pink:C.wood3);cuboid(c,x-16,y-11,48,6,24,C.walnut2,C.walnut);break;
  case'shelf':cuboid(c,x-13,y-6,4,4,47,C.walnut,C.walnut);cuboid(c,x+9,y-6,4,4,47,C.walnut,C.walnut);for(let i=0;i<3;i++){drawFurnitureTop(c,x-18,y-7+i*12,36,15,18+i*10,C.walnut2);for(let j=0;j<Math.min(4,level+1);j++)c.rect(p[0]-14+j*7,p[1]-35+i*11,4,8,[C.berry,C.green,C.gold,C.blue][j%4]);}break;

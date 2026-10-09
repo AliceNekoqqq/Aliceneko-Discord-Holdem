@@ -1,6 +1,7 @@
 import {RENOVATION_ITEMS,RENOVATION_CATEGORIES,SHOP_STAGES} from './tavern-renovation-catalog.mjs';
 import {cleanText} from './tavern-catalog.mjs';
 import {tavernRequest} from './tavern-service.mjs';
+import {equipmentArtEmbed} from './equipment-art.mjs';
 const mentions={parse:[]};
 const row=(...components)=>({type:1,components});
 const id=(g,u,a)=>`t:${g}:${u}:${a}`;
@@ -85,8 +86,9 @@ function historyData(h,g,u,item=''){
  buttons.push(btn(g,'any','renoBoard~0','返回店内'),btn(g,'any','lobby','🏡 大厅'));
  return {content:`📜 **捐赠档案**${item?` · ${safe(RENOVATION_ITEMS.find(x=>x.id===item)?.name||item)}升级履历`:''}\n第 ${h.page+1} 页\n\n${fmt(lines)}`,components:[row(...buttons.slice(0,5))],allowed_mentions:mentions};
 }
+function unlockText(item){return item?.menuUnlocks?.length?`\n解锁新品：${item.menuUnlocks.join('、')}（本服务器永久加入公共菜单）`:'';}
 function catalogData(b,g,u,category=''){
- const rows=(b.catalog||[]).filter(x=>!category||x.category===category).map(x=>`${x.emoji||'🪑'} **${safe(x.name,32)}** · ${x.ownedLevel?`已拥有 Lv.${x.ownedLevel}${x.nextLevel?x.available?` · 升至${x.nextLevel}级 ${x.nextPrice}币`:` · ${safe(x.lockReason||'尚未解锁',32)}`:' · 已满级'}`:x.available?`可购 ${x.nextPrice}币`:`🔒 ${safe(x.lockReason||'尚未解锁',32)}`}`);
+ const rows=(b.catalog||[]).filter(x=>!category||x.category===category).map(x=>{const item=RENOVATION_ITEMS.find(it=>it.id===x.id);return `${x.emoji||'🪑'} **${safe(x.name,32)}** · ${x.ownedLevel?`已拥有 Lv.${x.ownedLevel}${x.nextLevel?x.available?` · 升至${x.nextLevel}级 ${x.nextPrice}币`:` · ${safe(x.lockReason||'尚未解锁',32)}`:' · 已满级'}`:x.available?`可购 ${x.nextPrice}币`:`🔒 ${safe(x.lockReason||'尚未解锁',32)}`}${unlockText(item)}`;});
  const cats=Object.entries(RENOVATION_CATEGORIES);
  const categoryOptions=[{label:'全部类别',value:'all'},...cats.map(([value,label])=>({label,value}))];
  let comps=[row({type:3,custom_id:id(g,u,'renoCategory'),placeholder:'按类别筛选目录',options:categoryOptions})];
@@ -95,18 +97,18 @@ function catalogData(b,g,u,category=''){
  const inspect=(b.catalog||[]).filter(x=>!category||x.category===category);
  if(inspect.length)comps.push(row({type:3,custom_id:id(g,u,`renoInspect~${category||'all'}`),placeholder:'查看任意项目详情（含锁定项目）',options:inspect.slice(0,25).map(x=>({label:`${x.emoji||'🪑'} ${x.name}`.slice(0,100),value:x.id,description:(x.available?`可出资 ${x.nextPrice}币`:x.lockReason||'查看状态与级别效果').slice(0,100)}))}));
  comps.push(row(btn(g,'any','lobby','🏡 返回大厅')));
- return {content:`🔧 **共同装修目录**\n${stageText(b)}\n分类：${category?safe(RENOVATION_CATEGORIES[category]||category):'全部'}\n${rows.join('\n')||'这个分类暂时没有项目。'}\n\n私密余额：**${b.balance??0}币** · 预览不会扣款，确认时才出资。`,components:comps,allowed_mentions:mentions};
+ return {content:`🔧 **共同装修目录**\n${stageText(b)}\n分类：${category?safe(RENOVATION_CATEGORIES[category]||category):'全部'}\n${rows.join('\n')||'这个分类暂时没有项目。'}\n\n设备购置后会永久解锁本服务器公共菜单新品。\n私密余额：**${b.balance??0}币** · 预览不会扣款，确认时才出资。`,components:comps,allowed_mentions:mentions};
 }
 function detailData(b,g,u,itemId,history){
  const it=RENOVATION_ITEMS.find(x=>x.id===itemId),entry=(b.assets||[]).find(x=>x.item===itemId||x.item?.id===itemId),cat=(b.catalog||[]).find(x=>x.id===itemId);
  if(!it)return {content:'物件目录已更新，请重新打开装修目录。',components:[row(btn(g,u,'reno','返回目录'))],allowed_mentions:mentions};
  const levels=it.levels.map(l=>`${l.level}. ${safe(l.label)} · ${l.price}币 · ${safe(SHOP_STAGES[l.stage]?.name||'当前即可')}解锁 · ${safe(l.scene,80)}`);
  const past=(history?.entries||[]).map(x=>`${safe(x.donor_name,32)}：Lv.${x.level}「${safe(x.name,24)}」 · ${x.price}币`);
- return {content:`${it.emoji||'🪑'} **${safe(it.name)}**\n${safe(it.description,80)}\n类别：${safe(RENOVATION_CATEGORIES[it.category]||it.category)}\n\n**各级效果、价格与解锁**\n${fmt(levels)}\n\n**当前状态**\n${entry?`Lv.${entry.level} · 最初冠名「${safe(entry.name,24)}」，创始者 ${safe(entry.founder?.name,32)}；本级冠名「${safe(entry.levelName||entry.name,24)}」，最近出资者 ${safe(entry.updatedBy?.name,32)}。`:cat?.lockReason?`尚未购置。${safe(cat.lockReason)}`:'尚未购置。'}\n\n**出资记录**\n${fmt(past)}`,components:[row(btn(g,u,`renoTitle~${itemId}`,cat?.available?'填写冠名并预览':'暂不可购置',1,!cat?.available),btn(g,'any',`renoHistory~0~${itemId}`,'查看此物件完整履历'),btn(g,u,'reno','返回目录')),row(btn(g,'any','lobby','🏡 返回大厅'))],allowed_mentions:mentions};
+ return {content:`${it.emoji||'🪑'} **${safe(it.name)}**\n${safe(it.description,80)}\n类别：${safe(RENOVATION_CATEGORIES[it.category]||it.category)}${unlockText(it)}\n\n**各级效果、价格与解锁**\n${fmt(levels)}\n\n**当前状态**\n${entry?`Lv.${entry.level} · 最初冠名「${safe(entry.name,24)}」，创始者 ${safe(entry.founder?.name,32)}；本级冠名「${safe(entry.levelName||entry.name,24)}」，最近出资者 ${safe(entry.updatedBy?.name,32)}。`:cat?.lockReason?`尚未购置。${safe(cat.lockReason)}`:'尚未购置。'}\n\n**出资记录**\n${fmt(past)}`,embeds:equipmentArtEmbed(it.artId),components:[row(btn(g,u,`renoTitle~${itemId}`,cat?.available?'填写冠名并预览':'暂不可购置',1,!cat?.available),btn(g,'any',`renoHistory~0~${itemId}`,'查看此物件完整履历'),btn(g,u,'reno','返回目录')),row(btn(g,'any','lobby','🏡 返回大厅'))],allowed_mentions:mentions};
 }
 function draftData(d,g,u){
  const it=RENOVATION_ITEMS.find(x=>x.id===d.item);
- return {content:`🧾 **装修出资预览**\n${it?.emoji||'🪑'} ${safe(it?.name)} · Lv.${d.level}「${safe(d.name,24)}」\n本次：${d.kind==='upgrade'?'升级':'购置'} · **${d.price}币**\n当前余额：**${d.balance}币**\n\n${d.expires<=Date.now()||d.status!=='pending'?'预览已处理或过期，请重新打开目录。':'现在尚未扣款；3分钟内只能由你在这个频道确认。确认后不可撤销，名称与出资者会进入公开档案。'}`,components:d.expires<=Date.now()||d.status!=='pending'?[row(btn(g,u,'reno','返回目录'),btn(g,'any','lobby','🏡 大厅'))]:[row(btn(g,u,`renoConfirm~${d.id}`,`确认出资 · ${d.price}币`,1),btn(g,u,'reno','返回目录'),btn(g,'any','lobby','🏡 大厅'))],allowed_mentions:mentions};
+ return {content:`🧾 **装修出资预览**\n${it?.emoji||'🪑'} ${safe(it?.name)} · Lv.${d.level}「${safe(d.name,24)}」${it?.menuUnlocks?.length&&d.kind!=='upgrade'?unlockText(it):''}\n本次：${d.kind==='upgrade'?'升级':'购置'} · **${d.price}币**\n当前余额：**${d.balance}币**\n\n${d.expires<=Date.now()||d.status!=='pending'?'预览已处理或过期，请重新打开目录。':'现在尚未扣款；3分钟内只能由你在这个频道确认。确认后不可撤销，名称与出资者会进入公开档案。'}`,embeds:equipmentArtEmbed(it?.artId),components:d.expires<=Date.now()||d.status!=='pending'?[row(btn(g,u,'reno','返回目录'),btn(g,'any','lobby','🏡 大厅'))]:[row(btn(g,u,`renoConfirm~${d.id}`,`确认出资 · ${d.price}币`,1),btn(g,u,'reno','返回目录'),btn(g,'any','lobby','🏡 大厅'))],allowed_mentions:mentions};
 }
 async function call(env,p){return tavernRequest(env,{...p,action:p.action});}
 async function answerRenovationInternal(env,i){
@@ -123,7 +125,8 @@ async function answerRenovationInternal(env,i){
   const draftId=a.slice(12),answer=await call(env,{...base,action:'renoConfirm',draftId});
   const c=answer.contribution,it=RENOVATION_ITEMS.find(x=>x.id===c?.item),kind=c?.kind==='upgrade'?'升级':'购置',level=c?.level||answer.asset?.level||1,title=safe(c?.name||answer.asset?.levelName||answer.asset?.name,24),donor=safe(c?.donor_name||name,32);
   const success=`🏮 **小酒馆${kind}了新装修**\n${it?.emoji||'🪑'} ${safe(it?.name||answer.asset?.item_name||c?.item,32)} · Lv.${level}「${title}」\n感谢 ${donor} 的共同出资。`;
-  return {content:`✅ **出资收据 · ${kind}**\n${it?.emoji||'🪑'} ${safe(it?.name||answer.asset?.item_name||c?.item,32)} · Lv.${level}「${title}」\n捐赠者：${donor} · 本次 ${c?.price||0}币\n余额 ${answer.balance}币 · 建设值 ${answer.total}${answer.repeated?'\n这是已完成出资的收据，没有再次扣款。':''}\n已保存；若频道公告未能送达，出资不会回滚。`,components:[row(btn(g,'any','renoBoard~0','查看店内'),btn(g,u,'reno','继续装修'),btn(g,'any','lobby','🏡 大厅'))],allowed_mentions:mentions,_renovationAnnouncement:answer.repeated?null:{nonce:c?.id,content:success}};
+  const unlocks=it?.menuUnlocks?.length&&c?.kind!=='upgrade'?unlockText(it):'';
+  return {content:`✅ **出资收据 · ${kind}**\n${it?.emoji||'🪑'} ${safe(it?.name||answer.asset?.item_name||c?.item,32)} · Lv.${level}「${title}」${unlocks}\n捐赠者：${donor} · 本次 ${c?.price||0}币\n余额 ${answer.balance}币 · 建设值 ${answer.total}${answer.repeated?'\n这是已完成出资的收据，没有再次扣款。':''}\n已保存；若频道公告未能送达，出资不会回滚。`,embeds:equipmentArtEmbed(it?.artId),components:[row(btn(g,'any','renoBoard~0','查看店内'),btn(g,u,'reno','继续装修'),btn(g,'any','lobby','🏡 大厅'))],allowed_mentions:mentions,_renovationAnnouncement:answer.repeated?null:{nonce:c?.id,content:success+unlocks,embeds:equipmentArtEmbed(it?.artId)}};
  }
  if(a==='reno'||a==='renoEnter'||a==='装修')return catalogData(await call(env,{...base,action:'renoBoard',privateView:true}),g,u);
  if(a==='renoBoard'||a.startsWith('renoBoard~')){const parsed=Number(a.split('~')[1]||0),page=Number.isSafeInteger(parsed)&&parsed>=0?parsed:0,board=await call(env,{...base,action:'renoBoard'});return rootBoard(board,g,u,page);}

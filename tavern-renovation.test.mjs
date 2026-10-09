@@ -13,17 +13,17 @@ const setup=()=>{const store=storage(),service=new TavernService(store);return {
 const p={guild:'3',id:'1',name:'Alice',channel:'2'};
 function renoDraft(s,item,title,key='key',at=Date.now()){return s.dispatch({...p,action:'renoPrepare',item,title,requestKey:key,at});}
 
-test('catalog has 18 one-time objects, six three-level facilities and five increasing stages',()=>{
- assert.equal(RENOVATION_ITEMS.length,24);assert.equal(RENOVATION_ITEMS.filter(x=>x.kind==='object').length,18);assert.equal(RENOVATION_ITEMS.filter(x=>x.kind==='facility'&&x.levels.length===3).length,6);
+test('catalog has 22 one-time objects, six three-level facilities and five increasing stages',()=>{
+ assert.equal(RENOVATION_ITEMS.length,28);assert.equal(RENOVATION_ITEMS.filter(x=>x.kind==='object').length,22);assert.equal(RENOVATION_ITEMS.filter(x=>x.kind==='facility'&&x.levels.length===3).length,6);
  assert.deepEqual(SHOP_STAGES.map(x=>x.threshold),[0,600,3000,10000,25000]);assert.equal(shopStage(9999).level,2);assert.equal(shopStage(10000).level,3);assert.equal(shopStage(25000).level,4);
- assert.equal(RENOVATION_ITEMS.filter(x=>x.kind==='object').reduce((n,x)=>n+x.levels[0].price,0),9510);assert.equal(RENOVATION_ITEMS.filter(x=>x.kind==='facility').flatMap(x=>x.levels).reduce((n,x)=>n+x.price,0),32900);
+ assert.equal(RENOVATION_ITEMS.filter(x=>x.kind==='object').reduce((n,x)=>n+x.levels[0].price,0),17710);assert.equal(RENOVATION_ITEMS.filter(x=>x.kind==='facility').flatMap(x=>x.levels).reduce((n,x)=>n+x.price,0),32900);
  for(const item of RENOVATION_ITEMS.filter(x=>x.kind==='facility'))assert.deepEqual(item.levels.map(x=>x.stage),[item.levels[0].stage,Math.min(4,item.levels[0].stage+1),Math.min(4,item.levels[0].stage+2)]);
  assert.equal(RENOVATION_ITEMS.find(x=>x.id==='table_lamp').levels[0].price,120);assert.equal(RENOVATION_ITEMS.find(x=>x.id==='ceramic_vase').levels[0].price,140);assert.equal(RENOVATION_ITEMS.find(x=>x.id==='chalk_menu').levels[0].price,120);
 });
 
 test('public board and scene are lazy, expose no member balance, private board creates its wallet, and legacy orders backfill once',async()=>{
  const {store,service:s}=setup();assert.equal(s.rows('SELECT * FROM tavern_members').length,0);
- s.view('1','Alice');store.sql.exec('INSERT INTO tavern_orders(id,user_id,channel,item,price,details,at) VALUES(?,?,?,?,?,?,?)','legacy1','1','2','milk',15,JSON.stringify({itemName:'旧单'}),100);
+ s.member('1','Alice');store.sql.exec('INSERT INTO tavern_orders(id,user_id,channel,item,price,details,at) VALUES(?,?,?,?,?,?,?)','legacy1','1','2','milk',15,JSON.stringify({itemName:'旧单'}),100);
  const publicBoard=await s.dispatch({guild:'3',action:'renoBoard'}),scene=await s.dispatch({guild:'3',action:'renoScene'});
  assert.equal(publicBoard.total,15);assert.equal(publicBoard.balance,undefined);assert.equal(scene.assets.length,0);
  const privateBoard=await s.dispatch({guild:'3',action:'renoBoard',id:'2',name:'New guest',privateView:true});assert.equal(privateBoard.balance,60);assert.equal(s.one('SELECT balance FROM tavern_members WHERE id=?','2').balance,60);

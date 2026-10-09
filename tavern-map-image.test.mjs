@@ -53,7 +53,7 @@ test('all eight table players remain visible and never duplicate into visitor se
 });
 
 test('real area changes alter the map; legacy visitors default to commons and input order does not reshuffle seats',async()=>{
- assert.equal(TAVERN_SCENE_VERSION,'riverside-mobile-readable-v2');
+ assert.equal(TAVERN_SCENE_VERSION,'riverside-equipment-v3');
  const base={at:safeAt(),visitorCount:2,tableCount:0,tables:[],room:{name:'小酒馆',assets:[]}},visitors=[{id:'u2',name:'乙',location:{area:'window',changedAt:1}},{id:'u1',name:'甲',location:{area:'bar',changedAt:2}}];
  const a=await bytes({...base,visitors}),b=await bytes({...base,visitors:[...visitors].reverse()});assert.deepEqual(a,b);
  const moved=await bytes({...base,visitors:[{...visitors[0],location:{area:'quiet',changedAt:3}},visitors[1]]});assert.notDeepEqual(a,moved);

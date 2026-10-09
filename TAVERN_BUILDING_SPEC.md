@@ -10,7 +10,7 @@
 | 西 | 公共客厅、简单长凳 | 客厅 (205, 278) |
 | 东南 | 四个固定游戏桌位 | (505,170)、(690,170)、(505,340)、(690,340) |
 
-材料固定为温暖胡桃木、奶油色灰泥、旧砖红和少量莓粉色蝴蝶点缀。河窗、吧台、后厨、拱门、长凳和四张空桌属于基础建筑；空桌明确标为“空桌”。基础家具不含软座、书架、摆件、茶台等装修道具。地图仅用稳定装修 item ID 加级别显示已购道具；`name`/`item_name` 与 `founder.name` 保留公开捐赠冠名。道具应落在 `fixtures` 对应锚点，不可按任意文本猜测种类或移动房间结构。当前映射覆盖全部 24 个装修 ID：`oak_table`, `window_seat`, `bookshelf`, `coat_rack`, `bar_counter`, `copper_lamp`, `paper_lanterns`, `table_lamp`, `neon_sign`, `river_photo`, `ceramic_vase`, `chalk_menu`, `wall_clock`, `record_player`, `plant_corner`, `rain_bell`, `tea_station`, `pastry_case`, `seating`, `lighting`, `sound`, `climate`, `counter`, `patio`。
+材料固定为温暖胡桃木、奶油色灰泥、旧砖红和少量莓粉色蝴蝶点缀。河窗、吧台、后厨、拱门、长凳和四张空桌属于基础建筑；空桌明确标为“空桌”。基础家具不含软座、书架、摆件、茶台等装修道具。地图仅用稳定装修 item ID 加级别显示已购道具；`name`/`item_name` 与 `founder.name` 保留公开捐赠冠名。道具应落在 `fixtures` 对应锚点，不可按任意文本猜测种类或移动房间结构。当前映射覆盖全部 28 个装修 ID：`oak_table`, `window_seat`, `bookshelf`, `coat_rack`, `bar_counter`, `copper_lamp`, `paper_lanterns`, `table_lamp`, `neon_sign`, `river_photo`, `ceramic_vase`, `chalk_menu`, `wall_clock`, `record_player`, `plant_corner`, `rain_bell`, `tea_station`, `pastry_case`, `seating`, `lighting`, `sound`, `climate`, `counter`, `patio`, `coffee_machine`, `baking_oven`, `blender`, `ice_cream_maker`。
 
 北侧露台预留区为 x=380..600、y=-42..-10；东侧扩建预留区为 x=875..905、y=130..320。它们只用于未来规划；只有真实 `patio` 资产可绘制露台，其他预留区域不画成已拥有建筑。酒馆采光按北京时间切换日、暮、夜；GIF 仅循环河面微光、灯光轻闪与茶台热气，真实访客及牌桌状态冻结到下一次快照。
 
@@ -35,3 +35,5 @@
 ## 手机可读性（beta.41）
 
 相机放大并居中，建筑世界尺寸、房间和24件陈设锚点不变。区名24px、牌桌名22px、阶段18px，人物使用昵称首字圆徽标，保留实际8席与真人/电脑区分；具体昵称、捐赠和等级详情从既有功能入口查看。地图删除重复方位牌和细小陈设名单，320/400宽模拟缩略审阅布局。大厅仍用四帧环境GIF，「清晰原图」提供本人可见的无损PNG，可点开放大，刷新不挪位置、不创建钱包或替换公共大厅。
+
+设备锚点：咖啡机(807,172)、果饮搅拌机(807,260)在东侧吧台，烤箱(815,28)、软冰淇淋机(750,28)在东侧后厨。分别使用coffee/oven/blender/icecream外形，仅已确认购置后绘制。建筑范围、牌桌与访客锚点保持，详细解锁规则见EQUIPMENT_MENU_SPEC.md。

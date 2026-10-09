@@ -46,6 +46,30 @@ test('menu rendering suppresses mention parsing and never mutates supplied menu 
   assert.equal(view.content.includes('@everyone'), true);
 });
 
+test('equipment-locked dishes are visible but never offered as order options', () => {
+  const data = {
+    menu: dishes.slice(0, 2),
+    lockedMenu: [{ id: 'latte', name: '红豆拿铁', category: 'drinks', emoji: '☕', requiresEquipment: 'coffee_machine' }],
+  };
+  const all = renderMenu(data, 'u', 'g');
+  assert.match(all.content, /红豆拿铁.*需要咖啡机/);
+  const options = all.components.find(r => r.components[0]?.type === 3)?.components[0].options || [];
+  assert.deepEqual(options.map(x => x.value), ['dish-0', 'dish-1']);
+  const drinks = renderMenu(data, 'u', 'g', false, 'drinks');
+  assert.match(drinks.content, /购置设备后永久解锁/);
+  assert.equal(drinks.components.find(r => r.components[0]?.type === 3).components[0].options.some(x => x.value === 'latte'), false);
+});
+
+test('all-menu selector remains usable up to 25 dishes and yields to categories above that limit', () => {
+  const twentyFive = Array.from({ length: 25 }, (_, i) => ({ ...dishes[i % dishes.length], id: `dish-${i}` }));
+  const withinLimit = renderMenu({ menu: twentyFive }, 'u', 'g');
+  assert.equal(withinLimit.components.find(r => r.components[0]?.type === 3).components[0].options.length, 25);
+  const overLimit = renderMenu({ menu: [...twentyFive, { ...dishes[0], id: 'dish-25' }] }, 'u', 'g');
+  assert.match(overLimit.content, /超过25款，请先选择/);
+  assert.equal(overLimit.components.some(r => r.components[0]?.type === 3), false);
+  assert.ok(overLimit.components[0].components.some(c => c.custom_id.endsWith(':menuCat~drinks')));
+});
+
 test('dish details support recipe arrays and map fixed temperature labels', () => {
   const text = renderDishDetails({ name: '茶点', ingredients: ['绿茶', '牛乳'], flavor: '清香', pairing: '红豆酥', allergens: ['牛乳'], servingTemperature: 'warm' });
   assert.match(text, /食材：绿茶、牛乳/);

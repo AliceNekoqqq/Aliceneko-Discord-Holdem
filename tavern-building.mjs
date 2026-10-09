@@ -15,6 +15,7 @@ export const TAVERN_BUILDING = Object.freeze({
   }),
   reserved:Object.freeze({northDeck:{x:380,y:-42,width:220,depth:32},eastAnnex:{x:875,y:130,width:30,depth:190}}),
   fixtures:Object.freeze({
+    coffee_machine:{x:807,y:172,shape:'coffee'},baking_oven:{x:815,y:28,shape:'oven'},blender:{x:807,y:260,shape:'blender'},ice_cream_maker:{x:750,y:28,shape:'icecream'},
     oak_table:{x:205,y:310,shape:'table'},window_seat:{x:380,y:35,shape:'seat'},bookshelf:{x:42,y:206,shape:'shelf'},coat_rack:{x:120,y:420,shape:'rack'},bar_counter:{x:786,y:224,shape:'counter'},copper_lamp:{x:415,y:178,shape:'lamp'},paper_lanterns:{x:475,y:250,shape:'lantern'},table_lamp:{x:300,y:350,shape:'lamp'},neon_sign:{x:825,y:300,shape:'sign'},river_photo:{x:78,y:138,shape:'frame'},ceramic_vase:{x:345,y:205,shape:'vase'},chalk_menu:{x:730,y:240,shape:'board'},wall_clock:{x:50,y:110,shape:'clock'},record_player:{x:260,y:350,shape:'gramophone'},plant_corner:{x:330,y:385,shape:'plant'},rain_bell:{x:415,y:-10,shape:'bell'},tea_station:{x:765,y:58,shape:'tea'},pastry_case:{x:765,y:130,shape:'case'},seating:{x:222,y:330,shape:'seating'},lighting:{x:500,y:245,shape:'lamp'},sound:{x:665,y:85,shape:'speaker'},climate:{x:760,y:75,shape:'fan'},counter:{x:790,y:305,shape:'counter'},patio:{x:490,y:-28,shape:'deck'}
   })
 });
