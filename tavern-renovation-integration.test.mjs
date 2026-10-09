@@ -20,13 +20,13 @@ test('signed menu categories browse publicly without a wallet and food preview s
  const select=s.lastReply().components.flatMap(r=>r.components).find(c=>c.type===3);
  assert.equal(select.options.length,6);
  await s.call(s.component(select.custom_id,64,{data:{custom_id:select.custom_id,values:['mushroom-noodles']}}));
- const preview=s.lastReply();assert.match(preview.content,/食材：.*香菇/);assert.match(preview.content,/搭配：/);assert.match(preview.content,/按菜品原味 · 温热/);
+ const preview=s.lastReply();assert.match(preview.embeds[0].image.url,/\/art\/mushroom-noodles\/v1\.jpg$/);assert.match(preview.content,/食材：.*香菇/);assert.match(preview.content,/搭配：/);assert.match(preview.content,/按菜品原味 · 温热/);
  assert.equal(service.view('1').member.balance,60);assert.equal(service.rows('SELECT * FROM tavern_orders').length,0);
  const confirm=preview.components.flatMap(r=>r.components).find(c=>c.custom_id.includes('confirm~')).custom_id;
  await s.call(s.component(confirm,64));await s.call(s.component(confirm,64));
  assert.equal(service.view('1').member.balance,60-MENU.find(p=>p.id==='mushroom-noodles').price);
  assert.equal(service.rows('SELECT * FROM tavern_orders').length,1);
- assert.equal(s.sent.filter(r=>r.url.endsWith('/channels/2/messages')).length,1);
+ assert.equal(s.sent.filter(r=>r.url.endsWith('/channels/2/messages')).length,1);assert.match(s.sent.find(r=>r.url.endsWith('/channels/2/messages')).body.embeds[0].image.url,/mushroom-noodles/);
  const other=await s.call(s.component('t:3:1:menuCat~savory',64,{member:{user:{id:'2',username:'Bob'}}}));assert.equal(other.type,4);
  const malformed=await s.call(s.component('t:4:any:menuCat~savory'));assert.equal(malformed.type,4);
 });
@@ -45,8 +45,18 @@ async function setup(t){
  }
  const component=(custom_id,flags=0,extra={})=>({type:3,message:{flags},data:{custom_id},...extra});
  const lastReply=()=>sent.filter(r=>r.url.includes('/webhooks/')).at(-1)?.body;
- return {call,component,sent,lastReply,instances,env};
+ return {call,component,sent,lastReply,instances,env,request:request=>worker.fetch(request,env,{waitUntil(){}})};
 }
+
+test('public dish assets preserve cache headers through the Worker wrapper without a data object',async t=>{
+ const s=await setup(t),url='https://test/art/milk/v1.jpg';
+ const response=await s.request(new Request(url));assert.equal(response.status,200);
+ assert.equal(response.headers.get('Content-Type'),'image/jpeg');assert.match(response.headers.get('Cache-Control'),/max-age=31536000, immutable/);
+ const bytes=new Uint8Array(await response.arrayBuffer());assert.deepEqual([...bytes.slice(0,2)],[255,216]);assert.equal(bytes.length,Number(response.headers.get('Content-Length')));
+ const head=await s.request(new Request(url,{method:'HEAD'}));assert.equal(head.status,200);assert.equal((await head.arrayBuffer()).byteLength,0);
+ assert.equal((await s.request(new Request('https://test/art/constructor/v1.jpg'))).status,404);
+ assert.equal((await s.request(new Request(url,{method:'POST'}))).status,405);assert.equal(s.instances.size,0);
+});
 
 test('signed public room entry creates no wallet; opening renovation privately awards welcome exactly once',async t=>{
  const s=await setup(t);

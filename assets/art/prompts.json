@@ -1,0 +1,169 @@
+{
+  "version": 1,
+  "style": "Warm storybook digital hand-painted illustration, tactile brush texture, gentle amber lamplight, rustic brown wood with restrained berry-pink accents, quiet riverside old-street tavern mood. Cozy, intimate food illustration with soft painterly edges and clear appetizing forms. No people or portraits, no text, lettering, watermark, logo, alcohol, packaging labels, or invented ingredients. Match only the defined ingredients; decorative props must remain clearly separate and must not imply extra ingredients. Do not alter or depict any original character.",
+  "assets": [
+    {
+      "id": "room",
+      "subject": "Riverside old-street tavern atmosphere",
+      "status": "ready",
+      "dimensions": "1536x1024 landscape",
+      "prompt": "Use case: illustration-story. Asset type: Discord tavern atmosphere illustration. A cozy small riverside old-street tavern at blue-hour sunset, warm storybook digital hand painting, walnut wood bar, cream ceramic cups, soft berry-pink lamp accents, simple wooden seating and a modest tabletop card-game corner, river reflections outside an open window. Inviting handmade setting with a tiny blank postcard tucked beside a lamp. Wide 1536x1024 interior composition. No people, no readable cards, no writing, no labels, no prices, no logo or watermark, no alcohol bottles. This is atmosphere concept art, not a factual seating map.",
+      "filename": "room-v1.jpg",
+      "width": 960,
+      "height": 640,
+      "sha256": "c1d4967962810b9d5aed4488550b9993449688043f09259eaf7c7094e57c696f"
+    },
+    {
+      "id": "water",
+      "subject": "白水",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of A simple clear glass of water, no garnish. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. No exaggerated steam. No people, portraits, labels, or text. 清水 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "tea",
+      "subject": "热茶",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of A modest cup of warm oolong tea with no garnish. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. A gentle hint of warmth or steam. No people, portraits, labels, or text. 乌龙茶叶, 清水 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "milk",
+      "subject": "Red bean milk",
+      "status": "ready",
+      "dimensions": "1024x1024 square",
+      "prompt": "Use case: stylized-concept. Asset type: final Discord tavern menu illustration. Warm storybook digital hand painting with precise appetizing food detail, soft brush texture, warm walnut wood, cream ceramics, restrained berry-pink accent. Consistent three-quarter close view, a softly blurred riverside old-street tavern behind the dish. No people, no text, no labels, no logos, no watermark, no alcohol. Do not add ingredients outside the recipe. One hero serving, complete vessel visible and centered with generous safe margins. Square 1024x1024. Subject: a clear tumbler of creamy red-bean milk, tender dark red adzuki beans visible at the bottom, fresh white milk, a faint delicate shine. Recipe: red beans, dairy milk, rock sugar. An unprinted cream coaster and tiny berry-pink cloth accent, no whipped cream, flowers, fruit, alcohol or straw-obscured drink. Natural soft sunset light.",
+      "filename": "milk-v1.jpg",
+      "width": 512,
+      "height": 512,
+      "sha256": "3e699eed7a0a46030c7ccdfc6dc639c13850192d3749933f59b8f20502ec13a9"
+    },
+    {
+      "id": "soda",
+      "subject": "蝶影苏打",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of A clear sparkling soda with butterfly pea flower and lemon, naturally blue-violet hues; no extra fruit. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. No exaggerated steam. No people, portraits, labels, or text. 苏打水, 蝶豆花, 柠檬 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "special",
+      "subject": "今日心情特调",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of A small red tea and apple juice drink sweetened with honey; suggest a thoughtful house special without labels or text. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. No exaggerated steam. No people, portraits, labels, or text. 红茶, 苹果汁, 蜂蜜 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "cake",
+      "subject": "Red bean pastry",
+      "status": "ready",
+      "dimensions": "1024x1024 square",
+      "prompt": "Use case: stylized-concept. Asset type: final Discord tavern menu illustration. Warm storybook digital hand painting with precise appetizing food detail, soft brush texture, warm walnut wood, cream ceramics, restrained berry-pink accent. Consistent three-quarter close view, a softly blurred riverside old-street tavern behind the dish. No people, no text, no labels, no logos, no watermark, no alcohol. Do not add ingredients outside the recipe. One hero serving, complete vessel visible and centered with generous safe margins. Square 1024x1024. Subject: exactly two small round flaky red-bean pastries on a cream ceramic plate, one delicately broken to reveal rich red-bean paste. Recipe: red-bean paste, wheat flour, butter. Flaky golden layers, warm crisp texture, small crumbs, folded linen beside plate, no icing, fruit, sesame, garnish or invented ingredients.",
+      "filename": "cake-v1.jpg",
+      "width": 512,
+      "height": 512,
+      "sha256": "f81325647a3d87790154b170ee5b33b2ac7a516548cbb5c780eaa5e72f65ade9"
+    },
+    {
+      "id": "snack",
+      "subject": "深夜小食拼盘",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of A small savory platter of grilled rice balls, edamame, and cherry tomatoes; show only those foods. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. A gentle hint of warmth or steam. No people, portraits, labels, or text. 烤饭团, 毛豆, 小番茄 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "plum-tea",
+      "subject": "梅子乌龙",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of A clear oolong tea with green plum and rock sugar; no extra fruit. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. No exaggerated steam. No people, portraits, labels, or text. 乌龙茶, 青梅, 冰糖 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "pear-soup",
+      "subject": "暖梨饮",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of A warm pear drink with goji berries and rock sugar; no garnish. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. A gentle hint of warmth or steam. No people, portraits, labels, or text. 雪梨, 枸杞, 冰糖 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "lemon-honey",
+      "subject": "柠蜜水",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of A clear lemon, honey, and water drink; no extra fruit. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. No exaggerated steam. No people, portraits, labels, or text. 柠檬, 蜂蜜, 清水 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "redbean-soy",
+      "subject": "红豆豆乳",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of A glass of soy milk with red beans and maple syrup; no extra toppings. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. No exaggerated steam. No people, portraits, labels, or text. 红豆, 豆乳, 枫糖 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "postcard-pudding",
+      "subject": "明信片布丁",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of A small egg-and-milk custard pudding with caramel; no card text or garnish. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. No exaggerated steam. No people, portraits, labels, or text. 鸡蛋, 牛奶, 焦糖 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "river-mochi",
+      "subject": "临河糯米团",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of Two rice cakes filled with red bean paste and coated with sesame; no other toppings. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. No exaggerated steam. No people, portraits, labels, or text. 糯米, 红豆沙, 芝麻 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "oldstreet-cookie",
+      "subject": "旧街黄油饼",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of Two simple brown-sugar butter biscuits; no garnish. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. No exaggerated steam. No people, portraits, labels, or text. 面粉, 黄油, 红糖 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "postcard-jelly",
+      "subject": "邮差果冻",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of A small orange jelly made with agar and apple juice; no extra fruit or decorative paper. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. No exaggerated steam. No people, portraits, labels, or text. 橘子, 琼脂, 苹果汁 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "mushroom-noodles",
+      "subject": "Clear mushroom soup noodles",
+      "status": "ready",
+      "dimensions": "1024x1024 square",
+      "prompt": "Use case: stylized-concept. Asset type: final Discord tavern menu illustration. Warm storybook digital hand painting with precise appetizing food detail, soft brush texture, warm walnut wood, cream ceramics, restrained berry-pink accent. Consistent three-quarter close view, a softly blurred riverside old-street tavern behind the dish. No people, no text, no labels, no logos, no watermark, no alcohol. Do not add ingredients outside the recipe. One hero serving, complete vessel visible and centered with generous safe margins. Square 1024x1024. Subject: one cream ceramic bowl of shiitake clear-soup wheat noodles, visible golden clear broth, long pale noodles, sliced brown shiitake mushrooms, fresh green leafy vegetables, gentle wisps of steam. Recipe: wheat noodles, shiitake mushrooms, greens, clear broth. Wooden chopsticks resting beside the bowl. No meat, egg, chili, garnish or other invented ingredients.",
+      "filename": "mushroom-noodles-v1.jpg",
+      "width": 512,
+      "height": 512,
+      "sha256": "ee502b9bbe414dd9b1952927c46d9e8bed670591c05c6d230c8a97b6a1f4c368"
+    },
+    {
+      "id": "scallion-pancake",
+      "subject": "葱香小煎饼",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of Two crisp small scallion pancakes; no dipping sauce or garnish. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. A gentle hint of warmth or steam. No people, portraits, labels, or text. 面粉, 香葱, 植物油 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "tomato-rice",
+      "subject": "番茄蛋饭",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of A bowl of rice topped with tomato and egg; no extra ingredients. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. A gentle hint of warmth or steam. No people, portraits, labels, or text. 米饭, 番茄, 鸡蛋 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "sweet-potato",
+      "subject": "烤红薯",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of One simply roasted sweet potato, optionally split to show its flesh; no garnish. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. A gentle hint of warmth or steam. No people, portraits, labels, or text. 红薯 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    },
+    {
+      "id": "dumpling-soup",
+      "subject": "小巷馄饨",
+      "status": "planned",
+      "dimensions": "1024x1024 square",
+      "prompt": "Close three-quarter-angle still life of A small bowl of clear broth with pork-and-greens wontons; show only wonton wrappers, pork, greens, and clear broth. on a simple serving vessel atop a rustic brown wooden table. Appetizing, legible food shapes; keep props minimal and never let decoration resemble an ingredient. A gentle hint of warmth or steam. No people, portraits, labels, or text. 馄饨皮, 猪肉, 青菜, 清汤 are the only depicted ingredients; do not add anything else. Warm amber tavern lamplight, restrained berry-pink accent."
+    }
+  ]
+}

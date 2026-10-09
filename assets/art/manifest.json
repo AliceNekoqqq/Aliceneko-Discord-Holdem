@@ -1,0 +1,42 @@
+{
+  "room": {
+    "id": "room",
+    "filename": "room-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 960,
+    "height": 640,
+    "bytes": 165608,
+    "sha256": "c1d4967962810b9d5aed4488550b9993449688043f09259eaf7c7094e57c696f",
+    "version": "v1"
+  },
+  "milk": {
+    "id": "milk",
+    "filename": "milk-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 60418,
+    "sha256": "3e699eed7a0a46030c7ccdfc6dc639c13850192d3749933f59b8f20502ec13a9",
+    "version": "v1"
+  },
+  "cake": {
+    "id": "cake",
+    "filename": "cake-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 63275,
+    "sha256": "f81325647a3d87790154b170ee5b33b2ac7a516548cbb5c780eaa5e72f65ade9",
+    "version": "v1"
+  },
+  "mushroom-noodles": {
+    "id": "mushroom-noodles",
+    "filename": "mushroom-noodles-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 512,
+    "height": 512,
+    "bytes": 73406,
+    "sha256": "ee502b9bbe414dd9b1952927c46d9e8bed670591c05c6d230c8a97b6a1f4c368",
+    "version": "v1"
+  }
+}

@@ -96,6 +96,9 @@ test('menus fit Discord limits and confirmation/privacy boundaries reject forged
  assert.equal(immediateTavernReply(interaction('notes')).type,9);const publicOpen=interaction('menu',{message:{flags:0},data:{custom_id:'t:3:any:menu'}});assert((await answerTavern(env,publicOpen)).content.includes('今日菜单'));
 });
 test('natural intent handles requests but does not interpret questions, quotes or history as purchases',()=>{
+ assert.deepEqual(parseTavernIntent('给我看看红豆牛奶的图片'),{action:'dish',item:'milk'});
+ assert.deepEqual(parseTavernIntent('看看香菇清汤面图片'),{action:'dish',item:'mushroom-noodles'});
+ assert.equal(parseTavernIntent('给我看看不存在的图片'),null);
  assert.equal(parseTavernIntent('给我一杯红豆牛奶').item,'milk');assert.equal(parseTavernIntent('看看菜单').action,'menu');assert.equal(parseTavernIntent('我想喝红豆牛奶').action,'menu');assert.equal(parseTavernIntent('给我一杯甜一点的，不要酒精').options.sweetness,'sweet');
  for(const text of ['上次来一杯红豆牛奶','别给我点红豆牛奶','红豆牛奶多少钱？','给我介绍红豆牛奶','给我一杯伏特加','给我看看“来一杯红豆牛奶”','如果我要红豆牛奶','我要知道红豆牛奶是什么','给我一杯红豆牛奶？','给我一杯红豆牛奶，不要了','我要红豆牛奶，算了','我想喝红豆牛奶，取消'])assert.equal(parseTavernIntent(text),null,text);
  assert.equal(parseTavernIntent('给我一杯红豆牛奶！').item,'milk');
@@ -106,6 +109,14 @@ test('natural previews run without model requests, publish no private preference
  const message={guild_id:'3',channel_id:'2',id:'456',author:{id:'1',username:'Alice'}};
  assert(await handleNaturalTavern(env,message,'给我一杯红豆牛奶'));assert.equal(s.view('1').member.balance,60);assert(!JSON.stringify(sent).includes('secret'));assert(!sent.some(r=>r.url.includes('gemini')));
  const draft=s.one('SELECT id FROM tavern_drafts');const data=await answerTavern(env,interaction(`review~${draft.id}`,{message:{flags:0}}));assert(data.content.includes('secret'));
+});
+test('natural dish image display creates neither a wallet nor a purchase draft',async t=>{
+ const {service:s}=setup(),sent=[],previous=globalThis.fetch;
+ globalThis.fetch=async(url,options)=>{sent.push(JSON.parse(options.body));return Response.json({id:'111'});};t.after(()=>globalThis.fetch=previous);
+ const message={guild_id:'3',channel_id:'2',id:'457',author:{id:'1',username:'Alice'}};
+ assert(await handleNaturalTavern({...environment(s),BOT_TOKEN:'test'},message,'给我看看红豆牛奶的图片'));
+ assert.match(sent[0].embeds[0].image.url,/\/art\/milk\/v1\.jpg$/);assert(!JSON.stringify(sent).includes('余额'));
+ assert.equal(s.rows('SELECT * FROM tavern_members').length,0);assert.equal(s.rows('SELECT * FROM tavern_drafts').length,0);
 });
 test('reward outbox survives restart and a lost response; backoff clears when delivered',async()=>{
  const {service:s}=setup(),store=storage(),t={game:'uno',guild:'3',channel:'2',players:[{id:'1'},{id:'2'}],rankedResult:result(),tavernRound:{startedAt:Date.now()-60000,actions:{'1':3,'2':2}}};t.rankedResult.at=Date.now();let fail=true;
