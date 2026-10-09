@@ -1,7 +1,7 @@
 import {MENU,WELCOME_COINS,DAILY_REWARD_CAP,ROSTER_DAILY_LIMIT,SWEETNESS,TEMPERATURE,SEATS,MOODS,REWARDS,menuItem,displayText,validId} from './tavern-catalog.mjs';
 import {tavernRequest} from './tavern-service.mjs';
 import {renoCommandOptions, tavernRenovationInteraction, immediateRenovationReply, answerRenovation, tavernDeferredReply as renovationDeferredReply} from './tavern-renovation-ui.mjs';
-import {lobbyCommandOption,tavernLobbyInteraction,tavernLobbyCommand,immediateLobbyReply,answerLobby,tavernLobbyData} from './tavern-lobby.mjs';
+import {lobbyCommandOption,tavernLobbyInteraction,tavernLobbyCommand,immediateLobbyReply,lobbyDeferredReply,answerLobby,tavernLobbyData} from './tavern-lobby.mjs';
 import {operationsInteraction,immediateOperationsReply,operationsDeferredReply,answerOperations} from './tavern-operations-ui.mjs';
 const mentions={parse:[]};
 const row=(...components)=>({type:1,components});
@@ -100,14 +100,17 @@ export async function answerTavern(env,i){
  if(['菜单','menu'].includes(action))return menuData(data,id,guild);
  throw Error('请重新打开 `/酒馆 菜单`。');
 }
-export function tavernDeferredReply(i){return operationsDeferredReply(i)||renovationDeferredReply(i);}
+export function tavernDeferredReply(i){return operationsDeferredReply(i)||lobbyDeferredReply(i)||renovationDeferredReply(i);}
 export async function finishTavern(env,i){
  let data;try{data=await answerTavern(env,i);}catch(e){data={content:`🍵 ${e.message}`,components:[],allowed_mentions:mentions};}
  const announcement=data._renovationAnnouncement;delete data._renovationAnnouncement;
  if(announcement){let sent=false;try{const r=await fetch(`https://discord.com/api/v10/channels/${i.channel_id}/messages`,{method:'POST',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({content:announcement.content,allowed_mentions:mentions,nonce:announcement.nonce,enforce_nonce:true}),signal:AbortSignal.timeout(5000)});sent=r.ok;}catch{}
   if(!sent)data.content+=`\n\n📨 频道公告未能送达；这张收据仍有效，出资没有回滚。`;
  }
- try{const r=await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${encodeURIComponent(i.token)}/messages/@original`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({...data,embeds:[],attachments:[]}),signal:AbortSignal.timeout(6000)});
+ const mapImage=data._mapImage;delete data._mapImage;
+ const payload={...data,embeds:[],attachments:[]};let body=JSON.stringify(payload),headers={'Content-Type':'application/json'};
+ if(mapImage){payload.attachments=[{id:0,filename:'tavern-map.png',description:'酒馆近期来客与公开牌桌实况'}];payload.embeds=[{image:{url:'attachment://tavern-map.png'}}];const form=new FormData();form.append('payload_json',JSON.stringify(payload));form.append('files[0]',new Blob([mapImage],{type:'image/png'}),'tavern-map.png');body=form;headers={};}
+ try{const r=await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${encodeURIComponent(i.token)}/messages/@original`,{method:'PATCH',headers,body,signal:AbortSignal.timeout(6000)});
   const action=i.type===2?i.data.options?.[0]?.name:String(i.data?.custom_id||'').split(':')[3];
   if(r.ok&&['大厅','lobby'].includes(action)&&!(Number(i.message?.flags)&64)){
    const message=await r.json();if(validId(message.id)&&!(Number(message.flags)&64))await tavernRequest(env,{guild:i.guild_id,action:'opsBindLobby',channel:i.channel_id,message:message.id});

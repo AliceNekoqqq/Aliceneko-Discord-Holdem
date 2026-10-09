@@ -1,3 +1,4 @@
+import {TavernMapService} from './tavern-map-service.mjs';
 import {WELCOME_COINS,DAILY_REWARD_CAP,ROSTER_DAILY_LIMIT,ORDER_TTL,REWARDS,validId,dayKey,cleanText,menuItem,makeOrderDetails,SWEETNESS,TEMPERATURE,SEATS} from './tavern-catalog.mjs';
 import {TavernRenovation} from './tavern-renovation.mjs';
 import {TavernOperations} from './tavern-operations.mjs';
@@ -18,6 +19,7 @@ export class TavernService {
   this.sql.exec('CREATE TABLE IF NOT EXISTS tavern_rosters (roster TEXT NOT NULL, day TEXT NOT NULL, played INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(roster,day))');
  }
  get renovation(){return this._renovation??=new TavernRenovation(this);}
+ get map(){return this.mapService??=new TavernMapService(this);}
  get operations(){return this._operations??=new TavernOperations(this);}
  rows(q,...args){return this.sql.exec(q,...args).toArray();}
  one(q,...args){return this.rows(q,...args)[0]||null;}
@@ -121,6 +123,8 @@ export class TavernService {
  async dispatch(p){
   if(!validId(p.guild))throw Error('无效服务器。');
   const bound=await this.storage.get('tavernGuild');if(bound&&bound!==p.guild)throw Error('服务器不匹配。');if(!bound)await this.storage.put('tavernGuild',p.guild);
+  if(p.action?.startsWith('map'))return this.map.dispatch(p);
+  if(validId(p.id)&&validId(p.channel)&&!['context','confirm'].includes(p.action)){try{this.map.touch({id:p.id,name:p.name,channel:p.channel,kind:'visit'});}catch{}}
   if(p.action==='reward')return this.reward(p.guild,p.result);
   if(p.action?.startsWith('ops'))return this.operations.dispatch(p);
   if(p.action?.startsWith('reno'))return this.renovation.dispatch(p);
@@ -128,7 +132,7 @@ export class TavernService {
   if(p.action==='context')return this.context(p.id,p.channel);
   if(p.action==='draft'){const d=this.one('SELECT * FROM tavern_drafts WHERE id=?',p.draftId);if(!d||d.user_id!==p.id||d.channel!==p.channel)throw Error('这不是你的点单窗口。');return {...d,details:JSON.parse(d.details),balance:this.member(p.id,p.name).balance};}
   if(p.action==='prepare')return this.prepare(p);
-  if(p.action==='confirm')return this.confirm(p.id,p.draftId,p.channel);
+  if(p.action==='confirm'){const answer=this.confirm(p.id,p.draftId,p.channel);if(!answer.repeated){try{this.map.touch({id:p.id,name:p.name,channel:p.channel,kind:'order'});}catch{}}return answer;}
   if(p.action==='profile')return this.profile(p.id,p.name,p.key,p.value);
   return this.view(p.id,p.name);
  }

@@ -3,6 +3,8 @@ import {TavernService} from './tavern-service.mjs';
 import {TavernBridge} from './tavern-bridge.mjs';
 import {tavernCommand,tavernInteraction,immediateTavernReply,finishTavern,tavernDeferredReply} from './tavern-ui.mjs';
 import {TavernOperationsLive} from './tavern-operations-live.mjs';
+import {TavernMapBridge} from './tavern-map-bridge.mjs';
+import {TavernMapPresentation} from './tavern-map-presentation.mjs';
 import {lobbyGameRequest} from './tavern-lobby-routing.mjs';
 import {LiarRankings,LiarRankBridge,rankingInteraction as liarRankingInteraction,finishRanking as finishLiarRanking} from './liar-rankings.mjs';
 import {command as liarCommand} from './liar-ui.mjs';
@@ -25,7 +27,7 @@ import { BoardSync } from './board-sync.mjs';
 import { PrivatePanels } from './private-panels.mjs';
 import { initializeLifecycle, nextLifecycleAlarm, automaticCloseReason, idleWarning, takeoverAt, canTakeover, touchOwner, effectiveHumanAction } from './lifecycle.mjs';
 import { board, quickRaises, confirmation, handPanel, management, panelAction, button, row } from './ui.mjs';
-const COMMAND_VERSION='games-v1.0.1-beta.33'; // Daily managers, seasonal menu and common activities.
+const COMMAND_VERSION='games-v1.0.1-beta.34'; // Live tavern map with bounded public table snapshots.
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。点「准备下一手」，所有参与真人准备后 5 秒自动发牌；人员变化会取消全部准备。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；连续 2 次超时会在本手结束后暂离，保留筹码；在牌桌管理恢复参与。全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码；游玩中可预约本手结束后离桌，并随时取消。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。\n未发牌空闲 5 分钟、结算后空闲 10 分钟自动关桌，提前 1 分钟提醒；刷新和查看手牌不延长计时。\n游玩中 10 分钟无人有效操作且仍可行动真人均已超时时，取消本手并退回下注。\n等待发牌或结算时，桌主 2 分钟未交互，其他已入座真人可接管。只供娱乐，无充值或兑换。';
@@ -42,6 +44,8 @@ async function discordApi(env,path,method,body,timeoutMs=6000){
 export class PokerTable extends DurableObject {
   get tavern(){return this.tavernService??=new TavernService(this.ctx.storage);}
   get tavernLive(){return this.tavernOperationsLive??=new TavernOperationsLive(this);}
+  get tavernMapPresentation(){return this.tavernMapView??=new TavernMapPresentation(this);}
+  get tavernMapBridge(){return this.tavernMapSync??=new TavernMapBridge(this);}
   get tavernBridge(){return this.tavernRewardBridge??=new TavernBridge(this);}
   get liar(){return this.liarController??=new LiarController(this);}
   get liarRankings(){return this.liarGuildRankings??=new LiarRankings(this.ctx.storage,this.env);}
@@ -55,7 +59,7 @@ export class PokerTable extends DurableObject {
   get uno(){return this.unoController??=new UnoController(this);}
   get panels(){return this.privatePanels??=new PrivatePanels(this.ctx.storage,this.env);}
   async armAlarm(t){
-    const dates=[await this.ctx.storage.get('tavernSyncAt'),await this.ctx.storage.get('liarSyncAt'),t?.game==='liar'?t.stageDue:null,t?.game==='liar'?t.endAt:null,t?.game==='liar'?t.idleDeadline:null,await this.ctx.storage.get('ghostSyncAt'),t?.game==='ghost'?t.waitUntil:null,t?.game==='ghost'?t.endAt:null,t?.game==='ghost'?t.closeAt:null,await this.ctx.storage.get('unoRankSyncAt'),t?.social?.until,t?.computerDue,t?.computerJumpDue,t?.jumpWindow?.until,t?.deadline,t?.readyDue,await this.ctx.storage.get('boardSyncAt'),t?.game==='uno'?t.idleDeadline:['ghost','liar'].includes(t?.game)?null:t?nextLifecycleAlarm(t):null,await this.ctx.storage.get('privateSyncAt'),await this.ctx.storage.get('privateExpiry')].filter(n=>Number.isFinite(n)&&n>0);
+    const dates=[await this.ctx.storage.get('tavernMapSyncAt'),await this.ctx.storage.get('tavernSyncAt'),await this.ctx.storage.get('liarSyncAt'),t?.game==='liar'?t.stageDue:null,t?.game==='liar'?t.endAt:null,t?.game==='liar'?t.idleDeadline:null,await this.ctx.storage.get('ghostSyncAt'),t?.game==='ghost'?t.waitUntil:null,t?.game==='ghost'?t.endAt:null,t?.game==='ghost'?t.closeAt:null,await this.ctx.storage.get('unoRankSyncAt'),t?.social?.until,t?.computerDue,t?.computerJumpDue,t?.jumpWindow?.until,t?.deadline,t?.readyDue,await this.ctx.storage.get('boardSyncAt'),t?.game==='uno'?t.idleDeadline:['ghost','liar'].includes(t?.game)?null:t?nextLifecycleAlarm(t):null,await this.ctx.storage.get('privateSyncAt'),await this.ctx.storage.get('privateExpiry')].filter(n=>Number.isFinite(n)&&n>0);
     if(dates.length)await this.ctx.storage.setAlarm(Math.max(Date.now()+1,Math.min(...dates)));else await this.ctx.storage.deleteAlarm();
   }
   async queuePanels(t){if(!await this.ctx.storage.get('privatePanels'))return;await this.ctx.storage.put('privateSyncAt',Date.now()+350);await this.armAlarm(t);}
@@ -96,6 +100,7 @@ export class PokerTable extends DurableObject {
       let response=await this.dispatch(payload);
       if(payload.op==='interaction'){
         const t=await this.ctx.storage.get('table');
+        await this.tavernMapBridge.capture(t,Date.now(),true).catch(()=>{});
         if(t){const reply=await response.clone().json();const panelReply=reply.panelData?{type:7,data:reply.panelData,deferred:true}:reply;delete reply.panelData;response=json(reply);const remembered=await this.panels.remember(t,payload.interaction,panelReply);
           if(remembered||before?.version!==t.version||before?.epoch!==t.epoch)await this.queuePanels(t);
         }
@@ -118,6 +123,7 @@ export class PokerTable extends DurableObject {
         }catch(error){return json({ok:false,durationMs:Date.now()-started,reason:error.message,status:error.status,timeoutMs:90000});}
       }
       if(payload.op==='tavern'){try{
+        if(payload.action==='mapRender')return json(await this.tavernMapPresentation.render(payload));
         if(payload.action==='opsBindLobby')return json(await this.tavernLive.track(payload));
         if(payload.action==='opsUnbindLobby')return json(await this.tavernLive.untrack(payload));
         const answer=await this.tavern.dispatch(payload);
@@ -234,6 +240,7 @@ export class PokerTable extends DurableObject {
   }
   async alarm(){
     if(await this.ctx.storage.get('tavernGuild')){await this.tavernLive.flush();return;}
+    await this.tavernMapBridge.flush();
     await this.ctx.blockConcurrencyWhile(async()=>{
       if(await this.ctx.storage.get('gatewayMode')){await this.discordGateway.ensure();return;}
       const liarGuild=await this.ctx.storage.get('liarRankGuild');if(liarGuild){await this.liarRankings.reconcile(liarGuild);return;}
@@ -260,6 +267,7 @@ export class PokerTable extends DurableObject {
       await this.boards.flush(t,now);
       await this.armAlarm(t);
     });
+    await this.ctx.blockConcurrencyWhile(async()=>{const t=await this.ctx.storage.get('table');if(t||await this.ctx.storage.get('tavernMapLast')){await this.tavernMapBridge.capture(t).catch(()=>{});await this.armAlarm(t);}});
   }
 }
 async function bindOriginal(env,stub,i,epoch){

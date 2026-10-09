@@ -12,7 +12,7 @@ async function setup(t){
  const {default:worker,PokerTable}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
  const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']),instances=new Map(),env={BOT_TOKEN:'test',DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex')};
  env.TABLES={idFromName:n=>n,get:n=>{if(!instances.has(n))instances.set(n,new PokerTable({storage:storage(),blockConcurrencyWhile:fn=>fn(),waitUntil:()=>{}},env));return {fetch:(u,o)=>instances.get(n).fetch(new Request(u,o))};}};
- const sent=[],oldFetch=globalThis.fetch;globalThis.fetch=async(u,o)=>{sent.push({url:u,body:o.body&&JSON.parse(o.body)});return Response.json({id:'444'});};t.after(()=>globalThis.fetch=oldFetch);
+ const sent=[],oldFetch=globalThis.fetch;globalThis.fetch=async(u,o)=>{const form=o.body instanceof FormData;sent.push({url:u,body:form?JSON.parse(o.body.get('payload_json')):o.body&&JSON.parse(o.body),file:form?o.body.get('files[0]'):null});return Response.json({id:'444'});};t.after(()=>globalThis.fetch=oldFetch);
  let seq=1000;
  async function call(input){
   const i={application_id:'123',guild_id:'3',channel_id:'2',member:{user:{id:'1',username:'Alice'}},token:'test-token',id:String(++seq),...input},body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000));
@@ -98,4 +98,24 @@ test('signed lobby tracking survives private entries and stops on public page na
  const store=s.instances.get('tavern:3').ctx.storage;assert.equal(store.map.get('tavernLobbyLive').boards[0].message,'444');
  await s.call({...s.component('t:3:any:lobbyWallet'),message:{id:'444',flags:0}});assert.equal(store.map.get('tavernLobbyLive').boards.length,1);
  await s.call({...s.component('t:3:any:opsBoard'),message:{id:'444',flags:0}});assert.equal(store.map.get('tavernLobbyLive').boards.length,0);assert.equal(store.map.has('alarm'),false);
+});
+
+test('signed map navigation attaches real PNG, creates no wallet, caches unchanged views and clears image on exit',async t=>{
+ const s=await setup(t);await s.call({type:2,data:{name:'酒馆',options:[{name:'大厅'}]}});
+ const mapButton=s.lastReply().components.flatMap(r=>r.components).find(c=>c.custom_id.endsWith(':lobbyMap'));assert(mapButton);
+ assert.deepEqual(await s.call({...s.component(mapButton.custom_id),message:{id:'444',flags:0}}),{type:6});
+ const reply=s.sent.filter(r=>r.url.includes('/webhooks/')).at(-1),service=s.instances.get('tavern:3').tavern,store=s.instances.get('tavern:3').ctx.storage;
+ assert.match(reply.body.content,/最近30分钟.*1位来客/);assert(!reply.body.content.includes('余额'));assert.equal(service.rows('SELECT * FROM tavern_members').length,0);
+ assert.equal(reply.body.embeds[0].image.url,'attachment://tavern-map.png');assert.equal(reply.file.type,'image/png');const bytes=new Uint8Array(await reply.file.arrayBuffer());assert.deepEqual([...bytes.slice(0,8)],[137,80,78,71,13,10,26,10]);
+ assert.equal(store.map.get('tavernLobbyLive').boards.length,0);
+ const cache=store.map.get('tavernMapImageCache');await s.call(s.component(mapButton.custom_id));assert.equal(store.map.get('tavernMapImageCache').signature,cache.signature);
+ await s.call(s.component('t:3:any:lobbyGames'));assert.deepEqual(s.lastReply().attachments,[]);assert.deepEqual(s.lastReply().embeds,[]);
+});
+
+test('signed game creation propagates only public table data to guild map, with no financial side effects',async t=>{
+ const s=await setup(t);await s.call({type:2,data:{name:'uno',options:[{name:'创建'}]}});
+ const channel=[...s.instances.values()].find(x=>x.ctx.storage.map.has('tavernMapJob'));assert(channel);
+ const job=channel.ctx.storage.map.get('tavernMapJob');assert.equal(job.game,'uno');assert.equal(job.players[0].id,'1');assert(!JSON.stringify(job).includes('hand'));
+ await channel.tavernMapBridge.flush(Date.now()+3000);
+ const service=s.instances.get('tavern:3').tavern,map=service.map.board();assert.equal(map.tableCount,1);assert.equal(map.visitorCount,1);assert.equal(service.rows('SELECT * FROM tavern_members').length,0);
 });
