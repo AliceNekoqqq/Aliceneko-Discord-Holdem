@@ -44,7 +44,7 @@ export function lobbyDeferredReply(i){
  if(i.type===3)return {type:6};
  return {type:5};
 }
-export function tavernLobbyData(board,guild,owner='any',operations=null){
+export function tavernLobbyData(board,guild,owner='any',operations=null,live=null){
  const stage=board.stage,assets=[...(board.assets||[])].sort((a,b)=>(Number(b.at)||0)-(Number(a.at)||0));
  const latestAssets=assets.slice(0,3).map(a=>{const item=RENOVATION_ITEMS.find(x=>x.id===(typeof a.item==='string'?a.item:a.item?.id));const scene=item?.levels?.[(a.level||1)-1]?.scene;return `${item?.emoji||'🪑'} **${safe(item?.name||a.item,32)}** Lv.${a.level}「${safe(a.levelName||a.name,24)}」${scene?` · ${safe(scene,48)}`:''}`;});
  const recent=(board.recent||[]).slice(0,3).map(x=>`${safe(x.donor_name||x.name,32)} · ${safe(x.item_name||RENOVATION_ITEMS.find(it=>it.id===x.item)?.name||x.item,32)} Lv.${x.level}「${safe(x.name,24)}」 · ${x.kind==='upgrade'?'升级':'购置'}`);
@@ -56,8 +56,13 @@ export function tavernLobbyData(board,guild,owner='any',operations=null){
   row(button(guild,'any','renoHistory~0','📜 捐赠档案'),button(guild,'any','renoLeaders','🏅 贡献榜'),button(guild,'any','lobbyGames','🎮 小游戏'),button(guild,owner,'lobby','🔄 刷新大厅')),
   row(button(guild,'any','lobbyMap','🗺️ 店内地图',1),button(guild,'any','opsBoard','👑 今日经营',1),button(guild,'any','opsSeason','🌱 季节菜单'),button(guild,'any','opsActivity','🎉 共同活动'))
  ];
- const daily=operations?`${operationsBanner(operations)}\n🌱 ${safe(operations.season.title,24)}研发 ${operations.season.points}/${operations.season.goal}${operations.season.unlocked?' · 新品已上菜单':''} · 🎉 ${safe(operations.activity.title,24)}${operations.activity.completed?'已完成':''}\n\n`:'';
- return {content:`${daily}🍵 **红豆粉的小酒馆 · 大厅**\n${safe(stage.name,32)} · ${safe(prose,120)}\n\n**共同建设** ${board.total}（餐饮 ${board.consumption} + 装修 ${board.direct}）\n${bar} ${Math.round(progress*100)}% · ${destination}\n\n**最近落地**\n${latestAssets.join('\n')||'还没有玩家添置的陈设，来一起装修吧。'}\n\n**最近捐赠**\n${recent.join('\n')||'还没有主动装修出资；每一笔确认出资都会留下记录。'}`,components,allowed_mentions:mentions};
+ const ambience={soft_lights:'柔灯',rain_window:'雨窗',spring_breeze:'春风',starlight:'星灯'}[operations?.settings?.ambience]||'暖灯';
+ const crowd=live?`最近30分钟 ${live.visitorCount} 位来客 · ${live.tableCount} 张牌桌`:'最近30分钟实况暂不可用';
+ const hud=`🕘 北京时间 · ${safe(ambience,8)}氛围 · ${crowd} · 今日店长 ${safe(operations?.manager?.name||'等待首位来客',16)}\n🌱 ${safe(operations?.season?.title||'本月共创',16)} ${operations?.season?.points??0}/${operations?.season?.goal??30} · 🎉 ${safe(operations?.activity?.title||'今日活动',16)}${operations?.activity?.completed?' 已完成':''}`;
+ const daily=operations?`${operationsBanner(operations)}\n${hud}\n\n`:'';
+ const response={content:`🍵 **红豆粉的小酒馆 · 河畔游戏大厅**\n${daily}${safe(stage.name,32)} · ${safe(prose,100)}\n\n**共同建设 ${board.total}**（餐饮 ${board.consumption} + 装修 ${board.direct}）\n${bar} ${Math.round(progress*100)}% · ${destination}\n\n**最近落地**\n${latestAssets.join('\n')||'还没有玩家添置的陈设，来一起装修吧。'}\n\n**最近捐赠**\n${recent.join('\n')||'还没有主动装修出资；每一笔确认出资都会留下记录。'}`,components,allowed_mentions:mentions};
+ if(live?.scene)response._mapScene={bytes:Uint8Array.from(atob(live.scene.data),c=>c.charCodeAt(0)),filename:live.scene.filename,mime:live.scene.mime};
+ return response;
 }
 export function tavernLobbyGames(guild){
  const games=[['poker','♠️ 德州'],['uno','🃏 UNO'],['ghost','👻 抽鬼牌'],['liar','🃏 骗子酒馆'],['table','🎴 当前牌桌']];
@@ -67,7 +72,12 @@ export async function answerLobby(env,i){
  const p=validate(i);if(p.action==='lobbyGames')return tavernLobbyGames(p.g);
  if(p.action==='lobbyMap')return answerTavernMap(env,i);
  if(p.action==='lobbyRoom')return answerRenovation(env,{...i,type:3,message:i.message||{flags:0},data:{custom_id:`t:${p.g}:any:renoBoard~0`}});
- const board=await tavernRequest(env,{guild:p.g,action:'renoBoard'});
- const operations=await tavernRequest(env,{guild:p.g,id:p.u,channel:p.ch,name:i.member?.nick||i.member?.user?.global_name||i.member?.user?.username||'来客',action:'opsBoard'});
- return tavernLobbyData(board,p.g,p.publicEntry?'any':(i.data?.custom_id?.split(':')[2]||'any'),operations);
+ const name=i.member?.nick||i.member?.user?.global_name||i.member?.user?.username||'来客';
+ const [board,operations]=await Promise.all([
+  tavernRequest(env,{guild:p.g,action:'renoBoard'}),
+  tavernRequest(env,{guild:p.g,id:p.u,channel:p.ch,name,action:'opsBoard'})
+ ]);
+ const live=await tavernRequest(env,{guild:p.g,id:p.u,channel:p.ch,name,action:'mapRender',scene:true}).catch(()=>null);
+ return tavernLobbyData(board,p.g,p.publicEntry?'any':(i.data?.custom_id?.split(':')[2]||'any'),operations,live);
 }
+

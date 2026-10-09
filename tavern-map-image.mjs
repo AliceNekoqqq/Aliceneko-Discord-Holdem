@@ -1,84 +1,86 @@
 import {Canvas,encodePNG} from './card-image.mjs';
 import {prepareNicknameFont} from './nickname-font.mjs';
+import {TAVERN_BUILDING} from './tavern-building.mjs';
 
 const W=1000,H=760;
-const C={wall:[87,57,64],wall2:[111,74,76],wood:[151,91,67],wood2:[187,127,88],floor:[247,225,201],floor2:[241,212,187],pink:[218,133,158],pale:[255,246,233],ink:[79,55,55],muted:[130,93,87],green:[104,145,107],water:[143,201,206],lamp:[255,202,111],bot:[165,144,178],white:[255,255,250],table:[121,75,71]};
-const rounded=(c,x,y,w,h,r,color)=>c.rect(x,y,w,h,color,r);
-const label=(c,s,x,y,n=17,color=C.ink,center=false)=>c.text(s,x,y,n,color,center);
-const safe=(value,max=18)=>[...String(value??'').replace(/[\u0000-\u001f\u007f]/g,' ').trim()].slice(0,max).join('')||'来客';
-const roomName=s=>safe(s?.room?.name||'小酒馆',22);
+const C={ink:[73,48,48],muted:[127,87,78],cream:[249,229,202],cream2:[239,211,179],walnut:[116,70,55],walnut2:[158,100,69],brick:[94,61,62],brickLight:[135,86,78],berry:[218,133,158],river:[124,190,198],riverDeep:[65,117,137],green:[84,130,92],gold:[240,185,94],white:[255,247,231],shade:[55,38,45],blue:[114,151,168]};
+const label=(c,s,x,y,n=13,color=C.ink,center=true)=>c.text(s,x,y,n,color,center);
+const safe=(v,max=14)=>[...String(v??'').replace(/[\u0000-\u001f\u007f]/g,' ').trim()].slice(0,max).join('')||'';
 const gameName={poker:'德州',uno:'UNO',ghost:'抽鬼牌',liar:'骗子酒馆'};
-const phaseName={lobby:'等候中',waiting:'等候中',active:'游戏中',playing:'游戏中',in_progress:'游戏中',settled:'已结束',finished:'已结束',closed:'已结束'};
-const timeCN=at=>{const d=new Date(at);if(!Number.isFinite(d.getTime()))return '未知时间';const parts=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(d);return `${parts.find(p=>p.type==='hour')?.value}时${parts.find(p=>p.type==='minute')?.value}分`;};
-
-function drawPlant(c,x,y){c.rect(x+12,y+23,18,23,[183,118,83],5);for(const [dx,dy,col] of [[0,10,[93,139,103]],[19,0,[116,159,109]],[35,13,[83,128,96]]])c.rect(x+dx,y+dy,15,18,col,8);}
-function drawLamp(c,x,y){c.rect(x-2,y,4,18,C.wood);c.rect(x-11,y+15,22,5,C.wood,2);c.rect(x-13,y-6,26,16,C.lamp,8);}
-function ambience(at){const d=new Date(at);if(!Number.isFinite(d.getTime()))return {word:'暖灯相伴',night:false};const h=Number(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Shanghai',hour:'2-digit',hourCycle:'h23'}).format(d));return h>=6&&h<17?{word:'河光正好',night:false}:h>=17&&h<20?{word:'暮色渐浓',night:false}:{word:'星月河窗',night:true};}
-function drawChip(c,x,y,name,bot=false){c.rect(x-25,y-25,50,50,bot?C.bot:C.pink,25);c.rect(x-20,y-20,40,40,bot?C.pale:C.white,20);c.rect(x-3,y-18,6,6,bot?C.bot:C.pink,3);c.rect(x-3,y+12,6,6,bot?C.bot:C.pink,3);label(c,safe(name,7),x,y-6,12,C.ink,true);if(bot){c.rect(x+12,y+12,24,12,C.bot,6);label(c,'电脑',x+24,y+13,8,C.white,true);}}
-
-function drawTable(c,table,x,y,index){
- c.rect(x-74,y-39,148,78,C.table,35);c.rect(x-69,y-34,138,68,[141,93,77],30);label(c,gameName[table.game]||'游戏',x,y-8,table.game==='liar'?12:14,C.white,true);
- const players=Array.isArray(table.players)?table.players.slice(0,8):[];const spots=[[0,-49],[54,-35],[76,0],[54,35],[0,49],[-54,35],[-76,0],[-54,-35]];
- players.forEach((p,i)=>drawChip(c,x+spots[i][0],y+spots[i][1],p.name,p.bot));
- label(c,phaseName[table.phase]||'开放中',x,y+24,11,[255,232,208],true);
+const phaseName={lobby:'等待中',waiting:'等待中',active:'游戏中',playing:'游戏中',in_progress:'游戏中',settled:'已结束',finished:'已结束',closed:'已结束'};
+const atHour=at=>{const d=new Date(at);if(!Number.isFinite(d.getTime()))return 12;return Number(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Shanghai',hour:'2-digit',hourCycle:'h23'}).format(d));};
+const {width:BUILDING_W,depth:BUILDING_D}=TAVERN_BUILDING.footprint;
+const {originX,baseY,scaleX,scaleY,scaleZ}=TAVERN_BUILDING.projection;
+const project=(x,y,z=0)=>[Math.round(originX+(x-y)*scaleX),Math.round(baseY+(x+y)*scaleY-z*scaleZ)];
+function polygon(c,pts,color){const ys=pts.map(p=>p[1]),min=Math.max(0,Math.floor(Math.min(...ys))),max=Math.min(c.height-1,Math.ceil(Math.max(...ys)));for(let y=min;y<=max;y++){const xs=[];for(let i=0,j=pts.length-1;i<pts.length;j=i++){const [x1,y1]=pts[i],[x2,y2]=pts[j];if((y1<=y&&y2>y)||(y2<=y&&y1>y))xs.push(x1+(y-y1)*(x2-x1)/(y2-y1));}xs.sort((a,b)=>a-b);for(let i=0;i+1<xs.length;i+=2)for(let x=Math.max(0,Math.ceil(xs[i]));x<=Math.min(c.width-1,Math.floor(xs[i+1]));x++)c.pixel(x,y,color);}}
+const quad=(c,points,color)=>polygon(c,points.map(([x,y,z=0])=>project(x,y,z)),color);
+function cuboid(c,x,y,w,d,h,top=C.wood2,side=C.walnut){const p=[[x,y,0],[x+w,y,0],[x+w,y+d,0],[x,y+d,0]],t=p.map(([a,b])=>project(a,b,h));quad(c,[p[1],p[2],p[2].map((v,i)=>i===2?h:v),[p[1][0],p[1][1],h]],side);quad(c,[p[2],p[3],[p[3][0],p[3][1],h],[p[2][0],p[2][1],h]],C.brickLight);polygon(c,t,top);}
+function dot(c,x,y,r,color){c.rect(Math.round(x-r),Math.round(y-r),r*2,r*2,color,r);}
+function line(c,a,b,color,width=2){const dx=b[0]-a[0],dy=b[1]-a[1],n=Math.max(Math.abs(dx),Math.abs(dy));for(let i=0;i<=n;i++){const x=a[0]+dx*i/n,y=a[1]+dy*i/n;c.rect(Math.round(x-width/2),Math.round(y-width/2),width,width,color);}}
+function drawRoom(c,hour){
+ c.rect(0,0,W,H,[82,55,59]);c.rect(12,12,W-24,H-24,[125,82,75],22);c.rect(21,21,W-42,H-42,[240,217,188],16);
+ // North river beyond the cutaway wall.
+ const river=[project(0,-148),project(BUILDING_W,-148),project(BUILDING_W,-24),project(0,-24)];polygon(c,river,hour<6||hour>=20?C.riverDeep:C.river);
+ for(let i=0;i<14;i++){const x=35+i*58,yy=-112+(i%3)*17;line(c,project(x,yy),project(x+30,yy),[166,211,205],2);}
+ const nw=project(0,0),ne=project(BUILDING_W,0),se=project(BUILDING_W,BUILDING_D),sw=project(0,BUILDING_D),seBottom=project(BUILDING_W,BUILDING_D,-70),swBottom=project(0,BUILDING_D,-70);
+ polygon(c,[sw,se,seBottom,swBottom],C.brick);polygon(c,[ne,se,seBottom,project(BUILDING_W,0,-70)],C.walnut);polygon(c,[nw,ne,project(BUILDING_W,0,-70),project(0,0,-70)],C.brickLight);
+ quad(c,[[0,0],[BUILDING_W,0],[BUILDING_W,BUILDING_D],[0,BUILDING_D]],C.cream);
+ // Honey-colored plank lines and subtle room zones.
+ for(let y=22;y<BUILDING_D;y+=24){line(c,project(0,y),project(BUILDING_W,y),[235,205,172],1);const offset=((y/24|0)%2)*38;for(let x=offset;x<BUILDING_W;x+=88)line(c,project(x,y),project(x,Math.min(BUILDING_D,y+24)),[242,219,191],1);}
+ quad(c,[[15,120],[335,120],[335,415],[15,415]],[246,225,199]);quad(c,[[365,120],[827,120],[827,442],[365,442]],[248,230,207]);
+ // Long north windows with visible timber mullions and warm interior sills.
+ for(let x=38;x<BUILDING_W-25;x+=98){const a=project(x,4,57),b=project(Math.min(x+74,BUILDING_W-8),4,57),d=project(Math.min(x+74,BUILDING_W-8),4,14),e=project(x,4,14);polygon(c,[a,b,d,e],hour<6||hour>=20?[48,75,105]:[129,194,199]);line(c,a,b,[226,194,153],5);line(c,e,d,[223,190,150],4);line(c,a,e,[231,203,169],3);line(c,b,d,[231,203,169],3);}
+ // River side sill and old street-facing entrance cut into the front wall.
+ line(c,project(8,0,4),project(BUILDING_W-8,0,4),C.walnut2,9);
+ // A proper curved arch, cut through the south-facing street wall.
+ const arch=(cx,r,base,zspring,peak)=>{const pts=[project(cx-r,BUILDING_D,-2),project(cx+r,BUILDING_D,-2),project(cx+r,BUILDING_D,zspring)];for(let i=0;i<=16;i++){const a=i*Math.PI/16;pts.push(project(cx+r*Math.cos(a),BUILDING_D,zspring+(peak-zspring)*Math.sin(a)));}return pts;};
+ polygon(c,arch(185,54,0,52,91),C.walnut);polygon(c,arch(185,42,0,43,73),[186,123,81]);dot(c,...project(214,BUILDING_D,26),3,C.gold);
+ // East service wall and small separate back-kitchen counter.
+ cuboid(c,715,28,120,82,24,[232,204,171],C.brick);label(c,'后厨',...project(775,50,27),15,C.ink);
+ cuboid(c,746,135,88,205,35,C.walnut2,C.walnut);quad(c,[[748,138],[831,138],[831,340],[748,340]],C.cream2);cuboid(c,760,178,58,120,48,[177,113,78],C.walnut);label(c,'吧台',...project(789,160,52),16,C.white);
+ // West commons built-in benches and north window seat are simple base furnishings.
+ cuboid(c,42,216,160,24,25,C.walnut2,C.walnut);cuboid(c,42,216,18,88,23,C.walnut,C.walnut);cuboid(c,184,216,18,88,23,C.walnut,C.walnut);cuboid(c,112,320,118,27,20,C.walnut2,C.walnut);label(c,'公共客厅',...project(172,376,4),15,C.muted);
+ cuboid(c,245,38,225,28,22,[183,129,111],C.walnut);label(c,'临河窗边',...project(356,93,2),14,C.muted);
+ // Warm wall torches plus a pink butterfly mark on an inner timber beam.
+ for(const [x,y] of [[370,110],[585,112],[612,392],[307,399]]){const p=project(x,y,42);c.rect(p[0]-2,p[1],4,22,C.walnut,2);dot(c,p[0],p[1],7,C.gold);}
+ const beam1=project(270,110,43),beam2=project(675,110,43);line(c,beam1,beam2,C.walnut,6);dot(c,...project(462,110,46),5,C.berry);dot(c,...project(469,110,46),5,C.berry);dot(c,...project(465,110,48),3,C.cream);
 }
-
-export async function renderTavernMap(snapshot={}){
- const s=snapshot&&typeof snapshot==='object'?snapshot:{};
- const tables=Array.isArray(s.tables)?s.tables:[],visitors=Array.isArray(s.visitors)?s.visitors:[];
- const seatsSeen=new Set();const tablePeople=[];
- for(const t of tables.slice(0,4))for(const p of Array.isArray(t?.players)?t.players:[]){const key=String(p?.id??`anon-${tablePeople.length}`);if(seatsSeen.has(key))continue;seatsSeen.add(key);tablePeople.push({id:key,name:safe(p?.name),bot:!!p?.bot});}
- const seen=new Set(seatsSeen),guests=[];
- for(const p of visitors){const key=String(p?.id??'');if(!key||seen.has(key))continue;seen.add(key);guests.push({id:key,name:safe(p?.name),kind:p?.kind});}
- const realCount=Math.max(0,Number.isFinite(Number(s.visitorCount))?Math.floor(Number(s.visitorCount)):guests.length);
- const mood=ambience(s.at),crowd=realCount===0?'安静打烊':realCount<=3?'三三两两':realCount<=8?'热闹聊天':'满屋话声';
- const assetNames=Array.isArray(s.room?.assets)?s.room.assets.map(a=>String(a?.name||'')):[];
- const hasSofa=assetNames.some(n=>/沙发|sofa/i.test(n));
- const names=[roomName(s),safe(s.operations?.manager?.name||'暂无',12),...tablePeople.map(p=>p.name),...guests.map(p=>p.name),'河畔窗边','吧台','窗边','公共客厅','游戏区','入口','德州','抽鬼牌','骗子酒馆','游戏','等候中','游戏中','已结束','开放中','最近30分钟来客','席位示意','来客','游戏桌','订单','今日店长','暂无','电脑','另有','位来客','桌','暖灯相伴','河光正好','暮色渐浓','星月河窗','安静打烊','三三两两','热闹聊天','满屋话声','北京时间','点单','热茶','红豆粉','未知时间','时','分','装饰','Lv',...assetNames];
- await prepareNicknameFont(names);
- const c=new Canvas(W,H);
- // Warm, quiet base room. Walls and common fixtures are part of the base tavern.
- c.rect(0,0,W,H,C.wall);rounded(c,16,16,968,728,24,C.wall2);rounded(c,35,35,930,690,14,C.floor);
- for(let y=42;y<720;y+=56)c.rect(39,y,922,2,C.floor2);
- for(let x=48;x<950;x+=68)c.rect(x,42,2,680,C.floor2);
- // Window and river along the upper-left wall.
- rounded(c,51,49,255,113,12,[229,190,155]);rounded(c,58,56,241,99,8,C.water);c.rect(177,56,4,99,[233,224,205]);c.rect(58,104,241,3,[233,224,205]);
- if(mood.night){c.rect(58,56,241,48,[47,72,104]);c.rect(86,72,4,4,[255,244,195],2);c.rect(138,84,4,4,[255,244,195],2);c.rect(249,67,4,4,[255,244,195],2);c.rect(263,72,10,10,[255,237,185],5);}
- for(let i=0;i<5;i++)c.rect(67+i*48,68+(i%2)*13,25,4,[179,225,218],2);
- label(c,'河畔窗边',180,169,13,C.muted,true);
- // Bar counter and service area.
- rounded(c,690,46,263,156,12,[233,206,179]);label(c,'吧台',821,56,19,C.ink,true);
- rounded(c,714,91,216,67,12,C.wood);rounded(c,720,96,204,54,9,C.wood2);c.rect(728,163,188,15,[117,71,61],5);rounded(c,778,67,86,19,8,[255,230,205]);label(c,'红豆粉',821,70,10,C.ink,true);
- if(assetNames.length){const a=s.room.assets[0];rounded(c,778,190,175,22,8,[236,214,190]);label(c,`装饰 ${safe(a.name,8)} ${a.level?`Lv${a.level}`:''}`,865,194,10,C.ink,true);}
- for(let i=0;i<4;i++){c.rect(739+i*48,172,30,18,[201,158,119],7);c.rect(748+i*48,184,12,12,C.wood,3);}
- // Public areas have simple shared seating; purchased sofa artwork appears only if owned.
- rounded(c,320,55,345,133,15,[250,236,218]);label(c,'窗边',492,72,16,C.muted,true);rounded(c,360,102,265,50,22,[202,158,138]);c.rect(389,157,206,8,C.wood,4);
- rounded(c,56,226,330,235,17,[250,236,218]);label(c,'公共客厅',221,238,18,C.muted,true);
- if(hasSofa){rounded(c,109,301,225,91,31,[210,151,151]);rounded(c,123,311,196,39,18,[228,181,174]);}
- else {c.rect(105,328,214,17,C.wood,5);c.rect(117,345,8,27,C.wood,3);c.rect(299,345,8,27,C.wood,3);c.rect(172,393,92,11,C.wood2,4);c.rect(180,404,6,21,C.wood,2);c.rect(250,404,6,21,C.wood,2);}
- rounded(c,410,222,557,458,18,[250,236,218]);label(c,'游戏区',688,234,16,C.muted,true);
- // Main doorway.
- rounded(c,53,629,119,83,8,[225,197,169]);rounded(c,72,624,82,90,30,C.wood);rounded(c,81,635,64,79,25,[210,160,116]);c.rect(128,670,5,5,C.lamp,3);label(c,'入口',112,709,13,C.muted,true);
- drawPlant(c,304,214);drawPlant(c,923,624);drawLamp(c,407,204);drawLamp(c,674,204);drawLamp(c,620,640);
- // Tea service is a small room detail, not a purchased fixture or NPC.
- c.rect(871,121,16,4,[255,230,205],2);c.rect(873,111,12,12,[245,220,184],5);c.rect(885,114,6,7,[245,220,184],3);c.rect(875,106,8,5,C.wood,2);
- c.rect(890,124,10,9,[255,244,226],3);c.rect(892,132,6,3,C.wood,2);
- // Real game participants get their table first. A lone real player remains lone.
- const placements=[[511,337],[816,337],[511,520],[816,520]];
- tables.slice(0,4).forEach((t,i)=>drawTable(c,t||{},placements[i][0],placements[i][1],i));
- if(tables.length>4){const remaining=tables.length-4;rounded(c,589,608,151,36,14,[237,211,187]);label(c,`另有 ${remaining} 桌`,664,618,14,C.ink,true);}
- // Show a bounded, deterministic scatter of remaining actual visitors only.
- const spots=[[88,275],[183,275],[289,275],[88,433],[183,433],[289,433],[438,610],[535,610],[884,610],[893,466],[437,466],[535,610],[884,275],[887,535],[441,535],[534,275],[80,535],[305,535],[940,535],[441,608],[890,608],[343,608],[538,466],[940,608]];
- const max=spots.length,shown=guests.slice(0,max);
- shown.forEach((p,i)=>{const [x,y]=spots[i];if(p.kind==='order'&&x>690&&x<950&&y<220)return;drawChip(c,x,y,p.name,false);});
- const overflow=Math.max(0,guests.length-shown.length);
- if(overflow){rounded(c,62,576,152,36,13,[255,246,233]);label(c,`另有 ${overflow} 位来客`,138,586,13,C.ink,true);}
- // Header is printed last for consistent visual hierarchy.
- rounded(c,24,22,952,46,14,[92,58,61]);label(c,roomName(s),46,34,21,[255,242,226]);label(c,`${timeCN(s.at)} 北京时间`,904,37,13,[255,225,207],true);
- rounded(c,23,682,954,59,15,[92,58,61]);
- const manager=s.operations?.manager?.name?safe(s.operations.manager.name,12):'暂无';
- label(c,'最近30分钟来客  席位示意',42,692,14,[255,226,207]);label(c,`${mood.word}  ${crowd}`,830,692,12,[255,226,207],true);
- label(c,`来客 ${realCount}`,42,716,13,C.white);label(c,`游戏桌 ${Math.max(0,Number(s.tableCount)||0)}`,217,716,13,C.white);
- label(c,`订单 ${Math.max(0,Number(s.recentOrders?.orderCount)||0)}`,406,716,13,C.white);label(c,`今日店长 ${manager}`,579,716,13,C.white);
- const blob=await encodePNG(c);return new Uint8Array(await blob.arrayBuffer());
+function drawPlant(c,x,y){const p=project(x,y,24);cuboid(c,x-10,y-8,20,17,16,[175,114,83],C.walnut);for(const [dx,dy,col] of [[-8,-17,[80,133,87]],[3,-27,[108,151,91]],[12,-15,[72,119,81]]])dot(c,p[0]+dx,p[1]+dy,7,col);}
+function drawFixture(c,a){const id=a.id,def=TAVERN_BUILDING.fixtures[id];if(!def)return;const {x,y,shape}=def,level=Math.max(1,Number(a.level)||1);const p=project(x,y,0),pink=C.berry;
+ switch(shape){case'table':cuboid(c,x-24,y-18,48,36,24,[171,112,75],C.walnut);break;case'seat':cuboid(c,x-12,y-8,45,20,18,level>1?pink:[191,143,120],C.walnut);break;case'shelf':cuboid(c,x-15,y-7,30,14,43,C.walnut2,C.walnut);for(let i=0;i<level+1;i++)c.rect(p[0]-12,p[1]-34+i*11,20,3,C.cream2);break;case'rack':cuboid(c,x-7,y-7,14,14,38,C.walnut2,C.walnut);line(c,[p[0]-17,p[1]-36],[p[0]+17,p[1]-36],C.walnut,3);break;case'counter':cuboid(c,x-24,y-22,48,44,25,[188,127,84],C.walnut);break;case'lamp':dot(c,p[0],p[1]-39,7,C.gold);c.rect(p[0]-2,p[1]-31,4,15,C.walnut);break;case'lantern':dot(c,p[0],p[1]-33,8,pink);break;case'sign':cuboid(c,x-20,y-7,40,14,22,[208,115,146],C.walnut);break;case'frame':cuboid(c,x-16,y-5,32,10,26,[214,179,132],C.walnut);break;case'vase':dot(c,p[0],p[1]-12,7,[188,132,123]);break;case'board':cuboid(c,x-18,y-7,36,14,32,[82,96,76],C.walnut);break;case'clock':dot(c,p[0],p[1]-20,12,[186,143,99]);dot(c,p[0],p[1]-20,2,C.white);break;case'gramophone':cuboid(c,x-12,y-12,24,24,15,C.walnut2,C.walnut);break;case'plant':drawPlant(c,x,y);break;case'bell':dot(c,p[0],p[1]-22,6,C.gold);break;case'tea':cuboid(c,x-14,y-14,28,28,19,[216,181,143],C.walnut);for(let i=0;i<2;i++)line(c,[p[0]-5+i*8,p[1]-24],[p[0]-3+i*8,p[1]-34],[255,246,224],2);break;case'case':cuboid(c,x-14,y-14,28,28,19,[216,181,143],C.walnut);break;case'seating':cuboid(c,x-24,y-20,48,38,19,level>1?pink:[163,112,86],C.walnut);break;case'speaker':cuboid(c,x-10,y-10,20,20,30,C.walnut2,C.walnut);break;case'fan':dot(c,p[0],p[1]-22,11,C.blue);break;case'deck':quad(c,[[x-70,y-20],[x+70,y-20],[x+70,y+20],[x-70,y+20]],[193,149,107]);break;}
+ // Preserve the public custom donation/title name and level at the fixture anchor.
 }
+function drawTable(c,table,x,y,used){const p=project(x,y,0);cuboid(c,x-48,y-30,96,60,24,C.walnut2,C.walnut);quad(c,[[x-43,y-27],[x+43,y-27],[x+43,y+27],[x-43,y+27]],[151,96,78]);const players=(Array.isArray(table?.players)?table.players:[]).slice(0,8);label(c,table?(gameName[table.game]||'牌桌'):'空桌',p[0],p[1]-67,16,C.ink);if(table)label(c,phaseName[table.phase]||'等待中',p[0],p[1]-47,11,C.ink);const seats=[[x,y-45],[x+54,y-24],[x+57,y+18],[x,y+43],[x-56,y+18],[x-55,y-22],[x+24,y-48],[x-25,y+48]];players.forEach((person,i)=>{const q=project(seats[i][0],seats[i][1],17),r=11;dot(c,q[0],q[1],r,person.bot?[173,148,180]:C.berry);dot(c,q[0],q[1]-1,r-3,C.white);label(c,safe(person.name,7),q[0],q[1]-4,12,C.ink);used.add(String(person.id??`anon-${used.size}`));});}
+function timeText(at){const d=new Date(at);if(!Number.isFinite(d.getTime()))return '时间未知';const p=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hour12:false}).format(d).replace(':','时');return `${p}分 北京时间`;}
+async function renderTavernCanvas(snapshot={}){
+ const s=snapshot&&typeof snapshot==='object'?snapshot:{},allTables=Array.isArray(s.tables)?s.tables:[],tables=allTables.slice(0,4),visitors=Array.isArray(s.visitors)?s.visitors:[],assets=Array.isArray(s.room?.assets)?s.room.assets:[],used=new Set();
+ const visitorCount=Math.max(0,Number.isFinite(Number(s.visitorCount))?Math.floor(Number(s.visitorCount)):visitors.length),hour=atHour(s.at),ambient=hour>=6&&hour<17?'河光正好':hour>=17&&hour<20?'暮色渐浓':'星月河窗';
+ const manager=s.operations?.manager?.name?safe(s.operations.manager.name,10):'暂无';
+ const fixtureRows=assets.slice(0,4).map(a=>`${safe(a.name||a.item_name||a.item,11)}${a.founder?.name||a.donor_name?` · ${safe(a.founder?.name||a.donor_name,7)}`:''}  Lv${Math.max(1,Number(a.level)||1)}`);
+ const texts=[safe(s.room?.name||'红豆粉的小酒馆'),timeText(s.at),ambient,'北 · 河面长窗','南 · 旧街','东 · 吧台与后厨','西 · 公共客厅','临河窗边','酒馆陈设','空桌','德州','UNO','抽鬼牌','骗子酒馆','等待中','游戏中','已结束','最近30分钟来客','席位示意','后厨','吧台','西 · 公共客厅','来客','游戏桌','订单','今日店长',`来客 ${visitorCount}   游戏桌 ${Math.max(0,Number(s.tableCount)||0)}   订单 ${Math.max(0,Number(s.recentOrders?.orderCount)||0)}   今日店长 ${manager}`,...fixtureRows,...visitors.map(p=>safe(p.name)),...tables.flatMap(t=>(t.players||[]).map(p=>safe(p.name))),...assets.flatMap(a=>[safe(a.name),safe(a.item_name),safe(a.founder?.name),safe(a.donor_name),`Lv${a.level||1}`]),manager];await prepareNicknameFont(texts);
+ const c=new Canvas(W,H);drawRoom(c,hour);
+ // Fixed tables; live table snapshots occupy their canonical anchors, empty anchors stay explicitly empty.
+ TAVERN_BUILDING.anchors.tables.forEach((a,i)=>drawTable(c,tables[i],a.x,a.y,used));
+ // Installed fixtures only; IDs, levels and donor labels come directly from public room assets.
+ for(const a of assets){const id=typeof a.item==='string'?a.item:a.id||a.item?.id;drawFixture(c,{...a,id,name:a.name||a.item_name,founder:a.founder});}
+ if(assets.length){const boxX=40,boxY=88,boxW=330,rows=Math.min(4,fixtureRows.length),boxH=42+rows*20+(assets.length>4?18:0);c.rect(boxX,boxY,boxW,boxH,[255,244,226],12);c.rect(boxX,boxY,boxW,4,C.berry,2);label(c,'酒馆陈设',boxX+60,boxY+9,16,C.ink);fixtureRows.forEach((row,i)=>{c.text(row,boxX+14,boxY+32+i*20,13,C.muted);});if(assets.length>4)label(c,`另有 ${assets.length-4} 件陈设`,boxX+120,boxY+33+rows*20,12,C.muted);}
+ const visitorIds=new Set(),free=[];for(const v of visitors){const id=String(v?.id??'');if(!id||used.has(id)||visitorIds.has(id))continue;visitorIds.add(id);free.push(v);}const guestSlots=[[83,318],[147,372],[275,274],[300,369],[370,287]];free.slice(0,5).forEach((g,i)=>{const p=project(...guestSlots[i],19);dot(c,p[0],p[1],9,C.berry);dot(c,p[0],p[1]-1,6,C.white);label(c,safe(g.name,6),p[0],p[1]-3,7,C.ink);});
+ if(free.length>5){const p=project(335,421,6);label(c,`另有 ${free.length-5} 位来客`,p[0],p[1],9,C.ink);}
+ if(Math.max(0,Number(s.tableCount)||allTables.length)>4){const p=project(560,430,4);label(c,`另有 ${Math.max(0,Number(s.tableCount)||allTables.length)-4} 桌`,p[0],p[1],9,C.ink);}
+ // Orientation and reservation are legible but do not imply ownership of future expansion.
+ const compass=(text,x,y,w=154)=>{c.rect(x-w/2,y-4,w,28,[93,60,59],8);label(c,text,x,y,15,C.white);};compass('北 · 河面长窗',820,250,160);compass('东 · 吧台与后厨',855,466,190);compass('南 · 旧街',501,600,120);compass('西 · 公共客厅',259,414,175);
+ c.rect(22,22,956,45,[89,57,61],13);label(c,safe(s.room?.name||'红豆粉的小酒馆',22),180,34,20,C.white);label(c,`${timeText(s.at)} · ${ambient}`,808,38,11,[255,226,204]);c.rect(22,677,956,62,[89,57,61],13);label(c,'最近30分钟来客 · 席位示意',182,688,12,[255,226,204]);label(c,`来客 ${visitorCount}   游戏桌 ${Math.max(0,Number(s.tableCount)||0)}   订单 ${Math.max(0,Number(s.recentOrders?.orderCount)||0)}   今日店长 ${manager}`,500,716,12,C.white);
+ return c;
+}
+export async function renderTavernMap(snapshot={}){const canvas=await renderTavernCanvas(snapshot),blob=await encodePNG(canvas);return new Uint8Array(await blob.arrayBuffer());}
+const SPECIAL_GIF_COLORS=[[249,229,202],[239,211,179],[116,70,55],[158,100,69],[94,61,62],[135,86,78],[218,133,158],[124,190,198],[65,117,137],[240,185,94],[73,48,48],[55,38,45],[82,55,59],[125,82,75],[255,247,231],[84,130,92],[200,237,232],[255,226,145],[255,249,231]];
+const GIF_GLINT=16,GIF_LAMP=17,GIF_STEAM=18;
+function paletteFor(pixels){const counts=new Map();for(let p=0;p<pixels.length;p+=3){const key=(pixels[p]<<16)|(pixels[p+1]<<8)|pixels[p+2];counts.set(key,(counts.get(key)||0)+1);}const colors=[],seen=new Set();const add=key=>{if(seen.has(key)||colors.length>=256)return;seen.add(key);colors.push([(key>>16)&255,(key>>8)&255,key&255]);};for(const rgb of SPECIAL_GIF_COLORS)add((rgb[0]<<16)|(rgb[1]<<8)|rgb[2]);for(const [key] of [...counts].sort((a,b)=>b[1]-a[1])){add(key);if(colors.length===256)break;}while(colors.length<256)colors.push([0,0,0]);const lut=new Map();for(const key of counts.keys()){const r=(key>>16)&255,g=(key>>8)&255,b=key&255;let best=0,bestD=Infinity;for(let i=0;i<colors.length;i++){const dr=r-colors[i][0],dg=g-colors[i][1],db=b-colors[i][2],d=2*dr*dr+4*dg*dg+3*db*db;if(d<bestD){bestD=d;best=i;if(d===0)break;}}lut.set(key,best);}const rgb=new Uint8Array(768);colors.forEach((col,i)=>rgb.set(col,i*3));return {lut,rgb};}
+function gifFrame(pixels,sourceW,left,top,w,h,phase,hasTea,lut){const idx=new Uint8Array(w*h);for(let i=0;i<idx.length;i++){const x=left+i%w,y=top+Math.floor(i/w),p=(y*sourceW+x)*3,key=(pixels[p]<<16)|(pixels[p+1]<<8)|pixels[p+2];idx[i]=lut.get(key)??0;}if(phase){
+ // Sparkle points are selected in canonical world coordinates, then projected into the river.
+ for(let i=0;i<15;i++){const wx=35+i*56,wy=-112+(i%3)*15+((phase+i)%3)*2,[sx,sy]=project(wx,wy);for(let dx=0;dx<7;dx++){const x=sx+dx,y=sy+((i+phase)%2),rx=x-left,ry=y-top;if(rx>=0&&ry>=0&&rx<w&&ry<h)idx[ry*w+rx]=GIF_GLINT;}}
+ // Small warm pulses at built-in lamps; their geometry stays fixed while brightness shifts.
+ for(const [wx,wy] of [[370,110],[585,112],[612,392],[307,399]]){const [sx,sy]=project(wx,wy,42);for(let dx=-2;dx<=2;dx++){const x=sx+dx+((phase%2)?1:-1),y=sy+((dx*dx+phase)%3)-1,rx=x-left,ry=y-top;if(rx>=0&&ry>=0&&rx<w&&ry<h)idx[ry*w+rx]=GIF_LAMP;}}
+ if(hasTea){const [sx,sy]=project(765,58);for(let dy=22;dy<=43;dy++){const x=sx+((phase+Math.floor(dy/7))%3)-1,y=sy-dy,rx=x-left,ry=y-top;if(rx>=0&&ry>=0&&rx<w&&ry<h)idx[ry*w+rx]=GIF_STEAM;}}
+ }const data=[];let dict,next,size,acc=0,bits=0;const emit=code=>{acc|=code<<bits;bits+=size;while(bits>=8){data.push(acc&255);acc>>>=8;bits-=8;}};const reset=()=>{dict=new Map();next=258;size=9;};reset();emit(256);let prefix=idx[0];for(let i=1;i<idx.length;i++){const k=idx[i],key=(prefix<<8)|k;if(dict.has(key)){prefix=dict.get(key);continue;}emit(prefix);if(next<4096){dict.set(key,next++);if(next===(1<<size)+1&&size<12)size++;}else{emit(256);reset();}prefix=k;}emit(prefix);emit(257);if(bits)data.push(acc&255);const blocks=[];for(let i=0;i<data.length;i+=255)blocks.push(Math.min(255,data.length-i),...data.slice(i,i+255));blocks.push(0);return new Uint8Array(blocks);}
+export async function renderTavernScene(snapshot={},options={}){const c=await renderTavernCanvas(snapshot);if(options.animated===false){const b=await encodePNG(c);return {filename:'tavern-scene.png',bytes:new Uint8Array(await b.arrayBuffer()),mime:'image/png'};}const parts=[new TextEncoder().encode('GIF89a')],h=new Uint8Array(7),v=new DataView(h.buffer);v.setUint16(0,W,true);v.setUint16(2,H,true);h.set([0xf7,0,0],4);parts.push(h);const palette=paletteFor(c.pixels);parts.push(palette.rgb,new Uint8Array([0x21,0xff,0x0b,...new TextEncoder().encode('NETSCAPE2.0'),3,1,0,0,0]));const assets=Array.isArray(snapshot?.room?.assets)?snapshot.room.assets:[],hasTea=assets.some(a=>(typeof a.item==='string'?a.item:a.id||a.item?.id)==='tea_station');for(let f=0;f<4;f++){const left=f?420:0,top=f?150:0,fw=f?550:W,fh=f?315:H;parts.push(new Uint8Array([0x21,0xf9,4,0,5,0,0,0,0x2c,left&255,left>>8,top&255,top>>8,fw&255,fw>>8,fh&255,fh>>8,0,8]),gifFrame(c.pixels,W,left,top,fw,fh,f,hasTea,palette.lut));}parts.push(new Uint8Array([0x3b]));const bytes=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));let off=0;for(const p of parts){bytes.set(p,off);off+=p.length;}if(bytes.length>1_000_000)throw Error('Tavern scene exceeds 1 MB budget');return {filename:'tavern-scene.gif',bytes,mime:'image/gif'};}

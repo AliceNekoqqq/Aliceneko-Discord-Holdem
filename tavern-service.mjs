@@ -124,6 +124,7 @@ export class TavernService {
   if(!validId(p.guild))throw Error('无效服务器。');
   const bound=await this.storage.get('tavernGuild');if(bound&&bound!==p.guild)throw Error('服务器不匹配。');if(!bound)await this.storage.put('tavernGuild',p.guild);
   if(p.action?.startsWith('map'))return this.map.dispatch(p);
+  if(p.action==='context'&&p.recordVisit===true&&validId(p.id)&&validId(p.channel)){try{this.map.touch({id:p.id,name:p.name,channel:p.channel,kind:'visit'});}catch{}}
   if(validId(p.id)&&validId(p.channel)&&!['context','confirm'].includes(p.action)){try{this.map.touch({id:p.id,name:p.name,channel:p.channel,kind:'visit'});}catch{}}
   if(p.action==='reward')return this.reward(p.guild,p.result);
   if(p.action?.startsWith('ops'))return this.operations.dispatch(p);
@@ -139,3 +140,4 @@ export class TavernService {
 }
 export const tavernStub=(env,guild)=>env.TABLES.get(env.TABLES.idFromName(`tavern:${guild}`));
 export async function tavernRequest(env,p){const r=await tavernStub(env,p.guild).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'tavern',...p})});if(!r.ok)throw Error('酒馆暂时繁忙，请稍后重试。');const data=await r.json();if(data?.error)throw Error(data.error);return data;}
+

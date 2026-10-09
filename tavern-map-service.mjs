@@ -81,6 +81,14 @@ export class TavernMapService {
     return { source: 'program_confirmed_tavern_map', at: now, windowMs: WINDOW, visitors, visitorCount, tables, tableCount, recentOrders };
   }
 
+  nextExpiry(now = Date.now()) {
+    this.ensureSchema();
+    const visit=this.one('SELECT MIN(last_visit) AS at FROM tavern_map_visits WHERE last_visit>=? AND last_visit<=?',now-WINDOW,now)?.at;
+    const table=this.one("SELECT MIN(expires) AS at FROM tavern_map_tables WHERE expires>? AND at<=? AND json_extract(snapshot,'$.closed')=0",now,now)?.at;
+    const candidates=[visit==null?null:visit+WINDOW+1,table].filter(x=>x!=null&&x>now);
+    return candidates.length?Math.min(...candidates):null;
+  }
+
   dispatch(p = {}, now = Date.now()) {
     if (p.action === 'mapTouch') return this.touch({ id: validId(p.id) ? p.id : null, name: p.name, channel: p.channel, kind: p.kind || 'visit' }, now);
     if (p.action === 'mapBoard') {
@@ -91,3 +99,4 @@ export class TavernMapService {
     throw Error('未知地图操作。');
   }
 }
+

@@ -34,6 +34,14 @@ test('30-minute visitor boundary is inclusive, unique users count beyond display
  assert.deepEqual(Object.keys(board.recentOrders).sort(),['orderCount','paidOrders']);
 });
 
+test('next map expiry includes visitors outside the display cap and exact table expiry',()=>{
+ const s=storage(),map=new TavernMapService(s),now=2000000;
+ for(let i=1;i<=44;i++)map.touch({id:String(i),name:`P${i}`,channel:'9'},now-(i===44?1799000:1000));
+ map.recordTable(snap({channel:'999',epoch:'e1',at:now-100,expires:now+500,players:[]}),now);
+ assert.equal(map.nextExpiry(now),now+500);
+ assert.equal(map.nextExpiry(now+500),now-1799000+1800001);
+});
+
 test('table snapshots allow nonnumeric bot IDs, retain bot markers, exclude bots from visits, and enforce epoch tombstones',()=>{
  const s=storage(),map=new TavernMapService(s);
  assert.equal(map.recordTable(snap({expires:999999999,players:[{id:'1',name:'Alice',bot:false},{id:'bot1',name:'Dealer',bot:true}]}),100000),true);
@@ -76,3 +84,4 @@ test('table update and participant touch roll back together on transaction failu
  s.sql.exec=original;
  assert.equal(map.board(100000).tableCount,0);
 });
+

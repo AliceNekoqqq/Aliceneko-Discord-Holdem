@@ -47,3 +47,4 @@ test('natural language opens a public lobby without a model request or welcome w
  assert(await handleNaturalTavern(e,msg,'走进酒馆'));assert.equal(e.service.rows('SELECT * FROM tavern_members').length,0);
  assert(sent[0].body.content.includes('大厅'));assert(!sent.some(x=>x.url.includes('model')));assert.equal(sent[0].body.allowed_mentions.parse.length,0);
 });
+

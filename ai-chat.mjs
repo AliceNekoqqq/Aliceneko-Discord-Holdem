@@ -625,10 +625,10 @@ function redactDeveloperDiscordIdFromPrompt(value, env) {
   return /^\d{17,20}$/.test(id) ? text.split(id).join("[开发者账号]") : text;
 }
 
-export async function tavernRuntimeData(env,guild,id,channel) {
+export async function tavernRuntimeData(env,guild,id,channel,name=null) {
   if(!env.TABLES)return {};
   const results=await Promise.allSettled([
-    tavernRequest(env,{guild,id,channel,action:'context'}),
+    tavernRequest(env,{guild,id,channel,action:'context',...(name?{name,recordVisit:true}:{})}),
     tavernRequest(env,{guild,id,action:'renoScene'}),
     tavernRequest(env,{guild,action:'opsScene'})
   ]);
@@ -705,7 +705,7 @@ export async function replyToMention(env, message, botId) {
     if(discordContext.reference)last.parts.push(...discordImageParts(discordContext.reference).slice(0,4-imageParts.length));
     runtimeData.timeAndSearch=await liveContext(currentUserText);
     if(memoryOn)runtimeData.preferences=longMemoryContext(longMemory,changes);
-    Object.assign(runtimeData,await tavernRuntimeData(env,guildId,userId,channelId));
+    Object.assign(runtimeData,await tavernRuntimeData(env,guildId,userId,channelId,messageSpeakerName(message)));
     responseText = await generateGemini(env,history,"chat",fetch,await getBotEmojiTokens(env),getBotKnowledge(knowledgeContext),waitForRetry,developerIdentityContext(env,message),runtimeData);
     generated = true;
   } catch(error) {
@@ -851,4 +851,5 @@ export async function commentOnGameTransition(env, storage, before, after) {
     return false;
   }
 }
+
 

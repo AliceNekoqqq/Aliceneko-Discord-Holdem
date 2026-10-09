@@ -28,7 +28,7 @@ import { BoardSync } from './board-sync.mjs';
 import { PrivatePanels } from './private-panels.mjs';
 import { initializeLifecycle, nextLifecycleAlarm, automaticCloseReason, idleWarning, takeoverAt, canTakeover, touchOwner, effectiveHumanAction } from './lifecycle.mjs';
 import { board, quickRaises, confirmation, handPanel, management, panelAction, button, row } from './ui.mjs';
-const COMMAND_VERSION='games-v1.0.1-beta.37'; // All permanent-menu dish images with immutable asset URLs.
+const COMMAND_VERSION='games-v1.0.1-beta.38'; // Canonical building, animated public lobby and event-driven scene refresh.
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。点「准备下一手」，所有参与真人准备后 5 秒自动发牌；人员变化会取消全部准备。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；连续 2 次超时会在本手结束后暂离，保留筹码；在牌桌管理恢复参与。全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码；游玩中可预约本手结束后离桌，并随时取消。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。\n未发牌空闲 5 分钟、结算后空闲 10 分钟自动关桌，提前 1 分钟提醒；刷新和查看手牌不延长计时。\n游玩中 10 分钟无人有效操作且仍可行动真人均已超时时，取消本手并退回下注。\n等待发牌或结算时，桌主 2 分钟未交互，其他已入座真人可接管。只供娱乐，无充值或兑换。';
@@ -124,11 +124,17 @@ export class PokerTable extends DurableObject {
         }catch(error){return json({ok:false,durationMs:Date.now()-started,reason:error.message,status:error.status,timeoutMs:90000});}
       }
       if(payload.op==='tavern'){try{
-        if(payload.action==='mapRender')return json(await this.tavernMapPresentation.render(payload));
+        if(payload.action==='mapRender'){
+          const image=await (payload.scene===true?this.tavernMapPresentation.renderScene(payload):this.tavernMapPresentation.render(payload));
+          await this.tavernLive.changed().catch(()=>{});
+          return json(image);
+        }
         if(payload.action==='opsBindLobby')return json(await this.tavernLive.track(payload));
         if(payload.action==='opsUnbindLobby')return json(await this.tavernLive.untrack(payload));
         const answer=await this.tavern.dispatch(payload);
-        if(['view','opsBoard','opsMenu','opsSet','opsVote','opsClaim','confirm','reward','renoConfirm'].includes(payload.action))await this.tavernLive.changed().catch(()=>{});
+        const acceptedMapMutation=['mapTouch','mapTable'].includes(payload.action)&&answer===true;
+        const visitorAction=!payload.action?.startsWith('map')&&!['context','draft'].includes(payload.action)||payload.action==='context'&&payload.recordVisit===true;
+        if(acceptedMapMutation||visitorAction||payload.action==='mapBoard')await this.tavernLive.changed().catch(()=>{});
         return json(answer);
       }catch(e){return json({error:e.message});}}
       if(payload.op==='liarRank'){try{await this.ctx.storage.put('liarRankGuild',payload.guild);return json(await this.liarRankings.dispatch(payload));}catch(e){return json({error:e.message});}}

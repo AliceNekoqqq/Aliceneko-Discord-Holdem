@@ -117,8 +117,10 @@ export async function finishTavern(env,i){
   if(!sent)data.content+=`\n\n📨 频道公告未能送达；这张收据仍有效，出资没有回滚。`;
  }
  const mapImage=data._mapImage;delete data._mapImage;
+ const mapScene=data._mapScene;delete data._mapScene;
+ const scene=mapScene?.bytes?mapScene:mapImage?{bytes:mapImage,filename:'tavern-map.png',mime:'image/png'}:null;
  const payload={...data,embeds:data.embeds||[],attachments:[]};let body=JSON.stringify(payload),headers={'Content-Type':'application/json'};
- if(mapImage){payload.attachments=[{id:0,filename:'tavern-map.png',description:'酒馆近期来客与公开牌桌实况'}];payload.embeds=[{image:{url:'attachment://tavern-map.png'}}];const form=new FormData();form.append('payload_json',JSON.stringify(payload));form.append('files[0]',new Blob([mapImage],{type:'image/png'}),'tavern-map.png');body=form;headers={};}
+ if(scene){payload.attachments=[{id:0,filename:scene.filename,description:'酒馆近期来客与公开牌桌实况；动态河光与暖灯'}];payload.embeds=[{...(payload.embeds[0]||{}),image:{url:`attachment://${scene.filename}`}}];const form=new FormData();form.append('payload_json',JSON.stringify(payload));form.append('files[0]',new Blob([scene.bytes],{type:scene.mime}),scene.filename);body=form;headers={};}
  try{const r=await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${encodeURIComponent(i.token)}/messages/@original`,{method:'PATCH',headers,body,signal:AbortSignal.timeout(6000)});
   const action=i.type===2?i.data.options?.[0]?.name:String(i.data?.custom_id||'').split(':')[3];
   if(r.ok&&['大厅','lobby'].includes(action)&&!(Number(i.message?.flags)&64)){
@@ -168,3 +170,4 @@ export async function handleNaturalTavern(env,message,text){
  }catch{}
  return true;
 }
+
