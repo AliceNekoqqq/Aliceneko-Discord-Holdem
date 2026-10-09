@@ -1,0 +1,62 @@
+[
+  {
+    "species": "lamp-cat",
+    "coat": "amber",
+    "path": "assets/pets/lamp-cat-amber-v2.png",
+    "width": 1254,
+    "height": 1254,
+    "sha256": "91626704ece9f52c347afb633a186c59eace204885946e3a6ad0809d1d6e489b",
+    "source": "imagegen",
+    "provenance": "Existing generated image retained from the interrupted v2 batch; original tool prompt not retained."
+  },
+  {
+    "species": "lamp-cat",
+    "coat": "silver",
+    "path": "assets/pets/lamp-cat-silver-v2.png",
+    "width": 1254,
+    "height": 1254,
+    "sha256": "505c2b5bd50953b373a48bd0d29b400c6d3ad31a612e2bd91fed229e319ba9b2",
+    "source": "imagegen",
+    "provenance": "Existing generated image retained from the interrupted v2 batch; original tool prompt not retained."
+  },
+  {
+    "species": "lamp-cat",
+    "coat": "calico",
+    "path": "assets/pets/lamp-cat-calico-v2.png",
+    "width": 1254,
+    "height": 1254,
+    "sha256": "101574a2c9a6c271b25eccd166605f6b2c346fefd8f2353e537a022b15528883",
+    "source": "imagegen",
+    "provenance": "Existing generated image retained from the interrupted v2 batch; original tool prompt not retained."
+  },
+  {
+    "species": "moss-dog",
+    "coat": "moss",
+    "path": "assets/pets/moss-dog-moss-v2.png",
+    "width": 1254,
+    "height": 1254,
+    "sha256": "b2cab5231f4d11fd7979e024e5fd6e2d4c5dc0fcd629107d2871a17a2af8981d",
+    "source": "imagegen",
+    "provenance": "Existing generated image retained from the interrupted v2 batch; original tool prompt not retained."
+  },
+  {
+    "species": "moss-dog",
+    "coat": "cocoa",
+    "path": "assets/pets/moss-dog-cocoa-v2.png",
+    "width": 1254,
+    "height": 1254,
+    "sha256": "3f4a1fb9d061e2f9a53f127e9a24911dbba1d7c8f4d4dcc3767d25cb31366140",
+    "source": "imagegen",
+    "provenance": "Existing generated image retained from the interrupted v2 batch; original tool prompt not retained."
+  },
+  {
+    "species": "paper-sparrow",
+    "coat": "rice",
+    "path": "assets/pets/paper-sparrow-rice-v2.png",
+    "width": 1254,
+    "height": 1254,
+    "sha256": "4ea055b505294e3d0c85174f691e01511ed21b12b0b679b64ebd8c125b6098f1",
+    "source": "imagegen",
+    "provenance": "Existing generated image retained from the interrupted v2 batch; original tool prompt not retained."
+  }
+]

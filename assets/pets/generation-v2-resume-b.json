@@ -1,0 +1,49 @@
+{
+  "items": [
+    {
+      "species": "paper-sparrow",
+      "coat": "ink",
+      "path": "assets/pets/paper-sparrow-ink-v2.png",
+      "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-01c9e014-38b2-47da-b7ce-f76099d4dc15.png",
+      "prompt": "Cozy storybook tavern companion character asset, warm watercolor and gouache children's picture-book style, delicate brush texture, cream paper background and subtle grain, soft warm light. Square 1024x1024. One single full-body bird centered, about 68% canvas with generous margin and nothing cropped. A deep ink-blue cockatiel-like folded-paper sparrow: tall slender silhouette, very high swept crest feathers, long narrow pointed tail fully visible, distinctly curved hooked beak, slim elongated body, fine legs. Delicate folded-paper feather layering and subtle crease lines, softly organic but clearly crafted from painted paper. Navy and blue-black feathers with quiet muted blue highlights, small warm cream cheek patch, expressive small dark eyes. Calm three-quarter standing pose. Plain warm cream paper background, faint grounding shadow. No extra subjects, props, accessories, text, frame or watermark.",
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "species": "paper-sparrow",
+      "coat": "rose",
+      "path": "assets/pets/paper-sparrow-rose-v2.png",
+      "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-61e1de2e-1bd0-4d51-a7a2-88111e0326a8.png",
+      "prompt": "Cozy storybook tavern companion character asset in a warm watercolor-and-gouache children's picture-book style, delicate brush texture, cream paper background and subtle grain, soft warm light. Square 1024x1024. One single full-body bird centered, about 68% canvas with generous margin, entire crest and tail visible. A tiny berry-pink parrot-like folded-paper sparrow with an unmistakably different compact silhouette: very large round head, short broad rounded body, stout little legs, thick strongly curved beak, short wide fan-shaped tail. Soft layered folded-paper feather forms with delicate crease lines, handcrafted painted-paper character. Berry, rose and dusty raspberry plumage, subtle pale pink face accents, expressive beadlike dark eyes. Sweet alert three-quarter standing pose with slight head tilt. Do not make it tall or slender; no long pointed tail or dramatic cockatiel crest. Plain warm cream paper background, faint grounding shadow only. No extra subjects, props, accessories, text, frame or watermark.",
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "species": "river-otter",
+      "coat": "chestnut",
+      "path": "assets/pets/river-otter-chestnut-v2.png",
+      "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-c5917536-5c1d-4086-93c1-22dfbaf973c2.png",
+      "prompt": "A single charming river-otter companion for a cozy tavern, painted as a warm watercolor-and-gouache children's picture-book illustration with delicate brush texture, cream paper background, subtle grain, gentle warm river-lantern light. Square 1024x1024 composition. Show one entire animal centered at about 68% of the canvas with clear margins and no cropping. Chestnut brown plush river otter with a very round, thick, low-slung cuddly body, dense fluffy plush coat visibly puffing around its silhouette, tiny round ears, short thick tapering tail, small paws. The outline must be compact, broad and cuddly, clearly unlike a sleek slender otter. Seated leaning pose, gently hugging one small smooth river stone against its belly; stone is secondary. Warm lantern-like golden river light softly illuminates the pale warm belly fur. Friendly relaxed face, soft dark eyes and little whiskers. Full body, tail visible. Plain warm cream paper background with only a faint ground shadow. No clothes, no extra animals, no text, no frame, no watermark.",
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "species": "river-otter",
+      "coat": "slate",
+      "path": "assets/pets/river-otter-slate-v2.png",
+      "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-7a79c9bd-d3e8-48e5-b97a-816672949dc5.png",
+      "prompt": "One single river-otter companion for a cozy tavern, in warm watercolor-and-gouache children's storybook illustration style, soft cream paper background, gentle warm amber river-lantern light, delicate hand-painted brushwork and subtle paper grain. Square 1024x1024, full-body animal centered occupying roughly 68%, clear margins, no cropping. Slate-gray nimble little river otter with silver cheeks, a clearly narrow petite slim body, delicate shoulders, small nimble forepaws held close, long fine tapering tail visible behind and down to the ground. Upright balanced pose on hind feet, holding one small pebble delicately in its little paws. Agile, curious, light-footed silhouette, distinctly narrow rather than round or plush; short smooth sleek fur. Silver cheek patches, charcoal-gray back, soft warm cream belly softly lit like a lantern by the river. Tiny rounded ears and alert gentle eyes. Keep limbs and long tail slender and visible. Plain warm cream paper background, faint ground shadow only. No other animals, no clothes, no text, no frame, no watermark.",
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "species": "river-otter",
+      "coat": "honey",
+      "path": "assets/pets/river-otter-honey-v2.png",
+      "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-7c077ae7-f9eb-4a31-baf1-f3ebf5487db9.png",
+      "prompt": "One single honey-colored river otter companion for a cozy tavern, painted in a warm watercolor-and-gouache children's picture-book style, delicate brushwork and subtle paper grain, warm cream paper background, amber river-lantern glow. Square 1024x1024. Show the full animal in low crouching posture from a side three-quarter angle, centered and about 68% canvas with comfortable margins; entire nose and tail visible, no crop. Distinctive sleek long-bodied otter: elongated streamlined torso close to the ground, smooth glossy short fur, broad blunt nose, long thick flat paddle-like tail stretched behind along the ground. Honey-gold back with creamy pale underside, warm lantern light softly glowing along the belly. Relaxed low prowling / resting pose, paws visible beneath the long body, calm kind face, small rounded ears. Silhouette must be clearly long, low and sleek, unlike a round fluffy seated otter or upright slender otter. Plain warm cream paper background and faint grounding shadow only. No stone, no other props, no clothes, no other animals, no text, no frame, no watermark.",
+      "width": 1254,
+      "height": 1254
+    }
+  ]
+}

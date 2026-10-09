@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { immediatePetReply, petDeferredReply, petInteraction, answerPet, finishPet } from './pet-ui.mjs';
+import { PETS } from './pet-catalog.mjs';
 
 const interaction=(action,owner='12',flags=64,extra={})=>({type:3,id:'900',guild_id:'34',channel_id:'56',member:{user:{id:'12',username:'Ada'}},message:{flags},data:{custom_id:`p:34:${owner}:${action}`},...extra});
 const view={pet:{id:'pet-1',species:'lamp-cat',name:'灯灯',growth:0,items:[],materials:{},habits:[],unlockedHabits:[],memories:[],experiences:[]},walk:null,walkView:null,reward:{used:0,earned:0,cap:20,totalEarned:12,totalCap:150},balance:30,items:[],materials:{paper:2},decor:{}};
@@ -195,8 +196,23 @@ test('five species are offered and a selected coat preview carries its real pet 
  const speciesButtons=home.components.flatMap(r=>r.components);assert.equal(speciesButtons.length,5);
  for(const id of ['lamp-cat','moss-dog','paper-sparrow','dusk-rabbit','river-otter'])assert(speciesButtons.some(b=>b.custom_id.endsWith(`preview~${id}`)));
  const preview=await answerPet(env,interaction('preview~dusk-rabbit~peach'));
- assert(preview.embeds?.[0]?.image?.url.endsWith('/art/pets/dusk-rabbit/peach/v1.jpg'));
- assert(preview.content.includes('蜜桃垂耳'));
+ assert(preview.embeds?.[0]?.image?.url.endsWith('/art/pets/dusk-rabbit/peach/v2.jpg'));
+ assert(preview.content.includes('蜜桃侏儒立耳型'));
+ assert(preview.content.includes('不会影响成长、物品或能力'));
+ const coatSelector=preview.components[0].components[0];assert.equal(coatSelector.options.length,3);
+ assert(coatSelector.options.every(x=>x.description&&/耳|脸|毛|体型|身形|尾/.test(x.description)));
+ assert(preview.content.includes('可免费更换'));
+});
+
+test('all fifteen coat ids retain distinct breed-inspired silhouettes',()=>{
+ const expected={
+  'lamp-cat':['amber','silver','calico'],'moss-dog':['moss','cocoa','cream'],'paper-sparrow':['rice','ink','rose'],
+  'dusk-rabbit':['lavender','peach','moon'],'river-otter':['chestnut','slate','honey'],
+ };
+ for(const [id,coatIds]of Object.entries(expected)){
+  const coats=PETS.find(p=>p.id===id).coats;assert.deepEqual(coats.map(c=>c.id),coatIds);
+  assert(coats.every(c=>c.name&&c.description&&/型|灵感|外形/.test(c.description)));
+ }
 });
 
 test('random adoption stays read-only through preview and sends random only on named confirmation',async()=>{
@@ -209,7 +225,7 @@ test('random adoption stays read-only through preview and sends random only on n
 
 test('coat previews do not mutate; explicit and random confirmation call petCoat once',async()=>{
  const {env,calls}=mockEnv();const before=calls.length;
- const preview=await answerPet(env,interaction('coatPreview~silver'));assert.match(preview.content,/尚未修改伙伴/);assert(preview.embeds[0].image.url.endsWith('/art/pets/lamp-cat/silver/v1.jpg'));assert.equal(calls.filter(c=>c.op==='tavern').length,1);
+ const preview=await answerPet(env,interaction('coatPreview~silver'));assert.match(preview.content,/尚未修改伙伴/);assert.match(preview.content,/成长、物品与能力保持/);assert(preview.embeds[0].image.url.endsWith('/art/pets/lamp-cat/silver/v2.jpg'));assert.equal(calls.filter(c=>c.op==='tavern').length,1);
  await answerPet(env,interaction('setCoat~silver'));assert.equal(calls.at(-1).action,'petCoat');assert.equal(calls.at(-1).coat,'silver');
  const random=await answerPet(env,interaction('coatRandomPreview'));assert.match(random.content,/确认时抽取/);assert.equal(calls.at(-1).action,'petView');
  await answerPet(env,interaction('setCoat~random'));assert.equal(calls.at(-1).action,'petCoat');assert.equal(calls.at(-1).coat,'random');assert(calls.length>before);
@@ -234,13 +250,13 @@ test('invalid coat ids are rejected while legacy species-only and explicit rando
  const badButton=immediatePetReply(interaction('name~lamp-cat~not-a-coat'));assert.equal(badButton.type,4);assert.match(badButton.data.content,/不可领养/);
  const validRandom=immediatePetReply(interaction('name~lamp-cat~random'));assert.equal(validRandom.type,9);assert.equal(validRandom.data.custom_id,'p:34:12:save~lamp-cat~random');
  const {env,calls}=mockEnv({...view,pet:{...view.pet}});
- await assert.rejects(answerPet(env,interaction('preview~lamp-cat~not-a-coat')),/花色信息已失效/);
- await assert.rejects(answerPet(env,interaction('selectCoat~lamp-cat','12',64,{data:{custom_id:'p:34:12:selectCoat~lamp-cat',values:['not-a-coat']}})),/花色信息已失效/);
- await assert.rejects(answerPet(env,interaction('coatPreview~not-a-coat')),/花色信息已失效/);
- await assert.rejects(answerPet(env,interaction('setCoat~not-a-coat')),/花色信息已失效/);
+ await assert.rejects(answerPet(env,interaction('preview~lamp-cat~not-a-coat')),/外形信息已失效/);
+ await assert.rejects(answerPet(env,interaction('selectCoat~lamp-cat','12',64,{data:{custom_id:'p:34:12:selectCoat~lamp-cat',values:['not-a-coat']}})),/外形信息已失效/);
+ await assert.rejects(answerPet(env,interaction('coatPreview~not-a-coat')),/外形信息已失效/);
+ await assert.rejects(answerPet(env,interaction('setCoat~not-a-coat')),/外形信息已失效/);
  assert.equal(calls.filter(c=>c.action==='petCoat'||c.action==='petAdopt').length,0);
  const legacy={...view,pet:{...view.pet}};delete legacy.pet.coat;const legacyPanel=await answerPet(mockEnv(legacy).env,interaction('view'));
- assert(legacyPanel.content.includes('花色：琥珀奶油'));
+ assert(legacyPanel.content.includes('外形：琥珀狸花短毛'));
  const invalidSave={...interaction('unused'),type:5,message:{flags:64},data:{custom_id:'p:34:12:save~lamp-cat~not-a-coat',components:[{components:[{custom_id:'petName',value:'团团'}]}]}};
  await assert.rejects(answerPet(env,invalidSave),/信息已失效/);
 });

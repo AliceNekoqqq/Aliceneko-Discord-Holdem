@@ -62,11 +62,11 @@ test('signed rabbit and otter adoption, stable coat changes, and material purcha
  const rabbit=await submit('1','dusk-rabbit','moon');assert.equal(rabbit.reply.data.flags,64);
  const instance=s.instances.get('tavern:3').object.tavern,profile=()=>instance.pets.profile('1'),view=()=>instance.pets.view('1');
  assert.equal(profile().species,'dusk-rabbit');assert.equal(profile().coat,'moon');
- assert.equal(rabbit.patched.embeds[0].image.url,'https://discord-holdem.aliceneko.workers.dev/art/pets/dusk-rabbit/moon/v1.jpg');
+ assert.equal(rabbit.patched.embeds[0].image.url,'https://discord-holdem.aliceneko.workers.dev/art/pets/dusk-rabbit/moon/v2.jpg');
  const beforePreview=profile().version;
  const preview=await s.call(s.action('coatPreview~peach'));assert.equal(preview.reply.type,6);assert.equal(profile().coat,'moon');assert.equal(profile().version,beforePreview);
- assert.equal(preview.patched.embeds[0].image.url,'https://discord-holdem.aliceneko.workers.dev/art/pets/dusk-rabbit/peach/v1.jpg');
- const confirmed=await s.call(s.action('setCoat~peach'));assert.equal(profile().coat,'peach');assert(confirmed.patched.content.includes('蜜桃垂耳'));
+ assert.equal(preview.patched.embeds[0].image.url,'https://discord-holdem.aliceneko.workers.dev/art/pets/dusk-rabbit/peach/v2.jpg');
+ const confirmed=await s.call(s.action('setCoat~peach'));assert.equal(profile().coat,'peach');assert(confirmed.patched.content.includes('蜜桃侏儒立耳型'));
  const randomPreviewVersion=profile().version,randomPreview=await s.call(s.action('coatRandomPreview'));
  assert.match(randomPreview.patched.content,/确认后免费更换/);assert.equal(profile().version,randomPreviewVersion);
  const randomId='repeat-random-coat-confirm';await s.call(s.action('setCoat~random'),'repeat-random-coat-confirm');
@@ -92,6 +92,6 @@ test('signed rabbit and otter adoption, stable coat changes, and material purcha
 
  const otter=await submit('2','river-otter','honey');const otterProfile=instance.pets.profile('2');
  assert.equal(otterProfile.species,'river-otter');assert.equal(otterProfile.coat,'honey');
- assert.equal(otter.patched.embeds[0].image.url,'https://discord-holdem.aliceneko.workers.dev/art/pets/river-otter/honey/v1.jpg');
+ assert.equal(otter.patched.embeds[0].image.url,'https://discord-holdem.aliceneko.workers.dev/art/pets/river-otter/honey/v2.jpg');
  for(const post of s.posts){assert.equal(post.method,'PATCH');assert.deepEqual(post.data.allowed_mentions,{parse:[]});}
 });

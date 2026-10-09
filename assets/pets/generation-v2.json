@@ -1,0 +1,151 @@
+[
+  {
+    "species": "lamp-cat",
+    "coat": "amber",
+    "path": "assets/pets/lamp-cat-amber-v2.png",
+    "width": 1254,
+    "height": 1254,
+    "sha256": "91626704ece9f52c347afb633a186c59eace204885946e3a6ad0809d1d6e489b",
+    "source": "imagegen",
+    "provenance": "Existing generated image retained from the interrupted v2 batch; original tool prompt not retained."
+  },
+  {
+    "species": "lamp-cat",
+    "coat": "silver",
+    "path": "assets/pets/lamp-cat-silver-v2.png",
+    "width": 1254,
+    "height": 1254,
+    "sha256": "505c2b5bd50953b373a48bd0d29b400c6d3ad31a612e2bd91fed229e319ba9b2",
+    "source": "imagegen",
+    "provenance": "Existing generated image retained from the interrupted v2 batch; original tool prompt not retained."
+  },
+  {
+    "species": "lamp-cat",
+    "coat": "calico",
+    "path": "assets/pets/lamp-cat-calico-v2.png",
+    "width": 1254,
+    "height": 1254,
+    "sha256": "101574a2c9a6c271b25eccd166605f6b2c346fefd8f2353e537a022b15528883",
+    "source": "imagegen",
+    "provenance": "Existing generated image retained from the interrupted v2 batch; original tool prompt not retained."
+  },
+  {
+    "species": "moss-dog",
+    "coat": "moss",
+    "path": "assets/pets/moss-dog-moss-v2.png",
+    "width": 1254,
+    "height": 1254,
+    "sha256": "b2cab5231f4d11fd7979e024e5fd6e2d4c5dc0fcd629107d2871a17a2af8981d",
+    "source": "imagegen",
+    "provenance": "Existing generated image retained from the interrupted v2 batch; original tool prompt not retained."
+  },
+  {
+    "species": "moss-dog",
+    "coat": "cocoa",
+    "path": "assets/pets/moss-dog-cocoa-v2.png",
+    "width": 1254,
+    "height": 1254,
+    "sha256": "3f4a1fb9d061e2f9a53f127e9a24911dbba1d7c8f4d4dcc3767d25cb31366140",
+    "source": "imagegen",
+    "provenance": "Existing generated image retained from the interrupted v2 batch; original tool prompt not retained."
+  },
+  {
+    "species": "paper-sparrow",
+    "coat": "rice",
+    "path": "assets/pets/paper-sparrow-rice-v2.png",
+    "width": 1254,
+    "height": 1254,
+    "sha256": "4ea055b505294e3d0c85174f691e01511ed21b12b0b679b64ebd8c125b6098f1",
+    "source": "imagegen",
+    "provenance": "Existing generated image retained from the interrupted v2 batch; original tool prompt not retained."
+  },
+  {
+    "species": "moss-dog",
+    "coat": "cream",
+    "path": "assets/pets/moss-dog-cream-v2.png",
+    "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-58f97292-ed01-4027-b37a-f946b54bb25f.png",
+    "prompt": "Use case: illustration-story\nAsset type: one companion portrait asset for the tavern pets collection\nScene/backdrop: a clean warm cream paper background, subtle watercolor paper grain, no scene objects.\nSubject: one full-body cream/apricot milk-colored miniature poodle, standing in a gentle three-quarter pose. Make the breed unmistakable: dense, clearly defined springy curls over the whole body, long floppy hanging ears with visible curls, a slightly taller slim-legged elegant poodle silhouette, and a small delicate leaf-shaped ear ornament.\nStyle/medium: warm hand-painted watercolor storybook illustration, soft layered brushwork and gentle natural edges, matching the amber cat reference image's warm watercolor picture-book finish. Use only as a style and background reference; do not copy its animal anatomy.\nComposition/framing: square image; single animal centered, full body including paws and tail fully visible, no cropping; subject occupies about 65–75% of the image height.\nLighting/mood: soft diffuse warm light, gentle and friendly.\nColor palette: creamy apricot, milk beige, restrained warm brown curl shadows, muted green leaf ornament.\nConstraints: obvious tight curls, long hanging ears, visibly taller narrow-legged build, delicate leaf ear ornament; isolated single animal; no text, no frame, no watermark.",
+    "dimensions": {
+      "width": 1254,
+      "height": 1254
+    }
+  },
+  {
+    "species": "dusk-rabbit",
+    "coat": "lavender",
+    "path": "assets/pets/dusk-rabbit-lavender-v2.png",
+    "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-bce38454-f801-4ab4-bc8f-6f06270751b6.png",
+    "prompt": "Use case: illustration-story\nAsset type: one companion portrait asset for the tavern pets collection\nScene/backdrop: clean warm cream paper background with subtle watercolor paper grain, no scene objects.\nSubject: one full-body dusk-lavender lop-eared rabbit, seated in a gentle three-quarter pose. It has a rounded soft face and plush short-to-medium velvety fur. Both very long lop ears hang down alongside the cheeks to below the jaw, clearly framing the face; the ear tips carry a soft twilight gradient of muted dusk lilac and mauve.\nStyle/medium: warm hand-painted watercolor storybook illustration, layered translucent brushwork, delicate soft edges and gentle natural texture; warm cream paper background, cozy picture-book finish.\nComposition/framing: square image; one rabbit centered, fully visible from ear tips to paws and small tail, no cropping; subject about 65–75% of image height.\nLighting/mood: soft diffuse warm light, calm gentle expression.\nColor palette: pale lavender, lilac, soft mauve twilight at ear tips, cream highlights, restrained warm shadows.\nConstraints: unmistakable rabbit anatomy; both long ears droop beside the face, rounded face, plush soft fur, soft twilight ear tips; single animal only; no text, no frame, no watermark.",
+    "dimensions": {
+      "width": 1254,
+      "height": 1254
+    }
+  },
+  {
+    "species": "dusk-rabbit",
+    "coat": "peach",
+    "path": "assets/pets/dusk-rabbit-peach-v2.png",
+    "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-b66c3efc-12e6-4911-b57c-ac4dd6f7bfb5.png",
+    "prompt": "Use case: illustration-story\nAsset type: one companion portrait asset for the tavern pets collection\nScene/backdrop: clean warm cream paper background with subtle watercolor paper grain, no scene objects.\nSubject: one full-body peach-colored dwarf rabbit, sitting compactly in a gentle three-quarter pose. Make its silhouette unmistakably different from a lop rabbit: very small rounded compact body, short smooth close-lying fur, short sturdy legs, round head, and two exceptionally short upright straight ears, clearly rising from the crown rather than drooping. Ears are very short but visibly erect.\nStyle/medium: warm hand-painted watercolor storybook illustration, soft layered brushwork, gentle natural edges and delicate paper texture; cozy warm picture-book finish.\nComposition/framing: square image; one rabbit centered with ample cream negative space around it, entire ears, paws and small tail visible with no cropping; animal occupies about 65–70% of image height.\nLighting/mood: soft diffuse warm light, sweet calm expression.\nColor palette: soft peach, blush, cream muzzle and chest, warm subtle shadows.\nConstraints: unmistakable compact dwarf-rabbit body, smooth short fur, very short upright ears; no long ears, no giant fluffy coat; single animal; no text, frame, watermark.",
+    "dimensions": {
+      "width": 1254,
+      "height": 1254
+    }
+  },
+  {
+    "species": "dusk-rabbit",
+    "coat": "moon",
+    "path": "assets/pets/dusk-rabbit-moon-v2.png",
+    "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-2c8a63d5-7493-4467-8630-f18de61150d3.png",
+    "prompt": "Use case: illustration-story\nAsset type: one companion portrait asset for the tavern pets collection\nScene/backdrop: clean warm cream paper background with subtle watercolor paper grain, no scene objects.\nSubject: one full-body moon-white Angora rabbit, seated in a gentle three-quarter pose. Its defining silhouette is an exceptionally voluminous, round, cloudlike body covered head-to-toe in long, silky, individually suggested Angora wool, forming a fluffy ball shape. The face is softly visible through long facial wool; ears are partly veiled by fur with delicate long feathering along both ear edges. Keep the feet and toes discernible as soft rounded outlines emerging from long fluffy foot fur, and show a small fluffy tail. This is long wool, not short plush fur and not curls.\nStyle/medium: warm hand-painted watercolor storybook illustration, luminous layered brushwork, fine soft strokes suggesting long silky wool, gentle edges and paper texture.\nComposition/framing: square image; one rabbit centered with generous cream negative space, full ear silhouette, feet and tail entirely visible without cropping; subject occupies about 65–70% of image height.\nLighting/mood: diffuse warm light with a subtle moonlit pearly glow, calm and gentle.\nColor palette: moon-white, ivory, pearl gray shadows, faint cream highlights; retain enough contrast to see the long-fur shape and feet.\nConstraints: unmistakable Angora longhair woolly-ball silhouette, long all-over coat, feathered ear edges, discernible furry feet; single animal only; no text, no frame, no watermark.",
+    "dimensions": {
+      "width": 1254,
+      "height": 1254
+    }
+  },
+  {
+    "species": "paper-sparrow",
+    "coat": "ink",
+    "path": "assets/pets/paper-sparrow-ink-v2.png",
+    "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-01c9e014-38b2-47da-b7ce-f76099d4dc15.png",
+    "prompt": "Cozy storybook tavern companion character asset, warm watercolor and gouache children's picture-book style, delicate brush texture, cream paper background and subtle grain, soft warm light. Square 1024x1024. One single full-body bird centered, about 68% canvas with generous margin and nothing cropped. A deep ink-blue cockatiel-like folded-paper sparrow: tall slender silhouette, very high swept crest feathers, long narrow pointed tail fully visible, distinctly curved hooked beak, slim elongated body, fine legs. Delicate folded-paper feather layering and subtle crease lines, softly organic but clearly crafted from painted paper. Navy and blue-black feathers with quiet muted blue highlights, small warm cream cheek patch, expressive small dark eyes. Calm three-quarter standing pose. Plain warm cream paper background, faint grounding shadow. No extra subjects, props, accessories, text, frame or watermark.",
+    "width": 1254,
+    "height": 1254
+  },
+  {
+    "species": "paper-sparrow",
+    "coat": "rose",
+    "path": "assets/pets/paper-sparrow-rose-v2.png",
+    "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-61e1de2e-1bd0-4d51-a7a2-88111e0326a8.png",
+    "prompt": "Cozy storybook tavern companion character asset in a warm watercolor-and-gouache children's picture-book style, delicate brush texture, cream paper background and subtle grain, soft warm light. Square 1024x1024. One single full-body bird centered, about 68% canvas with generous margin, entire crest and tail visible. A tiny berry-pink parrot-like folded-paper sparrow with an unmistakably different compact silhouette: very large round head, short broad rounded body, stout little legs, thick strongly curved beak, short wide fan-shaped tail. Soft layered folded-paper feather forms with delicate crease lines, handcrafted painted-paper character. Berry, rose and dusty raspberry plumage, subtle pale pink face accents, expressive beadlike dark eyes. Sweet alert three-quarter standing pose with slight head tilt. Do not make it tall or slender; no long pointed tail or dramatic cockatiel crest. Plain warm cream paper background, faint grounding shadow only. No extra subjects, props, accessories, text, frame or watermark.",
+    "width": 1254,
+    "height": 1254
+  },
+  {
+    "species": "river-otter",
+    "coat": "chestnut",
+    "path": "assets/pets/river-otter-chestnut-v2.png",
+    "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-c5917536-5c1d-4086-93c1-22dfbaf973c2.png",
+    "prompt": "A single charming river-otter companion for a cozy tavern, painted as a warm watercolor-and-gouache children's picture-book illustration with delicate brush texture, cream paper background, subtle grain, gentle warm river-lantern light. Square 1024x1024 composition. Show one entire animal centered at about 68% of the canvas with clear margins and no cropping. Chestnut brown plush river otter with a very round, thick, low-slung cuddly body, dense fluffy plush coat visibly puffing around its silhouette, tiny round ears, short thick tapering tail, small paws. The outline must be compact, broad and cuddly, clearly unlike a sleek slender otter. Seated leaning pose, gently hugging one small smooth river stone against its belly; stone is secondary. Warm lantern-like golden river light softly illuminates the pale warm belly fur. Friendly relaxed face, soft dark eyes and little whiskers. Full body, tail visible. Plain warm cream paper background with only a faint ground shadow. No clothes, no extra animals, no text, no frame, no watermark.",
+    "width": 1254,
+    "height": 1254
+  },
+  {
+    "species": "river-otter",
+    "coat": "slate",
+    "path": "assets/pets/river-otter-slate-v2.png",
+    "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-7a79c9bd-d3e8-48e5-b97a-816672949dc5.png",
+    "prompt": "One single river-otter companion for a cozy tavern, in warm watercolor-and-gouache children's storybook illustration style, soft cream paper background, gentle warm amber river-lantern light, delicate hand-painted brushwork and subtle paper grain. Square 1024x1024, full-body animal centered occupying roughly 68%, clear margins, no cropping. Slate-gray nimble little river otter with silver cheeks, a clearly narrow petite slim body, delicate shoulders, small nimble forepaws held close, long fine tapering tail visible behind and down to the ground. Upright balanced pose on hind feet, holding one small pebble delicately in its little paws. Agile, curious, light-footed silhouette, distinctly narrow rather than round or plush; short smooth sleek fur. Silver cheek patches, charcoal-gray back, soft warm cream belly softly lit like a lantern by the river. Tiny rounded ears and alert gentle eyes. Keep limbs and long tail slender and visible. Plain warm cream paper background, faint ground shadow only. No other animals, no clothes, no text, no frame, no watermark.",
+    "width": 1254,
+    "height": 1254
+  },
+  {
+    "species": "river-otter",
+    "coat": "honey",
+    "path": "assets/pets/river-otter-honey-v2.png",
+    "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-7c077ae7-f9eb-4a31-baf1-f3ebf5487db9.png",
+    "prompt": "One single honey-colored river otter companion for a cozy tavern, painted in a warm watercolor-and-gouache children's picture-book style, delicate brushwork and subtle paper grain, warm cream paper background, amber river-lantern glow. Square 1024x1024. Show the full animal in low crouching posture from a side three-quarter angle, centered and about 68% canvas with comfortable margins; entire nose and tail visible, no crop. Distinctive sleek long-bodied otter: elongated streamlined torso close to the ground, smooth glossy short fur, broad blunt nose, long thick flat paddle-like tail stretched behind along the ground. Honey-gold back with creamy pale underside, warm lantern light softly glowing along the belly. Relaxed low prowling / resting pose, paws visible beneath the long body, calm kind face, small rounded ears. Silhouette must be clearly long, low and sleek, unlike a round fluffy seated otter or upright slender otter. Plain warm cream paper background and faint grounding shadow only. No stone, no other props, no clothes, no other animals, no text, no frame, no watermark.",
+    "width": 1254,
+    "height": 1254
+  }
+]

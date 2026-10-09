@@ -42,7 +42,7 @@ test('five species each have three distinct coats; explicit adoption and coat ch
   assert.equal(changed.pet.coat,species.coats[1].id);assert.equal(changed.pet.id,first.pet.id);
   assert.equal(changed.balance,first.balance);assert.equal(changed.pet.growth,first.pet.growth);
   assert.equal(new TavernService(s.store).pets.view('1').pet.coat,species.coats[1].id);
-  assert.throws(()=>s.do('petCoat',{coat:'not-a-coat'}),/花色/);
+  assert.throws(()=>s.do('petCoat',{coat:'not-a-coat'}),/形象/);
  }
 });
 test('old single-pet storage receives a durable first coat without losing belongings or rerolling',()=>{

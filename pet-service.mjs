@@ -16,7 +16,7 @@ function chooseCoat(species,value){
   do{crypto.getRandomValues(bytes);}while(bytes[0]>=bound);
   return pet.coats[bytes[0]%pet.coats.length].id;
  }
- if(!petCoat(species,value))throw Error('请选择这位伙伴已有的花色。');
+ if(!petCoat(species,value))throw Error('请选择这位伙伴已有的形象。');
  return value;
 }
 

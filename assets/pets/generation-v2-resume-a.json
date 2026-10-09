@@ -1,0 +1,46 @@
+[
+  {
+    "species": "moss-dog",
+    "coat": "cream",
+    "path": "assets/pets/moss-dog-cream-v2.png",
+    "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-58f97292-ed01-4027-b37a-f946b54bb25f.png",
+    "prompt": "Use case: illustration-story\nAsset type: one companion portrait asset for the tavern pets collection\nScene/backdrop: a clean warm cream paper background, subtle watercolor paper grain, no scene objects.\nSubject: one full-body cream/apricot milk-colored miniature poodle, standing in a gentle three-quarter pose. Make the breed unmistakable: dense, clearly defined springy curls over the whole body, long floppy hanging ears with visible curls, a slightly taller slim-legged elegant poodle silhouette, and a small delicate leaf-shaped ear ornament.\nStyle/medium: warm hand-painted watercolor storybook illustration, soft layered brushwork and gentle natural edges, matching the amber cat reference image's warm watercolor picture-book finish. Use only as a style and background reference; do not copy its animal anatomy.\nComposition/framing: square image; single animal centered, full body including paws and tail fully visible, no cropping; subject occupies about 65–75% of the image height.\nLighting/mood: soft diffuse warm light, gentle and friendly.\nColor palette: creamy apricot, milk beige, restrained warm brown curl shadows, muted green leaf ornament.\nConstraints: obvious tight curls, long hanging ears, visibly taller narrow-legged build, delicate leaf ear ornament; isolated single animal; no text, no frame, no watermark.",
+    "dimensions": {
+      "width": 1254,
+      "height": 1254
+    }
+  },
+  {
+    "species": "dusk-rabbit",
+    "coat": "lavender",
+    "path": "assets/pets/dusk-rabbit-lavender-v2.png",
+    "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-bce38454-f801-4ab4-bc8f-6f06270751b6.png",
+    "prompt": "Use case: illustration-story\nAsset type: one companion portrait asset for the tavern pets collection\nScene/backdrop: clean warm cream paper background with subtle watercolor paper grain, no scene objects.\nSubject: one full-body dusk-lavender lop-eared rabbit, seated in a gentle three-quarter pose. It has a rounded soft face and plush short-to-medium velvety fur. Both very long lop ears hang down alongside the cheeks to below the jaw, clearly framing the face; the ear tips carry a soft twilight gradient of muted dusk lilac and mauve.\nStyle/medium: warm hand-painted watercolor storybook illustration, layered translucent brushwork, delicate soft edges and gentle natural texture; warm cream paper background, cozy picture-book finish.\nComposition/framing: square image; one rabbit centered, fully visible from ear tips to paws and small tail, no cropping; subject about 65–75% of image height.\nLighting/mood: soft diffuse warm light, calm gentle expression.\nColor palette: pale lavender, lilac, soft mauve twilight at ear tips, cream highlights, restrained warm shadows.\nConstraints: unmistakable rabbit anatomy; both long ears droop beside the face, rounded face, plush soft fur, soft twilight ear tips; single animal only; no text, no frame, no watermark.",
+    "dimensions": {
+      "width": 1254,
+      "height": 1254
+    }
+  },
+  {
+    "species": "dusk-rabbit",
+    "coat": "peach",
+    "path": "assets/pets/dusk-rabbit-peach-v2.png",
+    "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-b66c3efc-12e6-4911-b57c-ac4dd6f7bfb5.png",
+    "prompt": "Use case: illustration-story\nAsset type: one companion portrait asset for the tavern pets collection\nScene/backdrop: clean warm cream paper background with subtle watercolor paper grain, no scene objects.\nSubject: one full-body peach-colored dwarf rabbit, sitting compactly in a gentle three-quarter pose. Make its silhouette unmistakably different from a lop rabbit: very small rounded compact body, short smooth close-lying fur, short sturdy legs, round head, and two exceptionally short upright straight ears, clearly rising from the crown rather than drooping. Ears are very short but visibly erect.\nStyle/medium: warm hand-painted watercolor storybook illustration, soft layered brushwork, gentle natural edges and delicate paper texture; cozy warm picture-book finish.\nComposition/framing: square image; one rabbit centered with ample cream negative space around it, entire ears, paws and small tail visible with no cropping; animal occupies about 65–70% of image height.\nLighting/mood: soft diffuse warm light, sweet calm expression.\nColor palette: soft peach, blush, cream muzzle and chest, warm subtle shadows.\nConstraints: unmistakable compact dwarf-rabbit body, smooth short fur, very short upright ears; no long ears, no giant fluffy coat; single animal; no text, frame, watermark.",
+    "dimensions": {
+      "width": 1254,
+      "height": 1254
+    }
+  },
+  {
+    "species": "dusk-rabbit",
+    "coat": "moon",
+    "path": "assets/pets/dusk-rabbit-moon-v2.png",
+    "sourcePath": "/workspace/scratch/f025c8897e54/generated_images/exec-2c8a63d5-7493-4467-8630-f18de61150d3.png",
+    "prompt": "Use case: illustration-story\nAsset type: one companion portrait asset for the tavern pets collection\nScene/backdrop: clean warm cream paper background with subtle watercolor paper grain, no scene objects.\nSubject: one full-body moon-white Angora rabbit, seated in a gentle three-quarter pose. Its defining silhouette is an exceptionally voluminous, round, cloudlike body covered head-to-toe in long, silky, individually suggested Angora wool, forming a fluffy ball shape. The face is softly visible through long facial wool; ears are partly veiled by fur with delicate long feathering along both ear edges. Keep the feet and toes discernible as soft rounded outlines emerging from long fluffy foot fur, and show a small fluffy tail. This is long wool, not short plush fur and not curls.\nStyle/medium: warm hand-painted watercolor storybook illustration, luminous layered brushwork, fine soft strokes suggesting long silky wool, gentle edges and paper texture.\nComposition/framing: square image; one rabbit centered with generous cream negative space, full ear silhouette, feet and tail entirely visible without cropping; subject occupies about 65–70% of image height.\nLighting/mood: diffuse warm light with a subtle moonlit pearly glow, calm and gentle.\nColor palette: moon-white, ivory, pearl gray shadows, faint cream highlights; retain enough contrast to see the long-fur shape and feet.\nConstraints: unmistakable Angora longhair woolly-ball silhouette, long all-over coat, feathered ear edges, discernible furry feet; single animal only; no text, no frame, no watermark.",
+    "dimensions": {
+      "width": 1254,
+      "height": 1254
+    }
+  }
+]

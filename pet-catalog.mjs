@@ -1,24 +1,24 @@
 export const PETS = [
   { id: 'lamp-cat', name: '踏灯猫', emoji: '🐈', description: '尾尖像暖灯，安静而好奇，常盯着灯影。', coats: [
-    {id:'amber',name:'琥珀奶油',description:'奶油底色与琥珀暖纹，尾尖亮着一小团灯光。'},
-    {id:'silver',name:'银灰雪足',description:'银灰毛与雪白小爪，尾尖像月下的暖灯。'},
-    {id:'calico',name:'莓斑三花',description:'奶白底色交错莓粉与焦糖斑，尾尖微亮。'}]},
+    {id:'amber',name:'琥珀狸花短毛',description:'狸花灵感：紧凑身形、短毛条纹、直耳与圆脸，尾尖亮着一小团灯光。'},
+    {id:'silver',name:'银灰布偶长毛',description:'布偶灵感：柔和宽脸、长毛胸鬃与蓬松大尾，银灰毛配雪白小爪。'},
+    {id:'calico',name:'焦糖暹罗短毛',description:'暹罗灵感：修长身形、短毛重点色、楔形脸与大耳，浅奶油底色配深焦糖耳、面罩和小爪。'}]},
   { id: 'moss-dog', name: '苔团犬', emoji: '🐕', description: '耳边有小叶，热情认真，总想和摊主打招呼。', coats: [
-    {id:'moss',name:'苔绿奶白',description:'苔绿与奶白相间的绒毛，耳边别着小叶。'},
-    {id:'cocoa',name:'可可卷绒',description:'可可棕卷绒和奶油口鼻，保留小叶耳饰。'},
-    {id:'cream',name:'杏奶花耳',description:'杏奶色绒毛、焦糖花耳与同样的小叶耳饰。'}]},
+    {id:'moss',name:'苔色柴犬型',description:'柴犬灵感：紧实身形、短绒毛、挺立三角耳与卷尾，苔绿奶白配色并别着小叶。'},
+    {id:'cocoa',name:'可可柯基型',description:'柯基灵感：短腿长背、大耳与短绒毛，可可棕毛配奶油口鼻和小叶耳饰。'},
+    {id:'cream',name:'杏奶卷毛贵宾型',description:'贵宾灵感：蓬松卷毛、垂耳与纤细四肢，杏奶色配焦糖花耳和小叶耳饰。'}]},
   { id: 'paper-sparrow', name: '纸羽雀', emoji: '🐦', description: '像折纸的小鸟，机灵爱观察，喜欢招牌与小物件。', coats: [
-    {id:'rice',name:'米白金边',description:'米白纸羽与淡金折边，像轻轻展开的小信。'},
-    {id:'ink',name:'墨蓝纸羽',description:'墨蓝翼羽与浅米色胸腹，折线清爽。'},
-    {id:'rose',name:'莓粉折翼',description:'莓粉折翼和奶白胸羽，轻巧又明亮。'}]},
+    {id:'rice',name:'米色圆雀型',description:'圆雀灵感：圆身、短尾与小而笔直的喙，米白纸羽配淡金折边。'},
+    {id:'ink',name:'墨蓝玄凤型',description:'玄凤灵感：高冠羽、长尾与微弯喙，墨蓝纸羽配浅米胸腹。'},
+    {id:'rose',name:'莓粉小鹦鹉型',description:'小鹦鹉灵感：圆头、厚实弯喙与短宽尾，莓粉折翼配奶白胸羽。'}]},
   { id: 'dusk-rabbit', name: '暮绒兔', emoji: '🐇', description: '耳尖映着暮光，慢热温柔，喜欢在窗边听雨。', coats: [
-    {id:'lavender',name:'暮紫云绒',description:'浅暮紫云朵绒毛，长软耳尖带微光。'},
-    {id:'peach',name:'蜜桃垂耳',description:'蜜桃绒与奶油胸腹，柔软耳尖微亮。'},
-    {id:'moon',name:'月白银尖',description:'月白绒毛、淡银耳尖与柔和暮光。'}]},
+    {id:'lavender',name:'暮紫垂耳型',description:'垂耳兔灵感：长长下垂的耳朵、柔软中长绒与圆润脸型，浅暮紫毛尖映着微光。'},
+    {id:'peach',name:'蜜桃侏儒立耳型',description:'侏儒兔灵感：小巧紧凑身形、短毛、短直立耳与圆脸，蜜桃色配奶油胸腹。'},
+    {id:'moon',name:'月白安哥拉长绒型',description:'安哥拉兔灵感：全身蓬松长绒、耳缘长毛与圆润身形，月白毛尖泛淡银光。'}]},
   { id: 'river-otter', name: '河灯獭', emoji: '🦦', description: '肚皮映着河灯，灵巧爱玩，会认真收藏光滑石子。', coats: [
-    {id:'chestnut',name:'栗棕灯腹',description:'栗棕毛和暖奶油腹，像藏着一盏河灯。'},
-    {id:'slate',name:'河灰银颊',description:'河灰毛与银白脸颊，腹部映着暖光。'},
-    {id:'honey',name:'蜂蜜浅金',description:'蜂蜜浅金与奶白腹，灯辉轻轻落在毛尖。'}]},
+    {id:'chestnut',name:'栗棕圆绒海獭型',description:'海獭灵感：厚实圆身、浓密短绒与短厚尾，栗棕毛配暖奶油腹，像藏着一盏河灯。'},
+    {id:'slate',name:'河灰灵巧小爪型',description:'灵巧小爪的幻想外形：小而窄的身形、小手与长细尾，河灰短毛配银白脸颊。'},
+    {id:'honey',name:'蜂蜜修长滑毛型',description:'修长顺毛的幻想外形：长身、滑顺短毛、宽鼻与粗扁尾，蜂蜜浅金配奶白腹。'}]},
 ];
 export const petCoat=(species,coat)=>PETS.find(p=>p.id===species)?.coats.find(c=>c.id===coat)||null;
 export const MATERIAL_NAMES=Object.freeze({paper:'纸片',thread:'细绳',wood:'木片',cloth:'布料',flower:'小花',metal:'金属片'});
