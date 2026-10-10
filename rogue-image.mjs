@@ -121,7 +121,7 @@ async function battleImage(run,env){
  const model=describeRogueImage(run,'battle'),hand=b.hand||[],playLimit=model.playLimit??catalog.player?.playLimit??0;
  const names=[profession.name,enemy.phaseName||'',enemy.name||'敌人',enemy.role||'普通','回合','第一阶段','第二阶段','敌方意图','本回合意图','护甲','屏障','灼烧','生命','护盾','能量','出牌','手牌','抽牌','弃牌','强化+','先读意图，再选手牌。','完整效果见下方说明','可出牌','不可用',intentLabel(b.intent),intentDetail(b.intent),...model.hints,...model.cards.flatMap(q=>[q.name,'#'+q.id,String(q.cost),q.reason,...q.effects,...q.warnings,...q.categories.map(g=>g.label)])];
  await prepGlyphs([...names,...UI_GLYPHS],env);
- const F={display:34,headline:24,title:20,body:17,meta:15,small:14};
+ const F={headline:24,title:20,body:17,meta:15,small:14};
  const c=new Canvas(W,H);rect(c,0,0,W,H,K.bg);circle(c,480,303,205,[19,39,58]);
  title(c,'第 '+(run?.act??1)+' 幕 · 第 '+(run?.slot??1)+' 站',short(profession.name,7)+' 迎战 '+short(enemy.name||'敌人',8),'回合 '+(b.turn??0)+'  ·  '+(b.enemyPhase===2?'第二阶段':'第一阶段'));
  rect(c,31,112,898,332,[95,62,43],18);rect(c,34,115,892,326,K.panel,15);
@@ -140,18 +140,18 @@ async function battleImage(run,env){
  text(c,intentLabel(b.intent),526,161,F.headline,K.cream);
  if(intentDetail(b.intent))rgbaText(c,intentDetail(b.intent),526,193,F.small,K.muted,25);
  const enemyStats=[['护甲',b.enemyArmor,K.blue],['屏障',b.enemyShield,K.blue],['灼烧',b.enemyBurn,K.red]].filter(s=>s[1]);
- let sx=526;for(const [label,value,color] of enemyStats){const caption=label+' '+value,pw=Math.max(74,[...caption].length*F.small+18);if(sx+pw>892)break;rect(c,sx,220,pw,23,[34,53,69],7);text(c,caption,sx+8,224,F.small,color);sx+=pw+7;}
+ let sx=526;for(const [label,value,color] of enemyStats){const caption=label+' '+value,pw=Math.max(74,[...caption].length*F.small+18);if(sx+pw>892)break;rect(c,sx,226,pw,23,[34,53,69],7);text(c,caption,sx+8,230,F.small,color);sx+=pw+7;}
  if(b.enemyPhase===2&&enemy.phaseName){rect(c,523,256,184,24,[69,43,48],7);text(c,enemy.phaseName,534,260,F.small,K.gold2);}
  circle(c,563,354,65,[38,51,58]);circle(c,563,354,58,[48,61,66]);
  silhouette(c,563,378,b.professionId,false);
- text(c,profession.name,641,272,F.body,K.cream);
- rect(c,641,296,255,20,[11,22,32],8);bar(c,645,300,247,12,b.hp,b.maxHp,K.green);
- text(c,'生命 '+String(b.hp??run?.hp??0)+' / '+String(b.maxHp??'—'),641,323,F.body,K.cream);
- line(c,641,346,896,346,[63,88,104],1);
- text(c,'护盾 '+String(b.shield??0)+'    灼烧 '+String(b.burn??0),641,352,F.meta,K.blue);
- text(c,'能量 '+String(b.energy??0)+'    出牌 '+String(b.plays??0)+' / '+String(playLimit),641,378,F.body,K.gold2);
- if(b.professionId==='tamer'||b.petHp)text(c,'灯狐 '+String(b.petHp??0),641,404,F.meta,K.gold2);
- if(b.professionId==='forger'||b.forge)text(c,'锻值 '+String(b.forge??0),780,404,F.meta,K.gold2);
+ text(c,profession.name,641,280,F.body,K.cream);
+ rect(c,641,304,255,20,[11,22,32],8);bar(c,645,308,247,12,b.hp,b.maxHp,K.green);
+ text(c,'生命 '+String(b.hp??run?.hp??0)+' / '+String(b.maxHp??'—'),641,331,F.body,K.cream);
+ line(c,641,354,896,354,[63,88,104],1);
+ text(c,'护盾 '+String(b.shield??0)+'    灼烧 '+String(b.burn??0),641,360,F.meta,K.blue);
+ text(c,'能量 '+String(b.energy??0)+'    出牌 '+String(b.plays??0)+' / '+String(playLimit),641,386,F.body,K.gold2);
+ if(b.professionId==='tamer'||b.petHp)text(c,'灯狐 '+String(b.petHp??0),641,412,F.meta,K.gold2);
+ if(b.professionId==='forger'||b.forge)text(c,'锻值 '+String(b.forge??0),780,412,F.meta,K.gold2);
  rect(c,31,462,898,292,[122,77,49],18);rect(c,36,467,888,280,[34,38,45],14);rect(c,41,472,878,270,[31,35,43],12);
  line(c,49,468,911,468,[172,125,76],2);line(c,49,746,911,746,[78,55,44],2);
  for(const x of [52,908])for(const y of [474,740]){circle(c,x,y,5,[219,178,111]);circle(c,x,y,2,[255,225,154]);}
