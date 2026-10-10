@@ -102,3 +102,31 @@ test('v08 impact status and enemy phase name are visible, while v07 still uses i
   assert.ok(PROFESSIONS.traveler);
 });
 
+
+test('route cards separate names, base stats and risks, and numbered buttons preserve stored node actions', () => {
+ const nodes = [
+  {id:'a1s1n0',type:'normal',title:'空瓶投手',enemyId:'bottle_thrower',dangerous:true,description:'危险遭遇：敌人更强，胜利额外获得余烬与遗物。'},
+  {id:'a1s1n1',type:'normal',title:'巡灯学徒',enemyId:'lantern_apprentice',description:'普通战斗',available:false,disabledReason:'本幕战斗次数不足'},
+  {id:'a1s1n2',type:'event',title:'Boss交易',description:'支付12点余烬，让本幕Boss生命降低15%。'}
+ ];
+ const run=base({phase:'ROUTE',slot:1,room:{type:'route',nodes,choices:['a1s1n0','a1s1n2']},bosses:['dark_lady'],story:{weakenedBossActs:[]}});
+ // Use catalog enemy IDs so the attribute line exercises the actual renderer.
+ nodes[0].enemyId=Object.keys(CATALOG_V08.enemies)[0];nodes[0].title=CATALOG_V08.enemies[nodes[0].enemyId].name;
+ const view=renderRogue(run),embed=view.data.embeds[0],buttons=components(view);
+ assert.match(embed.description,/第 1 幕 · 第 1 站/);
+ assert.equal(embed.fields[0].inline,false);
+ assert.match(embed.fields[0].name,/^① .* · 危险战斗$/);
+ assert.match(embed.fields[0].value,/基础属性：生命 \d+ ｜ 护甲 \d+/);
+ assert.match(embed.fields[0].value,/获胜后额外获得余烬与遗物/);
+ assert.equal(embed.fields[2].name,'③ 削弱首领 · 事件');
+ assert.match(embed.fields[2].value,/支付 12 余烬，让本幕首领生命降低 15%/);
+ const visible=JSON.stringify({...embed,fields:embed.fields});
+ assert.doesNotMatch(visible,/a1s1n\d|Boss|额外奖励路线/);
+ assert.match(embed.footer.text,/基础属性未计入难度与远征影响/);
+ for(let index=0;index<nodes.length;index++){
+  const b=buttons[index];assert.match(b.label,new RegExp(`^${['①','②','③'][index]} 前往`));
+  assert.deepEqual(parseRogueAction(b.custom_id).action,{type:'ROUTE',choice:nodes[index].id});
+ }
+ assert.equal(buttons[0].style,4);assert.equal(buttons[1].disabled,true);assert.equal(buttons[2].disabled,undefined);
+ assert.equal(new Set(buttons.map(b=>b.custom_id)).size,buttons.length);
+});

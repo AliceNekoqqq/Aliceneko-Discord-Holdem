@@ -326,15 +326,26 @@ function renderRoom(run, update) {
     const labels = { normal: '普通战斗', shop: '商店', event: '事件', camp: '营地', elite: '精英战斗', boss: '幕末Boss' };
     const nodes = Array.isArray(r.nodes) ? r.nodes : [];
     const availableChoices = new Set(r.choices ?? nodes.filter((n) => n.available !== false).map((n) => n.id));
-    const choices = nodes.length
-      ? nodes.filter((node) => availableChoices.has(node.id) && node.available !== false).map((node) => button(`${node.dangerous ? '危险 · ' : ''}${node.title ?? labels[node.type] ?? node.type}`, cid(run, 'route', node.id)))
-      : (r.choices ?? []).map((choice) => button(labels[choice] ?? ACTIVE_CATALOG.enemies[choice]?.name ?? choice, cid(run, 'route', choice)));
-    const details = nodes.map((node) => {
+    const numbers = ['①', '②', '③', '④', '⑤'];
+    const fields = nodes.map((node, index) => {
       const enemy = node.enemyId ? ACTIVE_CATALOG.enemies[node.enemyId] : null;
-      const event = node.eventId ? (eventOf(node.eventId)?.title ?? node.eventId) : '';
-      const kind = labels[node.type] ?? event;
-      return `${node.id} · ${node.dangerous ? '危险路线 · ' : ''}${node.title ?? kind}${enemy ? ` · ${enemy.name}基础生命${enemy.hp}护甲${enemy.armor}` : ''}${node.dangerous ? ' · 额外奖励路线' : ''}${node.disabledReason ? ` · 不可选：${node.disabledReason}` : ''}\n${node.description ?? ''}`;
+      const event = node.eventId ? eventOf(node.eventId)?.title : '';
+      const name = (node.title || enemy?.name || event || labels[node.type] || '未知地点').replaceAll('Boss交易', '削弱首领').replaceAll('Boss', '首领');
+      const kind = node.dangerous ? '危险战斗' : (labels[node.type] || '事件').replaceAll('Boss', '首领');
+      const available = availableChoices.has(node.id) && node.available !== false;
+      const lines = [];
+      if (enemy) lines.push(`基础属性：生命 ${enemy.hp} ｜ 护甲 ${enemy.armor}`);
+      if (enemy && enemy.name !== node.title) lines.push(`敌人：${enemy.name}`);
+      const description = (node.description || '').replaceAll('Boss', '首领').replace(/支付(\d+)点余烬/g, '支付 $1 余烬').replace(/降低(\d+)%/g, '降低 $1%');
+      if (node.dangerous) lines.push('敌人更强；获胜后额外获得余烬与遗物。');
+      if (description && !['普通战斗', '精英战斗'].includes(description) && !description.startsWith('危险遭遇：')) lines.push(description);
+      if (!available) lines.push(`暂不可选：${(node.disabledReason || '当前路线条件未满足').replaceAll('Boss', '首领')}`);
+      return { name: cap(`${numbers[index] || index + 1} ${name} · ${kind}`, 256), value: cap(lines.join('\n') || '选择后进入此地点。', 1024), inline: false };
     });
+    const choices = nodes.length
+      ? nodes.map((node, index) => button(`${numbers[index] || index + 1} 前往${(node.title || labels[node.type] || '地点').replaceAll('Boss交易', '削弱首领').replaceAll('Boss', '首领')}`, cid(run, 'route', node.id), node.dangerous ? 4 : 1, !availableChoices.has(node.id) || node.available === false))
+      : (r.choices ?? []).map((choice) => button(labels[choice] ?? ACTIVE_CATALOG.enemies[choice]?.name ?? choice, cid(run, 'route', choice)));
+    const details = [];
     if (!nodes.length && r.normalEnemyId) {
       const foe = ACTIVE_CATALOG.enemies[r.normalEnemyId];
       if (foe) details.push(`普通战：${foe.name}，生命${foe.hp}，护甲${foe.armor}`);
@@ -346,13 +357,16 @@ function renderRoom(run, update) {
     if ((r.choices ?? []).includes('elite') && elite) details.push(`精英警示：${elite.name}，生命${elite.hp}，护甲${elite.armor}，攻击节奏更强。`);
     if (run.bosses?.[run.act - 1]) {
       const boss = ACTIVE_CATALOG.enemies[run.bosses[run.act - 1]];
-      if (boss) details.push(`本幕Boss已固定：${boss.name}，生命${boss.hp}，护甲${boss.armor}。`);
+      if (boss) fields.push({ name: `本幕首领 · ${boss.name}`, value: `基础属性：生命 ${boss.hp} ｜ 护甲 ${boss.armor}${run.story?.weakenedBossActs?.includes(run.act) ? '\n已生效：首领生命降低 15%。' : ''}`, inline: false });
     }
     const nodeRows = [];
     for (let i = 0; i < choices.length; i += 3) nodeRows.push(row(...choices.slice(i, i + 3)));
-    const mapHint = expanded(run) ? '地图详情可查看已选路径与全部未来站点。' : '';
-    const story = storyLines(run);
-    return panel('选择路线', `${details.join('\n\n')}\n选择地点后即进入。${story.length ? `\n远征影响：${story.join('；')}` : ''}${mapHint}`, [...nodeRows, controlRow(run)], update);
+    const story = storyLines(run).filter(line => !line.startsWith('本幕Boss生命'));
+    const header = `第 ${run.act ?? 1} 幕 · 第 ${run.slot ?? 1} 站\n生命 ${run.hp ?? '—'}${run.maxHp ? `/${run.maxHp}` : ''} ｜ 余烬 ${run.embers ?? 0}`;
+    const reply = panel('选择路线', [header, ...details, ...(story.length ? [`远征影响：${story.join('；')}`] : [])].join('\n\n'), [...nodeRows, controlRow(run)], update);
+    if (fields.length) reply.data.embeds[0].fields = fields;
+    reply.data.embeds[0].footer = { text: (nodes.length ? '点击对应编号前往' : '点击地点按钮前往') + '，选择后立即进入。基础属性未计入难度与远征影响。' + (expanded(run) ? '「迷城地图」可查看完整路线。' : '') };
+    return reply;
   }
   if (r.type === 'camp') {
     const maxHp = run.maxHp ?? (expanded(run) && (run.difficulty ?? 0) >= 6 ? 28 : ACTIVE_CATALOG.player.maxHp);
