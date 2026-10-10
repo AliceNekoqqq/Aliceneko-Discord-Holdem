@@ -4,4 +4,4 @@
 
 `/酒馆 创作菜单`现在打开酒馆总菜单；总菜单私密面板提供“研发菜品”和“我的作品”。已发布菜品沿用普通订单预览、确认扣款、账单与配方快照流程。
 
-本地验证：`npm run test:tavern`、`npm run test:worker`、`npm run test:chat`通过。生产部署及 `/health` 核验结果写回`PROJECT_NOW.md`。
+本地验证：`npm run test:tavern`、`npm run test:worker`、`npm run test:chat`通过。GitHub Actions run 38095136578成功，Cloudflare Worker最新部署版本109接收100%流量；版本ID为`22892006-6f48-4202-a330-d4ff9c156657`。本轮终端代理无法访问HTTPS `/health`，控制面已确认版本分配。
