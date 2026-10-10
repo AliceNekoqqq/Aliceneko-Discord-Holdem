@@ -1,16 +1,13 @@
 # 开发读取地图
 
-这份地图用于减少后续开发会话的重复读取。仓库里的图片、字形和牌面数据仍然是运行时资源；它们不应被当作源码全文读入上下文。
+这份地图用于减少重复读取。仓库里的图片、字形和牌面数据是运行时资源，不应全文读入模型上下文。
 
-## 每次接续只做三步
+## 每次接续只做两步
 
-```bash
-sed -n '1,80p' AGENTS.md
-sed -n '1,80p' PROJECT_STATE.md
-npm run scope -- <scope>
-```
+1. 读 `PROJECT_NOW.md` 的短快照。若 `AGENTS.md` 已出现在当前 Codex 上下文中，不要再用命令重读；缺失时才读一次。
+2. 运行 `npm run scope -- <chat|lantern|tavern|worker|assets>`，只查看本任务范围。
 
-`scope` 只输出仓库路径、文件数量、路径和文件大小，不输出源码。可用范围：`chat`、`lantern`、`tavern`、`worker`、`assets`。没有参数时显示全部范围。
+续接旧事项时，用 `rg -n` 在 `PROJECT_STATE.md` 定位标题或关键词，再读匹配段落；不要默认全文读取或固定读取前80行。scope 只输出路径、文件数量和大小，不输出源码。
 
 ## 任务与最小读取范围
 
