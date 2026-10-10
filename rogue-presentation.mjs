@@ -28,10 +28,20 @@ export async function rogueVisualResponse(service,interaction,{render=renderRogu
 
 export async function patchRoguePanel(response,url,{fetcher=fetch,authorization}={}){
  const multipart=response.headers.get('Content-Type')?.startsWith('multipart/form-data');
- let body,headers=authorization?{Authorization:authorization}:{};
+ let body,headers={};
  if(multipart){body=await response.formData();const data=JSON.parse(body.get('payload_json'));delete data.flags;delete data.ephemeral;body.set('payload_json',JSON.stringify(data));}
  else{const reply=await response.json();const data=reply?.data??{content:'远征暂时无法打开，请稍后重试。',allowed_mentions:{parse:[]}};delete data.flags;delete data.ephemeral;data.attachments??=[];body=JSON.stringify(data);headers['Content-Type']='application/json';}
- const result=await fetcher(url,{method:'PATCH',headers,body,signal:AbortSignal.timeout(8000)});
- if(!result.ok)throw Error(`Discord panel HTTP ${result.status}`);
- return result;
+ // Never replay the game action: only retry the idempotent panel PATCH.
+ let lastError;
+ for(let attempt=0;attempt<2;attempt++){
+  try{
+   const result=await fetcher(url,{method:'PATCH',headers,body,signal:AbortSignal.timeout(12000)});
+   if(result.ok)return result;
+   const detail=(await result.text().catch(()=>'')).slice(0,350);
+   lastError=new Error(`Discord panel HTTP ${result.status}: ${detail}`);
+   if(result.status!==429&&result.status<500)break;
+  }catch(error){lastError=error;}
+  if(attempt===0)await new Promise(resolve=>setTimeout(resolve,500));
+ }
+ throw lastError;
 }
