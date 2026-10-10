@@ -44,20 +44,20 @@ test('v08 reward panel combines kinds, exposes one confirmation, and parses cand
     { kind: 'item', candidates: ['ember_flare_item'] },
   ], selections: { card: 'trail_cut', relic: 'cinder_scoop', item: { id: 'ember_flare_item', replaceIndex: null } } } });
   const view = renderRogue(run); const all = components(view);
-  assert.match(view.data.embeds[0].description, /新卡：沿街斩（推荐默认）/);
-  assert.match(view.data.embeds[0].description, /遗物：余烬小铲（推荐默认）/);
+  assert.match(view.data.embeds[0].description, /新卡：沿街斩（默认选项）/);
+  assert.match(view.data.embeds[0].description, /遗物：余烬小铲（默认选项）/);
   assert.match(view.data.embeds[0].description, /余烬信号弹/);
   assert.equal(all.filter((component) => component.type === 3).length, 3);
-  assert.deepEqual(all.filter((component) => component.type === 2 && component.label.includes('确认领取')).map((component) => component.label), ['确认领取推荐组合']);
+  assert.deepEqual(all.filter((component) => component.type === 2 && component.label.includes('确认领取')).map((component) => component.label), ['确认领取所选奖励']);
   const cardMenu = all.find((component) => component.custom_id.endsWith(':reward-select:card'));
   assert.deepEqual(parseRogueAction(cardMenu.custom_id, ['trail_mark']).action, { type: 'REWARD_SELECT', kind: 'card', choice: 'trail_mark' });
   const itemMenu = all.find((component) => component.custom_id.endsWith(':reward-select:item'));
   assert.deepEqual(parseRogueAction(itemMenu.custom_id, ['ember_flare_item:-1']).action, { type: 'REWARD_SELECT', kind: 'item', choice: 'ember_flare_item', replaceIndex: null });
-  assert.deepEqual(parseRogueAction(all.find((component) => component.label === '确认领取推荐组合').custom_id).action, { type: 'REWARD_CLAIM' });
+  assert.deepEqual(parseRogueAction(all.find((component) => component.label === '确认领取所选奖励').custom_id).action, { type: 'REWARD_CLAIM' });
   assert.deepEqual(parseRogueAction(all.find((component) => component.label === '跳过全部奖励').custom_id).action, { type: 'REWARD_SKIP' });
   const seen = [];
   dispatchRogue(makeService(run, seen), interaction(cardMenu.custom_id, ['trail_mark']));
-  dispatchRogue(makeService(run, seen), interaction(all.find((component) => component.label === '确认领取推荐组合').custom_id));
+  dispatchRogue(makeService(run, seen), interaction(all.find((component) => component.label === '确认领取所选奖励').custom_id));
   assert.deepEqual(seen.map((action) => action.type), ['REWARD_SELECT', 'REWARD_CLAIM']);
 });
 
@@ -129,4 +129,29 @@ test('route cards separate names, base stats and risks, and numbered buttons pre
  }
  assert.equal(buttons[0].style,4);assert.equal(buttons[1].disabled,true);assert.equal(buttons[2].disabled,undefined);
  assert.equal(new Set(buttons.map(b=>b.custom_id)).size,buttons.length);
+});
+
+test('reward selection survives reopening, full item slots explain skip, and confirmation uses the current selection', () => {
+ const run=base({phase:'REWARD',inventory:['tonic','ember_flare_item'],reward:{queue:[{kind:'card',candidates:['trail_cut','trail_mark']},{kind:'item',candidates:['ember_flare_item']}],selections:{card:'trail_mark',item:{id:null,replaceIndex:null}}}});
+ const snapshot=JSON.stringify(run),view=renderRogue(JSON.parse(snapshot)),menus=components(view).filter(c=>c.type===3);
+ assert.equal(menus[0].options.find(o=>o.default).value,'trail_mark');
+ assert.equal(menus[1].options.find(o=>o.default).value,'skip');
+ assert.ok(menus.every(m=>m.options.filter(o=>o.default).length===1));
+ assert.match(view.data.embeds[0].description,/奖励尚未领取/);
+ assert.match(view.data.embeds[0].description,/道具栏已满/);
+ assert.match(view.data.embeds[0].description,/当前选择/);
+ assert.ok(components(view).some(c=>c.label==='确认领取所选奖励'));
+ assert.equal(JSON.stringify(run),snapshot);
+});
+
+test('combat exposes player burn and authoritative health; result replays the same profession and explains coins', () => {
+ const view=renderRogue(base({phase:'BATTLE',hp:24,battle:{enemyId:Object.keys(CATALOG_V08.enemies)[0],hp:17,maxHp:30,burn:4,enemyHp:20,enemyArmor:0,enemyShield:0,enemyBurn:0,hand:[],energy:2,plays:1,intent:{kind:'guard',value:3}}}));
+ assert.match(view.data.embeds[0].description,/你的生命 17\/30/);
+ assert.match(view.data.embeds[0].description,/你的灼烧 4：轮末扣血，护盾挡不住/);
+ const professionId=Object.keys(PROFESSIONS).find(id=>id!=='traveler');
+ const result=renderRogue(base({phase:'RESULT',professionId,rewardEligible:true,result:{type:'DEFEAT',reason:'LOST_LIGHT'},receipt:{amount:2,base_amount:8,score:123}}));
+ assert.equal(components(result).find(c=>c.label==='再来一局').custom_id,`rl:settings:${professionId}`);
+ assert.match(result.data.embeds[0].description,/实际到账：2 金币/);
+ assert.match(result.data.embeds[0].description,/每日金币上限/);
+ assert.match(result.data.embeds[0].description,/未能在12轮内击败敌人/);
 });
