@@ -39,8 +39,8 @@ export function decodeArt(record) {
 
 // The compiled image payload is supplied by the build step. Loading is lazy so
 // callers without generated assets can still use the metadata and embeds.
-export async function loadArt(id) {
-  if(equipmentAsset(id))return loadEquipmentArt(id);
+export async function loadArt(id,env) {
+  if(equipmentAsset(id))return loadEquipmentArt(id,env);
   const asset = imageAsset(id);
   if (!asset) return null;
   let records;
@@ -56,9 +56,9 @@ export async function loadArt(id) {
   return { ...asset, data };
 }
 
-export async function serveArt(request) {
+export async function serveArt(request,env) {
   const url = new URL(request.url);
-  if(url.pathname.startsWith('/art/equipment/'))return serveEquipmentArt(request);
+  if(url.pathname.startsWith('/art/equipment/'))return serveEquipmentArt(request,env);
   const match = /^\/art\/([a-z0-9-]+)\/v1\.jpg$/.exec(url.pathname);
   if (!match || !imageAsset(match[1])) return new Response('Not Found', { status: 404 });
   if (request.method !== 'GET' && request.method !== 'HEAD') {

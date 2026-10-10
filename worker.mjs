@@ -301,7 +301,7 @@ async function handle(request,env,ctx){
   const path=new URL(request.url).pathname;
   if(path.startsWith('/art/pet-walk/'))return servePetWalkArt(request);
   if(path.startsWith('/art/pets/'))return servePetArt(request);
-  if(path.startsWith('/art/'))return serveArt(request);
+  if(path.startsWith('/art/'))return serveArt(request,env);
   if(path==='/health'&&request.method==='GET')return env.TABLES.get(env.TABLES.idFromName('system-health')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'health'})});
   if(path!=='/interactions')return new Response('Not found',{status:404});
   if(request.method!=='POST')return new Response('Method not allowed',{status:405,headers:{Allow:'POST'}});
@@ -332,6 +332,7 @@ export default {
   },
   async scheduled(event,env,ctx){ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-emojis')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'appEmojis'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-registration')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'register'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-discord-gateway')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayEnsure'})}));}
 };
+
 
 
 

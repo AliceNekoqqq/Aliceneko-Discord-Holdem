@@ -7,7 +7,7 @@ export default {
     "width": 768,
     "height": 768,
     "sha256": "b61722b45da41b39dca8c1f2588ccb043e728158b98d266da89b2fa22c70bcd3",
-    "file": "assets/equipment-art/coffee-machine.jpg"
+    "file": "public/art/equipment/coffee-machine/v1.jpg"
   },
   "baking-oven": {
     "id": "baking-oven",
@@ -16,7 +16,7 @@ export default {
     "width": 768,
     "height": 768,
     "sha256": "e05b8e9dea997673f363287df9e913ac9b4ac3fe6f03ace8d3000529c8a31d8a",
-    "file": "assets/equipment-art/baking-oven.jpg"
+    "file": "public/art/equipment/baking-oven/v1.jpg"
   },
   "blender": {
     "id": "blender",
@@ -25,7 +25,7 @@ export default {
     "width": 768,
     "height": 768,
     "sha256": "ee8487f99dbf9304e98dfa517d096a346dcfabb865464dc2c0f7fc386ffeb58e",
-    "file": "assets/equipment-art/blender.jpg"
+    "file": "public/art/equipment/blender/v1.jpg"
   },
   "ice-cream-maker": {
     "id": "ice-cream-maker",
@@ -34,7 +34,7 @@ export default {
     "width": 768,
     "height": 768,
     "sha256": "4e8d6914a2af2a2afd94bb1cfbd7f50fbbef85d03a5f4daf2fb04c1d7d6a921e",
-    "file": "assets/equipment-art/ice-cream-maker.jpg"
+    "file": "public/art/equipment/ice-cream-maker/v1.jpg"
   },
   "americano": {
     "id": "americano",
@@ -43,7 +43,7 @@ export default {
     "width": 768,
     "height": 768,
     "sha256": "e1cea115824db1c09d0441550281e66f6010ec4c5205bd729fc47e90152c4965",
-    "file": "assets/equipment-art/americano.jpg"
+    "file": "public/art/equipment/americano/v1.jpg"
   },
   "redbean-latte": {
     "id": "redbean-latte",
@@ -52,7 +52,7 @@ export default {
     "width": 768,
     "height": 768,
     "sha256": "0996cc90ff1a6426899069d7dfc22e4649d7eaae41154f11216112f7e80100be",
-    "file": "assets/equipment-art/redbean-latte.jpg"
+    "file": "public/art/equipment/redbean-latte/v1.jpg"
   },
   "cappuccino": {
     "id": "cappuccino",
@@ -61,7 +61,7 @@ export default {
     "width": 768,
     "height": 768,
     "sha256": "c77ddc7ec35c1553a7c35f95ebbd4da7fa93b3bc0ee1c4dcc78a38b622882291",
-    "file": "assets/equipment-art/cappuccino.jpg"
+    "file": "public/art/equipment/cappuccino/v1.jpg"
   },
   "butter-croissant": {
     "id": "butter-croissant",
@@ -70,7 +70,7 @@ export default {
     "width": 768,
     "height": 768,
     "sha256": "602f3f9db5e0275864c20482fe731b68105dafdda3440787a9c37dbb29622dd6",
-    "file": "assets/equipment-art/butter-croissant.jpg"
+    "file": "public/art/equipment/butter-croissant/v1.jpg"
   },
   "cheese-toast": {
     "id": "cheese-toast",
@@ -79,7 +79,7 @@ export default {
     "width": 768,
     "height": 768,
     "sha256": "d0b7c5f81a0f30e243de18377474de02c2b8d70301c8b585282bf98ad71ba730",
-    "file": "assets/equipment-art/cheese-toast.jpg"
+    "file": "public/art/equipment/cheese-toast/v1.jpg"
   },
   "berry-smoothie": {
     "id": "berry-smoothie",
@@ -88,7 +88,7 @@ export default {
     "width": 768,
     "height": 768,
     "sha256": "113edbbf707051f2e93865872e2d762b9a22da6594a9c43ed67892fb55af7200",
-    "file": "assets/equipment-art/berry-smoothie.jpg"
+    "file": "public/art/equipment/berry-smoothie/v1.jpg"
   },
   "mango-yogurt": {
     "id": "mango-yogurt",
@@ -97,7 +97,7 @@ export default {
     "width": 768,
     "height": 768,
     "sha256": "2dfcae9f300405710a6ab367967d608c53f6aa7e6907ff6fb7382c4b7995b0c8",
-    "file": "assets/equipment-art/mango-yogurt.jpg"
+    "file": "public/art/equipment/mango-yogurt/v1.jpg"
   },
   "vanilla-sundae": {
     "id": "vanilla-sundae",
@@ -106,7 +106,7 @@ export default {
     "width": 768,
     "height": 768,
     "sha256": "68455e7de44f9d1ed13f640352bd899b7324c4a5d9e0ef1dd86ba5b673b119bd",
-    "file": "assets/equipment-art/vanilla-sundae.jpg"
+    "file": "public/art/equipment/vanilla-sundae/v1.jpg"
   },
   "redbean-parfait": {
     "id": "redbean-parfait",
@@ -115,6 +115,6 @@ export default {
     "width": 768,
     "height": 768,
     "sha256": "f51e4e456acad976b8e974b258ca14bebc06547f5618068e05e9bd781f63bae9",
-    "file": "assets/equipment-art/redbean-parfait.jpg"
+    "file": "public/art/equipment/redbean-parfait/v1.jpg"
   }
 };
