@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--font", required=True)
 args = parser.parse_args()
 font = ImageFont.truetype(args.font, 24)
-known = TTFont(args.font).getBestCmap()
+known = TTFont(args.font, fontNumber=0).getBestCmap()
 blocks = {}
 ranges = [(0xa0,0x250),(0x370,0x530),(0x3000,0x3100),(0x3400,0xa000),(0xf900,0xfb00)]
 for low, high in ranges:
