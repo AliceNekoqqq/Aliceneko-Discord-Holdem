@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { renderRogueImage, describeRogueImage } from './rogue-image.mjs';
+import { renderRogueImage, describeRogueImage, normalizeRogueImageText } from './rogue-image.mjs';
+import { glyphs } from './card-glyphs.mjs';
 import { createRun } from './rogue-run-v08.mjs';
 import { CATALOG_V08 } from './rogue-content-v08.mjs';
 import {runAction} from './rogue-run-v08.mjs';
@@ -40,10 +41,29 @@ test('battle PNG is deterministic, bounded, and reports live card eligibility',a
  const deck=run.deck.map(x=>({...x}));
  const {beginBattle}=await import('./rogue-battle-v08.mjs');
  run.battle=beginBattle({enemyId,deck,relics:run.relics,hp:run.hp,seed:'fixed',professionId:run.professionId,items:run.inventory});
- const model=describeRogueImage(run,'battle');assert.ok(model.cards.length>0);assert.ok(model.cards.every(c=>typeof c.playable==='boolean'));
+ const selfCost=Object.entries(CATALOG_V08.cards).find(([,d])=>d.selfCost>0&&d.upgrade);
+ if(selfCost){run.battle.hand[0].cardId=selfCost[0];run.battle.hand[0].upgraded=true;}
+ run.battle.energy=0;
+ const model=describeRogueImage(run,'battle');assert.ok(model.cards.length>0);assert.equal(model.playLimit,CATALOG_V08.player.playLimit);assert.ok(model.cards.every(c=>typeof c.playable==='boolean'));
+ assert.ok(model.cards.every(c=>Array.isArray(c.categories)&&Array.isArray(c.effects)&&Array.isArray(c.warnings)&&typeof c.reason==='string'));
+ assert.ok(model.cards.some(c=>c.reason==='能量不足'));
+ if(selfCost){assert.ok(model.cards[0].warnings.includes('已强化'));assert.ok(model.cards[0].warnings.some(w=>w.startsWith('自损')));}
+ assert.ok(model.hints.length>0);
  const before=JSON.stringify(run),first=await pngSize(await renderRogueImage(run)),second=await pngSize(await renderRogueImage(run));
  assert.deepEqual(first.bytes,second.bytes);assert.equal(JSON.stringify(run),before);
  assert.equal(first.width,960);assert.ok(first.height<=800);
+ const drawn=[...model.hints,'完整效果见下方文字',...model.cards.flatMap(c=>[c.name,`#${c.id}`,c.reason,...c.effects,...c.warnings,...c.categories.map(g=>g.label)])];
+ for(const value of drawn){const normalized=normalizeRogueImageText(value);assert.ok(!/[，。；：、（）·×→≤]/u.test(normalized));for(const ch of normalized)assert.ok(glyphs[ch],`renderer glyph missing: ${JSON.stringify(ch)} in ${normalized}`);}
+});
+
+test('card metadata distinguishes entity IDs, upgraded effects, risks, and companion requirements',()=>{
+ const normalId='slash',selfCost=Object.entries(CATALOG_V08.cards).find(([,d])=>d.selfCost>0&&d.upgrade),petCard=Object.entries(CATALOG_V08.cards).find(([,d])=>d.effects?.length&&d.effects.every(e=>e.kind==='pet_attack'||e.kind==='sacrifice'));
+ assert.ok(CATALOG_V08.cards[normalId]?.upgrade&&selfCost&&petCard);
+ const run={phase:'BATTLE',act:1,professionId:'tamer',catalogVersion:'0.8',battle:{ruleVersion:'lantern-rules-v0.8',professionId:'tamer',enemyId:CATALOG_V08.acts[0].normalPool[0],hand:[{uid:11,cardId:normalId,upgraded:false},{uid:12,cardId:normalId,upgraded:true},{uid:13,cardId:selfCost[0],upgraded:false},{uid:14,cardId:petCard[0],upgraded:false}],energy:9,plays:0,hp:1,maxHp:30,petHp:0,result:null}};
+ const m=describeRogueImage(run,'battle'),[plain,upgraded,risky,pet]=m.cards;
+ assert.notEqual(plain.id,upgraded.id);assert.equal(plain.name,upgraded.name);assert.notDeepEqual(plain.effects,upgraded.effects);
+ assert.ok(plain.categories.some(g=>g.label==='攻击'));assert.ok(upgraded.warnings.includes('已强化'));
+ assert.ok(risky.warnings.some(w=>w.includes('会倒下')));assert.equal(pet.reason,'需要存活的伙伴');
 });
 
 test('actual route selection marks only current node; cleared station leaves unchosen alternatives gray',()=>{

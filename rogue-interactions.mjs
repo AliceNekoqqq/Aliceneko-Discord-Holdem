@@ -1,4 +1,4 @@
-import {renderRogue,renderRogueHome,renderRogueSettings,renderRogueBoard,renderRogueConfirmation,renderRogueDetails,renderRogueUidPage,rogueUidEligible,parseRogueAction} from './rogue-ui.mjs';
+import {renderRogueReading,renderRogue,renderRogueHome,renderRogueSettings,renderRogueBoard,renderRogueConfirmation,renderRogueDetails,renderRogueUidPage,rogueUidEligible,parseRogueAction} from './rogue-ui.mjs';
 
 const privateError=content=>({type:4,data:{flags:64,content,allowed_mentions:{parse:[]}}});
 const errors={INSUFFICIENT_HP:'这项交易需要保留至少1点生命。',PACT_USED:'这项契约已生效，请选择免费离开。',INVENTORY_FULL:'道具槽已满，请明确选择要替换的槽位。',OWNER:'请打开属于自己的冒险。',GUILD:'这局属于另一个服务器。',STALE:'这个按钮已过期，请重新打开当前冒险。',STALE_VERSION:'这个按钮已过期，请重新打开当前冒险。',INSUFFICIENT_EMBERS:'余烬不足，可以免费离开这个房间。',FULL_HEALTH:'现在已经满血。',SERVICE_USED:'本次服务已使用。',SOLD_OUT:'这张牌已经售出。',MINIMUM_DECK:'牌组至少保留4张。',ILLEGAL_CARD:'这张牌当前无法打出。',RUN_FINISHED:'这局已经结束。'};
@@ -18,6 +18,7 @@ export function dispatchRogue(service,interaction,{onVisual}={}){
   if(interaction.type===2){const run=service.resume(base);return run&&run.phase!=='RESULT'?render(run):renderRogueHome({homeInfo:homeInfo()});}
   const parsed=parseRogueAction(interaction.data?.custom_id,interaction.data?.values||[]);
   if(!parsed)return privateError('这个冒险按钮无效，请重新打开冒险。');
+  if(parsed.ui==='reading')return renderRogueReading(parsed.kind,parsed.professionId,{update});
   if(parsed.ui==='board')return renderRogueBoard(service.leaderboard(base),{update});
   if(parsed.ui==='home'){
    const run=service.resume(base);return run&&run.phase!=='RESULT'?render(run,{update}):renderRogueHome({homeInfo:homeInfo(),update});

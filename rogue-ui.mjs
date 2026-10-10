@@ -1,3 +1,5 @@
+import { WORLD_INTRO, WORLD_STORY, PROFESSION_STORIES } from './rogue-lore.mjs';
+import { cardGroups, cardEffectLines, cardWarnings, unavailableReason, battleHints, playGuide } from './rogue-card-guide.mjs';
 import { CATALOG } from './rogue-catalog.mjs';
 import { legalCards, legalItems } from './rogue-battle.mjs';
 import { ITEMS, DIFFICULTIES, EVENTS, getCatalog } from './rogue-content-v07.mjs';
@@ -31,13 +33,10 @@ function cardText(entity) {
   const base = cardOf(entity?.cardId);
   if (!base) return '未知牌';
   const def = entity.upgraded ? { ...base, ...base.upgrade } : base;
-  const effects = def.effects.map((e) => ({
-    damage: `伤害${e.value}${e.ignoreArmor ? '（穿甲）' : ''}`, block: `护盾${e.value}`, burn: `灼烧${e.value}`, heal: `治疗${e.value}`, draw: `抽牌${e.value}`, cleanse_player: `净化${e.value}`,
-    prepare: `备势${e.value}`, mark: `标记${e.value}`, sift: '择弃并补抽', exhaust_other: '消耗目标牌', retain: '保留目标牌', counter: `反击${e.value}`,
-    echo_next: '下轮回声', self_echo: '自损回声', delay_burn: `延迟灼烧${e.value}`, damage_from_shield: `耗盾伤害${e.value}`,
-    summon: `召唤伙伴${e.value}`, pet_attack: `伙伴攻击${e.value}`, sacrifice: `牺牲伙伴伤害${e.value}`, forge: `锻造${e.value}`, weapon_attack: `武器伤害${e.value}`,
-  }[e.kind] ?? e.kind)).filter(Boolean).join('、');
-  return `${base.name} · ${def.cost}能量${def.selfCost ? ` · 自损${def.selfCost}` : ''} · ${effects}${def.exhaust ? ' · 消耗' : ''}`;
+  const effects = cardEffectLines(def).join('、');
+  const tags = cardGroups(def).map(g => g.label).join('/');
+  const warnings = cardWarnings(entity, def).join(' · ');
+  return `${base.name}${entity.upgraded ? '＋' : ''} · ${tags} · ${def.cost}能量 · ${effects}${def.replayable && !def.effects.some(e=>e.kind==='heal') ? ' · 可回声' : ''}${warnings ? ` · ${warnings}` : ''}`;
 }
 function cardDef(entity) {
   const b = cardOf(entity?.cardId);
@@ -100,7 +99,7 @@ function panel(title, description, components = [], update = false) {
 }
 function optionsFrom(ids, nameFn, extra = () => '') { return ids.map((id) => ({ label: cap(nameFn(id), 80), value: String(id), description: cap(extra(id), 100) })); }
 function controlRow(run, checkpoint = false) {
-  return row(button('刷新面板', cid(run, 'refresh'), 2), button('牌组详情', cid(run, 'details', 'deck'), 2), button('迷城地图', cid(run, 'details', 'map:0'), 2), checkpoint ? button('确认撤退', cid(run, 'ask-retreat'), 4) : button('放弃远征', cid(run, 'ask-abandon'), 4));
+  return row(button('刷新面板', cid(run, 'refresh'), 2), button('牌组详情', cid(run, 'details', 'deck'), 2), button('迷城地图', cid(run, 'details', 'map:0'), 2), checkpoint ? button('确认撤退', cid(run, 'ask-retreat'), 4) : button('放弃远征', cid(run, 'ask-abandon'), 4), button('玩法与故事', cid(run, 'details', 'guide:0'), 2));
 }
 
 export const rogueCommand = { name: '灯下迷城', description: '打开灯下迷城远征面板', type: 1, integration_types: [0], contexts: [0] };
@@ -116,11 +115,11 @@ export function renderRogueHome({ challengeProfession = null, homeInfo = {}, upd
     row(button('开始普通远征', `rl:settings:${defaultProfession ?? 'traveler'}`, 1), button(`每日挑战${challengeProfession ? ` · ${PROFESSIONS[challengeProfession]?.name ?? ''}` : ''}`, 'rl:start:challenge', 1)),
   ];
   if (choices.length > 1) components.push(row(select('rl:settings-profession', '选择职业并查看已解锁难度', choices)));
-  components.push(row(button('每日挑战练习', 'rl:practice:challenge', 2), button('查看榜单', 'rl:board', 2)));
+  components.push(row(button('每日挑战练习', 'rl:practice:challenge', 2), button('查看榜单', 'rl:board', 2), button('玩法指南', 'rl:guide', 2), button('世界与角色', 'rl:lore', 2)));
   const hint = '每轮抽5张、3能量、最多打3张；共15个站点。普通难度按职业分别解锁，练习局也会推进难度。每日挑战难度由服务器固定。';
   const progress = (homeInfo.progress ?? []).map((p) => `${PROFESSIONS[p.professionId]?.name ?? p.professionId} ${p.unlocked}/10（通关${p.clears ?? 0}）`);
   const challenge = homeInfo.challengeProfession ? `${PROFESSIONS[homeInfo.challengeProfession]?.name ?? homeInfo.challengeProfession} · 难度${homeInfo.challengeDifficulty ?? 0}` : challengeProfession ? `${PROFESSIONS[challengeProfession]?.name ?? challengeProfession} · 难度${homeInfo.challengeDifficulty ?? 0}` : '服务器每日固定';
-  return panel('灯下迷城', `在灯火熄灭前穿过三幕迷城。先选择职业，再查看该职业的难度进度。每天前2次正式开局有奖；练习局不发经济奖励。\n每日挑战：${challenge}\n职业进度：${progress.join('；') || '各职业从难度0开始'}\n\n${hint}`, components, update);
+  return panel('灯下迷城', `${WORLD_INTRO}\n\n先选择职业，再查看该职业的难度进度。每天前2次正式开局有奖；练习局不发经济奖励。\n每日挑战：${challenge}\n职业进度：${progress.join('；') || '各职业从难度0开始'}\n\n${hint}`, components, update);
 }
 
 export function renderRogueSettings({ professionId, difficulty = 0, mode = 'normal', homeInfo = {}, update = false, catalogVersion = '0.8' } = {}) {
@@ -137,8 +136,24 @@ export function renderRogueSettings({ professionId, difficulty = 0, mode = 'norm
   const components = [];
   if (options.length) components.push(row(select(`rl:settings-difficulty:${professionId}`, `已解锁难度（当前 ${selected}）`, options)));
   components.push(row(button(`正式开局 · 难度${selected}`, `rl:start:normal:${professionId}:${selected}`, 1), button(`练习开局 · 难度${selected}`, `rl:practice:normal:${professionId}:${selected}`, 2)));
-  components.push(row(button('返回首页', 'rl:home', 2)));
-  return panel(`${prof.name} · 开局设置`, `${prof.description ?? ''}\n\n职业难度：${unlocked}/10 已解锁 · 通关 ${progress?.clears ?? 0} 次。当前选择：难度${selected}「${difficultyDef?.name ?? '基准'}」。\n累计规则：${cumulativeRules.join('；')}\n选择更高难度需要先在本职业通关。`, components, update);
+  components.push(row(button('角色故事', `rl:lore:${professionId}`, 2), button('返回首页', 'rl:home', 2)));
+  return panel(`${prof.name} · 开局设置`, `${prof.description ?? ''}\n${PROFESSION_STORIES[professionId]?.motive ?? ''}\n\n职业难度：${unlocked}/10 已解锁 · 通关 ${progress?.clears ?? 0} 次。当前选择：难度${selected}「${difficultyDef?.name ?? '基准'}」。\n累计规则：${cumulativeRules.join('；')}\n选择更高难度需要先在本职业通关。`, components, update);
+}
+
+export function renderRogueReading(kind = 'guide', professionId, { update = false, run = null } = {}) {
+  const lore = PROFESSION_STORIES[professionId];
+  const guide = kind === 'guide';
+  const rules = run ? useRunCatalog(run).player : CATALOG_V08.player;
+  const body = guide ? playGuide({ ...rules, modern: !run || expanded(run) })
+    : lore ? `${lore.background}\n\n出发动机：${lore.motive}\n招牌打法：${lore.signature}\n\n这是《灯下迷城》盒内角色的故事。`
+    : WORLD_STORY;
+  const buttons = run
+    ? [button('玩法指南', cid(run, 'details', 'guide:0'), guide ? 1 : 2), button('角色故事', cid(run, 'details', 'lore:0'), guide ? 2 : 1)]
+    : [button('玩法指南', 'rl:guide', guide ? 1 : 2), button('迷城世界观', 'rl:lore', !guide && !lore ? 1 : 2)];
+  const components = [row(...buttons)];
+  if (!run && !guide) components.push(row(select('rl:lore-profession', '阅读一位角色的背景', Object.entries(PROFESSION_STORIES).map(([id,p])=>({label:p.name,value:id,description:p.motive})))));
+  components.push(row(run ? button('返回远征', cid(run, 'refresh'), 2) : button('返回首页', 'rl:home', 2), ...(!run && lore ? [button('选择该角色', `rl:settings:${professionId}`, 1)] : [])));
+  return panel(guide ? '灯下迷城 · 玩法指南' : lore ? `${lore.name} · 背景故事` : '灯下迷城 · 酒馆里的长夜', body, components, update);
 }
 
 export function renderRogueBoard(board = {}, { update = false } = {}) {
@@ -154,6 +169,7 @@ export function renderRogueDetails(run, kind = 'deck', { update = false, page = 
   useRunCatalog(run);
   let entries = [];
   let title = '远征详情';
+  if (kind === 'guide' || kind === 'lore') return renderRogueReading(kind, run.professionId, { update, run });
   if (kind === 'map') {
     title = '迷城地图';
     const nodes = [];
@@ -203,7 +219,7 @@ export function renderRogueDetails(run, kind = 'deck', { update = false, page = 
   const intro = kind === 'deck' ? `职业：${(ACTIVE_CATALOG.professions?.[run.professionId] ?? PROFESSIONS[run.professionId])?.name ?? '提灯旅人'}。${(ACTIVE_CATALOG.professions?.[run.professionId] ?? PROFESSIONS[run.professionId])?.description ?? ''}\n` : '';
   const description = `${intro}${visible.join('\n')}\n\n第${activePage + 1}/${totalPages}页 · 共${entries.length}项`;
   const paging = row(button('上一页', cid(run, 'details', `${kind}:${Math.max(0, activePage - 1)}`), 2, activePage === 0), button('下一页', cid(run, 'details', `${kind}:${Math.min(totalPages - 1, activePage + 1)}`), 2, activePage >= totalPages - 1));
-  return panel(title, description, [row(button('牌组', cid(run, 'details', 'deck:0'), kind === 'deck' ? 1 : 2), button('地图', cid(run, 'details', 'map:0'), kind === 'map' ? 1 : 2), button('遗物', cid(run, 'details', 'relics:0'), kind === 'relics' ? 1 : 2), button('道具', cid(run, 'details', 'inventory:0'), kind === 'inventory' ? 1 : 2)), paging, row(button('返回远征', cid(run, 'refresh'), 2))], update);
+  return panel(title, description, [row(button('牌组', cid(run, 'details', 'deck:0'), kind === 'deck' ? 1 : 2), button('地图', cid(run, 'details', 'map:0'), kind === 'map' ? 1 : 2), button('遗物', cid(run, 'details', 'relics:0'), kind === 'relics' ? 1 : 2), button('道具', cid(run, 'details', 'inventory:0'), kind === 'inventory' ? 1 : 2), button('玩法与故事', cid(run, 'details', 'guide:0'), 2)), paging, row(button('返回远征', cid(run, 'refresh'), 2))], update);
 }
 
 function renderBattle(run, update) {
@@ -224,12 +240,12 @@ function renderBattle(run, update) {
     return `${base}${amount}${extras.length ? ` · ${extras.join(' · ')}` : ''}`;
   };
   let intentLine;
-  if (intent.kind === 'conditional') intentLine = `公开分支：打出攻击牌→${actionText(intent.onAttack)}；否则→${actionText(intent.onOther)}`;
+  if (intent.kind === 'conditional') intentLine = `公开分支：首张为攻击牌→${actionText(intent.onAttack)}；首张为其他牌／未出牌→${actionText(intent.onOther)}`;
   else if (intent.kind === 'charge') intentLine = `蓄力预告：下轮${actionText(intent.next ?? { ...intent, kind: 'attack' })}`;
   else intentLine = actionText(intent);
   const drawCount = expanded(run) ? 5 : 4, playLimit = expanded(run) ? 3 : 2;
   const playerMaxHp = run.maxHp ?? (expanded(run) && (run.difficulty ?? 0) >= 6 ? 28 : ACTIVE_CATALOG.player.maxHp);
-  const description = [`${enemy.name ?? '敌人'}　生命 ${b.enemyHp ?? '?'}　护甲 ${b.enemyArmor ?? 0}　架盾 ${b.enemyShield ?? 0}　灼烧 ${b.enemyBurn ?? 0}`, `你的生命 ${run.hp}　护盾 ${b.shield ?? 0}　能量 ${b.energy ?? 0}　已出牌 ${b.plays ?? 0}/${playLimit}`, `意图：${intentLine}`, `手牌：${(b.hand ?? []).map((e) => cardText(e)).join('；') || '无'}`];
+  const description = [`${enemy.name ?? '敌人'}　生命 ${b.enemyHp ?? '?'}　护甲 ${b.enemyArmor ?? 0}　架盾 ${b.enemyShield ?? 0}　灼烧 ${b.enemyBurn ?? 0}`, `你的生命 ${run.hp}　护盾 ${b.shield ?? 0}　能量 ${b.energy ?? 0}　已出牌 ${b.plays ?? 0}/${playLimit}`, `意图：${intentLine}`, `手牌：\n${(b.hand ?? []).map((e) => `#${e.uid} ${cardText(e)}${cardDef(e)?.selfCost >= (b.hp ?? run.hp) && cardDef(e)?.selfCost ? ' ⚠ 自损会倒下' : ''}`).join('\n') || '无'}`];
   if (run.room?.storyEffect) description.push(`本战影响：${run.room.storyEffect}`);
   description.push(...storyLines(run));
   if (b.enemyPhase === 2) {
@@ -252,25 +268,19 @@ function renderBattle(run, update) {
   const handTargets = hand.filter((e) => e != null);
   for (const e of hand) {
     const def = cardDef(e);
-    let reason = '';
-    if (b.result) reason = '战斗已结束';
-    else if ((b.plays ?? 0) >= playLimit) reason = '本轮出牌次数已满';
-    else if (!legal.has(e.uid)) {
-      if (def?.cost > (b.energy ?? 0)) reason = '能量不足';
-      else if (def?.effects?.every((x) => x.kind === 'heal') && run.hp >= (b.maxHp ?? playerMaxHp)) reason = '生命已满，纯治疗牌不可用';
-      else reason = '当前不可打出';
-    }
+    const reason = unavailableReason({ ...b, hp: b.hp ?? run.hp, maxHp: b.maxHp ?? playerMaxHp }, def, playLimit, legal, e.uid);
     if (reason) disabledReasons.push(`#${e.uid} ${cardName(e.cardId)}：${reason}`);
     const requiredTarget = (def?.effects ?? []).some((x) => targetEffects.has(x.kind)) && !((def?.effects ?? []).some((x) => !targetEffects.has(x.kind)));
     const targets = handTargets.filter((t) => t.uid !== e.uid);
     if (requiredTarget && !targets.length) { disabledReasons.push(`#${e.uid} ${cardName(e.cardId)}：没有合法目标`); continue; }
     if (reason) continue;
-    const prefix = `${cardName(e.cardId)} #${e.uid}`;
+    const prefix = `${cardGroups(def).map(g=>g.label).join('/')} · ${cardName(e.cardId)}${e.upgraded ? '＋' : ''} #${e.uid}${def.selfCost ? ` · 自损${def.selfCost}` : ''}${def.exhaust ? ' · 消耗' : ''}`;
     if ((def?.effects ?? []).some((x) => targetEffects.has(x.kind))) {
-      if (!requiredTarget) playOptions.push({ label: `${prefix} · 不选目标`, value: `p:${e.uid}:n`, description: '只执行基础效果' });
-      for (const t of targets) playOptions.push({ label: `${prefix} → #${t.uid} ${cardName(t.cardId)}`, value: `p:${e.uid}:t:${t.uid}`, description: cardText(t) });
+      if (!requiredTarget) playOptions.push({ label: `${prefix} · 不选目标`, value: `p:${e.uid}:n`, description: `${cardText(e)} · 只执行基础效果` });
+      for (const t of targets) playOptions.push({ label: `${prefix} → #${t.uid} ${cardName(t.cardId)}`, value: `p:${e.uid}:t:${t.uid}`, description: `${cardText(e)}；目标：${cardName(t.cardId)}` });
     } else playOptions.push({ label: prefix, value: `p:${e.uid}:n`, description: cardText(e) });
   }
+  description.push(`本轮提示：${battleHints(b, hand.map(cardDef), playLimit).join(' ')}`);
   if (disabledReasons.length) description.push(`暂不可用：${disabledReasons.join('；')}`);
   if (playOptions.length) components.push(row(select(cid(run, 'play-target'), '选择要打出的牌与目标', playOptions)));
   else if (hand.length) components.push(row(select(cid(run, 'play-target'), '本轮没有可打出的牌', [{ label: '无可用牌', value: 'none' }], true)));
@@ -567,6 +577,14 @@ function selection(values) {
 export function parseRogueAction(customId, values = []) {
   if (typeof customId !== 'string' || customId.length < 1 || customId.length > 100) return null;
   if (customId === 'rl:home') return { ui: 'home' };
+  if (customId === 'rl:guide') return { ui: 'reading', kind: 'guide' };
+  if (customId === 'rl:lore') return { ui: 'reading', kind: 'lore' };
+  const lore = /^rl:lore:([a-z0-9_-]{1,40})$/.exec(customId);
+  if (lore && Object.hasOwn(PROFESSIONS, lore[1])) return { ui: 'reading', kind: 'lore', professionId: lore[1] };
+  if (customId === 'rl:lore-profession') {
+    const professionId = selection(values);
+    return professionId && Object.hasOwn(PROFESSIONS, professionId) ? { ui: 'reading', kind: 'lore', professionId } : null;
+  }
   if (customId === 'rl:board') return { ui: 'board' };
   let settings = /^rl:settings:([a-z0-9_-]{1,40})$/.exec(customId);
   if (settings && Object.hasOwn(PROFESSIONS, settings[1])) return { ui: 'settings', professionId: settings[1], difficulty: 0 };
@@ -597,7 +615,7 @@ export function parseRogueAction(customId, values = []) {
   switch (action) {
     case 'refresh': return { ui: 'refresh', runId, version };
     case 'details': {
-      const match = /^(deck|relics|inventory|map)(?::(\d{1,4}))?$/.exec(arg ?? '');
+      const match = /^(deck|relics|inventory|map|guide|lore)(?::(\d{1,4}))?$/.exec(arg ?? '');
       return match && Number(match[2] ?? 0) <= 9999 ? { ui: 'details', runId, version, kind: match[1], page: Number(match[2] ?? 0) } : null;
     }
     case 'uid-page': {
