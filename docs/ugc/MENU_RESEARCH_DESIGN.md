@@ -2,7 +2,7 @@
 
 日期：2026-10-11（Asia/Shanghai）。基线：main / beta.60。
 
-状态：完成现有代码定位和 Luna 独立审查；本文件是实施规格，运行时代码、数据库迁移和上线尚未实施。后续实现不得把本文设计完成写成已上线。
+状态：本文件为设计规格；已完成beta.61本地实现和定向验证，实际实现范围与限制见 IMPLEMENTATION_BETA61.md。生产上线状态以PROJECT_NOW.md最新记录为准。
 
 ## 1. 产品规则
 
@@ -170,6 +170,6 @@ UGC 请求日志默认只存 context、轮次追踪ID、模型、状态、耗时
 17. 单字段多轮修改只更新目标候选，采用后才改变整卡；放弃/失败不改原卡；派生过敏原/设备正确重算，关联冲突阻止提交，用户售价和无关字段保持。
 18. 局部对话回退及采用后的整卡回退语义正确；切换字段不串临时问答；取消/重研/超时/发布清理局部候选及问答；发布拒绝存在未处理的局部修改。
 
-本轮完成的是规格与风险审查；以上测试是未来实现验收项，尚未执行。
+以上为设计验收清单；实际已运行检查见 IMPLEMENTATION_BETA61.md，不把未执行项目视为已通过。
 
 技术参考：Cloudflare SQLite storage / transactionSync https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/；alarm重试 https://developers.cloudflare.com/durable-objects/api/base/。临时正文删除按业务逻辑删除定义，不把平台PITR备份当作已物理清除。

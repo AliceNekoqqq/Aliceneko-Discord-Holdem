@@ -23,8 +23,9 @@ export class TavernOperationsLive {
   return data;
  }
  async arm(state,now=Date.now()){
-  if(!state?.boards?.length){await this.storage.deleteAlarm();return;}
-  const due=Math.min(tomorrow(now),nextAmbience(now),state.due||Infinity,state.expiryDue||Infinity);
+  const ugcDue=this.host.tavern?.ugc?.nextExpiry?.(now)||Infinity;
+  if(!state?.boards?.length){if(Number.isFinite(ugcDue))await this.storage.setAlarm(Math.max(now+1,ugcDue));else await this.storage.deleteAlarm();return;}
+  const due=Math.min(tomorrow(now),nextAmbience(now),state.due||Infinity,state.expiryDue||Infinity,ugcDue);
   await this.storage.setAlarm(Math.max(now+1,due));
  }
  async track(p,now=Date.now()){

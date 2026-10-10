@@ -8,7 +8,7 @@ export const ART_MANIFEST=Object.freeze(Object.fromEntries(Object.entries(manife
 export function imageAsset(id){if(typeof id!=='string')return null;if(!Object.hasOwn(ART_MANIFEST,id))return equipmentAsset(id);return {...ART_MANIFEST[id]};}
 const assetPath=id=>'/art/'+id+'/'+ART_VERSION+'.jpg';
 export function getArtUrl(id){if(!Object.hasOwn(ART_MANIFEST,id))return equipmentArtUrl(id);return ART_ORIGIN+assetPath(id);}
-export function artEmbed(id){const url=getArtUrl(id);return url?[{image:{url}}]:[];}
+export function artEmbed(id,details={}){const key=details?.assetKey;const ugc=typeof key==='string'&&/^art\/ugc\/[A-Za-z0-9_/-]+\.(?:png|jpg|webp)$/.test(key)&&!key.includes('..')?ART_ORIGIN+'/'+key:null;const url=ugc||getArtUrl(id);return url?[{image:{url}}]:[];}
 export async function loadArt(id,env){
  if(equipmentAsset(id))return loadEquipmentArt(id,env);
  const asset=imageAsset(id);if(!asset||!Object.hasOwn(ART_MANIFEST,id))return null;

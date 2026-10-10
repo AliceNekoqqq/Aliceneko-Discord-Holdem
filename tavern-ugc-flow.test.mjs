@@ -1,0 +1,36 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {TavernService} from './tavern-service.mjs';
+import {answerUgc,immediateUgcReply} from './tavern-ugc-ui.mjs';
+
+test('private UGC flow opens modals immediately, carries user ideas, edits one field, prices and publishes once',async t=>{
+ const db=new DatabaseSync(':memory:'),map=new Map(),store={sql:{exec(q,...args){const st=db.prepare(q);if(st.columns().length){const rows=st.all(...args);return {toArray:()=>rows,one:()=>rows[0]};}st.run(...args);return {toArray:()=>[]};}},transactionSync(fn){db.exec('BEGIN');try{const r=fn();db.exec('COMMIT');return r;}catch(e){db.exec('ROLLBACK');throw e;}},get:async k=>map.get(k),put:async(k,v)=>map.set(k,v)};
+ const service=new TavernService(store),g='12345678901234567890',u='22345678901234567890';let id=0,modelCalls=0;const errors=[];
+ const env={GEMINI_API_KEY:'fixture',GEMINI_API_BASE_URL:'https://fixture.invalid/v1',TABLES:{idFromName:n=>n,get:()=>({fetch:async(_url,init)=>{try{return Response.json(await service.dispatch(JSON.parse(init.body)));}catch(e){errors.push(e.message);return Response.json({error:e.message});}}})}};
+ const oldFetch=globalThis.fetch;t.after(()=>{globalThis.fetch=oldFetch;db.close();});
+ globalThis.fetch=async(_url,init)=>{modelCalls++;const body=JSON.parse(init.body);assert(body.messages.some(m=>m.content.includes('柠檬')));assert(!JSON.stringify(body).includes(u));return Response.json({choices:[{message:{content:JSON.stringify({reply:'这杯可以搭配小饼干。',patch:modelCalls===1?{name:'柠檬清茶',type:'drink',ingredients:['柠檬','茶叶','清水'],flavor:'清香微酸',method:'茶汤加入柠檬片',temperature:'cold',description:'清爽的柠檬茶',appearance:'玻璃杯与柠檬片'}:{flavor:'柠檬香气更浓'},missing:[]})},finish_reason:'stop'}]});};
+ const interact=(custom,type=3,value)=>({type,id:String(++id),guild_id:g,channel_id:'33',member:{nick:'测试研发者',user:{id:u}},message:{flags:64},data:type===2?{name:'酒馆',options:[{name:'研发'}]}:{custom_id:custom,...(value===undefined?{}:{components:[{components:[{custom_id:'value',value}]}]})}});
+ const check=page=>{assert(page.content.length<=2000);assert(Array.isArray(page.components),page.content+' '+errors.join('; '));assert(page.components.length<=5);const ids=[];for(const row of page.components){assert(row.components.length<=5);for(const c of row.components)if(c.custom_id){assert(c.custom_id.length<=100,c.custom_id);ids.push(c.custom_id);}}assert.equal(new Set(ids).size,ids.length);return page;};
+ const find=(page,part)=>{const c=page.components.flatMap(r=>r.components).find(c=>c.custom_id?.includes(part));assert(c,part);return c.custom_id;};
+ let page=check(await answerUgc(env,interact(null,2)));
+ page=check(await answerUgc(env,interact(find(page,':ugcStart'))));
+ page=check(await answerUgc(env,interact(find(page,':ugcType~drink'))));
+ let modal=immediateUgcReply(interact(find(page,':ugcChat')));assert.equal(modal.type,9);assert(modal.data.custom_id.length<=100);
+ page=check(await answerUgc(env,interact(modal.data.custom_id,5,'我想研发清爽的柠檬茶')));assert(page.content.includes('可以搭配小饼干'));
+ modal=immediateUgcReply(interact(find(page,':ugcPrice')));assert.equal(modal.type,9);
+ page=check(await answerUgc(env,interact(modal.data.custom_id,5,'20')));assert(page.content.includes('20币'));
+ const fields=await answerUgc(env,interact(find(page,':ugcEdit~')));
+ modal=immediateUgcReply(interact(find(fields,':ugcEdit~flavor')));assert.equal(modal.type,9);
+ page=check(await answerUgc(env,interact(modal.data.custom_id,5,'让柠檬的香气更浓一点')));assert(page.content.includes('修改候选'));
+ page=check(await answerUgc(env,interact(find(page,':ugcAdoptEdit~'))));
+ assert(page.content.includes('柠檬香气更浓'));assert(page.content.includes('20币'));
+ page=check(await answerUgc(env,interact(find(page,':ugcPublish~'))));
+ const confirm=find(page,':ugcPublishNow~');
+ const receipt=check(await answerUgc(env,interact(confirm)));assert(receipt.content.includes('已确认入库'));
+ const repeated=await answerUgc(env,interact(confirm));assert(repeated.content.includes('已确认入库'));
+ assert.equal(service.one('SELECT COUNT(*) n FROM tavern_ugc_dishes').n,1);
+ assert.equal(service.one('SELECT COUNT(*) n FROM tavern_ugc_daily').n,1);
+ const saved=service.one('SELECT draft_json,history_json,snapshots_json FROM tavern_ugc_sessions');assert.equal(saved.draft_json,'{}');assert.equal(saved.history_json,'[]');assert.equal(saved.snapshots_json,'[]');
+ assert.equal(modelCalls,2);
+});

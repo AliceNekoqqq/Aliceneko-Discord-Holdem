@@ -9,7 +9,7 @@ const dishes = Array.from({ length: 20 }, (_, index) => ({
 }));
 
 test('menu categories fit Discord component limits and menu content stays below 2000 characters', () => {
-  assert.deepEqual(MENU_CATEGORIES.map(category => category.id), ['all', 'drinks', 'desserts', 'savory', 'seasonal']);
+  assert.deepEqual(MENU_CATEGORIES.map(category => category.id), ['all', 'drinks', 'desserts', 'savory', 'seasonal', 'ugc']);
   for (const category of MENU_CATEGORIES) {
     const view = renderMenu({ menu: dishes, member: { balance: 75 } }, '123', '456', false, category.id);
     assert.ok(view.content.length <= 1900, `${category.id} content is ${view.content.length} chars`);
@@ -31,9 +31,9 @@ test('public menu can browse categories without displaying or creating a wallet'
   assert.equal(view.content.includes('999'), false);
   assert.equal(view.content.includes('余额'), false);
   assert.match(view.content, /选好后打开自己的点单面板，确认后才上桌/);
-  assert.equal(view.components.length, 2);
+  assert.equal(view.components.length, 3);
   assert.ok(view.components[0].components.every(button => button.custom_id.startsWith('t:guild-id:any:menuCat~')));
-  assert.equal(view.components[1].components[0].custom_id, 't:guild-id:any:menu');
+  assert.ok(view.components.some(row => row.components[0].custom_id === 't:guild-id:any:menu'));
   assert.deepEqual(input, before);
 });
 
@@ -60,14 +60,15 @@ test('equipment-locked dishes are visible but never offered as order options', (
   assert.equal(drinks.components.find(r => r.components[0]?.type === 3).components[0].options.some(x => x.value === 'latte'), false);
 });
 
-test('all-menu selector remains usable up to 25 dishes and yields to categories above that limit', () => {
+test('all-menu selector paginates at 20 while keeping every item reachable', () => {
   const twentyFive = Array.from({ length: 25 }, (_, i) => ({ ...dishes[i % dishes.length], id: `dish-${i}` }));
   const withinLimit = renderMenu({ menu: twentyFive }, 'u', 'g');
-  assert.equal(withinLimit.components.find(r => r.components[0]?.type === 3).components[0].options.length, 25);
+  assert.equal(withinLimit.components.find(r => r.components[0]?.type === 3).components[0].options.length, 20);
   const overLimit = renderMenu({ menu: [...twentyFive, { ...dishes[0], id: 'dish-25' }] }, 'u', 'g');
-  assert.match(overLimit.content, /超过25款，请先选择/);
-  assert.equal(overLimit.components.some(r => r.components[0]?.type === 3), false);
-  assert.ok(overLimit.components[0].components.some(c => c.custom_id.endsWith(':menuCat~drinks')));
+  assert.equal(overLimit.components.find(r => r.components[0]?.type === 3).components[0].options.length, 20);
+  assert.match(overLimit.content, /第 1\/2 页/);
+  assert.ok(overLimit.components.some(r => r.components.some(c => c.custom_id?.endsWith(':menuCat~drinks~0'))));
+  assert.ok(overLimit.components.some(r => r.components.some(c => c.custom_id?.includes(':menuCat~all~1~next'))));
 });
 
 test('dish details support recipe arrays and map fixed temperature labels', () => {

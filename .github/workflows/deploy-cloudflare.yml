@@ -61,6 +61,8 @@ jobs:
           npm run test:assets
           npm run test:lantern
           npm run test:tavern
+          npm run test:chat
+          node --import=./test-static-assets.mjs --test ugc-context.test.mjs
           npm run test:worker
 
       - name: Deploy discord-holdem

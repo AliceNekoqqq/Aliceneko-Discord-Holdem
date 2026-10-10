@@ -3,6 +3,7 @@ import {WELCOME_COINS,DAILY_REWARD_CAP,DAILY_GIFT_COINS,ROSTER_DAILY_LIMIT,roste
 import {TavernRenovation} from './tavern-renovation.mjs';
 import {TavernOperations} from './tavern-operations.mjs';
 import {PetService} from './pet-service.mjs';
+import {UGCService} from './tavern-ugc-service.mjs';
 
 export class TavernService {
  constructor(storage){
@@ -23,6 +24,7 @@ export class TavernService {
  get map(){return this.mapService??=new TavernMapService(this);}
  get operations(){return this._operations??=new TavernOperations(this);}
  get pets(){return this._pets??=new PetService(this);}
+ get ugc(){return this._ugc??=new UGCService(this);}
  rows(q,...args){return this.sql.exec(q,...args).toArray();}
  one(q,...args){return this.rows(q,...args)[0]||null;}
  member(id,name='',now=Date.now(),insideTransaction=false){
@@ -72,7 +74,7 @@ export class TavernService {
   let draft=this.one('SELECT * FROM tavern_drafts WHERE request_key=?',p.requestKey);
   if(draft){if(draft.user_id!==p.id||draft.channel!==p.channel)throw Error('点单窗口不属于你。');return {...draft,details:JSON.parse(draft.details),balance:member.balance};}
   if((this.one("SELECT COUNT(*) AS n FROM tavern_drafts WHERE user_id=? AND status='pending' AND expires>?",p.id,now)?.n||0)>=8)throw Error('还有几份点单预览没确认，先选一份吧。');
-  const details={...makeOrderDetails(item,member,p.options),emoji:item.emoji,serve:item.serve};
+  const details={...makeOrderDetails(item,member,p.options),emoji:item.emoji,serve:item.serve,...(item.source==='ugc'?{source:'ugc',dishId:item.id,recipeRevision:item.recipeRevision,assetKey:item.assetKey,author:item.author||item.author_name,description:item.description,appearance:item.appearance,method:item.method}: {})};
   draft={id:crypto.randomUUID().replaceAll('-','').slice(0,24),request_key:p.requestKey,user_id:p.id,channel:p.channel,item:item.id,price:item.price,details,expires:now+ORDER_TTL,status:'pending'};
   this.sql.exec('INSERT INTO tavern_drafts(id,request_key,user_id,channel,item,price,details,expires) VALUES(?,?,?,?,?,?,?,?)',draft.id,p.requestKey,p.id,p.channel,item.id,item.price,JSON.stringify(details),draft.expires);
   return {...draft,balance:member.balance};
@@ -142,6 +144,7 @@ export class TavernService {
  async dispatch(p){
   if(!validId(p.guild))throw Error('无效服务器。');
   const bound=await this.storage.get('tavernGuild');if(bound&&bound!==p.guild)throw Error('服务器不匹配。');if(!bound)await this.storage.put('tavernGuild',p.guild);
+  if(p.action?.startsWith('ugc'))return this.ugc.dispatch(p);
   if(p.action?.startsWith('map'))return this.map.dispatch(p);
   if(p.action?.startsWith('pet'))return this.pets.dispatch(p);
   if(p.action==='context'&&p.recordVisit===true&&validId(p.id)&&validId(p.channel)){try{this.map.touch({id:p.id,name:p.name,channel:p.channel,kind:'visit'});}catch{}}

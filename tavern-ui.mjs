@@ -6,6 +6,7 @@ import {renoCommandOptions, tavernRenovationInteraction, immediateRenovationRepl
 import {lobbyCommandOption,tavernLobbyInteraction,tavernLobbyCommand,immediateLobbyReply,lobbyDeferredReply,answerLobby,tavernLobbyData,tavernSceneEmbed} from './tavern-lobby.mjs';
 import {operationsInteraction,immediateOperationsReply,operationsDeferredReply,answerOperations} from './tavern-operations-ui.mjs';
 import {petCommandOption} from './pet-ui.mjs';
+import {ugcInteraction,immediateUgcReply,answerUgc,ugcDeferredReply} from './tavern-ugc-ui.mjs';
 const mentions={parse:[]};
 const row=(...components)=>({type:1,components});
 const key=(guild,id,action)=>`t:${guild}:${id}:${action}`;
@@ -20,12 +21,13 @@ export const tavernCommand={name:'酒馆',description:'红豆粉的小酒馆：�
 ]};
 tavernCommand.options.push(...renoCommandOptions);
 tavernCommand.options.unshift(lobbyCommandOption);
+tavernCommand.options.push(...['研发','创作菜单','我的作品'].map((name,i)=>({type:1,name,description:['进入UGC研发工作台','浏览并点选玩家创作菜单','查看和管理我的作品'][i]})));
 tavernCommand.options.push(petCommandOption);
 export const TAVERN_HELP=`🍵 **红豆粉的小酒馆**\n先用大厅按钮：吧台点单、钱包、常客卡、店内、共同装修、捐赠档案、贡献榜、小游戏、今日经营、季节菜单、共同活动和刷新。自然语言也可说“打开酒馆”或“走进酒馆”。\n快捷入口：\`/酒馆 大厅\`、\`/酒馆 菜单\`、\`/酒馆 点单\`、\`/酒馆 钱包\`、\`/酒馆 常客卡\`；装修也可用\`/酒馆 店内\`、\`/酒馆 装修\`、\`/酒馆 贡献榜\`、\`/酒馆 捐赠档案\`。\n每服务器独立共用一家店，跨频道共用装修。确认餐饮消费和主动出资按1币=1建设值，消费不再扣一次；装修先预览，3分钟内本人在原频道确认才扣款，余额流水仅本人可见。设备页购置咖啡机、烤箱、搅拌机与冰淇淋机，永久解锁本服务器公共菜单；新品从菜单分类里点单。\n新客欢迎金 **${WELCOME_COINS}币**，每服务器一次。${Object.values(REWARDS).map(r=>`${r.name} +${r.base}，胜者另 +${r.bonus}`).join('；')}。钱包内可手动领取每日到店礼20币，每天一次，北京时间零点刷新；与游戏奖励共用每日${DAILY_REWARD_CAP}币上限。至少两位真人实际行动才算合格；抽鬼牌/德州/UNO/骗子酒馆需分别达到15/30/45/60秒。同组每日前${ROSTER_DAILY_LIMIT}局跨游戏累计，奖励依次为全额、半额、四分之一（向下取整），之后为零。挂机、陪练局、取消局不发币，也没有按聊天条数发币。UNO按小局结算；德州筹码不兑换酒馆币。饮品无酒精；自然语言点单仍需按钮确认。`;
 const navigation=(g,id)=>row(button(g,id,'lobby','🏡 大厅'),button(g,id,'menu','🍵 菜单'),button(g,id,'wallet','🪙 钱包'),button(g,id,'card','🦋 常客卡'),button(g,id,'reno','🔧 装修'));
-export function menuData(data,id,guild,publicView=false,category='all'){
- const view=renderMenu(data,id,guild,publicView,category);
- if(category==='all'){view.embeds=artEmbed('room');view.content+='\n🖼️ 窗边的一盏灯 · 酒馆氛围插画';}
+export function menuData(data,id,guild,publicView=false,category='all',page=0){
+ const view=renderMenu(data,id,guild,publicView,category,page);
+ if(category==='all'&&page===0){view.embeds=artEmbed('room');view.content+='\n🖼️ 窗边的一盏灯 · 酒馆氛围插画';}
  return view;
 }
 
@@ -44,9 +46,9 @@ const orderTaste=detail=>`${detail.category==='savory'?'按菜品原味':detail.
 export function draftData(d,id,guild,publicView=false){
  const p=menuItem(d.item),detail=d.details,expired=d.expires<=Date.now()||d.status!=='pending';
  return {content:`${p?.emoji||d.details.emoji||'🍵'} **点单预览 · ${displayText(detail.itemName)}**\n${renderDishDetails({...detail,...p,name:detail.itemName}).split('\n').slice(1).join('\n')}\n${orderTaste(detail)}${d.item==='special'?` · 心情：${MOODS[detail.mood]}`:''}\n本单 **${d.price}币**${publicView?'':` · 当前余额 ${d.balance}币\n位置：${SEATS[detail.seat]}${detail.restrictions?`\n备注：${displayText(detail.restrictions)}`:''}`}\n${expired?'这张预览已经处理或过期，请重新打开菜单。':'尚未扣款；3分钟内由本人确认。确认后会在本频道显示上桌消息。'}`,
- embeds:artEmbed(d.item),components:expired?[navigation(guild,id)]:[row(button(guild,id,`${publicView?'review':'confirm'}~${d.id}`,publicView?'打开我的确认窗口':`确认点单 · ${d.price}币`,1)),...(!publicView?[navigation(guild,id)]:[])],allowed_mentions:mentions};
+ embeds:artEmbed(d.item,d.details),components:expired?[navigation(guild,id)]:[row(button(guild,id,`${publicView?'review':'confirm'}~${d.id}`,publicView?'打开我的确认窗口':`确认点单 · ${d.price}币`,1)),...(!publicView?[navigation(guild,id)]:[])],allowed_mentions:mentions};
 }
-export function receiptData(answer,id,guild,served=true){const o=answer.order,p=menuItem(o.item)||o.details;return {content:`${p?.emoji||'🍵'} **已上桌 · ${displayText(o.details.itemName)}**\n红豆粉${p?.serve||'把这一份送到你手边。'}\n${orderTaste(o.details)}\n本单 ${o.price}币 · 余额 **${answer.balance}币**${answer.repeated?'\n这份订单已经完成，没有再次扣款。':''}${!served?'\n订单已保存，频道上桌消息暂时未送达。':''}`,embeds:artEmbed(o.item),components:[navigation(guild,id)],allowed_mentions:mentions};}
+export function receiptData(answer,id,guild,served=true){const o=answer.order,p=menuItem(o.item)||o.details;return {content:`${p?.emoji||'🍵'} **已上桌 · ${displayText(o.details.itemName)}**\n红豆粉${p?.serve||'把这一份送到你手边。'}\n${orderTaste(o.details)}\n本单 ${o.price}币 · 余额 **${answer.balance}币**${answer.repeated?'\n这份订单已经完成，没有再次扣款。':''}${!served?'\n订单已保存，频道上桌消息暂时未送达。':''}`,embeds:artEmbed(o.item,o.details),components:[navigation(guild,id)],allowed_mentions:mentions};}
 export function tavernInteraction(i){const action=String(i.data?.custom_id||'').split(':')[3]||'';return i.type===2&&i.data?.name==='酒馆'||[3,5].includes(i.type)&&i.data?.custom_id?.startsWith('t:')&&!action.startsWith('lobbyPlay~');}
 function interactionParts(i){
  const id=i.member?.user?.id,guild=i.guild_id;if(!validId(id)||!validId(guild)||!validId(i.channel_id))throw Error('请在服务器文字频道内使用。');
@@ -58,6 +60,7 @@ function interactionParts(i){
  return {id,guild,action};
 }
 export function immediateTavernReply(i){
+ if(ugcInteraction(i))return immediateUgcReply(i);
  if(operationsInteraction(i))return immediateOperationsReply(i);
  if(tavernLobbyInteraction(i)||tavernLobbyCommand(i))return immediateLobbyReply(i);
  if(tavernRenovationInteraction(i))return immediateRenovationReply(i);
@@ -68,11 +71,12 @@ export function immediateTavernReply(i){
 async function sendServing(env,answer,name){
  if(answer.repeated)return true;
  const o=answer.order,p=menuItem(o.item)||o.details;try{
-  const r=await fetch(`https://discord.com/api/v10/channels/${o.channel}/messages`,{method:'POST',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({content:`${p?.emoji||'🍵'} **${displayText(name)||'来客'}的 ${displayText(o.details.itemName)}**\n红豆粉${p?.serve||'把这一份送上桌。'}`,embeds:artEmbed(o.item),allowed_mentions:mentions,nonce:o.id,enforce_nonce:true}),signal:AbortSignal.timeout(5000)});
+  const r=await fetch(`https://discord.com/api/v10/channels/${o.channel}/messages`,{method:'POST',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({content:`${p?.emoji||'🍵'} **${displayText(name)||'来客'}的 ${displayText(o.details.itemName)}**\n红豆粉${p?.serve||'把这一份送上桌。'}`,embeds:artEmbed(o.item,o.details),allowed_mentions:mentions,nonce:o.id,enforce_nonce:true}),signal:AbortSignal.timeout(5000)});
   return r.ok;
  }catch{return false;}
 }
 export async function answerTavern(env,i){
+ if(ugcInteraction(i))return answerUgc(env,i);
  if(operationsInteraction(i))return answerOperations(env,i);
  if(tavernLobbyInteraction(i)||tavernLobbyCommand(i)){
   const action=tavernLobbyCommand(i)?'lobby':String(i.data.custom_id).split(':')[3],id=i.member?.user?.id,guild=i.guild_id,name=i.member?.nick||i.member?.user?.global_name||i.member?.user?.username||'来客';
@@ -93,11 +97,11 @@ export async function answerTavern(env,i){
   return walletData(result,id,guild,notice);
  }
  if(action.startsWith('menuCat~')){
-  const category=action.slice(8);if(!MENU_CATEGORIES.some(c=>c.id===category))throw Error('请从菜单分类中选择。');
+  const [,category='all',rawPage='0']=action.split('~'),page=Number(rawPage);if(!MENU_CATEGORIES.some(c=>c.id===category)||!Number.isSafeInteger(page)||page<0)throw Error('请从菜单分类中选择。');
   const publicView=String(i.data.custom_id).split(':')[2]==='any';
   const data=publicView?await tavernRequest(env,{...base,action:'opsMenuStatus'}):await tavernRequest(env,{...base,action:'view'});
   await tavernRequest(env,{...base,action:'mapMove',area:'bar'});
-  return menuData(data,id,guild,publicView,category);
+  return menuData(data,id,guild,publicView,category,page);
  }
  if(['帮助','help'].includes(action))return {content:TAVERN_HELP,components:[navigation(guild,id)],allowed_mentions:mentions};
  if(action==='点单'||action==='pick'){
@@ -122,7 +126,7 @@ export async function answerTavern(env,i){
  if(['菜单','menu'].includes(action)){await tavernRequest(env,{...base,action:'mapMove',area:'bar'});return menuData(data,id,guild);}
  throw Error('请重新打开 `/酒馆 菜单`。');
 }
-export function tavernDeferredReply(i){if(i.type===3&&String(i.data?.custom_id||'').split(':')[3]?.startsWith('menuCat~'))return {type:6};return operationsDeferredReply(i)||lobbyDeferredReply(i)||renovationDeferredReply(i);}
+export function tavernDeferredReply(i){if(ugcInteraction(i)){const reply=ugcDeferredReply(i);if(reply)return reply;}if(i.type===3&&String(i.data?.custom_id||'').split(':')[3]?.startsWith('menuCat~'))return {type:6};return operationsDeferredReply(i)||lobbyDeferredReply(i)||renovationDeferredReply(i);}
 export async function finishTavern(env,i){
  let data;try{data=await answerTavern(env,i);}catch(e){data={content:`🍵 ${e.message}`,components:[],allowed_mentions:mentions};}
  const announcement=data._renovationAnnouncement;delete data._renovationAnnouncement;
