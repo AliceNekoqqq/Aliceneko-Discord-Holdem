@@ -71,8 +71,8 @@ test('route nodes preserve saved choices and map pages include chosen path plus 
   const run = base({ phase: 'ROUTE', room: { type: 'route', nodes, choices: nodes.map((n) => n.id) }, mapPlan, bosses: ['dark_lady', 'mirror_magistrate', 'bell_colossus'],
     path: [{ act: 1, slot: 1, nodeId: 'old-node', type: 'normal', enemyId: 'lantern_rat' }] });
   const route = renderRogue(run);
-  assert.match(route.data.embeds[0].description, /危险路线 · 灰鼠巷/);
-  assert.match(route.data.embeds[0].description, /基础生命/);
+  assert.equal(route.data.embeds[0].fields[0].name, '① 灰鼠巷 · 危险战斗');
+  assert.match(route.data.embeds[0].fields[0].value, /基础属性：生命/);
   assert.deepEqual(parseRogueAction(components(route).find((c) => c.label.includes('夜诊棚')).custom_id).action, { type: 'ROUTE', choice: 'n1' });
   const seen = [];
   const pages = Math.ceil((3 * (4 * 4 + 2)) / 12);
@@ -83,7 +83,7 @@ test('route nodes preserve saved choices and map pages include chosen path plus 
   assert.match(seen.join('\n'), /第3幕/);
 });
 
-test('route only renders choices allowed by the service and explains disabled node reason', () => {
+test('route only enables choices allowed by the service and explains disabled node reason', () => {
   const nodes = [
     { id: 'a1s4n0', type: 'camp', title: '超额营地', description: '不能再休息。', available: false, disabledReason: '本幕营地次数已达上限' },
     { id: 'a1s4n1', type: 'elite', title: '精英', description: 'Boss前的战斗。', available: true },
@@ -91,9 +91,9 @@ test('route only renders choices allowed by the service and explains disabled no
   ];
   const view = renderRogue(base({ phase: 'ROUTE', room: { type: 'route', nodes, choices: ['a1s4n1'] } }));
   const buttons = components(view).filter((c) => c.custom_id.includes(':route:'));
-  assert.deepEqual(buttons.map((b) => b.custom_id), ['rl:v07_run:3:route:a1s4n1']);
-  assert.match(view.data.embeds[0].description, /本幕营地次数已达上限/);
-  assert.match(view.data.embeds[0].description, /Boss前至少完成一场战斗/);
+  assert.deepEqual(buttons.filter(b => !b.disabled).map((b) => b.custom_id), ['rl:v07_run:3:route:a1s4n1']);
+  assert.match(view.data.embeds[0].fields[0].value, /本幕营地次数已达上限/);
+  assert.match(view.data.embeds[0].fields[2].value, /首领前至少完成一场战斗/);
 });
 
 test('battle shows second phase intent activation on the following round', () => {

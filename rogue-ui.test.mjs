@@ -102,7 +102,7 @@ test('battle items disable full-health healing and cleanse with no burn using le
 test('boss is identified from the run fixed boss array on route and checkpoint panels', () => {
   const run = base({ ruleVersion: 'lantern-rules-v0.6', catalogVersion: '0.6', act: 1, bosses: ['dark_lady', 'mirror_magistrate', 'bell_colossus'], room: { type: 'route', choices: ['camp', 'elite'] } });
   let panelView = renderRogue(run);
-  assert.match(panelView.data.embeds[0].description, /本幕Boss已固定：熄灯夫人，生命62，护甲2/);
+  assert.deepEqual(panelView.data.embeds[0].fields.at(-1), { name: '本幕首领 · 熄灯夫人', value: '基础属性：生命 62 ｜ 护甲 2', inline: false });
   panelView = renderRogue({ ...run, phase: 'CHECKPOINT', room: { type: 'checkpoint', completedAct: 1 } });
   assert.match(panelView.data.embeds[0].description, /本幕已击败Boss：熄灯夫人（生命62，护甲2）/);
 });
