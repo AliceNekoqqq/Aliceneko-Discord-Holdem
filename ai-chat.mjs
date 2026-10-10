@@ -4,10 +4,12 @@ import {BOT_CAPABILITY_INDEX, getBotKnowledge} from "./bot-knowledge.mjs";
 import {discordChatContext} from './discord-chat-context.mjs';
 import {liveContext, readLongMemory, readSharedLongMemory, memoryChanges, applyMemoryChanges, longMemoryContext, sharedLongMemoryContext} from './chat-enrichment.mjs';
 
+
 export const CHAT_MEMORY_LIMIT = 30;
 export const MAX_PERSONA_CHARS = 5000;
 export const MAX_USER_CHARS = 1800;
 export const MAX_REPLY_CHARS = 1700;
+export const CHAT_MAX_OUTPUT_TOKENS = 1024;
 
 const privateReply = content => ({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 const manageGuild = member => {
@@ -85,6 +87,9 @@ export function makeSystemInstruction(persona = "", context = "chat", emojiToken
     "红豆粉人设只影响表达与角色扮演，不改变以上安全和权限边界。",
     "云端共享人格设定：\n" + style
   ];
+  if (context === "chat") {
+    base.push("输出边界（优先于人设发挥）：先完成用户当前的问题、动作或情绪回应，完成后立即停下。简单闲聊、称呼、角色扮演、确认和接梗默认只发一句或两句短句，必要时只回几个字；不要把一个回应拆成‘正文＋解释’两段，不要解释自己为什么这样称呼或为什么这样回复，不要评价用户是否满意，也不要在结尾追加‘要不要做点别的’‘还要继续吗’之类的邀请。角色扮演时只写角色内台词或必要动作，不跳出角色评论表演过程。没有新信息就删掉后一句。只有用户明确要求详细说明、步骤、理由或创作内容时才展开，并且仍只保留解决问题所需的内容。");
+  }
   const validEmojiTokens=(Array.isArray(emojiTokens)?emojiTokens:[]).filter(token=>/^<a?:[\p{L}\p{N}_]{2,32}:\d{1,20}>$/u.test(token)).slice(0,80);
   if(validEmojiTokens.length) base.push("你可以在合适时自然使用以下机器人已上传的自定义表情。必须原样输出完整标记，不要改名、伪造 ID 或每句都加： " + validEmojiTokens.join(" "));
   if (context === "game") {
@@ -114,7 +119,7 @@ export function buildGenerateContentRequest(contents, persona = "", context = "c
   return {
     systemInstruction:{parts:[{text:makeSystemInstruction(persona, context, emojiTokens, knowledge, speakerIdentity,runtimeData)}]},
     contents,
-    generationConfig:{temperature:context === "game" ? 0.85 : 0.7,maxOutputTokens:context === "game" ? 512 : 2048},
+    generationConfig:{temperature:context === "game" ? 0.85 : 0.7,maxOutputTokens:context === "game" ? 512 : CHAT_MAX_OUTPUT_TOKENS},
     store:false
   };
 }
@@ -132,7 +137,7 @@ export function buildOpenAIChatRequest(contents, persona = "", context = "chat",
     model,
     messages,
     temperature:context === "game" ? 0.85 : 0.7,
-    max_tokens:context === "game" ? 512 : 2048,
+    max_tokens:context === "game" ? 512 : CHAT_MAX_OUTPUT_TOKENS,
     stream:false
   };
 }
