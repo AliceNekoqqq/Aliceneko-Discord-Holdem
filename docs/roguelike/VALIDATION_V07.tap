@@ -1,0 +1,216 @@
+ok 1 - public tavern room and current-speaker wallet remain separate even when one source fails
+ok 2 - chat waits 90 seconds on every attempt for text and images
+ok 3 - split cloud persona reaches chat and game requests without a seam or truncation
+ok 4 - Gemini retries rate limits with Retry-After and keeps the same model and prompt
+ok 5 - request monitoring stores every attempt and outcome with full context but no credentials
+ok 6 - request monitoring can be disabled without affecting generation
+ok 7 - Discord images use multimodal OpenAI content, while ordinary chat stays text-only
+ok 8 - Discord attachment selection rejects untrusted URLs and unsupported or oversized files
+ok 9 - image-only mentions send real images and save no image URLs in conversational memory
+ok 10 - native Gemini receives inline image bytes instead of a Discord file URI
+ok 11 - OpenAI image bytes are delivered inline and omitted from request diagnostic storage
+ok 12 - image download uses Workers-compatible redirect handling and never follows a redirect
+ok 13 - Gemini stops after exactly three retries, including network and invalid replies
+ok 14 - permanent API errors and blocked replies are not retried
+ok 15 - continuation requests share the three-retry failure budget
+ok 16 - failed mentions remain silent, stop typing and never save failed conversations
+ok 17 - a mention replies once after recovery and saves only the valid answer
+ok 18 - history write failure is safely logged after delivery and later mentions still succeed
+ok 19 - Gemini requests disable request storage and keep the key out of the URL
+ok 20 - custom Gemini gateway uses OpenAI chat completions with memory and persona
+ok 21 - incomplete Chinese chat replies continue from the cutoff without repeating
+ok 22 - provider token-limit finish reasons trigger a continuation
+ok 23 - chat uses at most one paid continuation request
+ok 24 - system instruction protects private cards and excludes admin assistance
+ok 25 - ordinary chat simulates the tavern naturally without repeating stage directions
+ok 26 - AI replies collapse redundant blank lines but keep single line breaks
+ok 27 - bot knowledge retrieval adds relevant authoritative facts only
+ok 28 - developer identity and Red Bean Powder OC facts are retrieved only when relevant
+ok 29 - developer account identity uses an exact local Discord User ID match
+ok 30 - published knowledge document is generated from the Worker knowledge source
+ok 31 - AI command exposes member memory, channel memory and independently configurable host features
+ok 32 - AI host feature settings update only selected toggles
+ok 33 - memory off control changes only the calling member setting
+ok 34 - channel memory is off by default, scoped to the current channel, and admin controlled
+ok 35 - clearing personal memory also removes that member from channel memory
+ok 36 - full multiline cloud persona is preserved in the shared system instruction
+ok 37 - uploaded bot emojis are validated and supplied as real Discord markup
+ok 38 - legacy persona command is not available in Discord
+ok 39 - public game events include only public summaries
+ok 40 - host feature gates announce results independently from live commentary
+ok 41 - typing indicator refreshes while waiting and stops when the request finishes
+ok 42 - Gateway replies to direct mentions and ignores ordinary guild messages
+ok 43 - Gateway identifies with only non-privileged guild and message intents
+ok 44 - chat memory is scoped to one member and stores only successful direct chats
+ok 45 - channel memory stays attributed outside the current member's personal dialogue
+ok 46 - prompt-local speaker keys survive same names, renames, references, shared memory and channel duplicates
+ok 47 - both model adapters keep mapped identity payloads and real image parts
+ok 48 - reply requests carry same-guild shared alias records separately from current preferences, including when current memory is off
+ok 49 - a real mention request reuses one speaker key across channel, roster, quote and shared owner
+ok 50 - member memory opt-out prevents their messages entering shared channel memory
+ok 51 - direct chats receive only the feature knowledge relevant to the question
+ok 52 - recent chat context resolves follow-up questions about the current game
+ok 53 - daily operations scene stays public and separate from personal tavern context
+ok 54 - all four devices and nine recipes have independent matching published JPEGs
+ok 55 - new product image routes handle HEAD, ETag, allowed methods and strict paths
+ok 56 - static asset failure does not return a successful corrupt image
+ok 57 - signed equipment purchase permanently unlocks server menu, gates forged picks, and charges cappuccino once
+ok 58 - equipment gate preserves original menu, prevents forged orders and unlocks public coffee after one paid purchase
+ok 59 - equipment purchase rollback leaves money, public unlock and contribution unchanged
+ok 60 - concurrent previews buy shared equipment once, respecting owner/channel and stage
+ok 61 - all four equipment map to nine unique menu items and unlock only their recipes
+ok 62 - confirmation revalidates equipment even for a fabricated pending order
+ok 63 - automatic hands retire old cards, update in place and survive object restart encrypted
+ok 64 - manual graphic enrichment preserves confirmation, replaces public cards and clears hidden images
+ok 65 - manual original panel is renewed without retiring the same private message
+ok 66 - expiry hides stale hands and erases credentials; failures have bounded retries
+ok 67 - explicit attachment rejection falls back to private text with working controls
+ok 68 - summoned companion shields enemy hits, while self-cost bypasses companion; sacrifice removes it
+ok 69 - forge survives turns, caps at12, adds to weapon damage and resets on a new battle
+ok 70 - prepare and mark are consumed by one packet; item damage does not consume them
+ok 71 - targeted sift and retention preserve physical entities and reject self/foreign targets
+ok 72 - self echo fires once next turn and cannot recursively schedule copies
+ok 73 - thorns is a visible one-round reaction and cleanse removes burn rather than skipping intent
+ok 74 - v07 has five real cards and three energy/active actions while v06 remains frozen
+ok 75 - each cumulative difficulty changes its corresponding live battle parameter
+ok 76 - every Boss and phased elite switches once, preserves current intent, and shows new intent next turn
+ok 77 - lethal hit wins without a phase shield and terminal snapshots reject more actions
+ok 78 - draw items conserve all UIDs, respect hand cap and one-item budget
+ok 79 - beginBattle and battleAction preserve input and survive JSON round trips
+ok 80 - two-card order can prevent a life-cost defeat; lethal first card stops the second
+ok 81 - multihit attacks consume shield per hit and reflect kill truncates remaining hits
+ok 82 - pure healing is illegal at full health but a block-heal card remains legal
+ok 83 - echo replays an exhaust card snapshot once without active burn relic bonus
+ok 84 - battle victory clears a queued echo instead of carrying it forward
+ok 85 - a guard lasts through the next player turn and clears before the enemy acts again
+ok 86 - a hand with no legal card auto-advances safely to the 12-turn limit
+ok 87 - duplicate relic IDs and duplicate physical entity UIDs are rejected
+ok 88 - version lookup keeps legacy catalog intact and selects expanded catalog only for v0.6
+ok 89 - all eight professions have valid eight-entity starter decks and a unique direct starter relic
+ok 90 - expanded cards are complete, varied, and above the total catalog target
+ok 91 - relic, enemy, act pools and item references satisfy the content contract
+ok 92 - v0.7 catalog, professions, and difficulty ladder satisfy the contract
+ok 93 - new cards, relics, items, and all twelve events are real catalog content
+ok 94 - completed acts pay cumulative 8/18/30, no ember or speed score
+ok 95 - clear dominates all partial progression and elite wins add a bounded bonus
+ok 96 - lost light remaining hp is not survival bonus; abandoned/expired have no coins or rank
+ok 97 - practice zero, 60 subcap and existing total ceiling both clamp actual credits
+ok 98 - daily board groups server, day and runtime rules with identical starting config
+ok 99 - real three-act battle actions and restored snapshots reach a terminal result without near-death fixtures
+ok 100 - public source gets a new private message, private source can update; signed member supplies identity
+ok 101 - guild mismatch and malformed token stop before service action
+ok 102 - bot identity is rejected before creating or rewarding a run
+ok 103 - asking to abandon and refreshing never mutate or extend run; confirmed button performs exactly the run action
+ok 104 - event card preview is read only, confirmation atomically buys selected card and advances station
+ok 105 - stale confirmation cannot apply to new state and returns a private error
+ok 106 - terminal home button returns the profession picker and updates its private panel
+ok 107 - stale details page remains read-only and updates from current run state
+ok 108 - all eight professions receive one starter relic and stable saved boss plans
+ok 109 - item reward replacement is atomic, rejects full inventory without selected slot, and preserves skip
+ok 110 - shop consumable cannot overdraw or evade capacity; services never repeat
+ok 111 - event candidate and life payment are validated before advancing station
+ok 112 - each profession completes three acts through real actions with JSON recovery between decisions
+ok 113 - new runs freeze fifteen saved stations, three branches, and a complete path record
+ok 114 - difficulty affects starting/max health, room prices, camp healing, and battle parameters
+ok 115 - dangerous route reaches battle and preserves its separate reward flag
+ok 116 - route selection cannot exceed two camps or skip all pre-boss battles
+ok 117 - all event action families resolve with valid prices and targets
+ok 118 - profession decks and event map candidates remain recoverable across cloned snapshots
+ok 119 - an action-driven three-act route records and completes all fifteen stations
+ok 120 - run survives JSON round-trip without rerolling route, shop, or battle state
+ok 121 - shop randomness stays in its own stream and cannot change saved route candidates or battle seed
+ok 122 - checkpoint retreat ends at the completed act without granting next-act blessing
+ok 123 - shops cannot overdraw, successful purchases and removals never reuse entity ids, and a full run reaches CLEAR at station 9
+ok 124 - a valid action extends TTL; expiry is a versioned terminal result and does not change lastActionAt
+ok 125 - production service defaults to v0.7 and challenge profession is fixed server-side
+ok 126 - restart/JSON restore, duplicate requests and stale buttons do not duplicate actions
+ok 127 - non-owner and other server cannot read, mutate or settle a run
+ok 128 - two reward starts are reserved on creation, no refunds on abandonment; third can still rank
+ok 129 - practice explicitly preserves both rewarded openings
+ok 130 - same active run returned by another START is remembered even after terminal
+ok 131 - actual existing total cap clips credit; repeated zero/partial receipt never repays
+ok 132 - rogue 60 subcap applies to late runs; settlement uses current day instead of backdating
+ok 133 - wallet/receipt transaction rolls back on ledger failure, and can retry exactly once
+ok 134 - ranking failure does not roll back already credited coins; outbox retries without double pay
+ok 135 - daily best keeps only higher score; equal scores share rank; normal runs never enter board
+ok 136 - 72h idle expiry frees active slot without rewards and refresh does not extend it
+ok 137 - client now is ignored and cannot select a different entitlement or payment day
+ok 138 - opening leaderboard drains older failed rank outbox after a new run starts
+ok 139 - terminal action stays frozen when payout fails; another run can start and later retries old result
+ok 140 - v07 progress unlocks one rung per profession, survives restart, and ignores repeated settlement
+ok 141 - v07 progress and economy roll back together on SQL failure, then settle exactly once
+ok 142 - daily v07 difficulty and profession are server controlled and seeded consistently
+ok 143 - all difficulty rungs including max can unlock without exceeding ten
+ok 144 - zero-credit clear still unlocks and legacy confirmed clears inherit progress
+ok 145 - global tokens parse exactly; malformed and unknown tokens reject
+ok 146 - renderer uses private legacy panels and respects component limits
+ok 147 - home and board can update private panels without opening a second response
+ok 148 - duplicate card names use distinct entity UIDs and cards describe costs/effects
+ok 149 - four-card hand retains every play button and shared controls within five rows
+ok 150 - battle panel distinguishes pure full-health healing from mixed effects
+ok 151 - battle items disable full-health healing and cleanse with no burn using legalItems
+ok 152 - boss is identified from the run fixed boss array on route and checkpoint panels
+ok 153 - detail pages expose every deck entity and page parsing is bounded
+ok 154 - one target select commits exact hand and target UIDs; items and replacements parse without ambiguity
+ok 155 - retreat and abandon require a confirmation screen and explicit confirmed action
+ok 156 - shop and event have free leave; event payment waits for a confirmation panel
+ok 157 - event controls follow the allowed choices and full inventory replacement survives confirmation
+ok 158 - board shows supplied tied ranks without substituting row position
+ok 159 - every live room and reward exposes refresh plus abandon control
+ok 160 - room, route, reward, shop selections produce run actions with UID/version
+ok 161 - home shows per-profession progress and daily difficulty while profession selection opens settings
+ok 162 - daily board identifies its server-fixed challenge difficulty
+ok 163 - profession settings expose only unlocked difficulties and start tokens carry the selection
+ok 164 - v07 battle displays five-card hand, three-play limit, difficulty and 15-station progress
+ok 165 - route nodes preserve saved choices and map pages include chosen path plus future slots
+ok 166 - route only renders choices allowed by the service and explains disabled node reason
+ok 167 - battle shows second phase intent activation on the following round
+ok 168 - shop reads authoritative room prices and event UID operations require a separate confirmation
+ok 169 - homeInfo and explicit normal difficulty reach the service on settings and start
+ok 170 - signed lobby launch opens a private panel; chosen profession starts a v0.7 run in the guild tavern DO
+ok 171 - route only lobbyPlay buttons and preserve Discord actor while replacing command data
+ok 172 - bad lobby buttons return clear validation errors without resolving an interaction
+ok 173 - real signed Worker lobby clicks create each game through its controller and reject duplicates; table lookup follows the active game
+ok 174 - signed forged guild, owner, unknown game and malformed buttons are private and do not access a namespace
+ok 175 - signed public lobby uploads GIF and real map events schedule same message refresh without wallets
+ok 176 - natural-language lobby sends its first GIF scene and binds a public message without wallet creation
+ok 177 - actual mention context records a recent visitor while passive personal history remains read-only
+ok 178 - automatic game timeout or close publishes a fresh public map snapshot for all game controllers
+ok 179 - public lobby keeps a short status, build/map metadata, three button groups, and all areas
+ok 180 - public lobby entries open private wallet, card and bar order; identity and guild are checked
+ok 181 - game lobby exposes exactly the six worker-owned game actions without tavern interception
+ok 182 - natural language opens a public lobby without a model request or welcome wallet
+ok 183 - SQL standings persist, deduplicate, exclude computers/cancellations, preserve forfeits and guild boundaries
+ok 184 - top ten plus own rank, tie breaks by winrate then earlier achievement, zero wins has no king
+ok 185 - transaction rollback prevents partial result claims or stats
+ok 186 - only current leader can equip title; former title automatically ineligible and current display expires
+ok 187 - role creates with zero permissions, changes only one member role, removes old holder before grant
+ok 188 - permission denied provides fallback; cannot grant a new king before old role removal; ambiguous assignment is tracked
+ok 189 - timed-out creation recovers its unique role and does not POST a duplicate
+ok 190 - ranking controls bind server, private owner, eligibility, mention sanitization
+ok 191 - persistent outbox retries lost response without double counting, survives new hand and closed table
+ok 192 - signed worker UNO rounds across channels feed one guild ranking; commands bypass occupied poker table and crown refresh preserves clocks
+ok 193 - late earlier victory cannot move last achievement time backwards; unavailable rankings expire a stale crown
+ok 194 - personal profile stores independently of rank, survives restart, changes only requested field and resets safely
+ok 195 - profile menus fit Discord limits and bind owner/private message/guild; list choices cannot alter another profile
+ok 196 - beta16 profiles migrate existing avatar rows, persist entrance/victory and reset without losing rankings
+ok 197 - entrance sync posts once per seating, excludes active delayed greetings and does not extend clocks
+ok 198 - signed Discord flow, private cards, stale click, duplicate, modal, timeout and safe routes
+ok 199 - solo practice flow schedules computer alarms, protects hands, refills and closes
+ok 200 - all-in confirmation is private, actor-bound, version-checked and single-use
+ok 201 - private hand panel supports betting and modal, refreshes in place, and cannot expose cards publicly
+ok 202 - table alarms deliver consecutive hands and update private cards after computer actions
+ok 203 - lobby warnings, read-only activity, expiry and channel recreation work without real waits
+ok 204 - takeover is revalidated, idle clocks reset on real operations and active expiry refunds chips
+ok 205 - multiple humans ready from the same board; cancel stops the alarm; automatic deal requires renewed consent each hand
+ok 206 - management controls validate private owner and actor; queued departure preserves current pot; confirmation cannot edit public table
+ok 207 - private interactions acknowledge only; latest hand refresh travels encrypted then updates through the serialized alarm
+1..207
+# tests 207
+# suites 0
+# pass 207
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5088.355256

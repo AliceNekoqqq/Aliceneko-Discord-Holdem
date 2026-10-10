@@ -4,7 +4,7 @@ import { CATALOG } from './rogue-catalog.mjs';
 import { beginBattle } from './rogue-battle.mjs';
 import { renderRogue, renderRogueConfirmation, renderRogueHome, renderRogueBoard, renderRogueDetails, parseRogueAction } from './rogue-ui.mjs';
 
-const base = (patch = {}) => ({ runId: 'run_123', version: 7, phase: 'ROOM', act: 3, hp: 18, embers: 20, deck: CATALOG.starterDeck.map((cardId, uid) => ({ uid, cardId, upgraded: false })), relics: [], room: { type: 'camp' }, ...patch });
+const base = (patch = {}) => ({ ruleVersion: 'lantern-rules-v0.6', catalogVersion: '0.6', runId: 'run_123', version: 7, phase: 'ROOM', act: 3, hp: 18, embers: 20, deck: CATALOG.starterDeck.map((cardId, uid) => ({ uid, cardId, upgraded: false })), relics: [], room: { type: 'camp' }, ...patch });
 function checkLimits(message) {
   assert.equal(message.data.flags, 64);
   assert.deepEqual(message.data.allowed_mentions, { parse: [] });

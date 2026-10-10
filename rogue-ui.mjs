@@ -1,13 +1,15 @@
 import { CATALOG } from './rogue-catalog.mjs';
 import { legalCards, legalItems } from './rogue-battle.mjs';
-import { PROFESSIONS, ITEMS, getCatalog } from './rogue-content-v06.mjs';
-let ACTIVE_CATALOG = CATALOG;
-const useRunCatalog = (run) => { ACTIVE_CATALOG = getCatalog(run?.catalogVersion ?? run?.ruleVersion); return ACTIVE_CATALOG; };
+import { PROFESSIONS, ITEMS, DIFFICULTIES, EVENTS, getCatalog } from './rogue-content-v07.mjs';
+let ACTIVE_CATALOG = getCatalog('0.7');
+const v07 = (run) => run?.catalogVersion == null && run?.ruleVersion == null || String(run?.catalogVersion ?? run?.ruleVersion ?? '').includes('0.7');
+const useRunCatalog = (run) => { ACTIVE_CATALOG = getCatalog(run?.catalogVersion ?? run?.ruleVersion ?? '0.7'); return ACTIVE_CATALOG; };
 
 const esc = (s) => String(s ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const cap = (s, n) => [...String(s)].slice(0, n).join('');
 const cardOf = (id) => ACTIVE_CATALOG.cards[id];
 const relicOf = (id) => ACTIVE_CATALOG.relics[id];
+const eventOf = (id) => Array.isArray(EVENTS) ? EVENTS.find((e) => e.eventId === id) : EVENTS?.[id];
 const cardName = (id) => cardOf(id)?.name ?? '未知牌';
 const relicName = (id) => relicOf(id)?.name ?? '未知遗物';
 const uid = (x) => Number.isSafeInteger(x) ? String(x) : '';
@@ -17,7 +19,7 @@ function cardText(entity) {
   if (!base) return '未知牌';
   const def = entity.upgraded ? { ...base, ...base.upgrade } : base;
   const effects = def.effects.map((e) => ({
-    damage: `伤害${e.value}${e.ignoreArmor ? '（穿甲）' : ''}`, block: `护盾${e.value}`, burn: `灼烧${e.value}`, heal: `治疗${e.value}`,
+    damage: `伤害${e.value}${e.ignoreArmor ? '（穿甲）' : ''}`, block: `护盾${e.value}`, burn: `灼烧${e.value}`, heal: `治疗${e.value}`, draw: `抽牌${e.value}`, cleanse_player: `净化${e.value}`,
     prepare: `备势${e.value}`, mark: `标记${e.value}`, sift: '择弃并补抽', exhaust_other: '消耗目标牌', retain: '保留目标牌', counter: `反击${e.value}`,
     echo_next: '下轮回声', self_echo: '自损回声', delay_burn: `延迟灼烧${e.value}`, damage_from_shield: `耗盾伤害${e.value}`,
     summon: `召唤伙伴${e.value}`, pet_attack: `伙伴攻击${e.value}`, sacrifice: `牺牲伙伴伤害${e.value}`, forge: `锻造${e.value}`, weapon_attack: `武器伤害${e.value}`,
@@ -61,30 +63,83 @@ export function rogueInteraction(i) {
   return i?.type === 2 && i.data?.name === '灯下迷城' || [3, 5].includes(i?.type) && typeof i.data?.custom_id === 'string' && i.data.custom_id.startsWith('rl:');
 }
 
-export function renderRogueHome({ challengeProfession = null, update = false } = {}) {
+export function renderRogueHome({ challengeProfession = null, homeInfo = {}, update = false } = {}) {
   const professions = Object.entries(PROFESSIONS);
   const defaultProfession = professions.some(([id]) => id === 'traveler') ? 'traveler' : professions[0]?.[0];
   const choices = professions.map(([id, p]) => ({ label: `${p.name} · ${p.description ?? '选择此职业开局'}`, value: id }));
   const components = [
-    row(button('正式远征', `rl:start:normal:${defaultProfession ?? 'traveler'}`, 1), button(`每日挑战${challengeProfession ? ` · ${PROFESSIONS[challengeProfession]?.name ?? ''}` : ''}`, 'rl:start:challenge', 1)),
+    row(button('开始普通远征', `rl:settings:${defaultProfession ?? 'traveler'}`, 1), button(`每日挑战${challengeProfession ? ` · ${PROFESSIONS[challengeProfession]?.name ?? ''}` : ''}`, 'rl:start:challenge', 1)),
   ];
-  if (choices.length > 1) components.push(row(select('rl:start:normal', '选择职业并开始普通远征', choices)));
-  components.push(row(button('练习', `rl:practice:normal:${defaultProfession ?? 'traveler'}`, 2), button('挑战练习', 'rl:practice:challenge', 2), button('查看榜单', 'rl:board', 2)));
-  return panel('灯下迷城', '在灯火熄灭前穿过三幕迷城。普通局可选择职业；每日挑战职业由服务器固定。每天前2次正式开局有奖；基础奖励按完成幕数为8／18／30，且纳入每日限额。\n\n战斗提示：每轮抽4张、2能量、最多打2张；备势最多6、标记最多4，都会留到下一轮结束。来袭伤害先扣护盾，再由灯灵伙伴挡，最后扣生命。锻值在战斗结束时清空；每战最多安排2次回声，治疗牌不回声。职业只决定起手，所有卡牌共用奖励池，可以混搭。', components, update);
+  if (choices.length > 1) components.push(row(select('rl:settings-profession', '选择职业并查看已解锁难度', choices)));
+  components.push(row(button('每日挑战练习', 'rl:practice:challenge', 2), button('查看榜单', 'rl:board', 2)));
+  const hint = 'V07：每轮抽5张、3能量、最多打3张；共15个站点。普通难度按职业分别解锁，练习局也会推进难度。每日挑战难度由服务器固定。';
+  const progress = (homeInfo.progress ?? []).map((p) => `${PROFESSIONS[p.professionId]?.name ?? p.professionId} ${p.unlocked}/10（通关${p.clears ?? 0}）`);
+  const challenge = homeInfo.challengeProfession ? `${PROFESSIONS[homeInfo.challengeProfession]?.name ?? homeInfo.challengeProfession} · 难度${homeInfo.challengeDifficulty ?? 0}` : challengeProfession ? `${PROFESSIONS[challengeProfession]?.name ?? challengeProfession} · 难度${homeInfo.challengeDifficulty ?? 0}` : '服务器每日固定';
+  return panel('灯下迷城', `在灯火熄灭前穿过三幕迷城。先选择职业，再查看该职业的难度进度。每天前2次正式开局有奖；练习局不发经济奖励。\n每日挑战：${challenge}\n职业进度：${progress.join('；') || '各职业从难度0开始'}\n\n${hint}`, components, update);
+}
+
+export function renderRogueSettings({ professionId, difficulty = 0, mode = 'normal', homeInfo = {}, update = false } = {}) {
+  const prof = PROFESSIONS[professionId];
+  if (!prof) return renderRogueHome({ update });
+  const progress = (homeInfo.progress ?? []).find((p) => p.professionId === professionId);
+  const unlocked = Math.max(0, Math.min(10, Number.isInteger(progress?.unlocked) ? progress.unlocked : 0));
+  const selected = Math.max(0, Math.min(unlocked, Number.isInteger(difficulty) ? difficulty : 0));
+  const allDifficulties = Array.isArray(DIFFICULTIES) ? DIFFICULTIES : Object.values(DIFFICULTIES ?? {});
+  const diffs = allDifficulties.filter((d) => Number.isInteger(d.level) && d.level <= unlocked).sort((a,b) => a.level-b.level);
+  const difficultyDef = allDifficulties.find((x) => x.level === selected);
+  const options = diffs.map((d) => ({ label: `${d.level} · ${d.name}`, value: String(d.level), description: d.description ?? '' }));
+  const cumulativeRules = diffs.filter((d) => d.level <= selected).map((d) => `${d.level}级 ${d.name}：${d.description ?? ''}`);
+  const components = [];
+  if (options.length) components.push(row(select(`rl:settings-difficulty:${professionId}`, `已解锁难度（当前 ${selected}）`, options)));
+  components.push(row(button(`正式开局 · 难度${selected}`, `rl:start:normal:${professionId}:${selected}`, 1), button(`练习开局 · 难度${selected}`, `rl:practice:normal:${professionId}:${selected}`, 2)));
+  components.push(row(button('返回首页', 'rl:home', 2)));
+  return panel(`${prof.name} · 开局设置`, `${prof.description ?? ''}\n\n职业难度：${unlocked}/10 已解锁 · 通关 ${progress?.clears ?? 0} 次。当前选择：难度${selected}「${difficultyDef?.name ?? '基准'}」。\n累计规则：${cumulativeRules.join('；')}\n选择更高难度需要先在本职业通关。`, components, update);
 }
 
 export function renderRogueBoard(board = {}, { update = false } = {}) {
   const entries = Array.isArray(board) ? board : (board.rows ?? board.entries ?? []);
   const lines = entries.slice(0, 20).map((r) => `${Number.isFinite(r.rank) ? r.rank : '—'}. ${esc(r.name ?? '旅人')} · ${Number.isFinite(r.score) ? r.score : 0}分`);
   const day = board.day ? `日期：${esc(board.day)}\n` : '';
-  return panel('远征榜单', `${day}${lines.length ? lines.join('\n') : '今日还没有榜单记录。'}`, [row(button('返回首页', 'rl:home', 2))], update);
+  const difficulty = Number.isInteger(board.difficulty) ? board.difficulty : Number.isInteger(board.challengeDifficulty) ? board.challengeDifficulty : null;
+  const challenge = difficulty === null ? '' : `每日挑战难度：${difficulty}\n`;
+  return panel('远征榜单', `${day}${challenge}${lines.length ? lines.join('\n') : '今日还没有榜单记录。'}`, [row(button('返回首页', 'rl:home', 2))], update);
 }
 
 export function renderRogueDetails(run, kind = 'deck', { update = false, page = 0 } = {}) {
   useRunCatalog(run);
   let entries = [];
   let title = '远征详情';
-  if (kind === 'relics') {
+  if (kind === 'map') {
+    title = '迷城地图';
+    const nodes = [];
+    const plan = run.mapPlan;
+    if (Array.isArray(plan)) {
+      for (let ai = 0; ai < plan.length; ai++) {
+        const actPlan = plan[ai];
+        const slots = Array.isArray(actPlan) ? actPlan : (actPlan?.slots ?? actPlan?.nodes ?? []);
+        for (let si = 0; si < slots.length; si++) {
+          const choices = Array.isArray(slots[si]) ? slots[si] : (slots[si]?.nodes ?? []);
+          nodes.push({ act: ai + 1, slot: si + 1, choices });
+        }
+        const bossId = run.bosses?.[ai] ?? actPlan?.bossId;
+        if (bossId) nodes.push({ act: ai + 1, slot: 5, choices: [{ id: `a${ai + 1}s5boss`, type: 'boss', title: ACTIVE_CATALOG.enemies[bossId]?.name ?? '幕末Boss', description: '固定的幕末Boss战。', enemyId: bossId }] });
+      }
+    }
+    const path = new Map((run.path ?? []).map((p) => [`${p.act}:${p.slot}`, p]));
+    entries = nodes.flatMap(({ act, slot, choices }) => {
+      const chosen = path.get(`${act}:${slot}`);
+      const head = `第${act}幕 · 站点${slot}${chosen ? ` · 已选 ${chosen.title ?? chosen.type ?? chosen.nodeId}` : ''}`;
+      const lines = (choices ?? []).map((node) => {
+        const enemy = node.enemyId ? ACTIVE_CATALOG.enemies[node.enemyId] : null;
+        const stats = enemy ? ` · ${enemy.name}生命${enemy.hp}护甲${enemy.armor}` : '';
+        const danger = node.dangerous ? ' · 危险路线' : '';
+        const event = node.eventId ? (eventOf(node.eventId)?.title ?? node.eventId) : '';
+        return `  ${node.id ?? node.type}：${node.title ?? (node.type === 'normal' ? '普通战斗' : node.type === 'elite' ? '精英战斗' : node.type === 'camp' ? '营地' : node.type === 'shop' ? '商店' : event || '事件')}${danger}${stats}\n  ${node.description ?? ''}`;
+      });
+      return [head, ...lines];
+    });
+    if (!entries.length) entries = ['这局没有保存地图计划。'];
+  } else if (kind === 'relics') {
     title = '遗物详情';
     entries = (run.relics ?? []).map((id) => `${relicName(id)}：${relicOf(id)?.description ?? ''}`);
     if (!entries.length) entries = ['尚未获得遗物。'];
@@ -103,7 +158,7 @@ export function renderRogueDetails(run, kind = 'deck', { update = false, page = 
   const intro = kind === 'deck' ? `职业：${PROFESSIONS[run.professionId]?.name ?? '提灯旅人'}。${PROFESSIONS[run.professionId]?.description ?? ''}\n` : '';
   const description = `${intro}${visible.join('\n')}\n\n第${activePage + 1}/${totalPages}页 · 共${entries.length}项`;
   const paging = row(button('上一页', cid(run, 'details', `${kind}:${Math.max(0, activePage - 1)}`), 2, activePage === 0), button('下一页', cid(run, 'details', `${kind}:${Math.min(totalPages - 1, activePage + 1)}`), 2, activePage >= totalPages - 1));
-  return panel(title, description, [row(button('牌组', cid(run, 'details', 'deck:0'), kind === 'deck' ? 1 : 2), button('遗物', cid(run, 'details', 'relics:0'), kind === 'relics' ? 1 : 2), button('道具', cid(run, 'details', 'inventory:0'), kind === 'inventory' ? 1 : 2)), paging, row(button('返回远征', cid(run, 'refresh'), 2))], update);
+  return panel(title, description, [row(button('牌组', cid(run, 'details', 'deck:0'), kind === 'deck' ? 1 : 2), button('地图', cid(run, 'details', 'map:0'), kind === 'map' ? 1 : 2), button('遗物', cid(run, 'details', 'relics:0'), kind === 'relics' ? 1 : 2), button('道具', cid(run, 'details', 'inventory:0'), kind === 'inventory' ? 1 : 2)), paging, row(button('返回远征', cid(run, 'refresh'), 2))], update);
 }
 
 function renderBattle(run, update) {
@@ -126,7 +181,14 @@ function renderBattle(run, update) {
   if (intent.kind === 'conditional') intentLine = `公开分支：打出攻击牌→${actionText(intent.onAttack)}；否则→${actionText(intent.onOther)}`;
   else if (intent.kind === 'charge') intentLine = `蓄力预告：下轮${actionText(intent.next ?? { ...intent, kind: 'attack' })}`;
   else intentLine = actionText(intent);
-  const description = [`${enemy.name ?? '敌人'}　生命 ${b.enemyHp ?? '?'}　护甲 ${b.enemyArmor ?? 0}　架盾 ${b.enemyShield ?? 0}　灼烧 ${b.enemyBurn ?? 0}`, `你的生命 ${run.hp}　护盾 ${b.shield ?? 0}　能量 ${b.energy ?? 0}　已出牌 ${b.plays ?? 0}/2`, `意图：${intentLine}`, `手牌：${(b.hand ?? []).map((e) => cardText(e)).join('；') || '无'}`];
+  const drawCount = v07(run) ? 5 : 4, playLimit = v07(run) ? 3 : 2;
+  const playerMaxHp = run.maxHp ?? (v07(run) && (run.difficulty ?? 0) >= 6 ? 28 : ACTIVE_CATALOG.player.maxHp);
+  const description = [`${enemy.name ?? '敌人'}　生命 ${b.enemyHp ?? '?'}　护甲 ${b.enemyArmor ?? 0}　架盾 ${b.enemyShield ?? 0}　灼烧 ${b.enemyBurn ?? 0}`, `你的生命 ${run.hp}　护盾 ${b.shield ?? 0}　能量 ${b.energy ?? 0}　已出牌 ${b.plays ?? 0}/${playLimit}`, `意图：${intentLine}`, `手牌：${(b.hand ?? []).map((e) => cardText(e)).join('；') || '无'}`];
+  if (b.enemyPhase === 2) {
+    description.push((b.phaseStartTurn ?? 0) > (b.turn ?? 0)
+      ? `第二阶段已触发：敌人获得阶段护盾；新阶段意图从第${b.phaseStartTurn}轮开始生效。`
+      : '敌人已进入第二阶段，新阶段意图正在生效。');
+  }
   const resources = [];
   if (b.prepare) resources.push(`备势${b.prepare}`); if (b.mark) resources.push(`标记${b.mark}`); if (b.forge) resources.push(`锻造${b.forge}`);
   if (Number.isFinite(b.petHp)) resources.push(`伙伴生命${b.petHp}`);
@@ -134,7 +196,7 @@ function renderBattle(run, update) {
   const legal = new Set(legalCards(b).map((c) => c.uid));
   const components = [];
   const disabledReasons = [];
-  const hand = (b.hand ?? []).slice(0, 4);
+  const hand = (b.hand ?? []).slice(0, drawCount);
   const playOptions = [];
   const targetEffects = new Set(['sift', 'exhaust_other', 'retain']);
   const handTargets = hand.filter((e) => e != null);
@@ -142,10 +204,10 @@ function renderBattle(run, update) {
     const def = cardDef(e);
     let reason = '';
     if (b.result) reason = '战斗已结束';
-    else if ((b.plays ?? 0) >= 2) reason = '本轮出牌次数已满';
+    else if ((b.plays ?? 0) >= playLimit) reason = '本轮出牌次数已满';
     else if (!legal.has(e.uid)) {
       if (def?.cost > (b.energy ?? 0)) reason = '能量不足';
-      else if (def?.effects?.every((x) => x.kind === 'heal') && run.hp >= (b.maxHp ?? ACTIVE_CATALOG.player.maxHp)) reason = '生命已满，纯治疗牌不可用';
+      else if (def?.effects?.every((x) => x.kind === 'heal') && run.hp >= (b.maxHp ?? playerMaxHp)) reason = '生命已满，纯治疗牌不可用';
       else reason = '当前不可打出';
     }
     if (reason) disabledReasons.push(`#${e.uid} ${cardName(e.cardId)}：${reason}`);
@@ -171,7 +233,7 @@ function renderBattle(run, update) {
       let why = '';
       if (!available && !usedItem) {
         const effects = ITEMS[id]?.effects ?? [];
-        if (effects.every((e) => e.kind === 'heal') && (b.hp ?? run.hp) >= (b.maxHp ?? ACTIVE_CATALOG.player.maxHp)) why = ' · 生命已满';
+        if (effects.every((e) => e.kind === 'heal') && (b.hp ?? run.hp) >= (b.maxHp ?? playerMaxHp)) why = ' · 生命已满';
         else if (effects.every((e) => e.kind === 'cleanse_player') && !(b.burn > 0)) why = ' · 当前无灼烧';
         else why = ' · 当前不可用';
       }
@@ -182,8 +244,9 @@ function renderBattle(run, update) {
   }
   components.push(row(button('结束本轮', cid(run, 'end'), 2, Boolean(b.result))));
   components.push(controlRow(run));
-  const stations = Math.min(9, (run.completed ?? 0) + 1);
-  description.unshift(`第${run.act ?? '?'}幕 · 站点 ${stations}/9 · 余烬 ${run.embers ?? 0} · 距失灯 ${Math.max(0, 12 - (b.turn ?? 0))}轮`);
+  const totalStations = v07(run) ? 15 : 9;
+  const stations = Math.min(totalStations, (run.completed ?? 0) + 1);
+  description.unshift(`第${run.act ?? '?'}幕 · 站点 ${stations}/${totalStations}${v07(run) ? ` · 难度${run.difficulty ?? 0}` : ''} · 余烬 ${run.embers ?? 0} · 距失灯 ${Math.max(0, 12 - (b.turn ?? 0))}轮`);
   return panel(`第${b.turn ?? '?'}轮战斗`, description.join('\n'), components, update);
 }
 
@@ -195,14 +258,22 @@ function renderRoom(run, update) {
     return panel('幕间遗物', '选择一件遗物，或跳过。候选不会重复获得。', [row(select(cid(run, 'bless'), '选择遗物', opts)), controlRow(run)], update);
   }
   if (r.type === 'route') {
-    const labels = { normal: '普通战斗', shop: '商店', event: '钟楼修补', camp: '营地', elite: '精英战斗' };
-    useRunCatalog(run);
-    const choices = (r.choices ?? []).map((choice) => button(labels[choice] ?? ACTIVE_CATALOG.enemies[choice]?.name ?? choice, cid(run, 'route', choice)));
-    const details = [];
-    if (r.normalEnemyId) {
+    const labels = { normal: '普通战斗', shop: '商店', event: '事件', camp: '营地', elite: '精英战斗', boss: '幕末Boss' };
+    const nodes = Array.isArray(r.nodes) ? r.nodes : [];
+    const availableChoices = new Set(r.choices ?? nodes.filter((n) => n.available !== false).map((n) => n.id));
+    const choices = nodes.length
+      ? nodes.filter((node) => availableChoices.has(node.id) && node.available !== false).map((node) => button(`${node.dangerous ? '危险 · ' : ''}${node.title ?? labels[node.type] ?? node.type}`, cid(run, 'route', node.id)))
+      : (r.choices ?? []).map((choice) => button(labels[choice] ?? ACTIVE_CATALOG.enemies[choice]?.name ?? choice, cid(run, 'route', choice)));
+    const details = nodes.map((node) => {
+      const enemy = node.enemyId ? ACTIVE_CATALOG.enemies[node.enemyId] : null;
+      const event = node.eventId ? (eventOf(node.eventId)?.title ?? node.eventId) : '';
+      const kind = labels[node.type] ?? event;
+      return `${node.id} · ${node.dangerous ? '危险路线 · ' : ''}${node.title ?? kind}${enemy ? ` · ${enemy.name}基础生命${enemy.hp}护甲${enemy.armor}` : ''}${node.dangerous ? ' · 额外奖励路线' : ''}${node.disabledReason ? ` · 不可选：${node.disabledReason}` : ''}\n${node.description ?? ''}`;
+    });
+    if (!nodes.length && r.normalEnemyId) {
       const foe = ACTIVE_CATALOG.enemies[r.normalEnemyId];
       if (foe) details.push(`普通战：${foe.name}，生命${foe.hp}，护甲${foe.armor}`);
-    } else if (run.slot === 1 && run.act === 1) {
+    } else if (!nodes.length && run.slot === 1 && run.act === 1) {
       for (const id of r.choices ?? []) { const foe = ACTIVE_CATALOG.enemies[id]; if (foe) details.push(`${foe.name}：生命${foe.hp}，护甲${foe.armor}`); }
     }
     const eliteId = ACTIVE_CATALOG.acts.find((a) => a.index === run.act)?.eliteEnemy;
@@ -212,25 +283,35 @@ function renderRoom(run, update) {
       const boss = ACTIVE_CATALOG.enemies[run.bosses[run.act - 1]];
       if (boss) details.push(`本幕Boss已固定：${boss.name}，生命${boss.hp}，护甲${boss.armor}。`);
     }
-    return panel('选择路线', `${details.join('\n')}\n选择地点后即进入。`, [row(...choices), controlRow(run)], update);
+    const nodeRows = [];
+    for (let i = 0; i < choices.length; i += 3) nodeRows.push(row(...choices.slice(i, i + 3)));
+    const mapHint = v07(run) ? '地图详情可查看已选路径与全部未来站点。' : '';
+    return panel('选择路线', `${details.join('\n\n')}\n选择地点后即进入。${mapHint}`, [...nodeRows, row(button('查看完整地图', cid(run, 'details', 'map:0'), 2)), controlRow(run)], update);
   }
   if (r.type === 'camp') {
     const upgradable = (run.deck ?? []).filter((e) => !e.upgraded && cardOf(e.cardId)?.upgrade);
-    const components = [row(button(`休整治疗（${Math.floor(ACTIVE_CATALOG.player.maxHp * .3)}）`, cid(run, 'camp-heal'), 1, run.hp >= ACTIVE_CATALOG.player.maxHp), button('离开营地', cid(run, 'camp-leave'), 2))];
+    const maxHp = run.maxHp ?? (v07(run) && (run.difficulty ?? 0) >= 6 ? 28 : ACTIVE_CATALOG.player.maxHp);
+    const healAmount = r.healAmount ?? run.campHealAmount ?? Math.floor(maxHp * .3);
+    const components = [row(button(`休整治疗（${healAmount}）`, cid(run, 'camp-heal'), 1, run.hp >= maxHp), button('离开营地', cid(run, 'camp-leave'), 2))];
     if (upgradable.length) components.push(row(select(cid(run, 'camp-upgrade'), '选择升级的实体牌', upgradable.map((e) => ({ label: `#${e.uid} ${cardName(e.cardId)}`, value: String(e.uid), description: cardText(e) })))));
     components.push(controlRow(run));
-    return panel('营地', `生命 ${run.hp}/${ACTIVE_CATALOG.player.maxHp}。可治疗或升级一张实体牌。`, components, update);
+    return panel('营地', `生命 ${run.hp}/${maxHp}。可恢复${healAmount}点生命或升级一张实体牌。`, components, update);
   }
   if (r.type === 'shop') {
     const stock = r.stock ?? [];
-    const canBuy = stock.filter((id) => run.embers >= (ACTIVE_CATALOG.shop.cardCostByEnergy[String(cardOf(id)?.cost)] ?? Infinity));
+    const prices = r.prices ?? {};
+    const cardPrices = prices.cardByEnergy ?? prices.cardCostByEnergy ?? ACTIVE_CATALOG.shop.cardCostByEnergy;
+    const upgradePrice = prices.upgrade ?? ACTIVE_CATALOG.shop.upgradeCost;
+    const removePrice = prices.remove ?? ACTIVE_CATALOG.shop.removeCost;
+    const itemPrice = prices.item ?? prices.itemCost ?? 8;
+    const canBuy = stock.filter((id) => run.embers >= (cardPrices[String(cardOf(id)?.cost)] ?? Infinity));
     const upgradeTargets = (run.deck ?? []).filter((e) => !e.upgraded && cardOf(e.cardId)?.upgrade);
     const removeTargets = run.deck ?? [];
     const c = [];
-    if (stock.length) c.push(row(select(cid(run, 'shop-buy'), '购买牌（可多次购买）', optionsFrom(stock, cardName, (id) => `价格${ACTIVE_CATALOG.shop.cardCostByEnergy[String(cardOf(id)?.cost)]}余烬`), canBuy.length === 0)));
+    if (stock.length) c.push(row(select(cid(run, 'shop-buy'), '购买牌（可多次购买）', optionsFrom(stock, cardName, (id) => `价格${cardPrices[String(cardOf(id)?.cost)]}余烬`), canBuy.length === 0)));
     const services = [
-      ...upgradeTargets.map((e) => ({ label: `升级 #${e.uid} ${cardName(e.cardId)}`, value: `upgrade:${e.uid}`, description: `${ACTIVE_CATALOG.shop.upgradeCost}余烬` })),
-      ...removeTargets.map((e) => ({ label: `移除 #${e.uid} ${cardName(e.cardId)}`, value: `remove:${e.uid}`, description: `${ACTIVE_CATALOG.shop.removeCost}余烬` })),
+      ...upgradeTargets.map((e) => ({ label: `升级 #${e.uid} ${cardName(e.cardId)}`, value: `upgrade:${e.uid}`, description: `${upgradePrice}余烬` })),
+      ...removeTargets.map((e) => ({ label: `移除 #${e.uid} ${cardName(e.cardId)}`, value: `remove:${e.uid}`, description: `${removePrice}余烬` })),
     ];
     if (services.length) c.push(row(select(cid(run, 'shop-service'), '升级或移除实体牌', services, !services.some((x) => run.embers >= Number(x.description.match(/\d+/)?.[0])))));
     const itemStock = r.itemStock ?? r.items ?? [];
@@ -239,21 +320,23 @@ function renderRoom(run, update) {
       const itemOptions = itemStock.flatMap((entry) => {
         const id = typeof entry === 'string' ? entry : entry.id;
         return inventory.length < 2
-          ? [{ label: `${ITEMS[id]?.name ?? id} · 8余烬`, value: `${id}:-1`, description: '放入空道具槽' }]
-          : inventory.map((oldId, index) => ({ label: `${ITEMS[id]?.name ?? id} · 替换槽${index + 1}`, value: `${id}:${index}`, description: `替换${ITEMS[oldId]?.name ?? oldId}，8余烬` }));
+          ? [{ label: `${ITEMS[id]?.name ?? id} · ${itemPrice}余烬`, value: `${id}:-1`, description: '放入空道具槽' }]
+          : inventory.map((oldId, index) => ({ label: `${ITEMS[id]?.name ?? id} · 替换槽${index + 1}`, value: `${id}:${index}`, description: `替换${ITEMS[oldId]?.name ?? oldId}，${itemPrice}余烬` }));
       });
-      c.push(row(select(cid(run, 'shop-item'), '购买道具（8余烬）', itemOptions, run.embers < 8)));
+      c.push(row(select(cid(run, 'shop-item'), `购买道具（${itemPrice}余烬）`, itemOptions, run.embers < itemPrice)));
     }
     c.push(row(button('免费离开', cid(run, 'shop-leave'), 2)));
     c.push(controlRow(run));
-    return panel(`商店 · ${run.embers}余烬`, `牌价：1能量牌10余烬、2能量牌14余烬；升级12余烬；移除8余烬。${r.services?.upgrade ? '升级服务已用。' : ''}${r.services?.remove ? '移除服务已用。' : ''}`, c, update);
+    const priceText = Object.entries(cardPrices).map(([energy, price]) => `${energy}能量牌${price}余烬`).join('、');
+    return panel(`商店 · ${run.embers}余烬`, `当前价格：${priceText || '以房间标价为准'}；升级${upgradePrice}余烬；移除${removePrice}余烬；道具${itemPrice}余烬。${r.services?.upgrade ? '升级服务已用。' : ''}${r.services?.remove ? '移除服务已用。' : ''}`, c, update);
   }
   if (r.type === 'event') {
     const allowed = new Set(Array.isArray(r.choices) ? r.choices : ['heal', 'card', 'leave']);
+    const maxHp = run.maxHp ?? (v07(run) && (run.difficulty ?? 0) >= 6 ? 28 : ACTIVE_CATALOG.player.maxHp);
     const title = r.title || ({ repair: '钟楼修补', borrow_fire: '借来的火种', lost_property: '失物招领', apothecary: '夜行药铺' }[r.eventId] || '钟楼修补');
     const description = r.description || '选择一项处理方式。';
     const c = [];
-    if (allowed.has('heal')) c.push(row(button(`治疗 ${r.healAmount ?? 0}（${r.healCost ?? 0}余烬）`, cid(run, 'event-heal-ask'), 1, run.hp >= ACTIVE_CATALOG.player.maxHp || run.embers < (r.healCost ?? 0))));
+    if (allowed.has('heal')) c.push(row(button(`治疗 ${r.healAmount ?? 0}（${r.healCost ?? 0}余烬）`, cid(run, 'event-heal-ask'), 1, run.hp >= maxHp || run.embers < (r.healCost ?? 0))));
     if (allowed.has('card') && (r.candidates ?? []).length) c.push(row(select(cid(run, 'event-card-ask'), `选择牌（${r.cardCost ?? 0}余烬）`, optionsFrom(r.candidates, cardName), run.embers < (r.cardCost ?? 0))));
     if (allowed.has('item') && (r.itemCandidates ?? []).length) {
       const inventory = Array.isArray(run.inventory) ? run.inventory : [];
@@ -266,6 +349,17 @@ function renderRoom(run, update) {
       c.push(row(select(cid(run, 'event-item-ask'), `选择道具（${r.itemCost ?? 0}余烬）`, opts, run.embers < (r.itemCost ?? 0))));
     }
     if (allowed.has('trade') && (r.candidates ?? []).length) c.push(row(select(cid(run, 'event-trade-ask'), `以${r.lifeCost ?? 0}生命换牌`, optionsFrom(r.candidates, cardName), run.hp <= (r.lifeCost ?? 0))));
+    if (allowed.has('upgrade')) {
+      const eligible = new Set(r.upgradeCandidates ?? (run.deck ?? []).filter((e) => !e.upgraded && cardOf(e.cardId)?.upgrade).map((e) => e.uid));
+      const targets = (run.deck ?? []).filter((e) => eligible.has(e.uid));
+      if (targets.length) c.push(row(select(cid(run, 'event-upgrade-ask'), `升级实体牌（${r.upgradeCost ?? 0}余烬）`, targets.map((e) => ({ label: `#${e.uid} ${cardName(e.cardId)}`, value: String(e.uid), description: cardText(e) })), run.embers < (r.upgradeCost ?? 0))));
+    }
+    if (allowed.has('remove')) {
+      const eligible = new Set(r.removeCandidates ?? (run.deck ?? []).map((e) => e.uid));
+      const targets = (run.deck ?? []).filter((e) => eligible.has(e.uid));
+      if (targets.length) c.push(row(select(cid(run, 'event-remove-ask'), `移除实体牌（${r.removeCost ?? 0}余烬）`, targets.map((e) => ({ label: `移除 #${e.uid} ${cardName(e.cardId)}`, value: String(e.uid), description: cardText(e) })), run.embers < (r.removeCost ?? 0))));
+    }
+    if (allowed.has('gain')) c.push(row(button(`免费获得${r.emberAmount ?? 0}余烬`, cid(run, 'event-gain'), 1)));
     if (allowed.has('leave')) c.push(row(button('离开', cid(run, 'event-leave'), 2)));
     c.push(controlRow(run));
     return panel(`${title} · ${run.embers}余烬 · 生命${run.hp}`, description, c, update);
@@ -310,7 +404,8 @@ function renderResult(run, update) {
   if (Number.isFinite(score)) lines.push(`积分：${score}`);
   if (run.settlementPending) lines.push('结果已保存，收益待入账。重新打开冒险会重试，不会重复领取。');
   if (rank) lines.push(rank);
-  return panel('远征结算', lines.join('\n'), [row(button('再来一局', 'rl:start:normal'), button('挑战远征', 'rl:start:challenge')), row(button('返回首页', 'rl:home', 2), button('查看榜单', 'rl:board', 2))], update);
+  const defaultProfession = Object.hasOwn(PROFESSIONS, 'traveler') ? 'traveler' : Object.keys(PROFESSIONS)[0];
+  return panel('远征结算', lines.join('\n'), [row(button('再来一局', `rl:settings:${defaultProfession}`), button('挑战远征', 'rl:start:challenge')), row(button('返回首页', 'rl:home', 2), button('查看榜单', 'rl:board', 2))], update);
 }
 
 export function renderRogue(run, { update = false } = {}) {
@@ -343,6 +438,14 @@ export function renderRogueConfirmation(run, kind, { update = false } = {}) {
   } else if (kind && typeof kind === 'object' && kind.type === 'event-trade' && typeof kind.cardId === 'string') {
     const fullText = cardText({ cardId: kind.cardId, upgraded: false });
     title = '确认以生命换牌？'; body = `将失去${kind.cost}生命并获得：${fullText}。`; yes = button('确认交易', cid(run, 'event-trade-confirm', kind.cardId), 1);
+  } else if (kind && typeof kind === 'object' && ['event-upgrade','event-remove'].includes(kind.type) && Number.isSafeInteger(kind.uid)) {
+    const entity = (run.deck ?? []).find((e) => e.uid === kind.uid);
+    if (!entity) throw new TypeError('unknown event card uid');
+    const isUpgrade = kind.type === 'event-upgrade';
+    const cost = kind.cost ?? (isUpgrade ? run.room?.upgradeCost : run.room?.removeCost) ?? 0;
+    title = isUpgrade ? '确认升级？' : '确认移除？';
+    body = isUpgrade ? `将支付${cost}余烬，升级实体牌 #${entity.uid}：${cardText(entity)}。` : `将支付${cost}余烬，永久移除实体牌 #${entity.uid}：${cardText(entity)}。`;
+    yes = button(isUpgrade ? '确认付款并升级' : '确认付款并移除', cid(run, `${kind.type}-confirm`, kind.uid), 1);
   } else throw new TypeError('unknown confirmation kind');
   return panel(title, body, [row(yes, button('返回面板', cid(run, 'refresh'), 2))], update);
 }
@@ -367,13 +470,27 @@ export function parseRogueAction(customId, values = []) {
   if (typeof customId !== 'string' || customId.length < 1 || customId.length > 100) return null;
   if (customId === 'rl:home') return { ui: 'home' };
   if (customId === 'rl:board') return { ui: 'board' };
-  let m = /^rl:(start|practice):(normal|challenge)(?::([a-z0-9_-]{1,40}))?$/.exec(customId);
+  let settings = /^rl:settings:([a-z0-9_-]{1,40})$/.exec(customId);
+  if (settings && Object.hasOwn(PROFESSIONS, settings[1])) return { ui: 'settings', professionId: settings[1], difficulty: 0 };
+  if (customId === 'rl:settings-profession') {
+    const professionId = selection(values);
+    return professionId && Object.hasOwn(PROFESSIONS, professionId) ? { ui: 'settings', professionId, difficulty: 0 } : null;
+  }
+  settings = /^rl:settings-difficulty:([a-z0-9_-]{1,40})$/.exec(customId);
+  if (settings && Object.hasOwn(PROFESSIONS, settings[1])) {
+    const value = selection(values);
+    return /^\d{1,2}$/.test(value ?? '') && Number(value) <= 10 ? { ui: 'settings', professionId: settings[1], difficulty: Number(value) } : null;
+  }
+  let m = /^rl:(start|practice):(normal|challenge)(?::([a-z0-9_-]{1,40}))?(?::(\d{1,2}))?$/.exec(customId);
   if (m) {
     const value = m[3] ?? (((m[1] === 'start' && m[2] === 'normal') || (m[1] === 'practice' && m[2] === 'normal')) ? selection(values) ?? undefined : undefined);
     if (m[2] === 'challenge' && value) return null;
     const professionId = m[2] === 'challenge' ? undefined : value;
     if (professionId && Object.keys(PROFESSIONS).length && !Object.hasOwn(PROFESSIONS, professionId)) return null;
-    return professionId === undefined ? { ui: m[1], mode: m[2] } : { ui: m[1], mode: m[2], professionId };
+    const difficulty = m[4] === undefined ? 0 : Number(m[4]);
+    if (difficulty > 10 || (m[4] !== undefined && professionId === undefined)) return null;
+    if (m[4] === undefined) return professionId === undefined ? { ui: m[1], mode: m[2] } : { ui: m[1], mode: m[2], professionId };
+    return professionId === undefined ? { ui: m[1], mode: m[2] } : { ui: m[1], mode: m[2], professionId, difficulty };
   }
   const p = validRunParts(customId.split(':'));
   if (!p) return null;
@@ -382,7 +499,7 @@ export function parseRogueAction(customId, values = []) {
   switch (action) {
     case 'refresh': return { ui: 'refresh', runId, version };
     case 'details': {
-      const match = /^(deck|relics|inventory)(?::(\d{1,4}))?$/.exec(arg ?? '');
+      const match = /^(deck|relics|inventory|map)(?::(\d{1,4}))?$/.exec(arg ?? '');
       return match && Number(match[2] ?? 0) <= 9999 ? { ui: 'details', runId, version, kind: match[1], page: Number(match[2] ?? 0) } : null;
     }
     case 'ask-retreat': return { ui: 'ask-retreat', runId, version };
@@ -439,6 +556,15 @@ export function parseRogueAction(customId, values = []) {
     case 'event-item-confirm': { const match = /^([^:]{1,80}):(-1|0|1)$/.exec(arg ?? ''); return match ? tagged({ type: 'EVENT', choice: 'item', itemId: match[1], replaceIndex: Number(match[2]) < 0 ? null : Number(match[2]) }) : null; }
     case 'event-trade-ask': { const value = selection(values); return value ? { ui: 'event-confirm', runId, version, kind: 'trade', cardId: value } : null; }
     case 'event-trade-confirm': return arg ? tagged({ type: 'EVENT', choice: 'trade', cardId: arg }) : null;
+    case 'event-upgrade-ask': case 'event-remove-ask': {
+      const value = selection(values);
+      return value && /^\d+$/.test(value) && Number.isSafeInteger(Number(value))
+        ? { ui: 'event-confirm', runId, version, kind: action === 'event-upgrade-ask' ? 'upgrade' : 'remove', uid: Number(value) } : null;
+    }
+    case 'event-upgrade-confirm': case 'event-remove-confirm':
+      return /^\d+$/.test(arg ?? '') && Number.isSafeInteger(Number(arg))
+        ? tagged({ type: 'EVENT', choice: action === 'event-upgrade-confirm' ? 'upgrade' : 'remove', uid: Number(arg) }) : null;
+    case 'event-gain': return tagged({ type: 'EVENT', choice: 'gain' });
     default: return null;
   }
 }

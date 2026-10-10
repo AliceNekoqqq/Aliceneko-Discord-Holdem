@@ -1,10 +1,12 @@
 import * as legacy from './rogue-run-v04.mjs';
 import * as expanded from './rogue-run-v06.mjs';
+import * as latest from './rogue-run-v07.mjs';
 export const RULE_VERSION = legacy.RULE_VERSION;
-export const CURRENT_RULE_VERSION = 'lantern-rules-v0.6';
-export const SUPPORTED_RULE_VERSIONS = [RULE_VERSION, CURRENT_RULE_VERSION];
+export const V06_RULE_VERSION = 'lantern-rules-v0.6';
+export const CURRENT_RULE_VERSION = 'lantern-rules-v0.7';
+export const SUPPORTED_RULE_VERSIONS = [RULE_VERSION, V06_RULE_VERSION, CURRENT_RULE_VERSION];
 export const RunActionError = legacy.RunActionError;
-const current = run => run?.ruleVersion === CURRENT_RULE_VERSION ? expanded : legacy;
+const current = run => run?.ruleVersion === CURRENT_RULE_VERSION ? latest : run?.ruleVersion === V06_RULE_VERSION ? expanded : legacy;
 export const createRun = options => current(options).createRun(options);
 export const runAction = (run, action, now) => current(run).runAction(run, action, now);
 export const expireRun = (run, now) => current(run).expireRun(run, now);

@@ -1,9 +1,11 @@
 import {createRun,runAction,expireRun,RULE_VERSION,CURRENT_RULE_VERSION,SUPPORTED_RULE_VERSIONS} from './rogue-run.mjs';
 import {scoreRun,rewardAmount,dailySeedGroup,REWARDED_STARTS,ECONOMY_VERSION} from './rogue-economy.mjs';
 import {DAILY_REWARD_CAP,dayKey,validId} from './tavern-catalog.mjs';
-import {PROFESSIONS} from './rogue-content-v06.mjs';
+import {PROFESSIONS} from './rogue-content-v07.mjs';
+import {MAX_DIFFICULTY} from './rogue-difficulty.mjs';
 const PROFESSION_IDS=Object.keys(PROFESSIONS);
-const professionForSeed=(seed)=>{let h=2166136261;for(const c of String(seed)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)>>>0;}return PROFESSION_IDS[h%PROFESSION_IDS.length]??'traveler';};
+const hashSeed=seed=>{let h=2166136261;for(const c of String(seed)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)>>>0;}return h;};
+const professionForSeed=seed=>PROFESSION_IDS[hashSeed(seed)%PROFESSION_IDS.length]??'traveler';
 
 // Lives inside the already guild-bound TavernService's SQLite DO. No external
 // I/O/await in transactionSync; wallet, snapshot and receipt commit together.
@@ -29,6 +31,7 @@ export class RogueService{
    this.sql.exec('CREATE TABLE IF NOT EXISTS rogue_receipts (run_id TEXT PRIMARY KEY,owner TEXT NOT NULL,guild TEXT NOT NULL,day TEXT NOT NULL,amount INTEGER NOT NULL,base_amount INTEGER NOT NULL,score INTEGER NOT NULL,economy_version TEXT NOT NULL,at INTEGER NOT NULL)');
    this.sql.exec('CREATE TABLE IF NOT EXISTS rogue_best (seed_group TEXT NOT NULL,owner TEXT NOT NULL,score INTEGER NOT NULL,run_id TEXT NOT NULL,at INTEGER NOT NULL,PRIMARY KEY(seed_group,owner))');
    this.sql.exec('CREATE TABLE IF NOT EXISTS rogue_rank_outbox (run_id TEXT PRIMARY KEY)');
+   this.sql.exec('CREATE TABLE IF NOT EXISTS rogue_progress (owner TEXT NOT NULL,profession TEXT NOT NULL,unlocked INTEGER NOT NULL DEFAULT 0,clears INTEGER NOT NULL DEFAULT 0,last_run_id TEXT,PRIMARY KEY(owner,profession))');
   });
  }
  one(q,...args){return this.sql.exec(q,...args).toArray()[0]||null;}
@@ -73,6 +76,7 @@ export class RogueService{
   }
   this.sql.exec('INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)',`rogue:${run.runId}`,run.owner,amount,'rogue',`灯下迷城 ${run.result.type}`,now);
   const receipt={run_id:run.runId,owner:run.owner,guild:this.guild,day,amount,base_amount:tally.baseCoins,score:tally.score,economy_version:tally.economyVersion??ECONOMY_VERSION,at:now};
+  this.advanceProgress(run);
   this.sql.exec('INSERT INTO rogue_receipts VALUES(?,?,?,?,?,?,?,?,?)',receipt.run_id,receipt.owner,receipt.guild,receipt.day,receipt.amount,receipt.base_amount,receipt.score,receipt.economy_version,receipt.at);
   if(tally.ranked)this.sql.exec('INSERT INTO rogue_rank_outbox VALUES(?)',run.runId);
   const done={...run,receipt};this.save(done);return done;
@@ -84,7 +88,7 @@ export class RogueService{
     if(!this.one('SELECT run_id FROM rogue_rank_outbox WHERE run_id=?',run.runId))return;
     const receipt=this.one('SELECT * FROM rogue_receipts WHERE run_id=?',run.runId);
     if(!receipt)fail('RECEIPT','结果尚未完成入账。');
-    const group=dailySeedGroup(this.guild,run.startDay,run.ruleVersion);
+    const group=dailySeedGroup(this.guild,run.startDay,run.ruleVersion,run.difficulty??0);
     this.sql.exec('INSERT INTO rogue_best VALUES(?,?,?,?,?) ON CONFLICT(seed_group,owner) DO UPDATE SET score=excluded.score,run_id=excluded.run_id,at=excluded.at WHERE excluded.score>rogue_best.score',group,run.owner,receipt.score,run.runId,receipt.at);
     this.sql.exec('DELETE FROM rogue_rank_outbox WHERE run_id=?',run.runId);
    });
@@ -129,10 +133,14 @@ export class RogueService{
    const runId=this.idFactory(),mode=p.mode??'normal';
    if(this.one('SELECT id FROM rogue_runs WHERE id=?',runId))fail('RUN_ID','冒险标识重复，请重试。');
    const ruleVersion=this.rulesVersion;
-   const seed=mode==='challenge'?dailySeedGroup(this.guild,day,ruleVersion):`${runId}/normal`;
+   const expanded=ruleVersion==='lantern-rules-v0.7';
+   const difficulty=expanded?(mode==='challenge'?this.challengeDifficulty():p.difficulty??0):0;
+   if(!Number.isInteger(difficulty)||difficulty<0||difficulty>MAX_DIFFICULTY)fail('DIFFICULTY','请选择有效进阶等级。');
+   const seed=mode==='challenge'?dailySeedGroup(this.guild,day,ruleVersion,difficulty):`${runId}/normal`;
    if(mode!=='challenge'&&p.professionId!=null&&!PROFESSION_IDS.includes(p.professionId))fail('INVALID_PROFESSION','请选择有效职业。');
    const professionId=mode==='challenge'?professionForSeed(`${this.guild}|${day}|${ruleVersion}`):(p.professionId??PROFESSION_IDS[0]);
-   const run=createRun({runId,owner:p.id,guild:this.guild,mode,seed,startDay:day,rewardEligible,now,ruleVersion,professionId,inventory:[]});
+   if(expanded&&mode==='normal'&&difficulty>this.progressFor(p.id,professionId).unlocked)fail('DIFFICULTY_LOCKED','请先通关已解锁的进阶等级。');
+   const run=createRun({runId,owner:p.id,guild:this.guild,mode,seed,startDay:day,rewardEligible,now,ruleVersion,professionId,difficulty,inventory:[]});
    this.save(run);this.remember(p,runId,'START');return run;
   });
   return this.respond(result);
@@ -167,9 +175,25 @@ export class RogueService{
  leaderboard(p){
   this.guard(p);const day=p.day??dayKey(this.clock());
   if(typeof day!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(day))fail('DAY','榜单日期无效。');
-  const seedGroup=dailySeedGroup(this.guild,day,this.rulesVersion);
+  const seedGroup=dailySeedGroup(this.guild,day,this.rulesVersion,this.challengeDifficulty());
   this.drainRanks();
-  return {day,seedGroup,rows:this.sql.exec('SELECT b.owner,m.name,b.score,b.run_id,b.at,RANK() OVER (ORDER BY b.score DESC) AS rank FROM rogue_best b LEFT JOIN tavern_members m ON m.id=b.owner WHERE b.seed_group=? ORDER BY b.score DESC,b.at ASC,b.owner ASC LIMIT 20',seedGroup).toArray()};
+  return {day,seedGroup,difficulty:this.challengeDifficulty(),rows:this.sql.exec('SELECT b.owner,m.name,b.score,b.run_id,b.at,RANK() OVER (ORDER BY b.score DESC) AS rank FROM rogue_best b LEFT JOIN tavern_members m ON m.id=b.owner WHERE b.seed_group=? ORDER BY b.score DESC,b.at ASC,b.owner ASC LIMIT 20',seedGroup).toArray()};
  }
+ progressFor(owner,professionId){
+  const row=this.one('SELECT * FROM rogue_progress WHERE owner=? AND profession=?',owner,professionId);
+  if(row)return {professionId,unlocked:row.unlocked,clears:row.clears};
+  const legacy=this.one("SELECT COUNT(*) AS clears FROM rogue_runs r JOIN rogue_receipts p ON p.run_id=r.id WHERE r.guild=? AND r.owner=? AND json_extract(r.snapshot,'$.result.type')='CLEAR' AND COALESCE(json_extract(r.snapshot,'$.professionId'),'traveler')=?",this.guild,owner,professionId);
+  return {professionId,unlocked:legacy?.clears>0?1:0,clears:legacy?.clears??0};
+ }
+ advanceProgress(run){
+  if(run.result?.type!=='CLEAR')return;
+  const professionId=run.professionId??'traveler';if(!PROFESSION_IDS.includes(professionId))return;
+  const old=this.progressFor(run.owner,professionId),level=run.difficulty??0;
+  // Daily challenges may be above normal unlock; they never skip the ladder.
+  const unlocked=level===old.unlocked?Math.min(MAX_DIFFICULTY,old.unlocked+1):Math.max(old.unlocked,level===0?1:old.unlocked);
+  this.sql.exec('INSERT INTO rogue_progress VALUES(?,?,?,?,?) ON CONFLICT(owner,profession) DO UPDATE SET unlocked=excluded.unlocked,clears=excluded.clears,last_run_id=excluded.last_run_id',run.owner,professionId,unlocked,old.clears+1,run.runId);
+ }
+ homeInfo(p){this.guard(p);return {progress:PROFESSION_IDS.map(id=>this.progressFor(p.id,id)),challengeProfession:this.challengeProfession(),challengeDifficulty:this.challengeDifficulty()};}
+ challengeDifficulty(){return this.rulesVersion==='lantern-rules-v0.7'?hashSeed(`${this.guild}|${dayKey(this.clock())}|${this.rulesVersion}|difficulty`)%4:0;}
  challengeProfession(p={}){const day=dayKey(this.clock());return professionForSeed(`${this.guild}|${day}|${this.rulesVersion}`);}
 }

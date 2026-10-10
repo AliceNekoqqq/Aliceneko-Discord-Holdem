@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createRun,runAction,CURRENT_RULE_VERSION,RunActionError} from './rogue-run.mjs';
+import {createRun,runAction,V06_RULE_VERSION as CURRENT_RULE_VERSION,RunActionError} from './rogue-run.mjs';
 import {PROFESSIONS,ITEMS} from './rogue-content-v06.mjs';
 import {play} from './rogue-playthrough.mjs';
 const fresh=(p='traveler',seed='richness')=>createRun({runId:'new',owner:'1',guild:'1',seed,professionId:p,ruleVersion:CURRENT_RULE_VERSION,now:0});
