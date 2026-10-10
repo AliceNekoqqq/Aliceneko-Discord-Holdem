@@ -93,42 +93,91 @@ function prepGlyphs(names,env){const chars=[...new Set(names.flatMap(s=>[...rawI
 function rgbaText(c,value,x,y,size,color,maxChars){wrapLine(value,maxChars).forEach((s,i)=>text(c,s,x,y+i*(size+2),size,color));}
 function silhouette(c,x,y,profession,enemy=false,role='普通',enemyId=''){
  const accent=enemy?(role==='Boss'?K.red:role==='精英'?[220,131,78]:[124,146,162]):K.gold;
- circle(c,x,y-45,22,accent);rect(c,x-22,y-27,44,62,accent,13);line(c,x-16,y-12,x-38,y+18,accent,10);line(c,x+16,y-12,x+38,y+18,accent,10);line(c,x-12,y+28,x-20,y+57,accent,12);line(c,x+12,y+28,x+20,y+57,accent,12);
- if(!enemy){
+ const shadow=enemy?(role==='Boss'?[86,43,48]:[66,73,79]):[126,87,43];
+ const highlight=enemy?(role==='Boss'?[246,143,118]:[200,218,222]):[255,222,157];
+ const stroke=(x1,y1,x2,y2,width)=>{line(c,x1,y1,x2,y2,shadow,width+5);line(c,x1,y1,x2,y2,accent,width);};
+ rect(c,x-43,y+49,86,10,[9,18,29],6);
+ if(enemy&&role==='Boss'){line(c,x-16,y-59,x-29,y-82,shadow,8);line(c,x+16,y-59,x+29,y-82,shadow,8);}
+ if(!enemy){line(c,x+25,y-22,x+49,y-69,[91,77,66],7);line(c,x+24,y-24,x+47,y-69,[198,185,155],3);circle(c,x+49,y-69,9,[134,96,55]);circle(c,x+49,y-69,6,K.gold2);}
+ stroke(x-15,y+13,x-20,y+53,11);stroke(x+15,y+13,x+20,y+53,11);
+ stroke(x-16,y-10,x-35,y+15,8);stroke(x+16,y-10,x+35,y+15,8);
+ rect(c,x-28,y-26,56,59,shadow,13);rect(c,x-23,y-23,46,52,accent,11);
+ rect(c,x-21,y+5,42,9,shadow,3);rect(c,x-17,y+5,34,4,highlight,2);
+ line(c,x,y-14,x,y+22,shadow,4);line(c,x-1,y-13,x-1,y+19,highlight,1);
+ circle(c,x,y-46,24,shadow);circle(c,x,y-48,20,accent);circle(c,x-6,y-55,4,highlight);
+ if(enemy){circle(c,x-7,y-48,3,role==='Boss'?[255,213,151]:K.ink);circle(c,x+7,y-48,3,role==='Boss'?[255,213,151]:K.ink);line(c,x-13,y-57,x-3,y-58,shadow,2);line(c,x+3,y-58,x+13,y-57,shadow,2);if(role==='精英'){rect(c,x-28,y-26,56,8,highlight,3);rect(c,x-26,y+16,52,7,shadow,3);}if(role==='Boss'){line(c,x-17,y-63,x-28,y-81,accent,5);line(c,x+17,y-63,x+28,y-81,accent,5);}}
+ else{
   const marks={traveler:[222,185,116],warden:[153,177,193],brewer:[201,130,101],messenger:[168,208,211],smith:[196,174,116],medic:[160,196,151],tamer:[206,166,118],forger:[189,125,84]},mark=marks[profession]||K.gold2;
-  if(['warden','smith','forger'].includes(profession))rect(c,x-32,y-29,64,9,mark,5);
-  if(profession==='brewer')circle(c,x-25,y-15,9,[198,110,85]);if(profession==='messenger')rect(c,x-8,y-19,20,22,mark,2);if(profession==='medic')circle(c,x,y-1,7,[223,229,192]);
-  if(profession==='tamer'){circle(c,x+40,y+15,13,[210,166,111]);circle(c,x+49,y+7,5,K.cream);}
-  line(c,x+24,y-26,x+49,y-69,[193,180,151],4);circle(c,x+49,y-69,7,K.gold2);
- } else {circle(c,x-8,y-51,3,K.ink);circle(c,x+8,y-51,3,K.ink);if(role==='Boss'){line(c,x-18,y-68,x-30,y-91,accent,6);line(c,x+18,y-68,x+30,y-91,accent,6);}else if(role==='精英'){rect(c,x-34,y-24,68,10,accent,4);rect(c,x-30,y+15,60,9,accent,4);}const seed=[...String(enemyId)].reduce((n,ch)=>n+ch.charCodeAt(0),0);if(seed%2)line(c,x-18,y-62,x-29,y-77,accent,4);}
+  if(['warden','smith','forger'].includes(profession)){rect(c,x-31,y-26,62,10,shadow,5);rect(c,x-27,y-26,54,5,mark,3);}
+  if(profession==='brewer'){circle(c,x-25,y-15,10,shadow);circle(c,x-25,y-15,7,mark);}
+  if(profession==='messenger'){rect(c,x-9,y-20,20,23,shadow,3);rect(c,x-6,y-18,14,17,mark,2);}
+  if(profession==='medic'){circle(c,x,y-1,8,shadow);circle(c,x,y-1,5,[223,229,192]);}
+  if(profession==='tamer'){circle(c,x+40,y+15,15,shadow);circle(c,x+40,y+15,11,[210,166,111]);circle(c,x+49,y+7,5,K.cream);}
+  line(c,x-9,y-39,x+8,y-39,highlight,2);
+ }
 }
 async function battleImage(run,env){
  const b=run?.battle||{},catalog=getCatalog(run?.catalogVersion||run?.ruleVersion),enemy=catalog.enemies[b.enemyId]||{},profession=catalog.professions?.[b.professionId||run?.professionId]||PROFESSIONS[b.professionId||run?.professionId]||PROFESSIONS.traveler;
  const model=describeRogueImage(run,'battle'),hand=b.hand||[],playLimit=model.playLimit??catalog.player?.playLimit??0;
- const names=[profession.name,enemy.phaseName||'',enemy.name||'敌人',enemy.role||'普通','回合','第二阶段','第一阶段','意图',intentLabel(b.intent),intentDetail(b.intent),'护甲','屏障','灼烧','旅人','生命','护盾','灯狐','锻值','能量','出牌','手牌','抽牌','弃牌','已强化','完整效果见下方文字',...model.hints,...model.cards.flatMap(q=>[q.name,`#${q.id}`,String(q.cost),q.reason,...q.effects,...q.warnings,...q.categories.map(g=>g.label)])];await prepGlyphs([...names,...UI_GLYPHS]);
+ const names=[profession.name,enemy.phaseName||'',enemy.name||'敌人',enemy.role||'普通','回合','第一阶段','第二阶段','敌方意图','本回合意图','护甲','屏障','灼烧','生命','护盾','能量','出牌','手牌','抽牌','弃牌','强化+','先读意图，再选手牌。','完整效果见下方说明','可出牌','不可用',intentLabel(b.intent),intentDetail(b.intent),...model.hints,...model.cards.flatMap(q=>[q.name,'#'+q.id,String(q.cost),q.reason,...q.effects,...q.warnings,...q.categories.map(g=>g.label)])];
+ await prepGlyphs([...names,...UI_GLYPHS],env);
+ const F={headline:24,title:20,body:17,meta:15,small:14};
  const c=new Canvas(W,H);rect(c,0,0,W,H,K.bg);circle(c,480,303,205,[19,39,58]);
- title(c,`第 ${run?.act??1} 幕 · 第 ${run?.slot??1} 站`,`${short(profession.name,7)} 迎战 ${short(enemy.name||'敌人',8)}`,`回合 ${b.turn??0}  ·  ${b.enemyPhase===2?'第二阶段':'第一阶段'}`);
- rect(c,31,112,898,332,K.panel,18);line(c,480,128,480,430,K.line,2);
- text(c,'敌方',70,133,17,K.muted);text(c,enemy.role||'普通',434,133,16,K.gold2,false);silhouette(c,268,276,b.professionId,true,enemy.role,b.enemyId);
- text(c,enemy.name||'敌人',268,354,25,K.cream,true);bar(c,105,394,326,15,b.enemyHp,b.enemyMaxHp,K.red);text(c,`${b.enemyHp??0} / ${b.enemyMaxHp??0}`,268,414,16,K.muted,true);
- text(c,'意图',523,137,17,K.gold);text(c,intentLabel(b.intent),523,163,21,K.cream);if(intentDetail(b.intent))rgbaText(c,intentDetail(b.intent),523,193,12,K.muted,28);if(b.enemyArmor)text(c,`护甲 ${b.enemyArmor}`,523,228,16,K.blue);if(b.enemyShield)text(c,`屏障 ${b.enemyShield}`,650,228,16,K.blue);if(b.enemyBurn)text(c,`灼烧 ${b.enemyBurn}`,790,228,16,K.red);
- if(b.enemyPhase===2&&enemy.phaseName)text(c,enemy.phaseName,523,256,17,K.gold2);
- silhouette(c,563,378,b.professionId,false);text(c,profession.name,615,294,16,K.muted);bar(c,615,320,278,17,b.hp,b.maxHp,K.green);text(c,`生命 ${b.hp??run?.hp??0} / ${b.maxHp??'—'}`,615,347,16,K.cream);text(c,`护盾 ${b.shield??0}   灼烧 ${b.burn??0}`,615,375,15,K.blue);text(c,`能量 ${b.energy??0}   出牌 ${b.plays??0}/${playLimit}`,615,402,15,K.gold2);
- if(b.professionId==='tamer'||b.petHp)text(c,`灯狐 ${b.petHp??0}`,615,423,14,K.gold2);if(b.professionId==='forger'||b.forge)text(c,`锻值 ${b.forge??0}`,785,423,14,K.gold2);
- rect(c,31,462,898,292,WOOD,18);rect(c,39,470,882,276,[31,35,43],13);line(c,48,466,912,466,WOOD_GOLD,2);line(c,48,750,912,750,WOOD_DARK,2);for(const x of [57,904])for(const y of [469,747])circle(c,x,y,3,[205,164,109]);
- text(c,'手牌',51,477,21,K.cream);text(c,`抽牌 ${b.draw?.length??0}   弃牌 ${b.discard?.length??0}`,690,481,15,K.muted);text(c,model.hints[0]||'先读意图，再选择手牌。',51,498,13,K.gold2);
- const cardW=Math.min(160,Math.floor(850/Math.max(hand.length,1))),gap=hand.length>5?5:12,total=hand.length*cardW+(hand.length-1)*gap,start=480-total/2;
+ title(c,'第 '+(run?.act??1)+' 幕 · 第 '+(run?.slot??1)+' 站',short(profession.name,7)+' 迎战 '+short(enemy.name||'敌人',8),'回合 '+(b.turn??0)+'  ·  '+(b.enemyPhase===2?'第二阶段':'第一阶段'));
+ rect(c,31,112,898,332,K.panel,18);rect(c,34,115,892,4,[47,75,96],3);rect(c,34,440,892,2,[44,67,83],2);
+ line(c,480,128,480,430,K.line,2);circle(c,480,129,4,K.gold);circle(c,480,429,4,K.gold);
+ line(c,52,123,466,123,[83,111,128],1);line(c,494,123,908,123,[111,89,63],1);
+ rect(c,57,132,86,27,[39,58,75],8);circle(c,70,145,4,[167,180,183]);text(c,'敌方',82,137,F.meta,K.muted);
+ text(c,enemy.role||'普通',435,137,F.meta,K.gold2,false);
+ circle(c,268,276,78,[27,48,66]);circle(c,268,276,70,[31,55,73]);
+ silhouette(c,268,276,b.professionId,true,enemy.role,b.enemyId);
+ text(c,enemy.name||'敌人',268,353,F.title,K.cream,true);
+ rect(c,104,391,328,21,[10,20,31],8);bar(c,108,395,320,13,b.enemyHp,b.enemyMaxHp,K.red);
+ text(c,String(b.enemyHp??0)+' / '+String(b.enemyMaxHp??0),268,414,F.meta,K.muted,true);
+ rect(c,507,130,397,121,[18,36,53],12);rect(c,507,130,397,4,K.gold,4);
+ text(c,'本回合意图',526,139,F.small,K.gold2);
+ text(c,intentLabel(b.intent),526,161,F.headline,K.cream);
+ if(intentDetail(b.intent))rgbaText(c,intentDetail(b.intent),526,193,F.small,K.muted,25);
+ const enemyStats=[['护甲',b.enemyArmor,K.blue],['屏障',b.enemyShield,K.blue],['灼烧',b.enemyBurn,K.red]].filter(s=>s[1]);
+ let sx=526;for(const [label,value,color] of enemyStats){const caption=label+' '+value,pw=Math.max(74,[...caption].length*F.small+18);if(sx+pw>892)break;rect(c,sx,226,pw,23,[34,53,69],7);text(c,caption,sx+8,230,F.small,color);sx+=pw+7;}
+ if(b.enemyPhase===2&&enemy.phaseName){rect(c,523,256,184,24,[69,43,48],7);text(c,enemy.phaseName,534,260,F.small,K.gold2);}
+ circle(c,563,354,65,[38,51,58]);circle(c,563,354,58,[48,61,66]);
+ silhouette(c,563,378,b.professionId,false);
+ text(c,profession.name,641,280,F.title,K.cream);
+ rect(c,641,304,255,20,[11,22,32],8);bar(c,645,308,247,12,b.hp,b.maxHp,K.green);
+ text(c,'生命 '+String(b.hp??run?.hp??0)+' / '+String(b.maxHp??'—'),641,331,F.body,K.cream);
+ line(c,641,354,896,354,[63,88,104],1);
+ text(c,'护盾 '+String(b.shield??0)+'    灼烧 '+String(b.burn??0),641,360,F.meta,K.blue);
+ text(c,'能量 '+String(b.energy??0)+'    出牌 '+String(b.plays??0)+' / '+String(playLimit),641,386,F.body,K.gold2);
+ if(b.professionId==='tamer'||b.petHp)text(c,'灯狐 '+String(b.petHp??0),641,412,F.meta,K.gold2);
+ if(b.professionId==='forger'||b.forge)text(c,'锻值 '+String(b.forge??0),780,412,F.meta,K.gold2);
+ rect(c,31,462,898,292,[122,77,49],18);rect(c,38,469,884,278,[31,35,43],13);
+ line(c,49,468,911,468,[172,125,76],2);line(c,49,746,911,746,[78,55,44],2);
+ for(const x of [52,908])for(const y of [474,740]){circle(c,x,y,5,[219,178,111]);circle(c,x,y,2,[255,225,154]);}
+ text(c,'手牌',51,477,F.headline,K.cream);
+ text(c,'抽牌 '+String(b.draw?.length??0)+'   弃牌 '+String(b.discard?.length??0),690,481,F.meta,K.muted);
+ text(c,model.hints[0]||'先读意图，再选手牌。',51,500,F.meta,K.gold2);
+ const count=hand.length,cardW=count?Math.min(164,Math.floor(852/count)):164,gap=count>5?6:8,total=count*cardW+Math.max(0,count-1)*gap,start=480-total/2;
  hand.forEach((e,i)=>{
-  const card=model.cards.find(q=>q.id===e.uid),def=cardDefinition(e,catalog),x=Math.round(start+i*(cardW+gap)),y=520,w=cardW,h=202,play=card?.playable===true;
-  rect(c,x+3,y+5,w,h,[8,17,28],10);rect(c,x,y,w,h,play?K.panel2:[35,48,60],10);rect(c,x,y,w,5,play?K.gold:K.gray,5);circle(c,x+21,y+23,15,play?K.gold:K.gray);text(c,card?.cost??0,x+21,y+14,16,K.ink,true);text(c,`#${e.uid}`,x+43,y+16,13,play?K.gold2:K.muted);
-  if(e.upgraded){rect(c,x+w-47,y+10,39,19,[110,91,53],6);text(c,'强化+',x+w-43,y+12,11,K.gold2);}
-  text(c,short(card?.name||def.name||e.cardId,8),x+w/2,y+37,15,play?K.cream:K.muted,true);
-  let cx=x+8;for(const group of (card?.categories||[]).slice(0,2)){const chipW=Math.max(34,[...group.label].length*12+12);rect(c,cx,y+58,chipW,19,group.color,6);text(c,group.label,cx+6,y+61,11,K.ink);cx+=chipW+5;}
-  const effects=card?.effects||[];let ey=y+84;for(const effect of effects.slice(0,3)){for(const entry of wrapLine(effect,Math.max(8,Math.floor((w-18)/11)))){text(c,entry,x+9,ey,11,play?K.white:K.muted);ey+=13;}}
-  let ry=Math.max(y+135,ey+3);for(const warning of (card?.warnings||[]).filter(v=>v!=='已强化'))for(const entry of wrapLine(warning,Math.max(8,Math.floor((w-18)/10)))){text(c,entry,x+9,ry,10,K.red);ry+=12;}
-  if(card?.reason)rgbaText(c,card.reason,x+9,y+177,10,[232,181,143],Math.max(8,Math.floor((w-18)/10)));else text(c,'可出牌',x+w-57,y+178,11,K.green);
+  const card=model.cards.find(q=>q.id===e.uid),def=cardDefinition(e,catalog),x=Math.round(start+i*(cardW+gap)),y=520,w=cardW,h=204,play=card?.playable===true;
+  const border=play?[145,108,58]:[72,88,102],face=play?[28,52,72]:[35,47,59];
+  rect(c,x+3,y+5,w,h,[8,17,28],10);rect(c,x,y,w,h,face,10);rect(c,x+1,y+1,w-2,5,play?K.gold:K.gray,5);line(c,x+1,y+2,x+w-2,y+2,border,2);line(c,x+1,y+2,x+1,y+h-2,border,2);line(c,x+w-2,y+2,x+w-2,y+h-2,border,2);line(c,x+1,y+h-2,x+w-2,y+h-2,border,2);
+  circle(c,x+22,y+24,17,play?K.gold:[91,108,120]);circle(c,x+22,y+24,13,play?K.gold2:[112,128,139]);text(c,card?.cost??0,x+22,y+14,F.body,K.ink,true);
+  text(c,'#'+e.uid,x+45,y+17,F.small,play?K.gold2:K.muted);
+  if(e.upgraded){rect(c,x+w-51,y+10,43,21,[100,81,49],6);text(c,'强化+',x+w-47,y+13,F.small,K.gold2);}
+  text(c,short(card?.name||def.name||e.cardId,7),x+w/2,y+42,F.title,play?K.cream:K.muted,true);
+  line(c,x+9,y+65,x+w-9,y+65,play?[71,95,111]:[64,78,89],1);
+  let cx=x+9;for(const group of (card?.categories||[]).slice(0,2)){const chipW=Math.max(42,[...group.label].length*F.small+14);if(cx+chipW>x+w-8)break;rect(c,cx,y+70,chipW,22,group.color,7);text(c,group.label,cx+7,y+74,F.small,K.ink);cx+=chipW+6;}
+  const maxChars=Math.max(6,Math.floor((w-34)/F.small));
+  const lines=(card?.effects||[]).slice(0,3).flatMap(effect=>wrapLine(effect,maxChars)).slice(0,3);
+  lines.forEach((entry,index)=>{const yy=y+101+index*17;circle(c,x+12,yy+5,2,play?K.gold:K.gray);text(c,entry,x+20,yy,F.small,play?K.white:K.muted);});
+  const warning=(card?.warnings||[]).find(value=>value!=='已强化');
+  if(warning){const warningLimit=Math.max(5,Math.floor((w-28)/F.small));text(c,short(warning,warningLimit),x+11,y+153,F.small,K.red);}
+  const state=card?.reason||'可出牌',stateWidth=Math.max(46,w-18);
+  rect(c,x+9,y+176,stateWidth,21,play?[27,61,51]:[72,49,47],7);
+  text(c,short(state,Math.max(4,Math.floor((stateWidth-14)/F.small))),x+w/2,y+179,F.small,play?K.green:[239,172,139],true);
  });
- text(c,'完整效果见下方文字',480,727,12,K.gold2,true);
+ text(c,'完整效果见下方说明',480,728,F.small,K.gold2,true);
  return encodePNG(c);
 }
 export async function renderRogueImage(run,{view='auto',env}={}){const mode=view==='auto'?(run?.phase==='BATTLE'&&run?.battle?'battle':'map'):view;return mode==='battle'?battleImage(run,env):mapImage(run,mode,env);}
