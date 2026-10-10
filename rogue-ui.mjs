@@ -85,7 +85,7 @@ function cid(run, action, arg) {
 const button = (label, custom_id, style = 1, disabled = false) => ({ type: 2, style, label: cap(label, 80), custom_id, ...(disabled ? { disabled: true } : {}) });
 const row = (...components) => ({ type: 1, components });
 function select(custom_id, placeholder, options, disabled = false) {
-  const items = options.slice(0, 25).map((o) => ({ label: cap(o.label, 80), value: cap(String(o.value), 100), ...(o.description ? { description: cap(o.description, 100) } : {}) }));
+  const items = options.slice(0, 25).map((o) => ({ label: cap(o.label, 80), value: cap(String(o.value), 100), ...(o.description ? { description: cap(o.description, 100) } : {}), ...(o.default === true ? { default: true } : {}) }));
   return { type: 3, custom_id, placeholder: cap(placeholder, 150), min_values: 1, max_values: 1, options: items, ...(disabled ? { disabled: true } : {}) };
 }
 function panel(title, description, components = [], update = false) {
@@ -121,10 +121,10 @@ export function renderRogueHome({ challengeProfession = null, homeInfo = {}, upd
   ];
   if (choices.length > 1) components.push(row(select('rl:settings-profession', '选择职业并查看已解锁难度', choices)));
   components.push(row(button('每日挑战练习', 'rl:practice:challenge', 2), button('查看榜单', 'rl:board', 2), button('玩法指南', 'rl:guide', 2), button('世界与角色', 'rl:lore', 2)));
-  const hint = '每轮抽5张、3能量、最多打3张；共15个站点。普通难度按职业分别解锁，练习局也会推进难度。每日挑战难度由服务器固定。';
+  const hint = '每轮抽5张、3能量、最多打3张；全程15个站点。\n普通远征的难度按职业分别解锁；每日挑战的职业与难度由服务器固定。';
   const progress = (homeInfo.progress ?? []).map((p) => `${PROFESSIONS[p.professionId]?.name ?? p.professionId} ${p.unlocked}/10（通关${p.clears ?? 0}）`);
   const challenge = homeInfo.challengeProfession ? `${PROFESSIONS[homeInfo.challengeProfession]?.name ?? homeInfo.challengeProfession} · 难度${homeInfo.challengeDifficulty ?? 0}` : challengeProfession ? `${PROFESSIONS[challengeProfession]?.name ?? challengeProfession} · 难度${homeInfo.challengeDifficulty ?? 0}` : '服务器每日固定';
-  return panel('灯下迷城', `${WORLD_INTRO}\n\n先选择职业，再查看该职业的难度进度。每天前2次正式开局有奖；练习局不发经济奖励。\n每日挑战：${challenge}\n职业进度：${progress.join('；') || '各职业从难度0开始'}\n\n${hint}`, components, update);
+  return panel('灯下迷城', `${WORLD_INTRO}\n\n先选择职业，再查看已解锁的难度。\n正式局：每天前2次开局可获得金币奖励，实际到账受每日上限限制。\n练习局：不发金币、不占奖励开局次数；通关也能推进职业难度。\n每日挑战：${challenge}\n职业进度：${progress.join('；') || '各职业从难度0开始'}\n\n${hint}`, components, update);
 }
 
 export function renderRogueSettings({ professionId, difficulty = 0, mode = 'normal', homeInfo = {}, update = false, catalogVersion = '0.8' } = {}) {
@@ -142,7 +142,7 @@ export function renderRogueSettings({ professionId, difficulty = 0, mode = 'norm
   if (options.length) components.push(row(select(`rl:settings-difficulty:${professionId}`, `已解锁难度（当前 ${selected}）`, options)));
   components.push(row(button(`正式开局 · 难度${selected}`, `rl:start:normal:${professionId}:${selected}`, 1), button(`练习开局 · 难度${selected}`, `rl:practice:normal:${professionId}:${selected}`, 2)));
   components.push(row(button('角色故事', `rl:lore:${professionId}`, 2), button('返回首页', 'rl:home', 2)));
-  return panel(`${prof.name} · 开局设置`, `${prof.description ?? ''}\n${PROFESSION_STORIES[professionId]?.motive ?? ''}\n\n职业难度：${unlocked}/10 已解锁 · 通关 ${progress?.clears ?? 0} 次。当前选择：难度${selected}「${difficultyDef?.name ?? '基准'}」。\n累计规则：${cumulativeRules.join('；')}\n选择更高难度需要先在本职业通关。`, components, update);
+  return panel(`${prof.name} · 开局设置`, `${prof.description ?? ''}\n${PROFESSION_STORIES[professionId]?.motive ?? ''}\n\n职业难度：${unlocked}/10 已解锁 · 通关 ${progress?.clears ?? 0} 次。当前选择：难度${selected}「${difficultyDef?.name ?? '基准'}」。\n累计规则：${cumulativeRules.join('；')}\n选择更高难度需要先在本职业通关。\n\n正式开局：每日前2次可获得金币奖励；超过仍可游玩。\n练习开局：不发金币、不占奖励次数；通关也按职业记录进度。`, components, update);
 }
 
 export function renderRogueReading(kind = 'guide', professionId, { update = false, run = null } = {}) {
@@ -250,7 +250,7 @@ function renderBattle(run, update) {
   else intentLine = actionText(intent);
   const drawCount = expanded(run) ? 5 : 4, playLimit = expanded(run) ? 3 : 2;
   const playerMaxHp = run.maxHp ?? (expanded(run) && (run.difficulty ?? 0) >= 6 ? 28 : ACTIVE_CATALOG.player.maxHp);
-  const description = [`${enemy.name ?? '敌人'}　生命 ${b.enemyHp ?? '?'}　护甲 ${b.enemyArmor ?? 0}　架盾 ${b.enemyShield ?? 0}　灼烧 ${b.enemyBurn ?? 0}`, `你的生命 ${run.hp}　护盾 ${b.shield ?? 0}　能量 ${b.energy ?? 0}　已出牌 ${b.plays ?? 0}/${playLimit}`, `意图：${intentLine}`, `手牌：\n${(b.hand ?? []).map((e) => `#${e.uid} ${cardText(e)}${cardDef(e)?.selfCost >= (b.hp ?? run.hp) && cardDef(e)?.selfCost ? ' ⚠ 自损会倒下' : ''}`).join('\n') || '无'}`];
+  const description = [`${enemy.name ?? '敌人'}　生命 ${b.enemyHp ?? '?'}　护甲 ${b.enemyArmor ?? 0}　架盾 ${b.enemyShield ?? 0}　灼烧 ${b.enemyBurn ?? 0}`, `你的生命 ${b.hp ?? run.hp}/${b.maxHp ?? playerMaxHp}　护盾 ${b.shield ?? 0}　能量 ${b.energy ?? 0}　已出牌 ${b.plays ?? 0}/${playLimit}${b.burn > 0 ? `\n⚠ 你的灼烧 ${b.burn}：轮末扣血，护盾挡不住。` : ''}`, `意图：${intentLine}`, `手牌：\n${(b.hand ?? []).map((e) => `#${e.uid} ${cardText(e)}${cardDef(e)?.selfCost >= (b.hp ?? run.hp) && cardDef(e)?.selfCost ? ' ⚠ 自损会倒下' : ''}`).join('\n') || '无'}`];
   if (run.room?.storyEffect) description.push(`本战影响：${run.room.storyEffect}`);
   description.push(...storyLines(run));
   if (b.enemyPhase === 2) {
@@ -287,7 +287,7 @@ function renderBattle(run, update) {
   }
   description.push(`本轮提示：${battleHints(b, hand.map(cardDef), playLimit).join(' ')}`);
   if (disabledReasons.length) description.push(`暂不可用：${disabledReasons.join('；')}`);
-  if (playOptions.length) components.push(row(select(cid(run, 'play-target'), '选择要打出的牌与目标', playOptions)));
+  if (playOptions.length) components.push(row(select(cid(run, 'play-target'), `选择牌与目标 · 剩余${Math.max(0, playLimit - (b.plays ?? 0))}次出牌 · ${b.energy ?? 0}能量`, playOptions)));
   else if (hand.length) components.push(row(select(cid(run, 'play-target'), '本轮没有可打出的牌', [{ label: '无可用牌', value: 'none' }], true)));
   const inventory = Array.isArray(run.inventory) ? run.inventory : [];
   const usedItem = Boolean(b.itemUsed || b.itemsUsed || run.itemsUsedThisBattle);
@@ -480,8 +480,9 @@ function renderReward(run, update) {
       const sameAsDefault = kind === 'item'
         ? choice === defaultChoice && replaceIndex == null
         : choice === defaultChoice;
-      const status = choice == null ? '（已跳过）' : sameAsDefault ? '（推荐默认）' : '（已更换）';
-      summaries.push(`${kind === 'card' ? '新卡' : kind === 'relic' ? '遗物' : '道具'}：${chosenName}${status}`);
+      const status = choice == null ? '（不领取）' : sameAsDefault ? '（默认选项）' : '（当前选择）';
+      const effect = choice == null ? '' : kind === 'card' ? cardText({ cardId: choice }) : kind === 'relic' ? relicOf(choice)?.description : ACTIVE_ITEMS[choice]?.description;
+      summaries.push(`${kind === 'card' ? '新卡' : kind === 'relic' ? '遗物' : '道具'}：${chosenName}${status}${effect ? `\n${effect}` : ''}`);
       const opts = candidates.flatMap((entry) => {
         const id = typeof entry === 'string' ? entry : entry.id;
         if (kind !== 'item') return [{ label: `${(kind === 'card' ? cardName(id) : relicName(id))}${id === choice ? ' · 当前' : ''}`, value: id,
@@ -489,12 +490,14 @@ function renderReward(run, update) {
         if ((run.inventory ?? []).length < 2) return [{ label: `${ACTIVE_ITEMS[id]?.name ?? id} · 放入空槽${id === choice && replaceIndex == null ? ' · 当前' : ''}`, value: `${id}:-1` }];
         return (run.inventory ?? []).map((oldId, index) => ({ label: `${ACTIVE_ITEMS[id]?.name ?? id} · 替换槽${index + 1}${id === choice && replaceIndex === index ? ' · 当前' : ''}`, value: `${id}:${index}`, description: `替换${ACTIVE_ITEMS[oldId]?.name ?? oldId}` }));
       });
-      opts.push({ label: '跳过此项', value: 'skip', description: '不领取这一类奖励' });
-      rows.push(row(select(cid(run, 'reward-select', kind), `更换${kind === 'card' ? '新卡' : kind === 'relic' ? '遗物' : '道具'}候选`, opts)));
+      for (const option of opts) option.default = option.value === (kind === 'item' && choice != null ? `${choice}:${replaceIndex ?? -1}` : choice);
+      opts.push({ label: '跳过此项', value: 'skip', description: '不领取这一类奖励', default: choice == null });
+      rows.push(row(select(cid(run, 'reward-select', kind), `选择${kind === 'card' ? '新卡' : kind === 'relic' ? '遗物' : '道具'} · 选后还需确认领取`, opts)));
     }
-    rows.push(row(button('确认领取推荐组合', cid(run, 'reward-claim'), 1), button('跳过全部奖励', cid(run, 'reward-skip'), 2)));
+    rows.push(row(button('确认领取所选奖励', cid(run, 'reward-claim'), 1), button('跳过全部奖励', cid(run, 'reward-skip'), 2)));
     rows.push(controlRow(run));
-    return panel('战利品 · 一键领取', `${summaries.join('\n')}\n确认领取会一次提交上述组合；可先更换任一候选。`, rows, update);
+    const itemHint = kinds.includes('item') && (run.inventory ?? []).length >= 2 && selections.item?.id == null ? '\n道具栏已满：选择替换位置才会领取新道具，也可以跳过。' : '';
+    return panel('战利品 · 等待领取', `奖励尚未领取。可更换下拉选项，最后点击「确认领取所选奖励」继续；不更换就领取默认选项。\n\n${summaries.join('\n\n')}${itemHint}`, rows, update);
   }
   const stage = reward.queue?.[reward.index];
   if (!stage) return panel('战利品', '当前奖励已处理。', [controlRow(run)], update);
@@ -520,12 +523,16 @@ function renderResult(run, update) {
   const score = run.score ?? receipt.score;
   const rank = run.rankPending || receipt.rankPending ? '排名更新待处理' : (run.rank ? `当前排名：${run.rank}` : '');
   const lines = [`结果：${({ CLEAR: '通关', DEFEAT: '远征失败', RETREAT: '撤退', ABANDON: '放弃', EXPIRED: '远征结束' })[result.type] ?? '远征结束'}`, `完成幕数：${run.completedActs ?? 0}　余烬：${run.embers ?? 0}`];
-  if (Number.isFinite(base)) lines.push(`基础奖励：${base}`);
-  if (Number.isFinite(amount)) lines.push(`实际到账：${amount}`);
+  if (Number.isFinite(base)) lines.push(`基础奖励：${base} 金币`);
+  if (Number.isFinite(amount)) lines.push(`实际到账：${amount} 金币`);
+  if (run.rewardEligible === false) lines.push('本局不发金币：练习局或每日奖励开局次数已用完。通关仍会记录职业进度。');
+  else if (run.rewardEligible === true && Number.isFinite(base) && Number.isFinite(amount) && amount < base) lines.push('实际奖励受到每日金币上限限制。');
+  if (result.type === 'DEFEAT' && result.reason === 'HP_ZERO') lines.push('失败原因：生命耗尽。');
+  if (result.type === 'DEFEAT' && result.reason === 'LOST_LIGHT') lines.push('失败原因：未能在12轮内击败敌人，灯火熄灭。');
   if (Number.isFinite(score)) lines.push(`积分：${score}`);
   if (run.settlementPending) lines.push('结果已保存，收益待入账。重新打开冒险会重试，不会重复领取。');
   if (rank) lines.push(rank);
-  const defaultProfession = Object.hasOwn(PROFESSIONS, 'traveler') ? 'traveler' : Object.keys(PROFESSIONS)[0];
+  const defaultProfession = Object.hasOwn(PROFESSIONS, run.professionId) ? run.professionId : Object.hasOwn(PROFESSIONS, 'traveler') ? 'traveler' : Object.keys(PROFESSIONS)[0];
   return panel('远征结算', lines.join('\n'), [row(button('再来一局', `rl:settings:${defaultProfession}`), button('挑战远征', 'rl:start:challenge')), row(button('返回首页', 'rl:home', 2), button('查看榜单', 'rl:board', 2))], update);
 }
 
