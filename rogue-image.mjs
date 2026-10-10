@@ -131,7 +131,7 @@ async function battleImage(run,env){
  text(c,enemy.role||'普通',435,137,F.meta,K.gold2,false);
  circle(c,268,276,78,[27,48,66]);circle(c,268,276,70,[31,55,73]);
  silhouette(c,268,276,b.professionId,true,enemy.role,b.enemyId);
- text(c,enemy.name||'敌人',268,353,F.headline,K.cream,true);
+ text(c,enemy.name||'敌人',268,353,F.title,K.cream,true);
  rect(c,104,391,328,21,[10,20,31],8);bar(c,108,395,320,13,b.enemyHp,b.enemyMaxHp,K.red);
  text(c,String(b.enemyHp??0)+' / '+String(b.enemyMaxHp??0),268,414,F.meta,K.muted,true);
  rect(c,507,130,397,121,[18,36,53],12);rect(c,507,130,397,4,K.gold,4);
@@ -143,7 +143,7 @@ async function battleImage(run,env){
  if(b.enemyPhase===2&&enemy.phaseName){rect(c,523,256,184,24,[69,43,48],7);text(c,enemy.phaseName,534,260,F.small,K.gold2);}
  circle(c,563,354,65,[38,51,58]);circle(c,563,354,58,[48,61,66]);
  silhouette(c,563,378,b.professionId,false);
- text(c,profession.name,641,280,F.body,K.cream);
+ text(c,profession.name,641,280,F.title,K.cream);
  rect(c,641,304,255,20,[11,22,32],8);bar(c,645,308,247,12,b.hp,b.maxHp,K.green);
  text(c,'生命 '+String(b.hp??run?.hp??0)+' / '+String(b.maxHp??'—'),641,331,F.body,K.cream);
  line(c,641,354,896,354,[63,88,104],1);
@@ -165,7 +165,7 @@ async function battleImage(run,env){
   circle(c,x+22,y+24,17,play?K.gold:[91,108,120]);circle(c,x+22,y+24,13,play?K.gold2:[112,128,139]);text(c,card?.cost??0,x+22,y+14,F.body,K.ink,true);
   text(c,'#'+e.uid,x+45,y+17,F.small,play?K.gold2:K.muted);
   if(e.upgraded){rect(c,x+w-51,y+10,43,21,[100,81,49],6);text(c,'强化+',x+w-47,y+13,F.small,K.gold2);}
-  text(c,short(card?.name||def.name||e.cardId,8),x+w/2,y+42,F.body,play?K.cream:K.muted,true);
+  text(c,short(card?.name||def.name||e.cardId,7),x+w/2,y+42,F.title,play?K.cream:K.muted,true);
   line(c,x+9,y+65,x+w-9,y+65,play?[71,95,111]:[64,78,89],1);
   let cx=x+9;for(const group of (card?.categories||[]).slice(0,2)){const chipW=Math.max(42,[...group.label].length*F.small+14);if(cx+chipW>x+w-8)break;rect(c,cx,y+70,chipW,22,group.color,7);text(c,group.label,cx+7,y+74,F.small,K.ink);cx+=chipW+6;}
   const maxChars=Math.max(6,Math.floor((w-34)/F.small));
