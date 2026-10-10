@@ -5,7 +5,8 @@ const errors={INSUFFICIENT_HP:'这项交易需要保留至少1点生命。',PACT
 // Only call after the existing worker verifies Discord's request signature.
 // Identity comes from signed interaction fields, never from custom_id or body
 // overrides. Clock/seed/payment eligibility remain service-owned.
-export function dispatchRogue(service,interaction){
+export function dispatchRogue(service,interaction,{onVisual}={}){
+ const render=(run,options)=>{const reply=renderRogue(run,options);if(run)onVisual?.(run,'auto');return reply;};
  const id=interaction?.member?.user?.id;
  const guild=interaction?.guild_id;
  if(!id||!guild||guild!==service.guild)return privateError('请在所属服务器打开自己的冒险。');
@@ -14,24 +15,24 @@ export function dispatchRogue(service,interaction){
  const homeInfo=()=>service.homeInfo?.({guild,id})??{progress:[],challengeProfession:service.challengeProfession?.(base)??null,challengeDifficulty:0};
  const update=interaction.type===3&&!!(interaction.message?.flags&64);
  try{
-  if(interaction.type===2){const run=service.resume(base);return run&&run.phase!=='RESULT'?renderRogue(run):renderRogueHome({homeInfo:homeInfo()});}
+  if(interaction.type===2){const run=service.resume(base);return run&&run.phase!=='RESULT'?render(run):renderRogueHome({homeInfo:homeInfo()});}
   const parsed=parseRogueAction(interaction.data?.custom_id,interaction.data?.values||[]);
   if(!parsed)return privateError('这个冒险按钮无效，请重新打开冒险。');
   if(parsed.ui==='board')return renderRogueBoard(service.leaderboard(base),{update});
   if(parsed.ui==='home'){
-   const run=service.resume(base);return run&&run.phase!=='RESULT'?renderRogue(run,{update}):renderRogueHome({homeInfo:homeInfo(),update});
+   const run=service.resume(base);return run&&run.phase!=='RESULT'?render(run,{update}):renderRogueHome({homeInfo:homeInfo(),update});
   }
   if(parsed.ui==='settings'){
    const info=homeInfo();
    return renderRogueSettings({professionId:parsed.professionId,difficulty:parsed.difficulty,homeInfo:info,update,catalogVersion:info.rulesVersion??'0.8'});
   }
-  if(parsed.ui==='start'||parsed.ui==='practice')return renderRogue(service.start({...base,mode:parsed.mode??'normal',practice:parsed.ui==='practice',professionId:parsed.professionId,difficulty:parsed.difficulty??0}),{update});
+  if(parsed.ui==='start'||parsed.ui==='practice')return render(service.start({...base,mode:parsed.mode??'normal',practice:parsed.ui==='practice',professionId:parsed.professionId,difficulty:parsed.difficulty??0}),{update});
   const request={...base,runId:parsed.runId,version:parsed.version};
   if(parsed.ui){
    const run=service.resume(request);
    if(!run)return renderRogueHome();
-   if(parsed.ui==='refresh')return renderRogue(run,{update});
-   if(parsed.ui==='details')return renderRogueDetails(run,parsed.kind,{update,page:parsed.page});
+   if(parsed.ui==='refresh')return render(run,{update});
+   if(parsed.ui==='details'){const reply=renderRogueDetails(run,parsed.kind,{update,page:parsed.page});if(parsed.kind==='map')onVisual?.(run,'map');return reply;}
    if(parsed.version!==run.version)return privateError(errors.STALE);
    if(parsed.ui==='uid-page'){
     if(run.phase!=='ROOM'||run.room?.type!==parsed.source)return privateError('当前房间不能打开该牌组页面。');
@@ -48,12 +49,12 @@ export function dispatchRogue(service,interaction){
      const price=run.room.prices?.[parsed.kind]??0;
      if(run.room.services?.[parsed.kind]||run.embers<price)return privateError('当前商店服务不可用。');
      const updated=service.act({...request,action:{type:'SHOP',choice:parsed.kind,uid:parsed.uid}});
-     return renderRogue(updated,{update});
+     return render(updated,{update});
     }
     if(parsed.source==='camp'){
      if(parsed.kind!=='upgrade')return privateError('营地只提供升级服务。');
      const updated=service.act({...request,action:{type:'CAMP',choice:'upgrade',uid:parsed.uid}});
-     return renderRogue(updated,{update});
+     return render(updated,{update});
     }
     const choice=parsed.kind, candidates=choice==='upgrade'?run.room.upgradeCandidates:run.room.removeCandidates;
     if(!(run.room.choices||[]).includes(choice)||Array.isArray(candidates)&&!candidates.includes(parsed.uid))return privateError('这张牌不在当前事件的候选范围内。');
@@ -75,6 +76,7 @@ export function dispatchRogue(service,interaction){
    return privateError('当前阶段不能进行这个操作。');
   }
   const run=service.act({...request,action:parsed.action});
-  return renderRogue(run,{update});
+  return render(run,{update});
  }catch(e){return privateError(errors[e.code]||'这次操作未完成，请重新打开冒险。');}
 }
+

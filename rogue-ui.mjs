@@ -100,7 +100,7 @@ function panel(title, description, components = [], update = false) {
 }
 function optionsFrom(ids, nameFn, extra = () => '') { return ids.map((id) => ({ label: cap(nameFn(id), 80), value: String(id), description: cap(extra(id), 100) })); }
 function controlRow(run, checkpoint = false) {
-  return row(button('刷新面板', cid(run, 'refresh'), 2), button('牌组详情', cid(run, 'details', 'deck'), 2), checkpoint ? button('确认撤退', cid(run, 'ask-retreat'), 4) : button('放弃远征', cid(run, 'ask-abandon'), 4));
+  return row(button('刷新面板', cid(run, 'refresh'), 2), button('牌组详情', cid(run, 'details', 'deck'), 2), button('迷城地图', cid(run, 'details', 'map:0'), 2), checkpoint ? button('确认撤退', cid(run, 'ask-retreat'), 4) : button('放弃远征', cid(run, 'ask-abandon'), 4));
 }
 
 export const rogueCommand = { name: '灯下迷城', description: '打开灯下迷城远征面板', type: 1, integration_types: [0], contexts: [0] };
@@ -691,3 +691,4 @@ export function parseRogueAction(customId, values = []) {
     default: return null;
   }
 }
+

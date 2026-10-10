@@ -12,7 +12,7 @@ import {lobbyGameRequest} from './tavern-lobby-routing.mjs';
 import {RogueService} from './rogue-service.mjs';
 import {CATALOG_V08,PROFESSIONS,ITEMS,EVENTS,DIFFICULTIES} from './rogue-content-v08.mjs';
 import {CURRENT_RULE_VERSION} from './rogue-run.mjs';
-import {dispatchRogue} from './rogue-interactions.mjs';
+import {rogueVisualResponse,patchRoguePanel} from './rogue-presentation.mjs';
 import {rogueInteraction,rogueCommand} from './rogue-ui.mjs';
 import {petInteraction,immediatePetReply,petDeferredReply,finishPet} from './pet-ui.mjs';
 import {dispatchPetHome,petHomeRequest} from './pet-registry.mjs';
@@ -125,7 +125,7 @@ export class PokerTable extends DurableObject {
   }
   async dispatch(payload){
       if(payload.op==='rogueInteraction'){
-        try{return json(dispatchRogue(this.rogueService(payload.guild),payload.interaction));}
+        try{return await rogueVisualResponse(this.rogueService(payload.guild),payload.interaction);}
         catch(e){return json(privateReply(e.message||'远征暂时无法打开，请稍后重试。'));}
       }
       if(payload.op==='petHome'){try{return json(await dispatchPetHome(this.ctx.storage,payload));}catch(e){return json({error:e.message});}}
@@ -165,7 +165,7 @@ export class PokerTable extends DurableObject {
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
       if(payload.op==='unoRank'){try{return json(await this.rankings.dispatch(payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.55',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG_V08.cards).length,relics:Object.keys(CATALOG_V08.relics).length,enemies:Object.keys(CATALOG_V08.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15}});}
+      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.56',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG_V08.cards).length,relics:Object.keys(CATALOG_V08.relics).length,enemies:Object.keys(CATALOG_V08.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true}}});}
       if(payload.op==='register'){
         if(!this.env.BOT_TOKEN)return json({registered:false});
         if(await this.ctx.storage.get('commandVersion')===COMMAND_VERSION)return json({registered:true});
@@ -318,10 +318,7 @@ async function finishRogue(env,i){
   try{
     const stub=env.TABLES.get(env.TABLES.idFromName(`tavern:${i.guild_id}`));
     const response=await stub.fetch('https://internal',{method:'POST',body:JSON.stringify({op:'rogueInteraction',guild:i.guild_id,interaction:i})});
-    const reply=await response.json();
-    const data=reply?.data??{content:'远征暂时无法打开，请稍后重试。',allowed_mentions:{parse:[]}};
-    delete data.flags; delete data.ephemeral;
-    await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${i.token}/messages/@original`,{method:'PATCH',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify(data),signal:AbortSignal.timeout(5000)});
+    await patchRoguePanel(response,`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${i.token}/messages/@original`,{authorization:`Bot ${env.BOT_TOKEN}`});
   }catch(error){console.error('rogue_panel_update_failed',{reason:error.message});}
 }
 async function handle(request,env,ctx){
@@ -364,6 +361,7 @@ export default {
   },
   async scheduled(event,env,ctx){ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-emojis')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'appEmojis'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-registration')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'register'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-discord-gateway')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayEnsure'})}));}
 };
+
 
 
 
