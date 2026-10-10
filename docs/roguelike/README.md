@@ -5,6 +5,7 @@
 
 | 阅读目的 | 当前文件 |
 |---|---|
+| 尖塔2参考依据、远期职业与混搭补充（主案v0.5优先） | [参考补充](CONTENT_EXPANSION_PLAN.md) |
 | 公共规则、逐段结算与持久化边界 | [公共规范v0.4](ROGUELIKE_CORE_SPEC.md) |
 | 程序模块/验证与生产连接断点 | [实现说明v0.4](IMPLEMENTATION_V04.md) |
 | 评分、货币与同题资格 | [经济契约v0.4](ECONOMY_AND_RANKING_V04.md) |
