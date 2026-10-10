@@ -147,9 +147,11 @@ test('shop and event have free leave; event payment waits for a confirmation pan
   const event = renderRogue(base({ room: { type: 'event', candidates: ['a3_knell_arc'] } }));
   const leaveEvent = event.data.components.flatMap((r) => r.components).find((c) => c.custom_id.endsWith(':event-leave')).custom_id;
   assert.deepEqual(parseRogueAction(leaveEvent).action, { type: 'EVENT', choice: 'leave' });
-  const askHeal = parseRogueAction(event.data.components[0].components[0].custom_id);
+  const eventComponents = event.data.components.flatMap((r) => r.components);
+  const askHeal = parseRogueAction(eventComponents.find((c) => c.custom_id.endsWith(':event-heal-ask')).custom_id);
   assert.equal(askHeal.ui, 'event-confirm');
-  const askCard = parseRogueAction(event.data.components[1].components[0].custom_id, ['a3_knell_arc']);
+  const cardSelect = eventComponents.find((c) => c.custom_id.endsWith(':event-card-ask'));
+  const askCard = parseRogueAction(cardSelect.custom_id, ['a3_knell_arc']);
   assert.deepEqual(askCard, { ui: 'event-confirm', runId: 'run_123', version: 7, kind: 'card', cardId: 'a3_knell_arc' });
   const payment = renderRogueConfirmation(base(), { type: 'event-card', cardId: 'a3_knell_arc' });
   assert.match(payment.data.embeds[0].description, /1能量/);

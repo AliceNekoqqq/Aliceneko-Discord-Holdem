@@ -26,7 +26,7 @@ function fixture(guild='1'){
  return {db,service,p,one,terminal,setFault:v=>fault=v,setNow:v=>currentTime=v,host,clock};
 }
 const command=(p,r,requestId,action,now=p.now)=>({...p,runId:r.runId,version:r.version,requestId,action,now});
-test('production service defaults to v0.7 and challenge profession is fixed server-side',()=>{
+test('production service defaults to v0.8 and challenge profession is fixed server-side',()=>{
  const f=fixture(),service=new RogueService(f.host,'1',{idFactory:()=> 'daily-v06',clock:f.clock});
  assert.equal(service.rulesVersion,CURRENT_RULE_VERSION);
  const run=service.start({...f.p,requestId:'v06-start',professionId:'traveler',inventory:['tonic','bandage']});
@@ -164,7 +164,7 @@ test('terminal action stays frozen when payout fails; another run can start and 
 });
 
 function expandedFixture(){const f=fixture();f.service=new RogueService(f.host,'1',{idFactory:(()=>{let n=0;return ()=>`v07-${++n}`})(),clock:f.clock});return f;}
-test('v07 progress unlocks one rung per profession, survives restart, and ignores repeated settlement',()=>{
+test('v08 progress unlocks one rung per profession, survives restart, and ignores repeated settlement',()=>{
  const f=expandedFixture();let r=f.service.start({...f.p,mode:'normal',practice:true,professionId:'tamer',difficulty:0});f.terminal(r);f.service.settle({...f.p,runId:r.runId});
  assert.deepEqual(f.service.progressFor('2','tamer'),{professionId:'tamer',unlocked:1,clears:1});
  f.service.settle({...f.p,runId:r.runId});assert.equal(f.service.progressFor('2','tamer').clears,1);
@@ -174,13 +174,13 @@ test('v07 progress unlocks one rung per profession, survives restart, and ignore
  r=f.service.start({...f.p,requestId:'level1',mode:'normal',practice:true,professionId:'tamer',difficulty:1});f.terminal(r);f.service.settle({...f.p,runId:r.runId});assert.equal(f.service.progressFor('2','tamer').unlocked,2);
  r=f.service.start({...f.p,requestId:'repeat0',mode:'normal',practice:true,professionId:'tamer',difficulty:0});f.terminal(r);f.service.settle({...f.p,runId:r.runId});assert.equal(f.service.progressFor('2','tamer').unlocked,2);assert.equal(f.service.progressFor('2','tamer').clears,3);
 });
-test('v07 progress and economy roll back together on SQL failure, then settle exactly once',()=>{
+test('v08 progress and economy roll back together on SQL failure, then settle exactly once',()=>{
  const f=expandedFixture(),r=f.service.start({...f.p,mode:'normal',professionId:'forger',difficulty:0});f.terminal(r);
  f.setFault('INSERT INTO rogue_progress');assert.throws(()=>f.service.settle({...f.p,runId:r.runId}));
  assert.equal(f.one('SELECT balance FROM tavern_members WHERE id=?','2').balance,60);assert.equal(f.one('SELECT COUNT(*) n FROM rogue_receipts').n,0);assert.equal(f.service.progressFor('2','forger').unlocked,0);
  f.setFault(null);f.service.settle({...f.p,runId:r.runId});assert.equal(f.service.progressFor('2','forger').unlocked,1);assert.equal(f.one('SELECT balance FROM tavern_members WHERE id=?','2').balance,90);
 });
-test('daily v07 difficulty and profession are server controlled and seeded consistently',()=>{
+test('daily v08 difficulty and profession are server controlled and seeded consistently',()=>{
  const f=expandedFixture(),r=f.service.start({...f.p,professionId:'forger',difficulty:10});assert.equal(r.professionId,f.service.challengeProfession());assert.equal(r.difficulty,f.service.challengeDifficulty());assert.match(r.seed,new RegExp(`difficulty-${r.difficulty}`));
  assert.throws(()=>f.service.homeInfo({guild:'9',id:'2'}));
 });

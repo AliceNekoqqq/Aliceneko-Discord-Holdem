@@ -1,4 +1,4 @@
-import {createRun,runAction,CURRENT_RULE_VERSION} from './rogue-run.mjs';
+import {createRun,runAction,V07_RULE_VERSION as CURRENT_RULE_VERSION} from './rogue-run.mjs';
 import {legalCards,legalItems} from './rogue-battle.mjs';
 import {CATALOG_V07 as C,PROFESSIONS} from './rogue-content-v07.mjs';
 function value(r){const b=r.battle;if(r.phase==='RESULT')return r.result.type==='CLEAR'?1000:-1000+(r.completed*30);if(!b)return 500;return 3*b.hp-2*b.enemyHp+b.shield*.8+b.enemyBurn*2+b.forge*2+b.petHp*.8+b.prepare*.4+b.mark*.4+b.energy*.1+b.items.length*.2;}

@@ -31,7 +31,7 @@ test('daily board identifies its server-fixed challenge difficulty', () => {
 });
 
 test('profession settings expose only unlocked difficulties and start tokens carry the selection', () => {
-  const view = renderRogueSettings({ professionId: 'traveler', difficulty: 2, homeInfo: { progress: [{ professionId: 'traveler', unlocked: 2, clears: 5 }] } });
+  const view = renderRogueSettings({ professionId: 'traveler', difficulty: 2, catalogVersion: '0.7', homeInfo: { progress: [{ professionId: 'traveler', unlocked: 2, clears: 5 }] } });
   assert.match(view.data.embeds[0].description, /2\/10 已解锁 · 通关 5 次/);
   assert.match(view.data.embeds[0].description, /0级 初灯：标准规则/);
   assert.match(view.data.embeds[0].description, /2级 长夜Ⅱ：继承前级/);
@@ -114,12 +114,12 @@ test('shop reads authoritative room prices and event UID operations require a se
 
   const run = base({ room: { type: 'event', title: '抄手', description: '选一张牌升级。', choices: ['upgrade', 'remove', 'gain', 'leave'], upgradeCost: 8, removeCost: 9, emberAmount: 7 } });
   const event = renderRogue(run);
-  const upgrade = components(event).find((c) => c.custom_id.endsWith(':event-upgrade-ask'));
-  assert.deepEqual(parseRogueAction(upgrade.custom_id, ['0']), { ui: 'event-confirm', runId: 'v07_run', version: 3, kind: 'upgrade', uid: 0 });
-  const confirmation = dispatchRogue({ guild: 'guild', resume: () => run }, {
-    type: 3, guild_id: 'guild', member: { user: { id: 'player' } }, message: { flags: 64 },
-    data: { custom_id: upgrade.custom_id, values: ['0'] },
-  });
+  const open = components(event).find((c) => c.custom_id.includes(':uid-page:'));
+  const service = { guild: 'guild', resume: () => run };
+  const page = dispatchRogue(service, { type: 3, guild_id: 'guild', member: { user: { id: 'player' } }, message: { flags: 64 }, data: { custom_id: open.custom_id } });
+  const target = components(page).find((c) => c.type === 3);
+  assert.deepEqual(parseRogueAction(target.custom_id, ['0']), { ui: 'uid-select', runId: 'v07_run', version: 3, source: 'event', kind: 'upgrade', uid: 0 });
+  const confirmation = dispatchRogue(service, { type: 3, guild_id: 'guild', member: { user: { id: 'player' } }, message: { flags: 64 }, data: { custom_id: target.custom_id, values: ['0'] } });
   assert.equal(confirmation.type, 7);
   assert.match(confirmation.data.embeds[0].description, /支付8余烬/);
   assert.deepEqual(parseRogueAction(components(confirmation)[0].custom_id).action, { type: 'EVENT', choice: 'upgrade', uid: 0 });
