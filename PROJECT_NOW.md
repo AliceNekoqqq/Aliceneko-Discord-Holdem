@@ -3,7 +3,8 @@
 更新时间：2026-10-11（Asia/Shanghai）
 
 - 项目：红豆粉小酒馆 / `AliceNekoqqq/Aliceneko-Discord-Holdem`；主分支 `main`；Worker `discord-holdem`。
-- 当前版本：GitHub main 为 `1.0.1-beta.62`；Cloudflare Worker `discord-holdem` 最新部署版本 109 接收100%流量。灯下迷城规则仍 v0.8，保留已有存档。
+- 当前版本：GitHub main 为 `1.0.1-beta.63`；Cloudflare Worker `discord-holdem` 部署版本 110 接收100%流量。灯下迷城规则仍 v0.8，保留已有存档。
+- beta.63 灯下迷城战斗图精修已发布：PR #6 squash 合并，提交 `f5174112504414b9f3dc84bd93878ede53071d6c`。统一字号层级，卡牌正文提升到14px、角色与卡名20px，战场分区、卡框状态和角色阴影更清楚；画布保持960×800以控制免费 Worker CPU。PR/主分支构建、资源、灯下迷城、酒馆、聊天、UGC与Worker测试均通过。生产版本 ID `65796851-7de9-4967-88cd-c4bc9ba90692`（110），部署 ID `733fc697-39b6-4af3-8ef0-b161edbf1883`，接收100%流量；当前环境未能直读 `/health`。
 - 灯下迷城卡加载已修复并上线：路线页重复地图 custom_id 导致 Discord HTTP 400 / COMPONENT_CUSTOM_ID_DUPLICATED。beta.58 删除重复按钮，修复详情/实体牌分页编号碰撞，增加唯一性校验。四规则版本存档通过命令/主页/过期刷新重进测试；无需重置存档，真人 Discord 重进尚待确认。
 - 最近状态记录：聊天短回复改动提交 `da9a893` 当时标为本地提交、GitHub 同步未通过；继续相关工作前先核对 main，勿盲目重做或重推。
 - 本轮已将 Codex 入口精简到 `PROJECT_NOW.md` 和按范围读取；纯文档提交只同步 GitHub，不触发 Worker 部署。后续普通逻辑任务不读完整历史或全仓。
