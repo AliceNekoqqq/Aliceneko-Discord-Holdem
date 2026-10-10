@@ -69,8 +69,8 @@ export function renderRogueUidPage(run, source, kind, page = 0, { update = false
   const options = visible.map((e) => ({ label: `#${e.uid} ${cardName(e.cardId)}`, value: String(e.uid), description: cardText(e) }));
   const c = [];
   if (options.length) c.push(row(select(cid(run, 'uid-select', `${source}:${kind}`), `选择要${label}的实体牌`, options)));
-  else c.push(row(button('没有可选牌', cid(run, 'refresh'), 2, true)));
-  c.push(row(button('上一页', cid(run, 'uid-page', `${source}:${kind}:${Math.max(0, active - 1)}`), 2, active === 0), button('下一页', cid(run, 'uid-page', `${source}:${kind}:${Math.min(totalPages - 1, active + 1)}`), 2, active >= totalPages - 1)));
+  else c.push(row(button('没有可选牌', cid(run, 'refresh', 'empty'), 2, true)));
+  c.push(row(button('上一页', cid(run, 'uid-prev', `${source}:${kind}:${Math.max(0, active - 1)}`), 2, active === 0), button('下一页', cid(run, 'uid-next', `${source}:${kind}:${Math.min(totalPages - 1, active + 1)}`), 2, active >= totalPages - 1)));
   c.push(row(button(source === 'shop' ? '返回商店' : '返回房间', cid(run, 'refresh'), 2)));
   return panel(`${source === 'shop' ? '商店' : source === 'camp' ? '营地' : '事件'} · ${label}牌`, `${kind === 'upgrade' ? '未升级且支持升级' : '所有牌'} · 第${active + 1}/${totalPages}页 · 共${entries.length}张。选择要处理的牌。`, c, update);
 }
@@ -90,8 +90,13 @@ function select(custom_id, placeholder, options, disabled = false) {
 }
 function panel(title, description, components = [], update = false) {
   if (components.length > 5) throw new RangeError('legacy Discord panels support at most five rows');
+  const customIds = new Set();
   for (const r of components) {
     if (r.type !== 1 || r.components.length > 5 || r.components.filter((c) => c.type === 3).length > 1) throw new RangeError('invalid legacy Discord action row');
+    for (const c of r.components) {
+      if (c.custom_id && customIds.has(c.custom_id)) throw new RangeError('duplicate Discord component custom_id');
+      if (c.custom_id) customIds.add(c.custom_id);
+    }
     for (const c of r.components) if (c.custom_id?.length > 100 || (c.type === 2 && c.label.length > 80) || (c.type === 3 && c.options.length > 25)) throw new RangeError('legacy Discord component limit exceeded');
   }
   const data = { flags: 64, content: '', embeds: [{ title: cap(title, 256), description: cap(description, 4096), color: 0x8b5a2b }], components, allowed_mentions: { parse: [] } };
@@ -218,7 +223,7 @@ export function renderRogueDetails(run, kind = 'deck', { update = false, page = 
   const visible = entries.slice(activePage * 12, (activePage + 1) * 12);
   const intro = kind === 'deck' ? `职业：${(ACTIVE_CATALOG.professions?.[run.professionId] ?? PROFESSIONS[run.professionId])?.name ?? '提灯旅人'}。${(ACTIVE_CATALOG.professions?.[run.professionId] ?? PROFESSIONS[run.professionId])?.description ?? ''}\n` : '';
   const description = `${intro}${visible.join('\n')}\n\n第${activePage + 1}/${totalPages}页 · 共${entries.length}项`;
-  const paging = row(button('上一页', cid(run, 'details', `${kind}:${Math.max(0, activePage - 1)}`), 2, activePage === 0), button('下一页', cid(run, 'details', `${kind}:${Math.min(totalPages - 1, activePage + 1)}`), 2, activePage >= totalPages - 1));
+  const paging = row(button('上一页', cid(run, 'details-prev', `${kind}:${Math.max(0, activePage - 1)}`), 2, activePage === 0), button('下一页', cid(run, 'details-next', `${kind}:${Math.min(totalPages - 1, activePage + 1)}`), 2, activePage >= totalPages - 1));
   return panel(title, description, [row(button('牌组', cid(run, 'details', 'deck:0'), kind === 'deck' ? 1 : 2), button('地图', cid(run, 'details', 'map:0'), kind === 'map' ? 1 : 2), button('遗物', cid(run, 'details', 'relics:0'), kind === 'relics' ? 1 : 2), button('道具', cid(run, 'details', 'inventory:0'), kind === 'inventory' ? 1 : 2), button('玩法与故事', cid(run, 'details', 'guide:0'), 2)), paging, row(button('返回远征', cid(run, 'refresh'), 2))], update);
 }
 
@@ -347,7 +352,7 @@ function renderRoom(run, update) {
     for (let i = 0; i < choices.length; i += 3) nodeRows.push(row(...choices.slice(i, i + 3)));
     const mapHint = expanded(run) ? '地图详情可查看已选路径与全部未来站点。' : '';
     const story = storyLines(run);
-    return panel('选择路线', `${details.join('\n\n')}\n选择地点后即进入。${story.length ? `\n远征影响：${story.join('；')}` : ''}${mapHint}`, [...nodeRows, row(button('查看完整地图', cid(run, 'details', 'map:0'), 2)), controlRow(run)], update);
+    return panel('选择路线', `${details.join('\n\n')}\n选择地点后即进入。${story.length ? `\n远征影响：${story.join('；')}` : ''}${mapHint}`, [...nodeRows, controlRow(run)], update);
   }
   if (r.type === 'camp') {
     const maxHp = run.maxHp ?? (expanded(run) && (run.difficulty ?? 0) >= 6 ? 28 : ACTIVE_CATALOG.player.maxHp);
@@ -614,10 +619,14 @@ export function parseRogueAction(customId, values = []) {
   const tagged = (a) => ({ runId, version, action: a });
   switch (action) {
     case 'refresh': return { ui: 'refresh', runId, version };
+    case 'details-prev':
+    case 'details-next':
     case 'details': {
       const match = /^(deck|relics|inventory|map|guide|lore)(?::(\d{1,4}))?$/.exec(arg ?? '');
       return match && Number(match[2] ?? 0) <= 9999 ? { ui: 'details', runId, version, kind: match[1], page: Number(match[2] ?? 0) } : null;
     }
+    case 'uid-prev':
+    case 'uid-next':
     case 'uid-page': {
       const match = /^(shop|camp|event):(upgrade|remove):(\d{1,4})$/.exec(arg ?? '');
       return match && Number(match[3]) <= 9999 ? { ui: 'uid-page', runId, version, source: match[1], kind: match[2], page: Number(match[3]) } : null;

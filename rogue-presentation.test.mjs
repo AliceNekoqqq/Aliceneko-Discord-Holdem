@@ -43,3 +43,27 @@ test('JSON text fallback strips ephemeral flags and removes previous attachments
  const response=Response.json({data:{flags:64,content:'text',components:[]}});
  await assert.rejects(patchRoguePanel(response,'https://discord.test/private',{fetcher:async(url,init)=>{const data=JSON.parse(init.body);assert.equal(data.flags,undefined);assert.deepEqual(data.attachments,[]);return new Response('',{status:500});}}),/HTTP 500/);
 });
+
+test('persisted route after blessing reopens through command, home and stale refresh with valid unique controls', async()=>{
+ for(const ruleVersion of ['lantern-rules-v0.4','lantern-rules-v0.6','lantern-rules-v0.7','lantern-rules-v0.8']){
+  const initial=createRun({runId:'saved-route',owner:'123',guild:'456',seed:'reopen',now:0,ruleVersion,professionId:'traveler'});
+  const saved=initial.room.type==='blessing'?runAction(initial,{type:'BLESSING',relicId:initial.room.candidates[0]},100):initial;
+  assert.equal(saved.room.type,'route');
+  const snapshot=JSON.stringify(saved);
+  const service={guild:'456',resume:()=>JSON.parse(snapshot)};
+  const base={id:'789',guild_id:'456',member:{user:{id:'123',username:'旅人'}}};
+  for(const interaction of [{...base,type:2},{...base,type:3,message:{flags:64},data:{custom_id:'rl:home'}},{...base,type:3,message:{flags:64},data:{custom_id:'rl:saved-route:0:refresh'}}]){
+   const response=await rogueVisualResponse(service,interaction,{render:async()=>png()});
+   await patchRoguePanel(response,'https://discord.test/private',{fetcher:async(url,init)=>{
+    const data=JSON.parse(init.body.get('payload_json'));
+    assert.equal(data.embeds[0].title,'选择路线');
+    const controls=data.components.flatMap(row=>row.components),ids=controls.map(c=>c.custom_id);
+    assert.equal(new Set(ids).size,ids.length,'Discord rejects duplicate component IDs');
+    assert.equal(controls.filter(c=>c.label==='迷城地图').length,1);
+    assert.ok(controls.some(c=>c.custom_id.includes(':route:')));
+    return new Response('{}');
+   }});
+  }
+  assert.equal(JSON.stringify(saved),snapshot,'reopening must preserve the saved run');
+ }
+});

@@ -4,7 +4,7 @@
 
 - 项目：红豆粉小酒馆 / `AliceNekoqqq/Aliceneko-Discord-Holdem`；主分支 `main`；Worker `discord-holdem`。
 - 版本核实：GitHub `main/package.json` 与当前生产 Worker 脚本的 `/health` 处理器都标记为 `1.0.1-beta.57`。静态资源迁移不改游戏版本号；当前 main 与线上没有 beta59 代码证据。
-- 最近用户报告的待查问题：灯下迷城选完遗物后不能进入下一页，重开后无响应；尚无修复记录。若继续处理，从 `npm run scope -- lantern` 和对应状态迁移测试开始。
+- 灯下迷城卡加载根因已确认：路线页重复地图 custom_id 导致 Discord HTTP 400 / COMPONENT_CUSTOM_ID_DUPLICATED；旧局重进再次渲染同一页。beta.58 删除重复地图按钮，修复详情/实体牌分页编号碰撞，新增面板唯一性校验；存档无需迁移。四版本 JSON 存档通过命令、主页、过期刷新重新进入测试通过；灯下迷城 140 项、Worker 25 项通过。本次自动审批拒绝直接推送 main（会触发生产部署）；修复改存 fix/lantern-route-reopen-beta58 独立分支供 PR 审查。生产仍 beta.57，待用户明确授权合并发布，尚未真人验证。
 - 最近状态记录：聊天短回复改动提交 `da9a893` 当时标为本地提交、GitHub 同步未通过；继续相关工作前先核对 main，勿盲目重做或重推。
 - 本轮已将 Codex 入口精简到 `PROJECT_NOW.md` 和按范围读取；纯文档提交只同步 GitHub，不触发 Worker 部署。后续普通逻辑任务不读完整历史或全仓。
 - 静态资源迁移删除了 29 个生成图像/字形/精灵模块，约 9.51 MB；这些静态载荷不再作为 Base64 JavaScript 模块读取。仓库体积不会自动进入模型上下文，只有读入的内容才会增加上下文。
