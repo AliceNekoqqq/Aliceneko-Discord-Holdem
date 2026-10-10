@@ -5,7 +5,7 @@
 - 新增 `scripts/repo-scope.mjs` 与 `npm run scope -- <scope>`：只输出范围内路径和字节数；`.gitignore` 忽略构建产生的 `public/`，避免误读或误提交部署产物。
 - `package.json` 新增 `test:chat`、`test:lantern`、`test:tavern`、`test:worker`；更新两处过期测试断言，使当前 beta.57 的账号映射和 `/health` 响应成为可执行基线。
 - 检查：`test:chat` 5/5 文件通过，`test:lantern` 22/22 通过，`test:tavern` 20/20 通过，`test:worker` 4/4 通过；未运行无关的全仓回归。
-- GitHub/Cloudflare：本批改动已在本地提交，尚未同步；这是文档、测试入口、开发辅助脚本和部署路径过滤，不改变 Worker 运行时。同步后文档/测试类提交不再自动触发 Worker 部署。
+- GitHub/Cloudflare：本批改动已同步到 GitHub `main`（工作流 `7fd63c0`、根目录 `47d1825`、读取地图 `8576f49`、读取脚本 `0fb4560`）；工作流 Run #8 成功，后续根目录/文档/脚本提交未新增部署运行。Worker 运行时未改变。
 
 ## 聊天短回复与角色扮演收束 · 本地完成（2026-10-11，北京时间）
 
