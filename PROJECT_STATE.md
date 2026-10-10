@@ -1,3 +1,15 @@
+## beta.52 · 设备菜单已发布（2026-10-10，北京时间）
+
+- 本轮从静态图片上传认证断点继续；复用已完成的设备菜单与13图、此前476项功能检查和静态图改造30项检查，没有重画或重复完整回归。
+- 已上线4公共设备与9新品（含卡布奇诺）。咖啡机900解锁美式22/卡布奇诺28/红豆拿铁30；烤箱1500解锁可颂24/芝士吐司32；搅拌机2200解锁莓果奶昔30/芒果酸奶冰沙32；冰淇淋机3600解锁香草圣代34/红豆芭菲40。阶段门槛/事务规则沿用 EQUIPMENT_MENU_SPEC.md。
+- 13张JPG已在本仓库，逐文件git blob确认与现有源图一致。新图从JS/Base64移到Worker静态ASSETS，原 /art/equipment/{id}/v1.jpg 地址保持；构建脚本不再生成equipment-art-data模块。旧20菜品/伙伴图保持原实现，本批未扩展全量图片迁移。
+- 认证断点已解决：assets-upload-session返回短期JWT，官方图片上传要求Authorization使用该JWT；connector默认API认证不能代替它。通过本地标准库HTTP按5/4/4三个bucket上传，202/202/201，取得completion token；token不写仓库或交接。可复用脚本 scripts/upload-equipment-assets.py，流程 docs/EQUIPMENT_PUBLISH.md，先运行 scripts/build-equipment-art.py 重建public；上传内容只在工具/文件内处理，不灌入模型上下文。
+- 完整Worker发布HTTP200：94模块读回全部逐字符一致，79个原模块字节保留，其余为设备范围与合并知识；实际生产聊天beta.50/伙伴beta.51保持。全部原绑定/两段人设/Secret/D1/DO namespace、兼容、observability与每分钟Cron核验保留，migration v1；新增ASSETS绑定。生产活跃版本7b33aaf5-8cab-40f1-ac2c-e9d5d83ebd31，100%流量；部署b923bccf-d059-42b4-851a-832a9485407d，2026-10-10T10:37:13Z。
+- 线上验证：13图全部GET200、image/jpeg、长度和SHA256与源图一致；卡布奇诺HEAD200无正文、ETag304、POST405；/health HTTP200、ok:true。最初默认HTTP客户端User-Agent收到Cloudflare1010，正常浏览器User-Agent核验通过；未将客户端403误报为功能故障。
+- GitHub源码/静态图构建/上传脚本/说明已同步main提交c563264b42f584f104adf27a6bf1592f9ef043c7；删除14个设备Base64生成模块。public/art/equipment由构建脚本从已提交JPG生成，不另存重复图片；package beta.52。
+- 最后成功动作：生产部署/94模块与配置读回、13图/缓存/健康核验，GitHub源码同步；本条交接随后同步。下一步：用户在Discord大厅的共同装修/设备页购买设备，再到菜单对应分类查看解锁新品；真人购买/上桌布局仍待体验。没有发Discord测试消息、改真实钱包/伙伴存档；本批未更改DO/Gateway调度，常驻对象自然交互未另作生产探测。
+- 下方beta.48“待发布”及beta.49～51“设备未上线”为历史记录，以本条发布状态为准。
+
 ## 执行规范更新 · 2026-10-10（北京时间）
 
 - 用户要求节省开发额度、避免低楼层上限/卡住的规范落实到文件，并供后续会话遵循。
