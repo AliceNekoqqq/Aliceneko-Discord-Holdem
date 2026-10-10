@@ -6,3 +6,9 @@ public/
 *.log
 
 assets/equipment-art/original/
+/assets/renderer/
+/card-glyphs.mjs
+/emoji-sprites.mjs
+/nickname-glyphs.mjs
+/pet-art-manifest.mjs
+/pet-walk-art-manifest.mjs

@@ -33,7 +33,7 @@ export class LiarLive {
   async publish(t,job){
     const data=board(t),signature=JSON.stringify(data),last=await this.storage.get('liarLiveBoard');
     const move=job.bump||last?.epoch!==t.epoch||last?.signature!==signature;
-    const prepared=await boardImageMessage(t,data,move?null:(await this.storage.get('boardImages')||{})[t.messageId]);
+    const prepared=await boardImageMessage(t,data,move?null:(await this.storage.get('boardImages')||{})[t.messageId],this.env);
     const old=t.messageId;
     if(move){
       // Stable nonce deduplicates an ambiguous timeout, including after restart.

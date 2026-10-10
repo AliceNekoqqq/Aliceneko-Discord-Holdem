@@ -6,8 +6,8 @@ import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('./worker.mjs',import.meta.url),'utf8').replace(/import \{ DurableObject \} from 'cloudflare:workers';/, 'class DurableObject { constructor(ctx,env){this.ctx=ctx;this.env=env;} }');
 const worker=(await import('data:text/javascript;base64,'+Buffer.from(source.replace(/from '\.\//g,`from '${new URL('./',import.meta.url).href}`).replace(/import\('\.\//g,`import('${new URL('./',import.meta.url).href}`)).toString('base64'))).default;
 import {STAGES} from './pet-catalog.mjs';
-import scenes from './pet-walk-art-data.mjs';
-import maps from './pet-walk-map-data.mjs';
+import manifest from './pet-walk-art-manifest.mjs';
+const scenes=manifest.scenes,maps=manifest.maps;
 import {servePetWalkArt,petWalkMapEmbed,petWalkSceneEmbed,petHomeSceneEmbed,getPetWalkArtUrl} from './pet-walk-map.mjs';
 const root='https://test.local';
 test('six independent scene assets and six map states match committed bytes and fingerprints',async()=>{
@@ -15,7 +15,7 @@ test('six independent scene assets and six map states match committed bytes and 
  assert.deepEqual(Object.keys(maps).sort(),['0','1','2','3','4','done']);
  for(const [type,records] of [['scenes',scenes],['maps',maps]])for(const [id,record]of Object.entries(records)){
   const isScene=type==='scenes',path=`./assets/pet-walk/${isScene?'':'maps/'}${id}.${isScene?'jpg':'png'}`;
-  const bytes=await readFile(new URL(path,import.meta.url));assert.deepEqual(Buffer.from(record.base64,'base64'),bytes);
+  const bytes=await readFile(new URL(path,import.meta.url));
   assert.equal(bytes.length,record.bytes);assert.equal(createHash('sha256').update(bytes).digest('hex'),record.sha256);
   if(isScene){assert.equal(bytes[0],255);assert.equal(bytes[1],216);assert.equal(record.width,960);assert.equal(record.height,540);}
   else {assert.equal(bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a');assert.equal(bytes.readUInt32BE(16),960);assert.equal(bytes.readUInt32BE(20),520);}

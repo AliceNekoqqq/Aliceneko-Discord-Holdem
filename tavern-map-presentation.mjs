@@ -6,7 +6,7 @@ const hash=async data=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA
 const base64=bytes=>{let s='';for(let at=0;at<bytes.length;at+=8192)s+=String.fromCharCode(...bytes.subarray(at,at+8192));return btoa(s);};
 // Render in the guild DO, cache one current public PNG, never interaction tokens.
 export class TavernMapPresentation {
- constructor(host){this.host=host;this.storage=host.ctx.storage;}
+ constructor(host){this.host=host;this.env=host.env;this.storage=host.ctx.storage;}
  async snapshot(p,now=Date.now()){
   if(!validId(p.id)||!validId(p.channel))throw Error('请在服务器文字频道打开地图。');
   const service=this.host.tavern;
@@ -20,8 +20,8 @@ export class TavernMapPresentation {
   const snapshot=await this.snapshot(p,now),signature=await hash({version:TAVERN_SCENE_VERSION,snapshot}),cacheKey=animated?SCENE_CACHE:CACHE,cached=await this.storage.get(cacheKey);
   let result=cached?.signature===signature?(animated?{filename:cached.filename,mime:cached.mime,bytes:Uint8Array.from(atob(cached.data),c=>c.charCodeAt(0))}:{filename:'tavern-scene.png',mime:'image/png',bytes:Uint8Array.from(atob(cached.png),c=>c.charCodeAt(0))}):null;
   if(!result){
-   try{result=animated?await renderTavernScene(snapshot):{filename:'tavern-scene.png',mime:'image/png',bytes:await renderTavernMap(snapshot)};}
-   catch(error){if(!animated)throw error;result=await renderTavernScene(snapshot,{animated:false});}
+   try{result=animated?await renderTavernScene(snapshot,{},this.env):{filename:'tavern-scene.png',mime:'image/png',bytes:await renderTavernMap(snapshot,this.env)};}
+   catch(error){if(!animated)throw error;result=await renderTavernScene(snapshot,{animated:false},this.env);}
    if(animated)await this.storage.put(cacheKey,{signature,filename:result.filename,mime:result.mime,data:base64(result.bytes)});
    else await this.storage.put(cacheKey,{signature,png:base64(result.bytes)});
   }

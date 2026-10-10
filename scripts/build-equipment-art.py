@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-"""Publish the 13 validated equipment JPEGs as static Worker assets."""
+"""Validate the 13 equipment JPEGs and write their compact manifest."""
 import hashlib
 import json
-import shutil
 from pathlib import Path
 
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 DIRECTORY = ROOT / 'assets/equipment-art'
-PUBLIC = ROOT / 'public/art/equipment'
 IDS = ['coffee-machine', 'baking-oven', 'blender', 'ice-cream-maker', 'americano', 'redbean-latte', 'cappuccino', 'butter-croissant', 'cheese-toast', 'berry-smoothie', 'mango-yogurt', 'vanilla-sundae', 'redbean-parfait']
 
 
@@ -33,12 +31,9 @@ def main():
             if published.size != (768, 768) or published.format != 'JPEG':
                 raise ValueError(f'{asset_id}: invalid published JPEG')
         payload = jpeg.read_bytes()
-        public_file = PUBLIC / asset_id / 'v1.jpg'
-        public_file.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(jpeg, public_file)
         record = dict(id=asset_id, mime='image/jpeg', bytes=len(payload), width=768, height=768,
                       sha256=hashlib.sha256(payload).hexdigest(),
-                      file=str(public_file.relative_to(ROOT)))
+                      file=str(jpeg.relative_to(ROOT)))
         manifest[asset_id] = record
 
     (ROOT / 'equipment-art-manifest.mjs').write_text(

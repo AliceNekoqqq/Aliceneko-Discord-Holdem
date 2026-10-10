@@ -125,7 +125,7 @@ export class PokerTable extends DurableObject {
   }
   async dispatch(payload){
       if(payload.op==='rogueInteraction'){
-        try{return await rogueVisualResponse(this.rogueService(payload.guild),payload.interaction);}
+        try{return await rogueVisualResponse(this.rogueService(payload.guild),payload.interaction,{env:this.env});}
         catch(e){return json(privateReply(e.message||'远征暂时无法打开，请稍后重试。'));}
       }
       if(payload.op==='petHome'){try{return json(await dispatchPetHome(this.ctx.storage,payload));}catch(e){return json({error:e.message});}}
@@ -323,8 +323,8 @@ async function finishRogue(env,i){
 }
 async function handle(request,env,ctx){
   const path=new URL(request.url).pathname;
-  if(path.startsWith('/art/pet-walk/'))return servePetWalkArt(request);
-  if(path.startsWith('/art/pets/'))return servePetArt(request);
+  if(path.startsWith('/art/pet-walk/'))return servePetWalkArt(request,env);
+  if(path.startsWith('/art/pets/'))return servePetArt(request,env);
   if(path.startsWith('/art/'))return serveArt(request,env);
   if(path==='/health'&&request.method==='GET')return env.TABLES.get(env.TABLES.idFromName('system-health')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'health'})});
   if(path!=='/interactions')return new Response('Not found',{status:404});

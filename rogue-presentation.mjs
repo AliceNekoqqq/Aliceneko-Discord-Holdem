@@ -3,14 +3,14 @@ import {renderRogueImage,describeRogueImage} from './rogue-image.mjs';
 
 // Rendering happens inside the guild DO after the action/settlement commits.
 // The edge forwards a bounded multipart body to the same private webhook.
-export async function rogueVisualResponse(service,interaction,{render=renderRogueImage}={}){
+export async function rogueVisualResponse(service,interaction,{render=renderRogueImage,env}={}){
  let visual;
  const reply=dispatchRogue(service,interaction,{onVisual:(run,view)=>{visual={run,view};}});
  const data=structuredClone(reply.data);
  data.attachments=[];
  if(!visual||!data.embeds?.length)return Response.json({...reply,data});
  try{
-  const png=await render(visual.run,{view:visual.view});
+  const png=await render(visual.run,{view:visual.view,env});
   if(!(png instanceof Blob)||png.type!=='image/png'||png.size>1500000)throw Error('invalid render');
   const filename=`lantern-${visual.view==='map'||visual.run.phase!=='BATTLE'?'map':'battle'}-${visual.run.version}.png`;
   data.embeds[0].image={url:`attachment://${filename}`};

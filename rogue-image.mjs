@@ -51,9 +51,9 @@ export function describeRogueImage(run,view='auto'){
 }
 function nodeColor(status){return status==='completed'?K.green:status==='available'||status==='current'?K.gold:K.gray;}
 function node(c,n,x,y,w=142,h=83){const col=nodeColor(n.status);rect(c,x,y,w,h,n.status==='future'?[29,46,62]:K.panel2,10);rect(c,x,y,w,4,col,4);if(h<50){text(c,n.name,x+w/2,y+9,15,n.status==='future'?K.muted:K.cream,true);return;}circle(c,x+17,y+21,6,col);text(c,n.status==='current'?'当前位置':labelType(n),x+30,y+13,15,n.status==='future'?K.muted:K.gold2);text(c,n.name,x+w/2,y+39,19,n.status==='future'?K.muted:K.cream,true);if(n.disabled)text(c,'暂不可选',x+w/2,y+62,13,K.muted,true);}
-async function mapImage(run,view){
+async function mapImage(run,view,env){
  const model=describeRogueImage(run,view),all=model.acts.length===3;
- const names=['灯下迷城','三幕行程','路线节点只表示走过明确记录的选择','已完成','当前可选','未抵达','第 1 站','第 2 站','第 3 站','第 4 站','Boss','暂不可选','旧存档未保存地图；当前没有可见路线选项。','当前路线选项','路径仅标记已选路线',String(run?.phase||''),String(run?.hp??'—')+' HP',...model.acts.flatMap(a=>[a.name,...(a.columns||[]).flatMap(col=>col.map(n=>n.name)),...(a.visible||[]).map(n=>n.name),a.boss?.name||''])];await prepGlyphs([...names,...UI_GLYPHS]);
+ const names=['灯下迷城','三幕行程','路线节点只表示走过明确记录的选择','已完成','当前可选','未抵达','第 1 站','第 2 站','第 3 站','第 4 站','Boss','暂不可选','旧存档未保存地图；当前没有可见路线选项。','当前路线选项','路径仅标记已选路线',String(run?.phase||''),String(run?.hp??'—')+' HP',...model.acts.flatMap(a=>[a.name,...(a.columns||[]).flatMap(col=>col.map(n=>n.name)),...(a.visible||[]).map(n=>n.name),a.boss?.name||''])];await prepGlyphs([...names,...UI_GLYPHS],env);
  const c=new Canvas(W,H);rect(c,0,0,W,H,K.bg);
  // Quiet lantern glow and skyline marks frame the route board.
  circle(c,862,59,22,[60,74,83]);circle(c,862,59,12,K.gold);circle(c,868,54,10,K.bg);
@@ -89,7 +89,7 @@ function intentLabel(i){if(!i)return '等待行动';const name=i.label||({attack
 function intentDetail(i){if(!i)return '';if(i.kind==='conditional')return `首张含直接伤害的牌: ${intentLabel(i.onAttack)} / 否则: ${intentLabel(i.onOther)}`;if(i.kind==='charge')return `下轮：${i.next?.value??i.value}×${i.next?.hits??i.hits??1} 攻击`;return '';}
 function cardDefinition(entity,catalog){const base=catalog.cards[entity.cardId]||{};return entity.upgraded?{...base,...base.upgrade}:base;}
 function wrapLine(value,maxChars){const chars=[...String(value)];const lines=[];while(chars.length)lines.push(chars.splice(0,maxChars).join(''));return lines;}
-function prepGlyphs(names){const chars=[...new Set(names.flatMap(s=>[...rawImageText(s)]))];return prepareNicknameFont(chars);}
+function prepGlyphs(names,env){const chars=[...new Set(names.flatMap(s=>[...rawImageText(s)]))];return prepareNicknameFont(chars,env);}
 function rgbaText(c,value,x,y,size,color,maxChars){wrapLine(value,maxChars).forEach((s,i)=>text(c,s,x,y+i*(size+2),size,color));}
 function silhouette(c,x,y,profession,enemy=false,role='普通',enemyId=''){
  const accent=enemy?(role==='Boss'?K.red:role==='精英'?[220,131,78]:[124,146,162]):K.gold;
@@ -102,7 +102,7 @@ function silhouette(c,x,y,profession,enemy=false,role='普通',enemyId=''){
   line(c,x+24,y-26,x+49,y-69,[193,180,151],4);circle(c,x+49,y-69,7,K.gold2);
  } else {circle(c,x-8,y-51,3,K.ink);circle(c,x+8,y-51,3,K.ink);if(role==='Boss'){line(c,x-18,y-68,x-30,y-91,accent,6);line(c,x+18,y-68,x+30,y-91,accent,6);}else if(role==='精英'){rect(c,x-34,y-24,68,10,accent,4);rect(c,x-30,y+15,60,9,accent,4);}const seed=[...String(enemyId)].reduce((n,ch)=>n+ch.charCodeAt(0),0);if(seed%2)line(c,x-18,y-62,x-29,y-77,accent,4);}
 }
-async function battleImage(run){
+async function battleImage(run,env){
  const b=run?.battle||{},catalog=getCatalog(run?.catalogVersion||run?.ruleVersion),enemy=catalog.enemies[b.enemyId]||{},profession=catalog.professions?.[b.professionId||run?.professionId]||PROFESSIONS[b.professionId||run?.professionId]||PROFESSIONS.traveler;
  const model=describeRogueImage(run,'battle'),hand=b.hand||[],playLimit=model.playLimit??catalog.player?.playLimit??0;
  const names=[profession.name,enemy.phaseName||'',enemy.name||'敌人',enemy.role||'普通','回合','第二阶段','第一阶段','意图',intentLabel(b.intent),intentDetail(b.intent),'护甲','屏障','灼烧','旅人','生命','护盾','灯狐','锻值','能量','出牌','手牌','抽牌','弃牌','已强化','完整效果见下方文字',...model.hints,...model.cards.flatMap(q=>[q.name,`#${q.id}`,String(q.cost),q.reason,...q.effects,...q.warnings,...q.categories.map(g=>g.label)])];await prepGlyphs([...names,...UI_GLYPHS]);
@@ -131,4 +131,4 @@ async function battleImage(run){
  text(c,'完整效果见下方文字',480,727,12,K.gold2,true);
  return encodePNG(c);
 }
-export async function renderRogueImage(run,{view='auto'}={}){const mode=view==='auto'?(run?.phase==='BATTLE'&&run?.battle?'battle':'map'):view;return mode==='battle'?battleImage(run):mapImage(run,mode);}
+export async function renderRogueImage(run,{view='auto',env}={}){const mode=view==='auto'?(run?.phase==='BATTLE'&&run?.battle?'battle':'map'):view;return mode==='battle'?battleImage(run,env):mapImage(run,mode,env);}

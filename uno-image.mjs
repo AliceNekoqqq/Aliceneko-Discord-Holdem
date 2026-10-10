@@ -1,4 +1,5 @@
 import {prepareNicknameFont} from './nickname-font.mjs';
+import {prepareCardGlyphAtlas} from './card-image.mjs';
 import {avatarKey,normalizedProfile,ACCENTS} from './uno-profile.mjs';
 import {emojiBitmap,paintEmoji} from './emoji-art.mjs';
 import {wearsCrown} from './uno-rankings.mjs';
@@ -25,7 +26,8 @@ export function paintCard(c,card,x,y,w=128,h=172,enabled=false){
  else{plus(c,cx-19,cy,12,fg);c.text(f.value==='draw2'?'2':'4',cx+17,cy-30,54,fg,true);}
  if(typeof f.value!=='number')butterfly(c,x+19,y+20,white);
 }
-export async function renderUnoImage(t,id){
+export async function renderUnoImage(t,id,env){
+ await prepareCardGlyphAtlas(env);
  const {cards,page,pages}=pageCards(t,id),legal=game.legalCards(t,id),jumps=game.jumpCards(t,id),own=t.phase==='active'&&t.turn===id,c=new Canvas(760,100+Math.max(1,Math.ceil(cards.length/5))*203);
  c.rect(16,16,728,64,[37,34,53],14);c.text('你的手牌',34,29,27,pink);c.text('仅你可见',594,31,20,pink);
  c.text(jumps.length?'金框抢出':game.jumpOpen(t)?'抢出等候':own?'绿框可出':'灰框等候',208,34,20,jumps.length?[255,209,102]:own?[114,241,176]:[164,199,218]);c.text(`第 ${page+1}/${pages} 页`,416,34,20,white);
@@ -34,17 +36,18 @@ export async function renderUnoImage(t,id){
 }
 function withImage(data,filename){const body=structuredClone(data);body.embeds[0].image={url:`attachment://${filename}`};return body;}
 function upload(body,png,filename,description){body.attachments=[{id:0,filename,description}];const form=new FormData();form.set('payload_json',JSON.stringify(body));form.set('files[0]',png,filename);return form;}
-export async function imageMessage(t,id,data,existing){
+export async function imageMessage(t,id,data,existing,env){
  const p=t.players.find(p=>p.id===id&&!p.bot);if(!p?.cards.length||!data.embeds?.length)return {body:{...data,attachments:[]},signature:null};
  const page=pageCards(t,id),legal=game.legalCards(t,id),jumps=game.jumpCards(t,id),signature=`${t.epoch}/${t.handNo}/${page.page}/${p.cards.join(',')}/${legal.join(',')}/${t.phase==='active'&&t.turn===id}/${jumps.join(',')}/${game.jumpOpen(t)}`,filename=`uno-${t.handNo}-p${page.page+1}.png`,body=withImage(data,filename);
  const compact=()=>{body.embeds[0].fields=body.embeds[0].fields?.filter(f=>f.name!=='手牌文字');};
  if(existing?.signature===signature&&existing.id){compact();body.attachments=[{id:existing.id,filename}];return {body,signature};}
- try{const png=await renderUnoImage(t,id);compact();return {body:upload(body,png,filename,`你的 UNO 手牌第 ${page.page+1} 页，绿框可出，金框可抢出：`+page.cards.map((c,n)=>`${page.page*PAGE_SIZE+n+1}. ${game.cardName(c)}${jumps.includes(c)?'（可抢出）':legal.includes(c)?'（可出）':''}`).join('；')),signature};}
+ try{const png=await renderUnoImage(t,id,env);compact();return {body:upload(body,png,filename,`你的 UNO 手牌第 ${page.page+1} 页，绿框可出，金框可抢出：`+page.cards.map((c,n)=>`${page.page*PAGE_SIZE+n+1}. ${game.cardName(c)}${jumps.includes(c)?'（可抢出）':legal.includes(c)?'（可出）':''}`).join('；')),signature};}
  catch{delete body.embeds[0].image;body.attachments=[];return {body,signature:null};}
 }
 // A separate public renderer receives only the visible discard card and color.
 // Player hands, draw piles and challenge snapshots never reach it.
-export async function renderBoardImage(card,color,jumped=false){
+export async function renderBoardImage(card,color,jumped=false,env){
+ await prepareCardGlyphAtlas(env);
  const c=new Canvas(760,264);if(jumped)c.rect(10,10,740,244,[255,209,102],18);c.rect(16,16,728,232,jumped?[55,42,30]:[27,43,54],14);paintCard(c,card,48,39,138,184);
  c.text(jumped?'抢出成功':'桌面公共牌',226,39,28,jumped?[255,209,102]:[164,199,218]);c.text('UNO',226,84,20,pink);
  if(color){c.rect(226,130,30,30,palette[color],8);c.text(`当前${game.COLOR_NAMES[color]}色`,273,129,30,white);}
@@ -84,9 +87,9 @@ function fitText(c,text,x,y,size,maxWidth,color,center=false){
  const width=textWidth(text,size);
  c.text(text,x,y,Math.min(size,size*maxWidth/Math.max(1,width)),color,center);
 }
-export async function renderTableImage(model){
- await prepareNicknameFont(model.seats.map(s=>s.name));
- const art=new Map(await Promise.all([...new Set([...model.seats.map(s=>s.avatar||'butterfly'),...model.seats.filter(s=>s.winner&&s.victory&&s.victory!=='none').map(s=>s.victory),...(model.seats.some(s=>s.crown)?['crown']:[])])].map(async key=>[key,await emojiBitmap(key)]))); 
+export async function renderTableImage(model,env){
+ await prepareNicknameFont(model.seats.map(s=>s.name),env);
+ const art=new Map(await Promise.all([...new Set([...model.seats.map(s=>s.avatar||'butterfly'),...model.seats.filter(s=>s.winner&&s.victory&&s.victory!=='none').map(s=>s.victory),...(model.seats.some(s=>s.crown)?['crown']:[])])].map(async key=>[key,await emojiBitmap(key,env)]))); 
  const c=new Canvas(960,820),positions=seatLayout(model.seats.length),active=model.phase==='active';
  c.rect(18,18,924,62,[37,34,53],15);c.text('UNO',38,34,29,pink);
  c.text(`第 ${model.hand} 局`,136,35,24,white);if(model.social){const e=EMOTES[model.social.key],a=model.seats.find(s=>s.id===model.social.actor),b=model.seats.find(s=>s.id===model.social.target);if(a&&b)fitText(c,`${a.seat}号对${b.seat}号 ${e.short}`,462,37,21,226,[140,222,237]);}c.text(model.mode==='teams'?'2v2 组队':'公共牌桌',704,35,24,muted);
@@ -125,14 +128,14 @@ export async function renderTableImage(model){
  c.text('座位固定 / 玩家姓名见座次 / 箭头为出牌方向',480,790,17,muted,true);
  return encodePNG(c);
 }
-export async function boardImageMessage(t,data,existing){
+export async function boardImageMessage(t,data,existing,env){
  if(t.phase==='closed'||!t.players?.length)return {body:{...data,attachments:[]},signature:null};
  const model=publicTableSnapshot(t),signature='nickname-v1/'+JSON.stringify(model),filename='uno-table.png',body=withImage(data,filename);
  if(existing?.signature===signature&&existing.id){body.attachments=[{id:existing.id,filename}];return {body,signature};}
  const seats=model.seats.map(s=>`${s.seat}号 ${s.name}，形象 ${s.avatar}，${s.count}张${s.surrendered?'，已认输':''}${s.crown?'，UNO 大王':''}${model.turn===s.id?model.jumping?'，抢出后下一位':'，当前行动者':''}${s.team!==null?`，${s.team===0?'红':'蓝'}队`:''}`).join('；');
  const reaction=model.social?`互动：${model.seats.find(s=>s.id===model.social.actor)?.name}对${model.seats.find(s=>s.id===model.social.target)?.name}说${EMOTES[model.social.key].emoji}${EMOTES[model.social.key].text}。`:'';
  const alt=`${reaction}UNO 座次：${seats}。${model.direction===1?'顺':'逆'}时针；${model.jumping?'全桌抢出窗口；':''}${model.card!==null?`公共牌 ${game.cardName(model.card)}，当前${game.COLOR_NAMES[model.color]||'待选'}色。`:''}`;
- try{return {body:upload(body,await renderTableImage(model),filename,alt.slice(0,1024)),signature};}
+ try{return {body:upload(body,await renderTableImage(model,env),filename,alt.slice(0,1024)),signature};}
  catch{delete body.embeds[0].image;body.attachments=[];return {body,signature:null};}
 }
 
