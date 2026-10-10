@@ -1,0 +1,148 @@
+{
+  "act": 3,
+  "name": "无灯钟楼",
+  "cards": {
+    "a3_knell_arc": {
+      "name": "敲钟弧斩",
+      "cost": 1,
+      "selfCost": 0,
+      "exhaust": false,
+      "replayable": true,
+      "effects": [
+        { "kind": "damage", "value": 3 },
+        { "kind": "block", "value": 4 }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 0,
+        "effects": [
+          { "kind": "damage", "value": 5 },
+          { "kind": "block", "value": 6 }
+        ]
+      }
+    },
+    "a3_counterweight": {
+      "name": "钟锤架势",
+      "cost": 2,
+      "selfCost": 0,
+      "exhaust": true,
+      "replayable": false,
+      "effects": [
+        { "kind": "block", "value": 12 },
+        { "kind": "heal", "value": 3 }
+      ],
+      "upgrade": {
+        "cost": 2,
+        "selfCost": 0,
+        "effects": [
+          { "kind": "block", "value": 15 },
+          { "kind": "heal", "value": 4 }
+        ]
+      }
+    },
+    "a3_last_chime": {
+      "name": "末响余火",
+      "cost": 2,
+      "selfCost": 0,
+      "exhaust": true,
+      "replayable": true,
+      "effects": [
+        { "kind": "damage", "value": 8 },
+        { "kind": "burn", "value": 4 }
+      ],
+      "upgrade": {
+        "cost": 2,
+        "selfCost": 0,
+        "effects": [
+          { "kind": "damage", "value": 10 },
+          { "kind": "burn", "value": 5 }
+        ]
+      }
+    }
+  },
+  "relics": {
+    "a3_cinder_toll": {
+      "name": "余烬钟舌",
+      "trigger": "burn_bonus",
+      "value": 2,
+      "description": "每次主动施加灼烧时，额外施加灼烧2。"
+    },
+    "a3_rung_reflector": {
+      "name": "断铃镜片",
+      "trigger": "reflect",
+      "value": 3,
+      "description": "每次敌方攻击命中中有护盾吸收至少1点，反击3点直接伤害；每次命中最多触发一次。"
+    },
+    "a3_last_watch": {
+      "name": "终班徽记",
+      "trigger": "first_attack_damage",
+      "value": 6,
+      "description": "每战首次主动攻击牌的第一个直接伤害包增加6点伤害。"
+    }
+  },
+  "chapterRelics": [
+    "a3_cinder_toll",
+    "a3_rung_reflector",
+    "a3_last_watch"
+  ],
+  "enemies": {
+    "a3_bell_warden": {
+      "name": "钟尘守望者",
+      "role": "普通",
+      "hp": 36,
+      "armor": 1,
+      "intents": [
+        { "kind": "attack", "value": 4, "hits": 2, "label": "双铃敲击：4×2" },
+        { "kind": "guard", "value": 5, "label": "罩住钟面" },
+        { "kind": "attack", "value": 8, "label": "沉钟一击" }
+      ]
+    },
+    "a3_dust_mender": {
+      "name": "灰尘校时师",
+      "role": "普通",
+      "hp": 34,
+      "armor": 0,
+      "intents": [
+        { "kind": "charge", "value": 4, "hits": 2, "label": "拉紧发条：下轮两段各4（合计8）" },
+        { "kind": "attack", "value": 4, "hits": 2, "label": "发条连击：4×2" },
+        { "kind": "guard", "value": 4, "label": "躲入钟影" }
+      ]
+    },
+    "a3_iron_verger": {
+      "name": "铸钟监工",
+      "role": "精英",
+      "hp": 48,
+      "armor": 2,
+      "intents": [
+        { "kind": "charge", "value": 6, "hits": 2, "label": "抡锤蓄力：下轮两段各6（合计12）" },
+        { "kind": "attack", "value": 6, "hits": 2, "label": "双锤落下：6×2" },
+        { "kind": "guard", "value": 7, "label": "架锤护身" },
+        { "kind": "attack", "value": 10, "label": "砸向胸口" }
+      ]
+    },
+    "a3_unlit_bellmaster": {
+      "name": "无灯钟主",
+      "role": "Boss",
+      "hp": 68,
+      "armor": 2,
+      "intents": [
+        { "kind": "charge", "value": 4, "hits": 3, "label": "敲响空钟：下轮三段各4（合计12）" },
+        { "kind": "attack", "value": 4, "hits": 3, "label": "空钟三响：4×3" },
+        { "kind": "guard", "value": 8, "label": "钟壳闭合" },
+        { "kind": "attack", "value": 10, "label": "落锤" },
+        { "kind": "attack", "value": 5, "hits": 2, "label": "回声余击：5×2" }
+      ]
+    }
+  },
+  "normalEnemies": [
+    "a3_bell_warden",
+    "a3_dust_mender"
+  ],
+  "eliteEnemy": "a3_iron_verger",
+  "bossEnemy": "a3_unlit_bellmaster",
+  "newCardRewards": [
+    "a3_knell_arc",
+    "a3_counterweight",
+    "a3_last_chime"
+  ]
+}

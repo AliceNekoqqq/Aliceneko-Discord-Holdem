@@ -114,7 +114,7 @@ def legal(s, entity):
     c = card(entity)
     if s['result'] or s['plays'] >= 2 or c['cost'] > s['energy']:
         return False
-    if any(e['kind'] == 'heal' for e in c['effects']) and s['hp'] >= s['maxHp']:
+    if all(e['kind'] == 'heal' for e in c['effects']) and s['hp'] >= s['maxHp']:
         return False
     return entity in s['hand']
 
@@ -161,17 +161,18 @@ def end_turn(s):
     s['enemyShield'] = 0
     intent = s['intent']
     if intent['kind'] == 'attack':
-        s['attacksTaken'] += 1
-        absorbed = min(s['shield'], intent['value'])
-        s['shield'] -= absorbed
-        s['hp'] -= intent['value'] - absorbed
-        if terminal(s):
-            return
-        if absorbed:
-            for _, r in relics_for(s, 'reflect'):
-                damage_enemy(s, r['value'])
-                if s['result']:
-                    return
+        for _ in range(intent.get('hits', 1)):
+            s['attacksTaken'] += 1
+            absorbed = min(s['shield'], intent['value'])
+            s['shield'] -= absorbed
+            s['hp'] -= intent['value'] - absorbed
+            if terminal(s):
+                return
+            if absorbed:
+                for _, r in relics_for(s, 'reflect'):
+                    damage_enemy(s, r['value'])
+                    if s['result']:
+                        return
     elif intent['kind'] == 'guard':
         s['enemyShield'] = intent['value']
     elif intent['kind'] != 'charge':
@@ -208,6 +209,8 @@ def choose(s, strategy):
                 break
         if not valid:
             continue
+        if not trial['result'] and any(legal(trial, e) for e in trial['hand']):
+            trial['manualEnds'] = trial.get('manualEnds', 0) + 1
         end_turn(trial)
         if trial['result'] in ('defeat', 'lost_light'):
             score = -10000 + trial['enemyBurn']

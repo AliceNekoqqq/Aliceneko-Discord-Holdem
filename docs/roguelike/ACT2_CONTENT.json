@@ -1,0 +1,141 @@
+{
+  "act": 2,
+  "name": "镜巷",
+  "cards": {
+    "a2_silver_guard": {
+      "name": "镜银护幕",
+      "cost": 1,
+      "selfCost": 0,
+      "exhaust": false,
+      "replayable": true,
+      "effects": [
+        { "kind": "block", "value": 3 },
+        { "kind": "burn", "value": 3 }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 0,
+        "effects": [
+          { "kind": "block", "value": 5 },
+          { "kind": "burn", "value": 4 }
+        ]
+      }
+    },
+    "a2_silver_needle": {
+      "name": "镜针",
+      "cost": 1,
+      "selfCost": 0,
+      "exhaust": false,
+      "replayable": true,
+      "effects": [
+        { "kind": "damage", "value": 3, "ignoreArmor": true },
+        { "kind": "block", "value": 2 }
+      ],
+      "upgrade": {
+        "cost": 1,
+        "selfCost": 0,
+        "effects": [
+          { "kind": "damage", "value": 5, "ignoreArmor": true },
+          { "kind": "block", "value": 3 }
+        ]
+      }
+    },
+    "a2_long_glint": {
+      "name": "长明镜芒",
+      "cost": 2,
+      "selfCost": 0,
+      "exhaust": true,
+      "replayable": true,
+      "effects": [
+        { "kind": "burn", "value": 8 }
+      ],
+      "upgrade": {
+        "cost": 2,
+        "selfCost": 0,
+        "effects": [
+          { "kind": "burn", "value": 10 }
+        ]
+      }
+    }
+  },
+  "relics": {
+    "a2_prism_ember": {
+      "name": "棱镜余焰",
+      "trigger": "burn_bonus",
+      "value": 1,
+      "description": "每次主动施加灼烧时，额外施加灼烧1。"
+    },
+    "a2_door_mirror": {
+      "name": "门镜扣",
+      "trigger": "first_block_per_turn",
+      "value": 2,
+      "description": "每轮首次主动打出护盾牌时，额外获得护盾2。"
+    },
+    "a2_patrol_insignia": {
+      "name": "镜巡徽记",
+      "trigger": "first_attack_damage",
+      "value": 4,
+      "description": "每战首次主动攻击牌的第一个直接伤害包增加4点伤害。"
+    }
+  },
+  "chapterRelics": [
+    "a2_prism_ember",
+    "a2_door_mirror",
+    "a2_patrol_insignia"
+  ],
+  "enemies": {
+    "a2_mirror_moth": {
+      "name": "镜翅蛾",
+      "role": "普通",
+      "hp": 30,
+      "armor": 0,
+      "intents": [
+        { "kind": "attack", "value": 4, "hits": 2, "label": "双翅拍击：4×2" },
+        { "kind": "guard", "value": 4, "label": "镜粉护面" },
+        { "kind": "attack", "value": 3, "hits": 2, "label": "折返拍击：3×2" }
+      ]
+    },
+    "a2_seam_duelist": {
+      "name": "缝影客",
+      "role": "普通",
+      "hp": 33,
+      "armor": 1,
+      "intents": [
+        { "kind": "charge", "value": 4, "hits": 2, "label": "蓄势：下轮4×2" },
+        { "kind": "attack", "value": 4, "hits": 2, "label": "交错双刺：4×2" },
+        { "kind": "attack", "value": 3, "hits": 2, "label": "回身双刺：3×2" },
+        { "kind": "guard", "value": 4, "label": "藏入镜缝" }
+      ]
+    },
+    "a2_prism_warden": {
+      "name": "棱镜守卫",
+      "role": "精英",
+      "hp": 42,
+      "armor": 1,
+      "intents": [
+        { "kind": "charge", "value": 4, "hits": 2, "label": "聚光：下轮4×2" },
+        { "kind": "attack", "value": 4, "hits": 2, "label": "棱光连斩：4×2" },
+        { "kind": "guard", "value": 6, "label": "立起镜盾" },
+        { "kind": "attack", "value": 3, "hits": 3, "label": "三向碎光：3×3" }
+      ]
+    },
+    "a2_mirror_regent": {
+      "name": "镜巷执政官",
+      "role": "Boss",
+      "hp": 54,
+      "armor": 2,
+      "intents": [
+        { "kind": "charge", "value": 4, "hits": 2, "label": "映身蓄势：下轮4×2" },
+        { "kind": "attack", "value": 4, "hits": 2, "label": "映身双斩：4×2" },
+        { "kind": "guard", "value": 6, "label": "镜墙合拢" },
+        { "kind": "charge", "value": 3, "hits": 3, "label": "碎镜蓄势：下轮3×3" },
+        { "kind": "attack", "value": 3, "hits": 3, "label": "碎镜齐射：3×3" },
+        { "kind": "attack", "value": 2, "hits": 3, "label": "残影追击：2×3" }
+      ]
+    }
+  },
+  "normalEnemies": ["a2_mirror_moth", "a2_seam_duelist"],
+  "eliteEnemy": "a2_prism_warden",
+  "bossEnemy": "a2_mirror_regent",
+  "newCardRewards": ["a2_silver_guard", "a2_silver_needle", "a2_long_glint"]
+}
