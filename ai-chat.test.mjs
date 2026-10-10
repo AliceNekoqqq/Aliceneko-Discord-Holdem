@@ -388,7 +388,7 @@ test("Gemini requests disable request storage and keep the key out of the URL", 
   const body = buildGenerateContentRequest([{role:"user",parts:[{text:"你好"}]}],"爱讲冷笑话");
   assert.equal(body.store,false);
   assert.equal(body.contents[0].role,"user");
-  assert.equal(body.generationConfig.maxOutputTokens,2048);
+  assert.equal(body.generationConfig.maxOutputTokens,1024);
   assert.match(body.systemInstruction.parts[0].text,/每次都把意思说完整/); 
   assert.match(body.systemInstruction.parts[0].text,/爱讲冷笑话/);
   const env = {GEMINI_API_KEY:"test-secret",GEMINI_MODEL:"gemini-3.8-flash",GEMINI_PERSONA:"爱讲冷笑话"};
@@ -413,7 +413,7 @@ test("custom Gemini gateway uses OpenAI chat completions with memory and persona
   assert.deepEqual(built.messages.map(message=>message.role),["system","user","assistant","user"]);
   assert.match(built.messages[0].content,/爱讲冷笑话/);
   assert.equal(built.messages[2].content,"上一轮回复");
-  assert.equal(built.max_tokens,2048);
+  assert.equal(built.max_tokens,1024);
   assert.equal(built.stream,false);
 
   const env = {
@@ -457,7 +457,7 @@ test("incomplete Chinese chat replies continue from the cutoff without repeating
   assert.equal(answer,"UNO 其实很简单，最先打光手牌就能获胜。");
   assert.equal(requests.length,2);
   assert.match(requests[1].messages.at(-1).content,/紧接停止处继续/);
-  assert.equal(requests[1].max_tokens,2048);
+  assert.equal(requests[1].max_tokens,1024);
 });
 
 test("provider token-limit finish reasons trigger a continuation", async () => {
@@ -515,7 +515,16 @@ test("system instruction protects private cards and excludes admin assistance", 
   assert.match(prompt,/私密手牌/);
   assert.match(prompt,/不要充当管理员助手/);
   assert.match(prompt,/以红豆粉的身份自然聊天/);
-  assert.match(prompt,/活泼/);
+  assert.match(prompt,/活泼/);});
+
+test("ordinary chat has a completion-first short-reply boundary", () => {
+  const prompt=makeSystemInstruction("");
+  assert.match(prompt,/完成后立即停下/);
+  assert.match(prompt,/正文＋解释/);
+  assert.match(prompt,/不要评价用户是否满意/);
+  assert.match(prompt,/角色扮演时只写角色内台词/);
+  assert.match(prompt,/只有用户明确要求详细说明/);
+  assert.equal(makeSystemInstruction("","game").includes("完成后立即停下"),false);
 });
 
 test("ordinary chat simulates the tavern naturally without repeating stage directions", () => {
