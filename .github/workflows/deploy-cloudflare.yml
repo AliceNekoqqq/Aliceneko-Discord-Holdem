@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '**.test.mjs'
+      - '.gitignore'
+      - 'package.json'
+      - 'scripts/repo-scope.mjs'
   workflow_dispatch:
 
 permissions:
