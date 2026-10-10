@@ -104,7 +104,8 @@ test('signed unified lobby opens private services and returns through buttons wi
  }
  const games=buttons.find(b=>b.custom_id.endsWith(':lobbyGames')).custom_id;
  assert.deepEqual(await s.call(s.component(games)),{type:6});
- const play=s.lastReply().components.flatMap(r=>r.components).filter(b=>b.custom_id.includes(':lobbyPlay~'));assert.equal(play.length,5);
+ const play=s.lastReply().components.flatMap(r=>r.components).filter(b=>b.custom_id.includes(':lobbyPlay~'));assert.equal(play.length,6);
+ assert.equal(play.find(b=>b.custom_id.endsWith('~rogue'))?.label,'🏮 灯下迷城');
  assert.match(s.lastReply().components.flatMap(r=>r.components).find(b=>b.custom_id.endsWith('~ghost')).label,/抽鬼牌/);
  assert.equal(service.rows("SELECT * FROM tavern_ledger WHERE kind='welcome'").length,1);
 });
@@ -164,3 +165,4 @@ test('signed daily gift click credits privately once through the real Worker and
  assert.deepEqual(await s.call(s.component(claim,64)),{type:6});assert.match(s.lastReply().content,/已到账.*20/);assert.equal(service.view('1').member.balance,80);assert.equal(service.view('1').earned,20);
  await s.call(s.component(claim,64));assert.equal(service.view('1').member.balance,80);assert.equal(service.rows("SELECT * FROM tavern_ledger WHERE kind='daily_gift'").length,1);assert.equal(s.sent.filter(r=>r.url.endsWith('/channels/2/messages')).length,0);
 });
+

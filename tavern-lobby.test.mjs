@@ -33,10 +33,10 @@ test('public lobby entries open private wallet, card and bar order; identity and
  const wrongGuild=i('lobby','any');wrongGuild.data.custom_id='t:4:any:lobby';assert.equal(immediateTavernReply(wrongGuild).type,4);
 });
 
-test('game lobby exposes exactly the five worker-owned game actions without tavern interception',()=>{
+test('game lobby exposes exactly the six worker-owned game actions without tavern interception',()=>{
  const data=tavernLobbyGames('3');bounds(data);const buttons=data.components.flatMap(r=>r.components),plays=buttons.filter(c=>c.custom_id.includes(':lobbyPlay~'));
- assert.deepEqual(plays.map(c=>c.custom_id.split('~')[1]),['poker','uno','ghost','liar','table']);
- assert.deepEqual(plays.map(c=>c.label),['♠️ 德州','🃏 UNO','👻 抽鬼牌','🃏 骗子酒馆','🎴 当前牌桌']);
+ assert.deepEqual(plays.map(c=>c.custom_id.split('~')[1]),['poker','uno','ghost','liar','table','rogue']);
+ assert.deepEqual(plays.map(c=>c.label),['♠️ 德州','🃏 UNO','👻 抽鬼牌','🃏 骗子酒馆','🎴 当前牌桌','🏮 灯下迷城']);
  for(const b of plays){const interaction=i(b.custom_id.split(':')[3]);assert.equal(tavernInteraction(interaction),false);assert.equal(tavernDeferredReply(interaction),null);}
 });
 
@@ -47,4 +47,5 @@ test('natural language opens a public lobby without a model request or welcome w
  assert(await handleNaturalTavern(e,msg,'走进酒馆'));assert.equal(e.service.rows('SELECT * FROM tavern_members').length,0);
  assert(sent[0].body.content.includes('大厅'));assert(sent[0].body.content.includes('今日店长'));assert(!JSON.stringify(sent[0].body).includes('_mapEmbed'));if(sent[0].form){assert.equal(sent[0].body.embeds[0].image.url,'attachment://tavern-scene.gif');assert(sent[0].body.embeds[0].title.includes('店内实况'));assert(sent[0].body.embeds[0].description.includes('建设'));assert(sent[0].body.embeds[0].footer.text.includes('🌱'));}assert(!sent.some(x=>x.url.includes('model')));assert.equal(sent[0].body.allowed_mentions.parse.length,0);
 });
+
 

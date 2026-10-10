@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {RogueService} from './rogue-service.mjs';
+import {RULE_VERSION,CURRENT_RULE_VERSION} from './rogue-run.mjs';
 import {dayKey} from './tavern-catalog.mjs';
 
 const NOW=Date.parse('2026-10-10T11:15:00Z');
@@ -18,13 +19,21 @@ function fixture(guild='1'){
  db.exec('CREATE TABLE tavern_ledger(id TEXT PRIMARY KEY,user_id TEXT,amount INTEGER,kind TEXT,note TEXT,at INTEGER)');
  const host={storage,sql,member(id,name,now){let m=sql.exec('SELECT * FROM tavern_members WHERE id=?',id).toArray()[0];if(!m){sql.exec('INSERT INTO tavern_members VALUES(?,?,60,?)',id,name,now);sql.exec('INSERT INTO tavern_ledger VALUES(?,?,60,?,?,?)',`welcome:${id}`,id,'welcome','welcome',now);m=sql.exec('SELECT * FROM tavern_members WHERE id=?',id).toArray()[0];}return m;}};
  const clock=()=>currentTime;
- const service=new RogueService(host,guild,{idFactory:()=>`${guild}-run-${++ids}`,clock});
+ const service=new RogueService(host,guild,{idFactory:()=>`${guild}-run-${++ids}`,clock,rulesVersion:RULE_VERSION});
  const p={guild,id:'2',mode:'challenge',requestId:'start-1',now:NOW};
  const one=(q,...a)=>sql.exec(q,...a).toArray()[0];
  const terminal=(r,type='CLEAR',acts=3)=>{const n={...r,phase:'RESULT',completedActs:acts,completed:acts*3,eliteWins:0,hp:20,result:{type,at:NOW}};service.save(n);return n;};
  return {db,service,p,one,terminal,setFault:v=>fault=v,setNow:v=>currentTime=v,host,clock};
 }
 const command=(p,r,requestId,action,now=p.now)=>({...p,runId:r.runId,version:r.version,requestId,action,now});
+test('production service defaults to v0.6 and challenge profession is fixed server-side',()=>{
+ const f=fixture(),service=new RogueService(f.host,'1',{idFactory:()=> 'daily-v06',clock:f.clock});
+ assert.equal(service.rulesVersion,CURRENT_RULE_VERSION);
+ const run=service.start({...f.p,requestId:'v06-start',professionId:'traveler',inventory:['tonic','bandage']});
+ assert.equal(run.ruleVersion,CURRENT_RULE_VERSION);
+ assert.equal(run.professionId,service.challengeProfession(f.p));
+ assert.deepEqual(run.inventory,[]);
+});
 test('restart/JSON restore, duplicate requests and stale buttons do not duplicate actions',()=>{
  const f=fixture(),r=f.service.start(f.p);
  assert.equal(f.service.start(f.p).runId,r.runId);
@@ -32,7 +41,7 @@ test('restart/JSON restore, duplicate requests and stale buttons do not duplicat
  const next=f.service.act(a);
  assert.equal(f.service.act(a).version,next.version);
  assert.throws(()=>f.service.act({...a,requestId:'old-button'}),e=>e.code==='STALE');
- const restarted=new RogueService(f.host,'1',{clock:f.clock});
+ const restarted=new RogueService(f.host,'1',{clock:f.clock,rulesVersion:RULE_VERSION});
  assert.deepEqual(restarted.resume({...f.p,runId:r.runId,now:NOW+1000}),next);
  assert.equal(restarted.resume({...f.p,runId:r.runId,now:NOW+2000}).lastActionAt,next.lastActionAt);
 });

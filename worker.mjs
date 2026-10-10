@@ -9,6 +9,11 @@ import {TavernOperationsLive} from './tavern-operations-live.mjs';
 import {TavernMapBridge} from './tavern-map-bridge.mjs';
 import {TavernMapPresentation} from './tavern-map-presentation.mjs';
 import {lobbyGameRequest} from './tavern-lobby-routing.mjs';
+import {RogueService} from './rogue-service.mjs';
+import {CATALOG_V06,PROFESSIONS,ITEMS} from './rogue-content-v06.mjs';
+import {CURRENT_RULE_VERSION} from './rogue-run.mjs';
+import {dispatchRogue} from './rogue-interactions.mjs';
+import {rogueInteraction,rogueCommand} from './rogue-ui.mjs';
 import {petInteraction,immediatePetReply,petDeferredReply,finishPet} from './pet-ui.mjs';
 import {dispatchPetHome,petHomeRequest} from './pet-registry.mjs';
 import {LiarRankings,LiarRankBridge,rankingInteraction as liarRankingInteraction,finishRanking as finishLiarRanking} from './liar-rankings.mjs';
@@ -32,7 +37,7 @@ import { BoardSync } from './board-sync.mjs';
 import { PrivatePanels } from './private-panels.mjs';
 import { initializeLifecycle, nextLifecycleAlarm, automaticCloseReason, idleWarning, takeoverAt, canTakeover, touchOwner, effectiveHumanAction } from './lifecycle.mjs';
 import { board, quickRaises, confirmation, handPanel, management, panelAction, button, row } from './ui.mjs';
-const COMMAND_VERSION='games-v1.0.1-beta.44'; // Single-companion adoption and private five-stop walks.
+const COMMAND_VERSION='games-v1.0.1-v06-rogue';
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。点「准备下一手」，所有参与真人准备后 5 秒自动发牌；人员变化会取消全部准备。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；连续 2 次超时会在本手结束后暂离，保留筹码；在牌桌管理恢复参与。全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码；游玩中可预约本手结束后离桌，并随时取消。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。\n未发牌空闲 5 分钟、结算后空闲 10 分钟自动关桌，提前 1 分钟提醒；刷新和查看手牌不延长计时。\n游玩中 10 分钟无人有效操作且仍可行动真人均已超时时，取消本手并退回下注。\n等待发牌或结算时，桌主 2 分钟未交互，其他已入座真人可接管。只供娱乐，无充值或兑换。';
@@ -48,6 +53,11 @@ async function discordApi(env,path,method,body,timeoutMs=6000){
 }
 export class PokerTable extends DurableObject {
   get tavern(){return this.tavernService??=new TavernService(this.ctx.storage);}
+  rogueService(guild){
+    this.rogueGuildServices??=new Map();
+    if(!this.rogueGuildServices.has(guild))this.rogueGuildServices.set(guild,new RogueService(this.tavern,guild));
+    return this.rogueGuildServices.get(guild);
+  }
   get tavernLive(){return this.tavernOperationsLive??=new TavernOperationsLive(this);}
   get tavernMapPresentation(){return this.tavernMapView??=new TavernMapPresentation(this);}
   get tavernMapBridge(){return this.tavernMapSync??=new TavernMapBridge(this);}
@@ -114,6 +124,10 @@ export class PokerTable extends DurableObject {
     });
   }
   async dispatch(payload){
+      if(payload.op==='rogueInteraction'){
+        try{return json(dispatchRogue(this.rogueService(payload.guild),payload.interaction));}
+        catch(e){return json(privateReply(e.message||'远征暂时无法打开，请稍后重试。'));}
+      }
       if(payload.op==='petHome'){try{return json(await dispatchPetHome(this.ctx.storage,payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='gatewayEnsure'){try{return json({...await this.discordGateway.ensure(),runtime:'chat50-channel-order-speaker-map'});}catch{return json({connected:false,runtime:'chat50-channel-order-speaker-map'});}}
       if(payload.op==='aiProbe'){
@@ -151,11 +165,11 @@ export class PokerTable extends DurableObject {
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
       if(payload.op==='unoRank'){try{return json(await this.rankings.dispatch(payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true});}
+      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.53',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG_V06.cards).length,relics:Object.keys(CATALOG_V06.relics).length,enemies:Object.keys(CATALOG_V06.enemies).length,items:Object.keys(ITEMS).length}});}
       if(payload.op==='register'){
         if(!this.env.BOT_TOKEN)return json({registered:false});
         if(await this.ctx.storage.get('commandVersion')===COMMAND_VERSION)return json({registered:true});
-        try{const results=await Promise.all([command,unoCommand,ghostCommand,liarCommand,aiCommand,tavernCommand].map(c=>discordApi(this.env,`/applications/${this.env.DISCORD_APPLICATION_ID}/commands`,'POST',c)));if(results.every(r=>r.ok))await this.ctx.storage.put('commandVersion',COMMAND_VERSION);return json({registered:results.every(r=>r.ok)});}catch{return json({registered:false});}
+        try{const results=await Promise.all([command,unoCommand,ghostCommand,liarCommand,aiCommand,tavernCommand,rogueCommand].map(c=>discordApi(this.env,`/applications/${this.env.DISCORD_APPLICATION_ID}/commands`,'POST',c)));if(results.every(r=>r.ok))await this.ctx.storage.put('commandVersion',COMMAND_VERSION);return json({registered:results.every(r=>r.ok)});}catch{return json({registered:false});}
       }
       let t=await this.ctx.storage.get('table');
       if(payload.op==='channelMessage'){
@@ -297,6 +311,19 @@ async function bindOriginal(env,stub,i,epoch){
     await new Promise(resolve=>setTimeout(resolve,300*(n+1)));
   }
 }
+function rogueDeferredReply(i){
+  return i.type===3&&(Number(i.message?.flags)&64)?{type:6}:{type:5,data:{flags:64}};
+}
+async function finishRogue(env,i){
+  try{
+    const stub=env.TABLES.get(env.TABLES.idFromName(`tavern:${i.guild_id}`));
+    const response=await stub.fetch('https://internal',{method:'POST',body:JSON.stringify({op:'rogueInteraction',guild:i.guild_id,interaction:i})});
+    const reply=await response.json();
+    const data=reply?.data??{content:'远征暂时无法打开，请稍后重试。',allowed_mentions:{parse:[]}};
+    delete data.flags; delete data.ephemeral;
+    await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${i.token}/messages/@original`,{method:'PATCH',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify(data),signal:AbortSignal.timeout(5000)});
+  }catch(error){console.error('rogue_panel_update_failed',{reason:error.message});}
+}
 async function handle(request,env,ctx){
   const path=new URL(request.url).pathname;
   if(path.startsWith('/art/pet-walk/'))return servePetWalkArt(request);
@@ -313,6 +340,11 @@ async function handle(request,env,ctx){
   if(i?.application_id!==env.DISCORD_APPLICATION_ID)return new Response('Wrong application',{status:403});
   if(![2,3,5].includes(i.type)||!/^\d+$/.test(i.channel_id||'')||!/^\d+$/.test(i.guild_id||''))return json(privateReply('请在服务器文字频道内使用。'));
   const lobbyRoute=lobbyGameRequest(i);if(lobbyRoute?.error)return json(privateReply(lobbyRoute.error));if(lobbyRoute?.interaction)i=lobbyRoute.interaction;
+  if(rogueInteraction(i)){
+    if(i.member?.user?.bot)return json(privateReply('灯下迷城只向真人来客开放。'));
+    if(!i.member?.user?.id)return json(privateReply('请在服务器内使用灯下迷城。'));
+    ctx.waitUntil(finishRogue(env,i));return json(rogueDeferredReply(i));
+  }
   if(petInteraction(i)){if(i.member?.user?.bot)return json(privateReply('伙伴只向真人来客开放。'));const immediate=immediatePetReply(i);if(immediate)return json(immediate);ctx.waitUntil(finishPet(env,i).catch(error=>console.error('pet_panel_update_failed',{reason:error.message})));return json(petDeferredReply(i));}
   if(tavernInteraction(i)){if(i.member?.user?.bot)return json(privateReply('酒馆经营仅向真人玩家开放。'));const immediate=immediateTavernReply(i);if(immediate)return json(immediate);const deferred=tavernDeferredReply(i);ctx.waitUntil(finishTavern(env,i));return json(deferred);}
   if(specialInteraction(i)){if(!i.member?.user?.id)return json(privateReply('请在服务器内使用。'));ctx.waitUntil(finishSpecial(env,i));return json({type:5,data:{flags:64}});}

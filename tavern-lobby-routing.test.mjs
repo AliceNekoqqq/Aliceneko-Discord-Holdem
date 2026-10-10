@@ -12,10 +12,10 @@ const component=(action,overrides={})=>({type:3,id:'777',application_id:'123',gu
 
 test('route only lobbyPlay buttons and preserve Discord actor while replacing command data',()=>{
  assert.equal(lobbyGameRequest({type:3,data:{custom_id:'unrelated'}}),null);
- const cases={poker:['德州','创建'],uno:['uno','创建'],ghost:['抽鬼牌','等待对手'],liar:['骗子酒馆','创建'],table:['德州','牌桌']};
+ const cases={poker:['德州','创建'],uno:['uno','创建'],ghost:['抽鬼牌','等待对手'],liar:['骗子酒馆','创建'],table:['德州','牌桌'],rogue:['灯下迷城',null]};
  for(const [key,[name,sub]]of Object.entries(cases)){
   const input=component(`lobbyPlay~${key}`),resolved=lobbyGameRequest(input);assert(resolved?.interaction);
-  assert.equal(resolved.interaction.type,2);assert.deepEqual(resolved.interaction.data,{name,options:[{name:sub}]});
+  assert.equal(resolved.interaction.type,2);assert.deepEqual(resolved.interaction.data,{name,options:sub?[{name:sub}]:[]});
   for(const field of ['id','token','member','guild_id','channel_id','application_id'])assert.equal(resolved.interaction[field],input[field]);
   assert.equal(input.type,3);assert.equal(input.data.custom_id,`t:3:any:lobbyPlay~${key}`);
  }
@@ -68,3 +68,4 @@ test('signed forged guild, owner, unknown game and malformed buttons are private
  for(const input of bad){const response=await call(input);assert.equal(response.type,4);assert.equal(response.data.flags,64);assert(response.data.content.length>0);}
  assert.deepEqual(lookups,[]);
 });
+

@@ -1,6 +1,9 @@
-import {createRun,runAction,expireRun,RULE_VERSION} from './rogue-run.mjs';
+import {createRun,runAction,expireRun,RULE_VERSION,CURRENT_RULE_VERSION,SUPPORTED_RULE_VERSIONS} from './rogue-run.mjs';
 import {scoreRun,rewardAmount,dailySeedGroup,REWARDED_STARTS,ECONOMY_VERSION} from './rogue-economy.mjs';
 import {DAILY_REWARD_CAP,dayKey,validId} from './tavern-catalog.mjs';
+import {PROFESSIONS} from './rogue-content-v06.mjs';
+const PROFESSION_IDS=Object.keys(PROFESSIONS);
+const professionForSeed=(seed)=>{let h=2166136261;for(const c of String(seed)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)>>>0;}return PROFESSION_IDS[h%PROFESSION_IDS.length]??'traveler';};
 
 // Lives inside the already guild-bound TavernService's SQLite DO. No external
 // I/O/await in transactionSync; wallet, snapshot and receipt commit together.
@@ -14,9 +17,10 @@ const requestKey=r=>{
 };
 const validTime=now=>{if(!Number.isSafeInteger(now)||now<0)fail('TIME','时间无效。');};
 export class RogueService{
- constructor(host,guild,{idFactory=()=>crypto.randomUUID(),clock=()=>Date.now()}={}){
+ constructor(host,guild,{idFactory=()=>crypto.randomUUID(),clock=()=>Date.now(),rulesVersion=CURRENT_RULE_VERSION}={}){
   if(!validId(guild))fail('GUILD','需要已绑定的服务器。');
-  this.host=host;this.storage=host.storage;this.sql=host.sql;this.guild=guild;this.idFactory=idFactory;this.clock=clock;
+  if(!(SUPPORTED_RULE_VERSIONS??[RULE_VERSION,CURRENT_RULE_VERSION]).includes(rulesVersion))fail('VERSION','不支持的规则版本。');
+  this.host=host;this.storage=host.storage;this.sql=host.sql;this.guild=guild;this.idFactory=idFactory;this.clock=clock;this.rulesVersion=rulesVersion;
   this.storage.transactionSync(()=>{
    this.sql.exec('CREATE TABLE IF NOT EXISTS rogue_runs (id TEXT PRIMARY KEY,guild TEXT NOT NULL,owner TEXT NOT NULL,status TEXT NOT NULL,version INTEGER NOT NULL,snapshot TEXT NOT NULL)');
    this.sql.exec("CREATE UNIQUE INDEX IF NOT EXISTS rogue_one_active ON rogue_runs(guild,owner) WHERE status='ACTIVE'");
@@ -38,7 +42,7 @@ export class RogueService{
   if(!row||row.guild!==this.guild||row.owner!==p.id)fail('OWNER','不能操作这局冒险。');
   const run=JSON.parse(row.snapshot);
   if(run.guild!==this.guild||run.owner!==p.id||run.runId!==row.id)fail('SNAPSHOT','冒险记录不匹配。');
-  if(run.phase!=='RESULT'&&run.ruleVersion!==RULE_VERSION)fail('VERSION','这局需要原规则版本，不能替换存档。');
+  if(run.phase!=='RESULT'&&!(SUPPORTED_RULE_VERSIONS??[RULE_VERSION,CURRENT_RULE_VERSION]).includes(run.ruleVersion))fail('VERSION','这局需要原规则版本，不能替换存档。');
   return run;
  }
  save(run){
@@ -124,8 +128,11 @@ export class RogueService{
    if(rewardEligible)this.sql.exec('INSERT INTO rogue_daily(owner,day,starts) VALUES(?,?,1) ON CONFLICT(owner,day) DO UPDATE SET starts=starts+1',p.id,day);
    const runId=this.idFactory(),mode=p.mode??'normal';
    if(this.one('SELECT id FROM rogue_runs WHERE id=?',runId))fail('RUN_ID','冒险标识重复，请重试。');
-   const seed=mode==='challenge'?dailySeedGroup(this.guild,day,RULE_VERSION):`${runId}/normal`;
-   const run=createRun({runId,owner:p.id,guild:this.guild,mode,seed,startDay:day,rewardEligible,now});
+   const ruleVersion=this.rulesVersion;
+   const seed=mode==='challenge'?dailySeedGroup(this.guild,day,ruleVersion):`${runId}/normal`;
+   if(mode!=='challenge'&&p.professionId!=null&&!PROFESSION_IDS.includes(p.professionId))fail('INVALID_PROFESSION','请选择有效职业。');
+   const professionId=mode==='challenge'?professionForSeed(`${this.guild}|${day}|${ruleVersion}`):(p.professionId??PROFESSION_IDS[0]);
+   const run=createRun({runId,owner:p.id,guild:this.guild,mode,seed,startDay:day,rewardEligible,now,ruleVersion,professionId,inventory:[]});
    this.save(run);this.remember(p,runId,'START');return run;
   });
   return this.respond(result);
@@ -160,8 +167,9 @@ export class RogueService{
  leaderboard(p){
   this.guard(p);const day=p.day??dayKey(this.clock());
   if(typeof day!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(day))fail('DAY','榜单日期无效。');
-  const seedGroup=dailySeedGroup(this.guild,day,RULE_VERSION);
+  const seedGroup=dailySeedGroup(this.guild,day,this.rulesVersion);
   this.drainRanks();
   return {day,seedGroup,rows:this.sql.exec('SELECT b.owner,m.name,b.score,b.run_id,b.at,RANK() OVER (ORDER BY b.score DESC) AS rank FROM rogue_best b LEFT JOIN tavern_members m ON m.id=b.owner WHERE b.seed_group=? ORDER BY b.score DESC,b.at ASC,b.owner ASC LIMIT 20',seedGroup).toArray()};
  }
+ challengeProfession(p={}){const day=dayKey(this.clock());return professionForSeed(`${this.guild}|${day}|${this.rulesVersion}`);}
 }

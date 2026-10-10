@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {dispatchRogue} from './rogue-interactions.mjs';
-import {createRun,runAction} from './rogue-run.mjs';
+import {createRun,runAction,RULE_VERSION} from './rogue-run.mjs';
 const NOW=Date.parse('2026-10-10T11:25:00Z');
 function fixture(patch={}){
- let run={...createRun({runId:'run-1',owner:'2',guild:'1',mode:'normal',seed:'test',startDay:'2026-10-10',now:NOW}),...patch},actions=0,captured;
+ let run={...createRun({runId:'run-1',owner:'2',guild:'1',mode:'normal',seed:'test',startDay:'2026-10-10',now:NOW,ruleVersion:RULE_VERSION}),...patch},actions=0,captured;
  const service={guild:'1',resume(p){captured=p;return run;},start(p){captured=p;return run;},act(p){captured=p;actions++;if(p.version!==run.version){const e=Error();e.code='STALE';throw e;}run=runAction(run,p.action,NOW+actions);return run;},leaderboard(p){captured=p;return {day:'2026-10-10',rows:[]};}};
  const i={id:'100',type:3,guild_id:'1',member:{user:{id:'2',username:'player'}},message:{flags:64},data:{custom_id:'rl:home'}};
  return {service,i,getRun:()=>run,getActions:()=>actions,getCaptured:()=>captured};
@@ -47,4 +47,14 @@ test('event card preview is read only, confirmation atomically buys selected car
 test('stale confirmation cannot apply to new state and returns a private error',()=>{
  const f=fixture({version:2});const reply=dispatchRogue(f.service,{...f.i,data:{custom_id:'rl:run-1:1:ask-abandon'}});
  assert.equal(reply.type,4);assert.match(reply.data.content,/过期/);assert.equal(f.getActions(),0);
+});
+test('terminal home button returns the profession picker and updates its private panel',()=>{
+ const f=fixture({phase:'RESULT',result:{type:'CLEAR'}});
+ const reply=dispatchRogue(f.service,{...f.i,data:{custom_id:'rl:home'}});
+ assert.equal(reply.type,7);assert.equal(reply.data.embeds[0].title,'灯下迷城');assert.equal(f.getActions(),0);
+});
+test('stale details page remains read-only and updates from current run state',()=>{
+ const f=fixture({version:4});
+ const reply=dispatchRogue(f.service,{...f.i,data:{custom_id:'rl:run-1:0:details:deck%3A0'}});
+ assert.equal(reply.type,7);assert.equal(reply.data.embeds[0].title,'牌组详情');assert.equal(f.getActions(),0);
 });
