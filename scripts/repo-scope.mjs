@@ -26,25 +26,29 @@ const SCOPES = Object.freeze({
     'lifecycle.mjs', 'worker.test.mjs', 'package.json'
   ],
   assets: [
-    'scripts/build-*.py', 'assets', 'equipment-art-manifest.mjs',
-    'pet-art.mjs', 'pet-walk-map.mjs', 'card-image.mjs', 'emoji-art.mjs'
+    'scripts/build-*.py', 'scripts/build-pet-walk-map.mjs', 'assets',
+    'static-art.mjs', 'equipment-art.mjs', 'tavern-art.mjs', 'pet-art.mjs',
+    'pet-walk-map.mjs', 'card-image.mjs', 'card-glyphs.mjs', 'nickname-font.mjs',
+    'nickname-glyphs.mjs', 'emoji-art.mjs', 'emoji-sprites.mjs',
+    'equipment-art-manifest.mjs', 'tavern-art-manifest.mjs',
+    'pet-art-manifest.mjs', 'pet-walk-art-manifest.mjs', 'test-static-assets.mjs'
   ]
 });
 
 const GENERATED = new Set([
-  'pet-art-data.mjs', 'pet-art-data-v2.mjs', 'pet-walk-art-data.mjs',
+  'equipment-art-manifest.mjs', 'tavern-art-manifest.mjs',
+  'pet-art-manifest.mjs', 'pet-walk-art-manifest.mjs',
   'nickname-glyphs.mjs', 'card-glyphs.mjs', 'emoji-sprites.mjs',
-  'pet-walk-map-data.mjs'
+  'card-glyphs.bin', 'nickname-glyphs.bin', 'emoji-sprites.bin'
 ]);
 
 const isGenerated = file => GENERATED.has(basename(file))
-  || basename(file).startsWith('tavern-art-data-')
   || /(?:PLAYTHROUGH|FULL_RUN_RESULTS)_.*\.json$/.test(file);
 
 function allFiles(dir = ROOT) {
   const output = [];
   for (const entry of readdirSync(dir, {withFileTypes: true})) {
-    if (entry.name === '.git' || entry.name === 'node_modules') continue;
+    if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === 'public') continue;
     const path = resolve(dir, entry.name);
     if (entry.isDirectory()) output.push(...allFiles(path));
     else output.push(relative(ROOT, path).split(sep).join('/'));

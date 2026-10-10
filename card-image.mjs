@@ -1,10 +1,27 @@
-import { glyphs } from './card-glyphs.mjs';
+import { glyphs,glyphAtlas } from './card-glyphs.mjs';
+import { loadStaticAsset } from './static-art.mjs';
 import { cardsText } from './engine.mjs';
 
 const WIDTH=760,HEIGHT=520;
 const C={background:[23,29,43],private:[45,34,51],shared:[27,43,54],white:[255,252,245],ink:[32,39,53],red:[184,48,76],muted:[156,174,192],pink:[240,181,207],blue:[167,215,235],back:[45,62,78],border:[84,109,128]};
 const decoded=new Map();
-function glyph(char){if(!decoded.has(char)){const [w,h,advance,b64,unit=48]=glyphs[char]||glyphs['?'];if(decoded.size>=512)decoded.delete(decoded.keys().next().value);decoded.set(char,{w,h,advance,unit,data:Uint8Array.from(atob(b64),c=>c.charCodeAt(0))});}return decoded.get(char);}
+const GLYPH_PATH='/art/renderer/card-glyphs.bin';
+let atlasBytes=null,atlasLoading=null;
+export async function prepareCardGlyphAtlas(env){
+ if(atlasBytes)return atlasBytes;
+ if(!atlasLoading)atlasLoading=(async()=>{const asset=await loadStaticAsset(GLYPH_PATH,glyphAtlas,env,'application/octet-stream');if(!asset)throw Error('Card glyph atlas unavailable');return asset.data;})();
+ try{atlasBytes=await atlasLoading;return atlasBytes;}catch(error){atlasLoading=null;throw error;}
+}
+function glyph(char){
+ if(!decoded.has(char)){
+  const [w,h,advance,source,length,unit=48]=glyphs[char]||glyphs['?'];
+  const data=source instanceof Uint8Array?source:atlasBytes?.subarray(source,source+length);
+  if(!data)throw Error('Card glyph atlas not prepared');
+  if(decoded.size>=512)decoded.delete(decoded.keys().next().value);
+  decoded.set(char,{w,h,advance,unit,data});
+ }
+ return decoded.get(char);
+}
 export const textWidth=(value,size)=>[...value].reduce((sum,c)=>sum+glyph(c).advance*size/glyph(c).unit,0);
 export class Canvas {
   constructor(width=WIDTH,height=HEIGHT){this.width=width;this.height=height;this.pixels=new Uint8Array(width*height*3);this.rect(0,0,width,height,C.background);}
@@ -24,7 +41,8 @@ export class Canvas {
 }
 const crcTable=Uint32Array.from({length:256},(_,n)=>{for(let k=0;k<8;k++)n=n&1?0xedb88320^(n>>>1):n>>>1;return n>>>0;});
 function chunk(name,bytes){const result=new Uint8Array(bytes.length+12),view=new DataView(result.buffer);view.setUint32(0,bytes.length);result.set(new TextEncoder().encode(name),4);result.set(bytes,8);let crc=0xffffffff;for(let i=4;i<result.length-4;i++)crc=crcTable[(crc^result[i])&255]^(crc>>>8);view.setUint32(result.length-4,(crc^0xffffffff)>>>0);return result;}
-export async function renderCardImage(hole,community=[]){
+export async function renderCardImage(hole,community=[],env){
+  await prepareCardGlyphAtlas(env);
   if(!Array.isArray(hole)||hole.length!==2||!Array.isArray(community)||community.length>5||[...hole,...community].some(c=>!Number.isInteger(c)||c<0||c>=52)||new Set([...hole,...community]).size!==hole.length+community.length)throw Error('Invalid cards');
   const canvas=new Canvas();
   canvas.rect(16,16,728,236,C.private,14);canvas.text('你的底牌',38,30,26,C.pink);canvas.text('仅你可见',638,34,18,C.pink);
@@ -44,14 +62,14 @@ export async function encodePNG(canvas){
 }
 export function imageSignature(t,id){const p=t.players.find(p=>p.id===id&&!p.bot);return p?.cards.length===2?`${t.epoch}/${t.handNo}/${p.cards.join(',')}/${t.board.join(',')}`:null;}
 // Files only go to the player's ephemeral webhook, never to a public image URL.
-export async function imageMessage(t,id,data,existing){
+export async function imageMessage(t,id,data,existing,env){
   const signature=imageSignature(t,id);if(!signature||!data.embeds?.length)return {body:{...data,attachments:[]},signature:null};
   const filename=`hand-${t.handNo}.png`,body=structuredClone(data);
   body.embeds[0].image={url:`attachment://${filename}`};
   const compact=()=>{body.embeds[0].description=body.embeds[0].description.replace(/\n底牌：[^\n]*\n公共牌：[^\n]*/,'');};
   if(existing?.signature===signature&&existing.id){compact();body.attachments=[{id:existing.id,filename}];return {body,signature};}
   const p=t.players.find(p=>p.id===id);let png;
-  try{png=await renderCardImage(p.cards,t.board);}catch{delete body.embeds[0].image;body.attachments=[];return {body,signature:null};}
+  try{png=await renderCardImage(p.cards,t.board,env);}catch{delete body.embeds[0].image;body.attachments=[];return {body,signature:null};}
   body.attachments=[{id:0,filename,description:`上方仅你可见的底牌：${cardsText(p.cards)}；下方所有人共用的公共牌：${cardsText(t.board)||'尚未发出'}。`}];
   compact();
   const form=new FormData();form.set('payload_json',JSON.stringify(body));form.set('files[0]',png,filename);return {body:form,signature};

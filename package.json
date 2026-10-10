@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "scope": "node scripts/repo-scope.mjs",
-    "test": "node --test *.test.mjs",
-    "test:chat": "node --test ai-chat.test.mjs chat-enrichment.test.mjs discord-chat-context.test.mjs gateway-concurrency.test.mjs runtime-context.test.mjs",
-    "test:lantern": "node --test rogue-*.test.mjs",
-    "test:tavern": "node --test tavern*.test.mjs",
-    "test:worker": "node --test worker.test.mjs lifecycle.test.mjs private-panels.test.mjs board-sync.test.mjs"
+    "test": "node --import=./test-static-assets.mjs --test *.test.mjs",
+    "test:chat": "node --import=./test-static-assets.mjs --test ai-chat.test.mjs chat-enrichment.test.mjs discord-chat-context.test.mjs gateway-concurrency.test.mjs runtime-context.test.mjs",
+    "test:lantern": "node --import=./test-static-assets.mjs --test rogue-*.test.mjs",
+    "test:tavern": "node --import=./test-static-assets.mjs --test tavern*.test.mjs",
+    "test:worker": "node --import=./test-static-assets.mjs --test worker.test.mjs lifecycle.test.mjs private-panels.test.mjs board-sync.test.mjs",
+    "test:assets": "node --import=./test-static-assets.mjs --test equipment-art.test.mjs tavern-art.test.mjs pet-art.test.mjs pet-walk-art.test.mjs rogue-image.test.mjs tavern-map-image.test.mjs tavern-map-presentation.test.mjs tavern-map-scene.test.mjs uno-integration.test.mjs uno-profile.test.mjs uno-social.test.mjs uno-table-image.test.mjs uno-variants.test.mjs liar-live.test.mjs liar-private-owner.test.mjs ghost.test.mjs private-panels.test.mjs"
   }
 }
-

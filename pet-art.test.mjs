@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {PETS} from './pet-catalog.mjs';
-import records from './pet-art-data-v2.mjs';
-import legacyRecords from './pet-art-data.mjs';
+import manifest from './pet-art-manifest.mjs';
+const records=manifest.v2,legacyRecords=manifest.v1;
 import {getPetArtUrl,petArtEmbed,servePetArt} from './pet-art.mjs';
 
 test('all fifteen breed-style portraits use new JPEG URLs and exact generated repository bytes',async()=>{
@@ -12,7 +12,7 @@ test('all fifteen breed-style portraits use new JPEG URLs and exact generated re
  for(const[species,coat]of pairs){
   const url=getPetArtUrl(species,coat),data=records[`${species}:${coat}`],disk=readFileSync(new URL(`./assets/pets/${species}-${coat}-v2.jpg`,import.meta.url));
   assert.match(url,new RegExp(`/art/pets/${species}/${coat}/v2.jpg$`));assert.equal(petArtEmbed(species,coat)[0].image.url,url);
-  assert.equal(disk.length,data.bytes);assert.equal(createHash('sha256').update(disk).digest('hex'),data.sha256);assert.deepEqual(Buffer.from(data.base64,'base64'),disk);
+  assert.equal(disk.length,data.bytes);assert.equal(createHash('sha256').update(disk).digest('hex'),data.sha256);
   const reply=await servePetArt(new Request(url));assert.equal(reply.status,200);assert.equal(reply.headers.get('Content-Type'),'image/jpeg');assert.deepEqual(Buffer.from(await reply.arrayBuffer()),disk);
   const cached=await servePetArt(new Request(url,{headers:{'If-None-Match':reply.headers.get('ETag')}}));assert.equal(cached.status,304);assert.equal(await cached.text(),'');
  }
@@ -27,7 +27,7 @@ test('previous immutable portrait URLs keep their original image bytes after the
  for(const[species,coat]of PETS.flatMap(p=>p.coats.map(c=>[p.id,c.id]))){
   const url=`https://unit.test/art/pets/${species}/${coat}/v1.jpg`,legacy=legacyRecords[`${species}:${coat}`];
   const response=await servePetArt(new Request(url));assert.equal(response.status,200);
-  assert.deepEqual(Buffer.from(await response.arrayBuffer()),Buffer.from(legacy.base64,'base64'));
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()),readFileSync(new URL(`./assets/pets/${species}-${coat}-v1.jpg`,import.meta.url)));
   assert.notEqual(records[`${species}:${coat}`].sha256,legacy.sha256);
   assert.match(response.headers.get('Cache-Control'),/immutable/);
  }

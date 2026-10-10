@@ -1,9 +1,20 @@
-import {emojiSprites} from './emoji-sprites.mjs';
-// Build-time rasterized Twemoji; bounded decode cache, no runtime image downloads.
+import {emojiSprites,emojiSpriteAtlas} from './emoji-sprites.mjs';
+import {loadStaticAsset} from './static-art.mjs';
+
+const SPRITE_PATH='/art/renderer/emoji-sprites.bin';
 const cache=new Map();
-export async function emojiBitmap(key){
+let atlas=null,loading=null;
+async function spriteAtlas(env){
+ if(atlas)return atlas;
+ if(!loading)loading=(async()=>{const asset=await loadStaticAsset(SPRITE_PATH,emojiSpriteAtlas,env,'application/octet-stream');if(!asset)throw Error('Emoji sprite atlas unavailable');return asset.data;})();
+ try{atlas=await loading;return atlas;}catch(error){loading=null;throw error;}
+}
+export async function emojiBitmap(key,env){
  const name=Object.hasOwn(emojiSprites,key)?key:'butterfly';
- if(!cache.has(name))cache.set(name,(async()=>{const compressed=Uint8Array.from(atob(emojiSprites[name]),c=>c.charCodeAt(0));const data=new Uint8Array(await new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer());if(data.length!==64*64*4)throw Error('Invalid emoji sprite');return data;})());
+ if(!cache.has(name)){
+  const task=(async()=>{const [offset,length]=emojiSprites[name],packed=(await spriteAtlas(env)).subarray(offset,offset+length);const data=new Uint8Array(await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer());if(data.length!==64*64*4)throw Error('Invalid emoji sprite');return data;})();
+  cache.set(name,task);void task.catch(()=>cache.delete(name));
+ }
  return cache.get(name);
 }
 export function paintEmoji(canvas,data,x,y,size=44){

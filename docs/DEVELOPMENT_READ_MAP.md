@@ -21,16 +21,10 @@
 
 ## 默认禁止全文读取的生成文件
 
-这些文件由脚本生成，单个文件可达数百 KB 到数 MB。要改内容时改源图片、manifest 或生成脚本；要验证时读哈希、导出名或测试结果。
+图片与像素图集按静态文件发布。构建时写入 `public/art/`，由 Worker 的 `ASSETS` 绑定读取；`public/` 和构建生成的 `assets/renderer/*.bin` 不进 Git。只读小型 manifest、文件大小、SHA256 和测试结果，不把二进制载荷读入上下文。
 
-- `pet-art-data.mjs`
-- `pet-art-data-v2.mjs`
-- `pet-walk-art-data.mjs`
-- `nickname-glyphs.mjs`
-- `card-glyphs.mjs`
-- `emoji-sprites.mjs`
-- `pet-walk-map-data.mjs`
-- `tavern-art-data-*.mjs`
+- 构建产物：`public/art/**`、`assets/renderer/*.bin`
+- 构建期索引：`card-glyphs.mjs`、`nickname-glyphs.mjs`、`emoji-sprites.mjs`、`pet-art-manifest.mjs`、`pet-walk-art-manifest.mjs`
 - `docs/roguelike/PLAYTHROUGH_*.json`、`FULL_RUN_RESULTS_*.json`
 
 ## 读取和验证规则
@@ -51,6 +45,6 @@
 1. 入口/路由层：`worker.mjs`、`tavern-ui.mjs`、`rogue-interactions.mjs`。
 2. 领域服务层：聊天、酒馆、肉鸽分别保持独立，不跨域复制状态对象。
 3. 渲染层：文字 UI、图片渲染和静态资源构建分开。
-4. 生成数据：保持构建产物可复现，不手改 `*-data.mjs`。
+4. 静态图片与字形：保留源图和构建脚本，部署前生成 public 文件；不把图片字节嵌进 JavaScript。
 
 每次只重构一个边界，并用对应范围测试验证；不要为了“变干净”一次性重写整个 Worker。

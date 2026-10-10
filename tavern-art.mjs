@@ -1,80 +1,24 @@
 import manifest from './tavern-art-manifest.mjs';
 import {equipmentArtUrl,serveEquipmentArt,equipmentAsset,loadEquipmentArt} from './equipment-art.mjs';
+import {loadStaticAsset,serveStaticAsset} from './static-art.mjs';
 
-const ART_VERSION = 'v1';
-const ART_ORIGIN = 'https://discord-holdem.aliceneko.workers.dev';
-
-export const ART_MANIFEST = Object.freeze(
-  Object.fromEntries(Object.entries(manifest).map(([id, asset]) => [id, Object.freeze({ ...asset })])),
-);
-
-export function imageAsset(id) {
-  if (typeof id !== 'string') return null;
-  if (!Object.hasOwn(ART_MANIFEST, id)) return equipmentAsset(id);
-  const asset = ART_MANIFEST[id];
-  return { ...asset };
+const ART_VERSION='v1';
+const ART_ORIGIN='https://discord-holdem.aliceneko.workers.dev';
+export const ART_MANIFEST=Object.freeze(Object.fromEntries(Object.entries(manifest).map(([id,asset])=>[id,Object.freeze({...asset})])));
+export function imageAsset(id){if(typeof id!=='string')return null;if(!Object.hasOwn(ART_MANIFEST,id))return equipmentAsset(id);return {...ART_MANIFEST[id]};}
+const assetPath=id=>'/art/'+id+'/'+ART_VERSION+'.jpg';
+export function getArtUrl(id){if(!Object.hasOwn(ART_MANIFEST,id))return equipmentArtUrl(id);return ART_ORIGIN+assetPath(id);}
+export function artEmbed(id){const url=getArtUrl(id);return url?[{image:{url}}]:[];}
+export async function loadArt(id,env){
+ if(equipmentAsset(id))return loadEquipmentArt(id,env);
+ const asset=imageAsset(id);if(!asset||!Object.hasOwn(ART_MANIFEST,id))return null;
+ return loadStaticAsset(assetPath(id),asset,env,'image/jpeg');
 }
-
-export function getArtUrl(id) {
-  if (!Object.hasOwn(ART_MANIFEST, id)) return equipmentArtUrl(id);
-  return `${ART_ORIGIN}/art/${id}/${ART_VERSION}.jpg`;
+export async function serveArt(request,env){
+ const url=new URL(request.url);
+ if(url.pathname.startsWith('/art/equipment/'))return serveEquipmentArt(request,env);
+ const match=/^\/art\/([a-z0-9-]+)\/v1\.jpg$/.exec(url.pathname);
+ if(!match||!Object.hasOwn(ART_MANIFEST,match[1]))return new Response('Not Found',{status:404});
+ const asset=ART_MANIFEST[match[1]];
+ return serveStaticAsset(request,env,assetPath(asset.id),asset,'image/jpeg');
 }
-
-export function artEmbed(id) {
-  const url = getArtUrl(id);
-  return url ? [{ image: { url } }] : [];
-}
-
-export function decodeArt(record) {
-  if (!record || record.mime !== 'image/jpeg' || typeof record.base64 !== 'string') return null;
-  try {
-    const binary = atob(record.base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-    return bytes;
-  } catch {
-    return null;
-  }
-}
-
-// The compiled image payload is supplied by the build step. Loading is lazy so
-// callers without generated assets can still use the metadata and embeds.
-export async function loadArt(id,env) {
-  if(equipmentAsset(id))return loadEquipmentArt(id,env);
-  const asset = imageAsset(id);
-  if (!asset) return null;
-  let records;
-  try {
-    records = (await import('./tavern-art-data.mjs')).default;
-  } catch {
-    return null;
-  }
-  const record = records?.[id];
-  const data = decodeArt(record);
-  if (!data) return null;
-  if (data.byteLength !== asset.bytes) return null;
-  return { ...asset, data };
-}
-
-export async function serveArt(request,env) {
-  const url = new URL(request.url);
-  if(url.pathname.startsWith('/art/equipment/'))return serveEquipmentArt(request,env);
-  const match = /^\/art\/([a-z0-9-]+)\/v1\.jpg$/.exec(url.pathname);
-  if (!match || !imageAsset(match[1])) return new Response('Not Found', { status: 404 });
-  if (request.method !== 'GET' && request.method !== 'HEAD') {
-    return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
-  }
-
-  const asset = imageAsset(match[1]);
-  const headers = {
-    'Content-Type': asset.mime,
-    'Content-Length': String(asset.bytes),
-    'X-Content-Type-Options': 'nosniff',
-    'Cache-Control': 'public, max-age=31536000, immutable',
-  };
-  if (request.method === 'HEAD') return new Response(null, { headers });
-  const loaded = await loadArt(asset.id);
-  if (!loaded) return new Response('Not Found', { status: 404 });
-  return new Response(loaded.data, { headers });
-}
-

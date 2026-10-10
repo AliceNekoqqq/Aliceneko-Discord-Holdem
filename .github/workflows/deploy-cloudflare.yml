@@ -12,6 +12,16 @@ on:
       - 'package.json'
       - 'scripts/repo-scope.mjs'
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '**.mjs'
+      - 'assets/**'
+      - 'scripts/build-*.py'
+      - 'scripts/build-pet-walk-map.mjs'
+      - 'package.json'
+      - '.github/workflows/deploy-cloudflare.yml'
 
 permissions:
   contents: read
@@ -35,10 +45,26 @@ jobs:
 
       - name: Build static image assets
         run: |
-          python -m pip install --disable-pip-version-check Pillow
+          sudo apt-get update
+          sudo apt-get install --yes fonts-noto-cjk
+          python -m pip install --disable-pip-version-check Pillow PyMuPDF fonttools
+          noto_font_path="$(fc-match -f '%{file}' 'Noto Sans CJK SC')"
+          test -n "$noto_font_path"
+          python scripts/build-card-glyphs.py --cjk-font "$noto_font_path"
+          python scripts/build-nickname-glyphs.py --font "$noto_font_path"
+          python scripts/build-emoji-sprites.py
           python scripts/build-equipment-art.py
+          python scripts/build-static-art.py
+
+      - name: Verify static assets and image renderers
+        run: |
+          npm run test:assets
+          npm run test:lantern
+          npm run test:tavern
+          npm run test:worker
 
       - name: Deploy discord-holdem
+        if: github.event_name != 'pull_request'
         run: npx --yes wrangler@4 deploy --config wrangler.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

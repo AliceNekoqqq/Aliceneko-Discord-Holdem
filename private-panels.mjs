@@ -130,12 +130,12 @@ export class PrivatePanels {
       if(eligible){
         if(!s.panel&&s.send?.expires>Date.now()&&!(['uno','ghost','liar'].includes(t.game)&&t.phase==='lobby')){
           const data=handPanel(t,id,t.game==='liar'?'新一轮已发牌，选择1～3张盖下或质疑上一手。':t.game==='ghost'?'双人快局已开始，点击对方牌背抽牌。':t.game==='uno'?(t.handNo?'新一局已发牌，绿框表示可出。':'已入座，开始后会自动显示手牌。'):t.handNo?'新的一手已发牌，这是你本手的两张底牌。':'已入座，发牌后会自动显示你的底牌。');
-          const prepared=await imageMessage(t,id,{...data,flags:64});
+          const prepared=await imageMessage(t,id,{...data,flags:64},null,this.env);
           const sent=await this.api(s.send,'POST',prepared.body);
           if(sent?.id){s.panel={...s.send,ref:sent.id,id:sent.id,hand:t.handNo,version:t.version,image:sent.attachments?.[0]?.id?{id:sent.attachments[0].id,signature:prepared.signature}:null};s.hidden=false;}else failed=true;
         }else if(s.panel?.expires>Date.now()&&(s.panel.version!==t.version||s.panel.hand!==t.handNo||s.panel.pending)){
           const data=s.hidden?{content:'底牌已收起。',embeds:[],attachments:[],components:[row(button(t,panelAction(id,'hand'),'展开手牌',1))],allowed_mentions:{parse:[]}}:t.game==='liar'?handPanel(t,id,s.panel.pending?.content?.split('\n')[0]||''):s.panel.version===t.version&&s.panel.pending?s.panel.pending:handPanel(t,id);
-          const prepared=await imageMessage(t,id,data,s.panel.image);
+          const prepared=await imageMessage(t,id,data,s.panel.image,this.env);
           const updated=await this.api(s.panel,'PATCH',prepared.body,s.panel.ref);
           if(updated){s.panel.hand=t.handNo;s.panel.version=t.version;delete s.panel.pending;if(updated.id)s.panel.id=updated.id;s.panel.image=updated.attachments?.[0]?.id?{id:updated.attachments[0].id,signature:prepared.signature}:null;}else failed=true;
         }

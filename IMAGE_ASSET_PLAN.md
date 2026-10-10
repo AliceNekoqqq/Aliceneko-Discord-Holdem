@@ -32,7 +32,7 @@ beta.37已补齐并接入全部20款常驻菜品图，连同酒馆氛围图共21
 
 实际生成提示词、状态与视觉核验见[assets/art/prompts.json](assets/art/prompts.json)；交付JPEG、尺寸、SHA256与v1文件名见[manifest.json](assets/art/manifest.json)，总JPEG字节1457155。每张≤180KB，20张菜图512×512，酒馆图960×640。主agent完成视觉核验，不凭图片修改菜单配方或价格。
 
-构建脚本[scripts/build-tavern-art.py](scripts/build-tavern-art.py)要求全部21个ID各一次；既有JPEG哈希匹配时原样保留，其他文件仅按比例缩小及JPEG压缩。示例：`python scripts/build-tavern-art.py room=assets/art/room-v1.jpg water=assets/art/water-v1.jpg ...`，省略号须替换为全部ID。脚本同步生成JSON清单、tavern-art-manifest.mjs、21个图片数据模块及聚合tavern-art-data.mjs，避免单次大文件发布载荷。
+构建脚本[scripts/build-tavern-art.py](scripts/build-tavern-art.py)要求全部21个ID各一次；既有JPEG哈希匹配时原样保留，其他文件仅按比例缩小及JPEG压缩。示例：`python scripts/build-tavern-art.py room=assets/art/room-v1.jpg water=assets/art/water-v1.jpg ...`，省略号须替换为全部ID。脚本更新JSON清单和小型tavern-art-manifest.mjs。部署构建由scripts/build-static-art.py把JPG复制到public/art/{id}/v1.jpg；Worker从ASSETS绑定读取文件。图片字节不再写入JavaScript生成模块。
 
 ## 展示、地址与检查
 
@@ -50,6 +50,6 @@ beta.37已补齐并接入全部20款常驻菜品图，连同酒馆氛围图共21
 
 1. 用户明确提出新品后，确认真实商品ID、名称、配方、价格、类别和温度；没有配方不按名字猜食材。当前没有自由云端菜单导入接口，需先接入实际菜单来源。
 2. 用统一风格单独生图，核对配方、数量、器皿、构图及无字/水印，保存实际提示词与审核结果。
-3. 同步新JPEG、prompt状态、全量manifest、数据模块和版本映射；检查私人预览、公共上桌、HTTP与钱包/重复确认边界，再整批发布。
+3. 同步新JPEG、prompt状态与manifest；部署构建复制静态文件到public/art并检查私人预览、公共上桌、HTTP与钱包/重复确认边界，再整批发布。
 
 云端自由菜单导入、R2对象存储和自动生图仍未实现；没有开启运行时图片计费，会话结束后不会自动补图。

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { MENU } from './tavern-catalog.mjs';
-import { ART_MANIFEST, artEmbed, decodeArt, getArtUrl, imageAsset, loadArt, serveArt } from './tavern-art.mjs';
+import { ART_MANIFEST, artEmbed, getArtUrl, imageAsset, loadArt, serveArt } from './tavern-art.mjs';
 
 test('every permanent menu dish has a stable JPEG asset and the room is preserved', () => {
   assert.deepEqual(Object.keys(ART_MANIFEST), ['room', ...MENU.filter(item => !item.requiresEquipment).map(item => item.id)]);
@@ -32,14 +32,7 @@ test('art URLs and embeds are generated only for allowlisted IDs', () => {
   assert.equal(imageAsset(''), null);
 });
 
-test('payload decoder returns JPEG bytes and rejects missing or malformed records', () => {
-  assert.deepEqual([...decodeArt({ mime: 'image/jpeg', base64: '/9j/AA==' })], [255, 216, 255, 0]);
-  assert.equal(decodeArt(null), null);
-  assert.equal(decodeArt({ mime: 'image/png', base64: 'AA==' }), null);
-  assert.equal(decodeArt({ mime: 'image/jpeg', base64: '%' }), null);
-});
-
-test('all generated payloads match disk bytes and SHA and serve immutable GET and HEAD', async () => {
+test('all published static images match disk bytes and SHA and serve immutable GET and HEAD', async () => {
   assert.equal(await loadArt('unknown-id'), null);
   for (const id of Object.keys(ART_MANIFEST)) {
   const art = await loadArt(id);
