@@ -31,7 +31,10 @@ test('A and B remain different participants despite identical names, with reply 
   const channel=[...personal.slice(0,2),{user_id:'A',role:'user',speaker_name:'同名',content:'我的猫叫桃子',created_at:20},{user_id:'A',role:'model',content:'你的猫叫桃子',created_at:21},{user_id:'C',role:'user',speaker_name:'同名',content:'我没有猫',created_at:22}];
   const prepared=prepareChatContext(personal,channel,{author:{id:'B',username:'同名'}});
   assert.deepEqual(prepared.history.map(x=>x.parts[0].text),['我喜欢蓝色','蓝色很好看']);
-  assert.deepEqual(prepared.channelConversation.records.map(x=>[x.speaker,x.replyTo]),[['member_1',undefined],['bot','member_1'],['member_2',undefined]]);
+  assert.deepEqual(prepared.channelConversation.records.map(x=>[x.speaker,x.replyTo]),[
+    ['current_user',undefined],['bot','current_user'],
+    ['member_1',undefined],['bot','member_1'],['member_2',undefined]
+  ]);
   assert.equal(prepared.channelConversation.participants.filter(x=>x.name==='同名').length,3);
   const contents=[...prepared.history,{role:'user',parts:[{text:'我养的猫叫什么？'}]}];
   for(const request of [buildOpenAIChatRequest(contents,'','chat',undefined,[],'','',{currentSpeaker:prepared.currentSpeaker,channelConversation:prepared.channelConversation}),buildGenerateContentRequest(contents,'','chat',[],'','',{currentSpeaker:prepared.currentSpeaker,channelConversation:prepared.channelConversation})]){
@@ -45,7 +48,7 @@ test('switching current accounts changes personal dialogue and bot reply targets
   const channel=[{user_id:'A',role:'user',speaker_name:'A',content:'我的猫叫桃子',created_at:20},{user_id:'A',role:'model',content:'你的猫叫桃子',created_at:21}];
   const a=prepareChatContext(channel,channel,{author:{id:'A',username:'A'}});
   const b=prepareChatContext(channel,channel,{author:{id:'B',username:'B'}});
-  assert.equal(a.history.length,2);assert.equal(a.channelConversation,undefined);
+  assert.equal(a.history.length,2);assert.equal(a.channelConversation.records[1].replyTo,'current_user');
   assert.equal(b.history.length,0);assert.equal(b.channelConversation.records[1].replyTo,'member_1');
   const renamed=prepareChatContext(channel,channel,{author:{id:'A',username:'换名字'}});
   assert.deepEqual(renamed.history,a.history);assert.equal(renamed.currentSpeaker.name,'换名字');

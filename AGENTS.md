@@ -6,6 +6,7 @@
 
 - 项目为 `AliceNekoqqq/Aliceneko-Discord-Holdem`，主分支 `main`，生产 Worker 为 `discord-holdem`。长期方向是小酒馆扩展城市生态；ManageBot 等仅为参考，不接错仓库，不擅自扩展任务范围。
 - 新会话先读本文件和 `PROJECT_STATE.md` 顶部约80行；续工任务不在顶部时，用标题/关键词定位对应最新阶段，只读该段。不要默认全文读取 PROJECT_STATE、PROJECT_HANDOFF、README 或所有源码。
+- 读取范围先用 `npm run scope -- <chat|lantern|tavern|worker|assets>` 和 `docs/DEVELOPMENT_READ_MAP.md` 定位；生成的 `*-data.mjs`、`*-glyphs.mjs`、大型回放 JSON 和静态图片只查来源脚本、manifest、字节数或哈希，不全文读入上下文。
 - `PROJECT_HANDOFF.md` 仅在需要项目方向或缺失的长期要求时读取对应段落；规则、协议、部署文档按本次任务需要读取。已读且未变的内容不重复读取。
 - 工作区非空先看必要的 git 状态；有工作副本就复用。只在恢复代码、整合并发修改或发布时核对远端最新版本，不每次“继续”都获取主分支引用或重新克隆。
 - 从已记录的未完成项继续；已完成代码、图片、测试和部署不因换聊天而重做。矛盾时核对最小必要证据；区分本地完成、GitHub同步、生产部署和真人验证。

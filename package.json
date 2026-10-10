@@ -4,7 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test *.test.mjs"
+    "scope": "node scripts/repo-scope.mjs",
+    "test": "node --test *.test.mjs",
+    "test:chat": "node --test ai-chat.test.mjs chat-enrichment.test.mjs discord-chat-context.test.mjs gateway-concurrency.test.mjs runtime-context.test.mjs",
+    "test:lantern": "node --test rogue-*.test.mjs",
+    "test:tavern": "node --test tavern*.test.mjs",
+    "test:worker": "node --test worker.test.mjs lifecycle.test.mjs private-panels.test.mjs board-sync.test.mjs"
   }
 }
 
