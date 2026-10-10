@@ -1,11 +1,11 @@
-## beta.56 / 灯下迷城实时地图与战斗画面 · 制作中（2026-10-11，北京时间）
+## beta.56 / 灯下迷城实时地图与战斗画面 · 已发布（2026-10-11，北京时间）
 
-- 当前用户要求：类似牌桌的实时地图，进入战斗自动切换简洁战斗图。沿用v0.8规则、存档、钱包与排行，不新增生图素材或改数值。
-- 已完成：私密图上传/原消息替换/出图失败回退；主面板地图入口；DO内动作保存后绘图，edge转发multipart；用户/服务器验证沿用现有dispatch。
-- 实际检查：既有UI/交互37通过；新增传输5通过。绘图由Luna负责rogue-image.mjs/test，正在布局/旧存档/阶段与候选状态核查。
-- 相关路径：rogue-image.mjs、rogue-presentation.mjs/test、rogue-interactions.mjs、rogue-ui.mjs、worker.mjs、package.json。
-- GitHub/生产：本批未发布，生产仍beta.55（8fb3838e-dfcd-4043-b870-11342e6fe72c）。不要当作已上线。
-- 唯一下一步：确认最终绘图预览/定向检查，然后统一同步并完整保留114现有模块与12绑定、Secret/人设/ASSETS/Cron发布beta.56。
+- 用户要求已完成：当前幕实时节点图/已选路径/当前位置/可选路线；进战斗切换双方剪影、生命/护盾/护甲/灼烧、能量/意图/阶段/伙伴锻值和手牌PNG。行动后替换原私密面板；战斗中「迷城地图」只读，返回远征恢复战斗。
+- 不改v0.8玩法、经济、存档。旧局按对应目录与合法牌规则绘图；缺地图只展示已知节点。DO保存动作后绘图→edge转发multipart，图失败回退正文按钮、不重复动作；普通详情清空旧图。
+- 检查49/49；真实ROUTE/BATTLE动作→PNG→multipart冒烟通过（图片约21～24KB）；960×800两种预览已检查。未做真人Discord验收、未发测试消息或改钱包。
+- GitHub代码 c57d4ea8e1bec12d05b252ab7ec99acde0390a1f；生产版本 874b634d-8658-40e4-9791-598732cb0ada 100%，部署 f8a976a7-20a1-46f7-9976-51aeeb3d3998，2026-10-10T16:53:01.124932Z（北京时间00:53）。116模块全一致：新增2/替换3/111原样；12绑定及Secret/人设/D1/DO、v1迁移/兼容/观测/Cron/ASSETS保持，健康确认beta.56/map/battle/private，保留卡布奇诺图HTTP200。
+- 路径：rogue-image.mjs/test、rogue-presentation.mjs/test、rogue-interactions.mjs、rogue-ui.mjs、worker.mjs、package.json；docs/roguelike/LIVE_VISUALS.md、RELEASE_VISUALS_BETA56.md/json。
+- 最后成功：源码同步、生产发布及全模块/配置/健康/既有静态图核验完成。首次接口520已查明未变，单次重试成功。下一步仅按真人反馈调整，不重复发布本批。
 
 ## beta.55 / 灯下迷城 v0.8 · 精修已发布（2026-10-11，北京时间）
 

@@ -1,0 +1,54 @@
+{
+  "version": "1.0.1-beta.56",
+  "rulesVersion": "lantern-rules-v0.8",
+  "codeCommit": "c57d4ea8e1bec12d05b252ab7ec99acde0390a1f",
+  "checks": {
+    "targetedTests": 49,
+    "passed": 49,
+    "realRendererMultipartSmoke": "ROUTE and BATTLE passed",
+    "previewsInspected": true,
+    "humanDiscord": "pending"
+  },
+  "production": {
+    "deployment": {
+      "id": "f8a976a7-20a1-46f7-9976-51aeeb3d3998",
+      "source": "api",
+      "strategy": "percentage",
+      "author_email": "a2329124956@gmail.com",
+      "annotations": {
+        "workers/message": "beta.56: private live roguelike map and battle;...",
+        "workers/triggered_by": "upload"
+      },
+      "versions": [
+        {
+          "version_id": "874b634d-8658-40e4-9791-598732cb0ada",
+          "percentage": 100
+        }
+      ],
+      "created_on": "2026-10-10T16:53:01.124932Z"
+    },
+    "moduleCount": 116,
+    "matchingModules": 116,
+    "added": 2,
+    "replaced": 3,
+    "unchanged": 111,
+    "bindingsRetained": true,
+    "compatibilityRetained": true,
+    "observabilityRetained": true,
+    "cron": "* * * * *",
+    "assetsRetained": true,
+    "migrationTag": "v1",
+    "healthVersion": "1.0.1-beta.56",
+    "healthVisuals": {
+      "map": true,
+      "battle": true,
+      "private": true
+    },
+    "preservedArt": {
+      "file": "cappuccino/v1.jpg",
+      "status": 200,
+      "mime": "image/jpeg"
+    },
+    "firstAttempt": "Cloudflare 520; read-only verification confirmed beta.55 unchanged; one retry succeeded"
+  }
+}
