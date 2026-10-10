@@ -9,7 +9,7 @@ function storage(){const db=new DatabaseSync(':memory:'),map=new Map();return {d
 const ugcItems=Array.from({length:100},(_,i)=>({id:`ugc_${String(i).padStart(3,'0')}`,name:`玩家创作菜品${i}`,emoji:'🍰',price:10+i%41,category:'desserts',description:'清香软糯',serve:'为你上桌。',source:'ugc'}));
 
 test('menu pagination exposes every item at 20 per page for all and UGC categories, including public browsing',()=>{
-  for(const [category,items] of [['all',ugcItems],['ugc',ugcItems]]){
+  for(const [category,items] of [['all',ugcItems],['desserts',ugcItems]]){
     const reached=[];
     for(let page=0;page<5;page++){
       const view=renderMenu({menu:items},'user-1','guild-1',false,category,page);
@@ -20,8 +20,8 @@ test('menu pagination exposes every item at 20 per page for all and UGC categori
     assert.deepEqual(reached,items.map(x=>x.id));
   }
   for(let page=0;page<5;page++){
-    const view=renderMenu({menu:ugcItems},'user-1','guild-1',true,'ugc',page);
-    assert.ok(view.components.length<=5);assert.ok(view.components.some(row=>row.components.some(c=>c.custom_id==='t:guild-1:any:menuCat~ugc~'+Math.min(4,page+1)+'~next')));
+    const view=renderMenu({menu:ugcItems},'user-1','guild-1',true,'desserts',page);
+    assert.ok(view.components.length<=5);assert.ok(view.components.some(row=>row.components.some(c=>c.custom_id==='t:guild-1:any:menuCat~desserts~'+Math.min(4,page+1)+'~next')));
   }
 });
 
