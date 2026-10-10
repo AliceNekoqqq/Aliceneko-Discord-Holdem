@@ -2,9 +2,9 @@
 更新：2026-10-10（Asia/Shanghai）
 
 ## 当前进度
-目前完成v0.3三幕公共规则、20牌/12遗物/12敌人目录、商店与修灯、整局参考模型和648条策略演算。入口见[阶段目录](docs/roguelike/README.md)，规则见[公共规范](docs/roguelike/ROGUELIKE_CORE_SPEC.md)，数值见[整局目录](docs/roguelike/RUN_CATALOG_V03.json)。第一幕v0.2数值保留，旧规范归档。
+已推进到v0.4：三幕战斗/状态机JS模块、SQLite存档及钱包/榜单结算服务、Discord私密面板与interaction dispatcher完成，50项定向检查通过。内容仍为v0.3的20牌/12遗物/12敌人，入口[阶段目录](docs/roguelike/README.md)，[当前公共规范](docs/roguelike/ROGUELIKE_CORE_SPEC.md)，[收益契约](docs/roguelike/ECONOMY_AND_RANKING_V04.md)，[实际实现与断点](docs/roguelike/IMPLEMENTATION_V04.md)。
 
-这批包含Python参考程序，不含生产游戏引擎、Discord入口、真实存档或发币；未部署Worker。
+本轮已经写可执行代码，不再止于参考模型。尚未挂到现有Worker/大厅/命令与webhook，未部署/实际发币，现有生产beta.52保持。
 ## 游戏方向
 从小酒馆进入独立雾城冒险，角色提灯旅人。三幕旧街、镜巷、无灯钟楼的骨架保留；每幕2个分岔房间与1固定Boss，全局9站。三幕内容和非战斗路线已齐备，正式Bot仍待实现。
 
@@ -48,5 +48,5 @@ F 永久成长与内容扩展：图鉴、剧情碎片、成就/外观、不同�
 设计分组不是把各组实现塞进巨型文件。当前未进入实现，没有新增测试或部署。
 
 
-## 接下来
-先定评分/撤离及死亡收益、日限额与榜单同题资格，形成可验证的终局结算契约；再按既定阶段图实现纯规则引擎、持久存档、Discord图面和钱包/榜单接入。极端遗物组合、所有商店动作与真人手机节奏仍待验证，不能先宣称可玩或收益已定。
+## 当前连接断点
+直接把已实现的私密远征入口与rl组件路由到tavern:guild DO，复用TavernService/RogueService、签名身份及已有延迟响应模式；完成实际Worker集成、目标回归与原配置/静态ASSETS核验后统一发布。不要因写交接就回到规划，不重做三幕/旧图片/旧Python样本。真实手机读图、按钮反馈、极端构筑和每日收益体验仍需上线后验证。

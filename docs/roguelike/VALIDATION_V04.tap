@@ -1,0 +1,310 @@
+TAP version 13
+# Subtest: beginBattle and battleAction preserve input and survive JSON round trips
+ok 1 - beginBattle and battleAction preserve input and survive JSON round trips
+  ---
+  duration_ms: 5.257227
+  type: 'test'
+  ...
+# Subtest: two-card order can prevent a life-cost defeat; lethal first card stops the second
+ok 2 - two-card order can prevent a life-cost defeat; lethal first card stops the second
+  ---
+  duration_ms: 0.905398
+  type: 'test'
+  ...
+# Subtest: multihit attacks consume shield per hit and reflect kill truncates remaining hits
+ok 3 - multihit attacks consume shield per hit and reflect kill truncates remaining hits
+  ---
+  duration_ms: 0.281032
+  type: 'test'
+  ...
+# Subtest: pure healing is illegal at full health but a block-heal card remains legal
+ok 4 - pure healing is illegal at full health but a block-heal card remains legal
+  ---
+  duration_ms: 0.342975
+  type: 'test'
+  ...
+# Subtest: echo replays an exhaust card snapshot once without active burn relic bonus
+ok 5 - echo replays an exhaust card snapshot once without active burn relic bonus
+  ---
+  duration_ms: 0.432438
+  type: 'test'
+  ...
+# Subtest: battle victory clears a queued echo instead of carrying it forward
+ok 6 - battle victory clears a queued echo instead of carrying it forward
+  ---
+  duration_ms: 0.392979
+  type: 'test'
+  ...
+# Subtest: a guard lasts through the next player turn and clears before the enemy acts again
+ok 7 - a guard lasts through the next player turn and clears before the enemy acts again
+  ---
+  duration_ms: 0.27389
+  type: 'test'
+  ...
+# Subtest: a hand with no legal card auto-advances safely to the 12-turn limit
+ok 8 - a hand with no legal card auto-advances safely to the 12-turn limit
+  ---
+  duration_ms: 0.383676
+  type: 'test'
+  ...
+# Subtest: duplicate relic IDs and duplicate physical entity UIDs are rejected
+ok 9 - duplicate relic IDs and duplicate physical entity UIDs are rejected
+  ---
+  duration_ms: 2.627061
+  type: 'test'
+  ...
+# Subtest: completed acts pay cumulative 8/18/30, no ember or speed score
+ok 10 - completed acts pay cumulative 8/18/30, no ember or speed score
+  ---
+  duration_ms: 1.55978
+  type: 'test'
+  ...
+# Subtest: clear dominates all partial progression and elite wins add a bounded bonus
+ok 11 - clear dominates all partial progression and elite wins add a bounded bonus
+  ---
+  duration_ms: 0.170165
+  type: 'test'
+  ...
+# Subtest: lost light remaining hp is not survival bonus; abandoned/expired have no coins or rank
+ok 12 - lost light remaining hp is not survival bonus; abandoned/expired have no coins or rank
+  ---
+  duration_ms: 0.305849
+  type: 'test'
+  ...
+# Subtest: practice zero, 60 subcap and existing total ceiling both clamp actual credits
+ok 13 - practice zero, 60 subcap and existing total ceiling both clamp actual credits
+  ---
+  duration_ms: 0.167801
+  type: 'test'
+  ...
+# Subtest: daily board groups server, day and runtime rules with identical starting config
+ok 14 - daily board groups server, day and runtime rules with identical starting config
+  ---
+  duration_ms: 0.170776
+  type: 'test'
+  ...
+# Subtest: real three-act battle actions and restored snapshots reach a terminal result without near-death fixtures
+ok 15 - real three-act battle actions and restored snapshots reach a terminal result without near-death fixtures
+  ---
+  duration_ms: 241.316288
+  type: 'test'
+  ...
+# Subtest: public source gets a new private message, private source can update; signed member supplies identity
+ok 16 - public source gets a new private message, private source can update; signed member supplies identity
+  ---
+  duration_ms: 2.109895
+  type: 'test'
+  ...
+# Subtest: guild mismatch and malformed token stop before service action
+ok 17 - guild mismatch and malformed token stop before service action
+  ---
+  duration_ms: 0.237456
+  type: 'test'
+  ...
+# Subtest: bot identity is rejected before creating or rewarding a run
+ok 18 - bot identity is rejected before creating or rewarding a run
+  ---
+  duration_ms: 0.224467
+  type: 'test'
+  ...
+# Subtest: asking to abandon and refreshing never mutate or extend run; confirmed button performs exactly the run action
+ok 19 - asking to abandon and refreshing never mutate or extend run; confirmed button performs exactly the run action
+  ---
+  duration_ms: 0.805649
+  type: 'test'
+  ...
+# Subtest: event card preview is read only, confirmation atomically buys selected card and advances station
+ok 20 - event card preview is read only, confirmation atomically buys selected card and advances station
+  ---
+  duration_ms: 0.537516
+  type: 'test'
+  ...
+# Subtest: stale confirmation cannot apply to new state and returns a private error
+ok 21 - stale confirmation cannot apply to new state and returns a private error
+  ---
+  duration_ms: 0.240971
+  type: 'test'
+  ...
+# Subtest: run survives JSON round-trip without rerolling route, shop, or battle state
+ok 22 - run survives JSON round-trip without rerolling route, shop, or battle state
+  ---
+  duration_ms: 2.408884
+  type: 'test'
+  ...
+# Subtest: shop randomness stays in its own stream and cannot change saved route candidates or battle seed
+ok 23 - shop randomness stays in its own stream and cannot change saved route candidates or battle seed
+  ---
+  duration_ms: 0.994963
+  type: 'test'
+  ...
+# Subtest: checkpoint retreat ends at the completed act without granting next-act blessing
+ok 24 - checkpoint retreat ends at the completed act without granting next-act blessing
+  ---
+  duration_ms: 1.86636
+  type: 'test'
+  ...
+# Subtest: shops cannot overdraw, successful purchases and removals never reuse entity ids, and a full run reaches CLEAR at station 9
+ok 25 - shops cannot overdraw, successful purchases and removals never reuse entity ids, and a full run reaches CLEAR at station 9
+  ---
+  duration_ms: 2.825648
+  type: 'test'
+  ...
+# Subtest: a valid action extends TTL; expiry is a versioned terminal result and does not change lastActionAt
+ok 26 - a valid action extends TTL; expiry is a versioned terminal result and does not change lastActionAt
+  ---
+  duration_ms: 0.256595
+  type: 'test'
+  ...
+# Subtest: restart/JSON restore, duplicate requests and stale buttons do not duplicate actions
+ok 27 - restart/JSON restore, duplicate requests and stale buttons do not duplicate actions
+  ---
+  duration_ms: 5.425259
+  type: 'test'
+  ...
+# Subtest: non-owner and other server cannot read, mutate or settle a run
+ok 28 - non-owner and other server cannot read, mutate or settle a run
+  ---
+  duration_ms: 1.36658
+  type: 'test'
+  ...
+# Subtest: two reward starts are reserved on creation, no refunds on abandonment; third can still rank
+ok 29 - two reward starts are reserved on creation, no refunds on abandonment; third can still rank
+  ---
+  duration_ms: 3.71317
+  type: 'test'
+  ...
+# Subtest: practice explicitly preserves both rewarded openings
+ok 30 - practice explicitly preserves both rewarded openings
+  ---
+  duration_ms: 1.800541
+  type: 'test'
+  ...
+# Subtest: same active run returned by another START is remembered even after terminal
+ok 31 - same active run returned by another START is remembered even after terminal
+  ---
+  duration_ms: 1.585428
+  type: 'test'
+  ...
+# Subtest: actual existing total cap clips credit; repeated zero/partial receipt never repays
+ok 32 - actual existing total cap clips credit; repeated zero/partial receipt never repays
+  ---
+  duration_ms: 1.810726
+  type: 'test'
+  ...
+# Subtest: rogue 60 subcap applies to late runs; settlement uses current day instead of backdating
+ok 33 - rogue 60 subcap applies to late runs; settlement uses current day instead of backdating
+  ---
+  duration_ms: 1.643225
+  type: 'test'
+  ...
+# Subtest: wallet/receipt transaction rolls back on ledger failure, and can retry exactly once
+ok 34 - wallet/receipt transaction rolls back on ledger failure, and can retry exactly once
+  ---
+  duration_ms: 1.661513
+  type: 'test'
+  ...
+# Subtest: ranking failure does not roll back already credited coins; outbox retries without double pay
+ok 35 - ranking failure does not roll back already credited coins; outbox retries without double pay
+  ---
+  duration_ms: 1.891828
+  type: 'test'
+  ...
+# Subtest: daily best keeps only higher score; equal scores share rank; normal runs never enter board
+ok 36 - daily best keeps only higher score; equal scores share rank; normal runs never enter board
+  ---
+  duration_ms: 3.182494
+  type: 'test'
+  ...
+# Subtest: 72h idle expiry frees active slot without rewards and refresh does not extend it
+ok 37 - 72h idle expiry frees active slot without rewards and refresh does not extend it
+  ---
+  duration_ms: 1.314472
+  type: 'test'
+  ...
+# Subtest: client now is ignored and cannot select a different entitlement or payment day
+ok 38 - client now is ignored and cannot select a different entitlement or payment day
+  ---
+  duration_ms: 1.505208
+  type: 'test'
+  ...
+# Subtest: opening leaderboard drains older failed rank outbox after a new run starts
+ok 39 - opening leaderboard drains older failed rank outbox after a new run starts
+  ---
+  duration_ms: 1.512419
+  type: 'test'
+  ...
+# Subtest: terminal action stays frozen when payout fails; another run can start and later retries old result
+ok 40 - terminal action stays frozen when payout fails; another run can start and later retries old result
+  ---
+  duration_ms: 2.173741
+  type: 'test'
+  ...
+# Subtest: global tokens parse exactly; malformed and unknown tokens reject
+ok 41 - global tokens parse exactly; malformed and unknown tokens reject
+  ---
+  duration_ms: 2.015203
+  type: 'test'
+  ...
+# Subtest: renderer uses private legacy panels and respects component limits
+ok 42 - renderer uses private legacy panels and respects component limits
+  ---
+  duration_ms: 1.321292
+  type: 'test'
+  ...
+# Subtest: duplicate card names use distinct entity UIDs and cards describe costs/effects
+ok 43 - duplicate card names use distinct entity UIDs and cards describe costs/effects
+  ---
+  duration_ms: 1.169744
+  type: 'test'
+  ...
+# Subtest: four-card hand retains every play button and shared controls within five rows
+ok 44 - four-card hand retains every play button and shared controls within five rows
+  ---
+  duration_ms: 0.519119
+  type: 'test'
+  ...
+# Subtest: battle panel distinguishes pure full-health healing from mixed effects
+ok 45 - battle panel distinguishes pure full-health healing from mixed effects
+  ---
+  duration_ms: 0.350225
+  type: 'test'
+  ...
+# Subtest: retreat and abandon require a confirmation screen and explicit confirmed action
+ok 46 - retreat and abandon require a confirmation screen and explicit confirmed action
+  ---
+  duration_ms: 0.281231
+  type: 'test'
+  ...
+# Subtest: shop and event have free leave; event payment waits for a confirmation panel
+ok 47 - shop and event have free leave; event payment waits for a confirmation panel
+  ---
+  duration_ms: 0.537496
+  type: 'test'
+  ...
+# Subtest: board shows supplied tied ranks without substituting row position
+ok 48 - board shows supplied tied ranks without substituting row position
+  ---
+  duration_ms: 0.183786
+  type: 'test'
+  ...
+# Subtest: every live room and reward exposes refresh plus abandon control
+ok 49 - every live room and reward exposes refresh plus abandon control
+  ---
+  duration_ms: 1.396214
+  type: 'test'
+  ...
+# Subtest: room, route, reward, shop selections produce run actions with UID/version
+ok 50 - room, route, reward, shop selections produce run actions with UID/version
+  ---
+  duration_ms: 0.339209
+  type: 'test'
+  ...
+1..50
+# tests 50
+# suites 0
+# pass 50
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 951.412452

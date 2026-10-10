@@ -40,7 +40,7 @@
 > 下一步：等待真人试玩小窝、材料采集和五站同行图/地图切换，以及外形固定保存。同行地图与节点场景已发布；不重做素材或重复部署。大厅中的宠物位置出场、肉鸽及城市扩展仍未实现。完整玩法见PET_GAME_SPEC.md，地图/场景边界见PET_WALK_VISUAL_SPEC.md。
 
 
-> 当前肉鸽任务：灯下迷城v0.3已完成三幕20牌/12遗物/12敌人及商店/修灯/9站流程，第一幕v0.2原值保留。独立Python模型648条策略试验（410通关/189生命失败/49失灯），19项程序检查包含1项检查点记录断言，不是生产撤离/存档验收。入口[docs/roguelike/README.md](docs/roguelike/README.md)，当前规则/整局数值为ROGUELIKE_CORE_SPEC.md / RUN_CATALOG_V03.json，结果见FULL_RUN_BALANCE_V03.md。此批未上线Bot/存档/发币，生产beta.52不变。下一步先定评分、通关/撤离/死亡收益、每日同题资格与日限额/入账契约，再实现正式引擎和Discord；不重做旧v0.2或设备素材。
+> 当前肉鸽任务：灯下迷城v0.4已从设计进入实际JS战斗/三幕状态机/经济/SQLite存档与结算/Discord面板及dispatcher，50项定向检查通过（真实node:sqlite、8个JS种子完整动作恢复验证），源码rogue-*.mjs在根目录，20牌/12遗物/12敌人内容原值保持。收益累计8/18/30、每日2有奖开局、60子cap含150；开局日管资格和榜题、首次成功结算日管收入，重复/0币固定回执，排名失败独立outbox。文档[docs/roguelike/IMPLEMENTATION_V04.md](docs/roguelike/IMPLEMENTATION_V04.md)/ECONOMY_AND_RANKING_V04.md/README.md。未挂到Worker/大厅/命令/webhook，未部署/实际发币，生产beta.52保持。唯一下一步直接做该生产连接批次及集成验证后发布，不因写交接就停止或重做三幕/旧图片。
 
 > 最新覆盖要求（2026-10-09）：用户明确抛弃所有之前的单人方案，要求设计肉鸽。当前唯一方案见[ROGUELIKE_DESIGN.md](ROGUELIKE_DESIGN.md)，暂名灯下迷城（三幕9站、行动牌/遗物构筑、战斗预告、终局奖励及高分榜）。目前仅设计，未实现或部署；旧候选及实施顺序全部作废。奖励数值和时长为待校准提案。下面旧任务说明只保留历史，以本段及PROJECT_STATE最新记录为准。
 

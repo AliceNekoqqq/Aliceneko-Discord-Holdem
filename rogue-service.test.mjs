@@ -1,0 +1,155 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {RogueService} from './rogue-service.mjs';
+import {dayKey} from './tavern-catalog.mjs';
+
+const NOW=Date.parse('2026-10-10T11:15:00Z');
+function fixture(guild='1'){
+ const db=new DatabaseSync(':memory:');let fault=null,ids=0,currentTime=NOW;
+ const sql={exec(q,...args){
+  if(fault&&q.includes(fault))throw Error('injected SQL failure');
+  const stmt=db.prepare(q),rows=stmt.columns().length?stmt.all(...args):(stmt.run(...args),[]);
+  return {toArray:()=>rows};
+ }};
+ const storage={sql,transactionSync(fn){db.exec('BEGIN');try{const out=fn();db.exec('COMMIT');return out;}catch(e){db.exec('ROLLBACK');throw e;}}};
+ db.exec('CREATE TABLE tavern_members(id TEXT PRIMARY KEY,name TEXT,balance INTEGER CHECK(balance>=0),joined_at INTEGER)');
+ db.exec('CREATE TABLE tavern_daily(user_id TEXT,day TEXT,earned INTEGER,PRIMARY KEY(user_id,day))');
+ db.exec('CREATE TABLE tavern_ledger(id TEXT PRIMARY KEY,user_id TEXT,amount INTEGER,kind TEXT,note TEXT,at INTEGER)');
+ const host={storage,sql,member(id,name,now){let m=sql.exec('SELECT * FROM tavern_members WHERE id=?',id).toArray()[0];if(!m){sql.exec('INSERT INTO tavern_members VALUES(?,?,60,?)',id,name,now);sql.exec('INSERT INTO tavern_ledger VALUES(?,?,60,?,?,?)',`welcome:${id}`,id,'welcome','welcome',now);m=sql.exec('SELECT * FROM tavern_members WHERE id=?',id).toArray()[0];}return m;}};
+ const clock=()=>currentTime;
+ const service=new RogueService(host,guild,{idFactory:()=>`${guild}-run-${++ids}`,clock});
+ const p={guild,id:'2',mode:'challenge',requestId:'start-1',now:NOW};
+ const one=(q,...a)=>sql.exec(q,...a).toArray()[0];
+ const terminal=(r,type='CLEAR',acts=3)=>{const n={...r,phase:'RESULT',completedActs:acts,completed:acts*3,eliteWins:0,hp:20,result:{type,at:NOW}};service.save(n);return n;};
+ return {db,service,p,one,terminal,setFault:v=>fault=v,setNow:v=>currentTime=v,host,clock};
+}
+const command=(p,r,requestId,action,now=p.now)=>({...p,runId:r.runId,version:r.version,requestId,action,now});
+test('restart/JSON restore, duplicate requests and stale buttons do not duplicate actions',()=>{
+ const f=fixture(),r=f.service.start(f.p);
+ assert.equal(f.service.start(f.p).runId,r.runId);
+ const a=command(f.p,r,'bless-1',{type:'BLESSING',relicId:'brooch'});
+ const next=f.service.act(a);
+ assert.equal(f.service.act(a).version,next.version);
+ assert.throws(()=>f.service.act({...a,requestId:'old-button'}),e=>e.code==='STALE');
+ const restarted=new RogueService(f.host,'1',{clock:f.clock});
+ assert.deepEqual(restarted.resume({...f.p,runId:r.runId,now:NOW+1000}),next);
+ assert.equal(restarted.resume({...f.p,runId:r.runId,now:NOW+2000}).lastActionAt,next.lastActionAt);
+});
+test('non-owner and other server cannot read, mutate or settle a run',()=>{
+ const f=fixture(),r=f.service.start(f.p);
+ for(const overrides of [{id:'3'},{guild:'9'}]){
+  assert.throws(()=>f.service.resume({...f.p,runId:r.runId,...overrides}));
+  assert.throws(()=>f.service.settle({...f.p,runId:r.runId,...overrides}));
+  assert.throws(()=>f.service.act({...command(f.p,r,'bad',{type:'ABANDON',confirmed:true}),...overrides}));
+ }
+ assert.equal(f.one('SELECT balance FROM tavern_members WHERE id=?','2').balance,60);
+});
+test('two reward starts are reserved on creation, no refunds on abandonment; third can still rank',()=>{
+ const f=fixture();
+ for(let i=1;i<=3;i++){
+  const r=f.service.start({...f.p,requestId:`start-${i}`});assert.equal(r.rewardEligible,i<=2);
+  f.service.act(command(f.p,r,`leave-${i}`,{type:'ABANDON',confirmed:true}));
+ }
+ assert.equal(f.one('SELECT starts FROM rogue_daily WHERE owner=? AND day=?','2',dayKey(NOW)).starts,2);
+ assert.equal(f.one('SELECT COUNT(*) AS n FROM rogue_best').n,0);
+ assert.equal(f.service.start(f.p).runId,'1-run-1'); // old START request stays old
+});
+test('practice explicitly preserves both rewarded openings',()=>{
+ const f=fixture();const r=f.service.start({...f.p,practice:true});
+ assert.equal(r.rewardEligible,false);
+ assert.equal(f.one('SELECT starts FROM rogue_daily WHERE owner=?','2'),undefined);
+});
+test('same active run returned by another START is remembered even after terminal',()=>{
+ const f=fixture(),r=f.service.start(f.p),p2={...f.p,requestId:'start-other'};
+ assert.equal(f.service.start(p2).runId,r.runId);
+ f.service.act(command(f.p,r,'leave',{type:'ABANDON',confirmed:true}));
+ assert.equal(f.service.start(p2).runId,r.runId);
+});
+test('actual existing total cap clips credit; repeated zero/partial receipt never repays',()=>{
+ const f=fixture(),r=f.service.start(f.p);f.terminal(r);
+ f.db.prepare('INSERT INTO tavern_daily VALUES(?,?,149)').run('2',dayKey(NOW));
+ const p={...f.p,runId:r.runId},done=f.service.settle(p);
+ assert.equal(done.receipt.amount,1);assert.equal(done.receipt.base_amount,30);
+ assert.equal(f.service.settle({...p,now:NOW+86400000}).receipt.amount,1);
+ assert.equal(f.one('SELECT balance FROM tavern_members WHERE id=?','2').balance,61);
+ assert.equal(f.one('SELECT earned FROM tavern_daily WHERE user_id=? AND day=?','2',dayKey(NOW)).earned,150);
+ assert.equal(f.one('SELECT COUNT(*) AS n FROM tavern_ledger WHERE kind=?','rogue').n,1);
+});
+test('rogue 60 subcap applies to late runs; settlement uses current day instead of backdating',()=>{
+ const f=fixture(),r=f.service.start(f.p);f.terminal(r);
+ const tomorrow=NOW+86400000;
+ f.setNow(tomorrow);
+ f.db.prepare('INSERT INTO rogue_daily(owner,day,earned) VALUES(?,?,55)').run('2',dayKey(tomorrow));
+ const done=f.service.settle({...f.p,runId:r.runId,now:tomorrow});
+ assert.equal(done.receipt.amount,5);assert.equal(done.receipt.day,dayKey(tomorrow));
+ assert.equal(f.one('SELECT earned FROM tavern_daily WHERE day=?',dayKey(NOW)),undefined);
+ assert.equal(f.service.leaderboard({...f.p,day:dayKey(NOW)}).rows.length,1);
+ assert.equal(f.service.leaderboard({...f.p,day:dayKey(tomorrow)}).rows.length,0);
+});
+test('wallet/receipt transaction rolls back on ledger failure, and can retry exactly once',()=>{
+ const f=fixture(),r=f.service.start(f.p);f.terminal(r);f.setFault('INSERT INTO tavern_ledger');
+ assert.throws(()=>f.service.settle({...f.p,runId:r.runId}));
+ assert.equal(f.one('SELECT balance FROM tavern_members WHERE id=?','2').balance,60);
+ assert.equal(f.one('SELECT COUNT(*) AS n FROM rogue_receipts').n,0);
+ assert.equal(f.one('SELECT earned FROM tavern_daily WHERE day=?',dayKey(NOW)),undefined);
+ f.setFault(null);assert.equal(f.service.settle({...f.p,runId:r.runId}).receipt.amount,30);
+ assert.equal(f.one('SELECT balance FROM tavern_members WHERE id=?','2').balance,90);
+});
+test('ranking failure does not roll back already credited coins; outbox retries without double pay',()=>{
+ const f=fixture(),r=f.service.start(f.p);f.terminal(r);f.setFault('INSERT INTO rogue_best');
+ const paid=f.service.settle({...f.p,runId:r.runId});
+ assert.equal(paid.receipt.amount,30);assert.equal(paid.rankPending,true);
+ assert.equal(f.one('SELECT balance FROM tavern_members WHERE id=?','2').balance,90);
+ assert.equal(f.one('SELECT COUNT(*) AS n FROM rogue_rank_outbox').n,1);
+ f.setFault(null);const retry=f.service.resume({...f.p,runId:r.runId});
+ assert.equal(retry.rankPending,false);
+ assert.equal(f.one('SELECT balance FROM tavern_members WHERE id=?','2').balance,90);
+ assert.equal(f.one('SELECT COUNT(*) AS n FROM rogue_rank_outbox').n,0);
+});
+test('daily best keeps only higher score; equal scores share rank; normal runs never enter board',()=>{
+ const f=fixture();
+ for(const [i,id,hp,mode] of [[1,'2',20,'challenge'],[2,'3',20,'challenge'],[3,'2',10,'challenge'],[4,'4',30,'normal']]){
+  const r=f.service.start({...f.p,id,mode,requestId:`s-${i}`});const n=f.terminal(r);n.hp=hp;f.service.save(n);
+  f.service.settle({...f.p,id,runId:r.runId});
+ }
+ const board=f.service.leaderboard(f.p).rows;
+ assert.equal(board.length,2);assert.deepEqual(board.map(x=>x.rank),[1,1]);assert.deepEqual(board.map(x=>x.score),[3470,3470]);
+});
+test('72h idle expiry frees active slot without rewards and refresh does not extend it',()=>{
+ const f=fixture(),r=f.service.start(f.p);
+ f.service.resume({...f.p,runId:r.runId,now:NOW+100000});
+ f.setNow(NOW+72*3600000);
+ const done=f.service.resume({...f.p,runId:r.runId,now:NOW+72*3600000});
+ assert.equal(done.result.type,'EXPIRED');assert.equal(done.receipt.amount,0);
+ const next=f.service.start({...f.p,requestId:'new-after-expired',now:NOW+72*3600000+1});
+ assert.notEqual(next.runId,r.runId);
+});
+test('client now is ignored and cannot select a different entitlement or payment day',()=>{
+ const f=fixture(),r=f.service.start({...f.p,now:NOW+86400000});
+ assert.equal(r.startDay,dayKey(NOW));f.terminal(r);
+ assert.equal(f.service.settle({...f.p,runId:r.runId,now:NOW+86400000}).receipt.day,dayKey(NOW));
+});
+test('opening leaderboard drains older failed rank outbox after a new run starts',()=>{
+ const f=fixture(),r=f.service.start(f.p);f.terminal(r);f.setFault('INSERT INTO rogue_best');
+ f.service.settle({...f.p,runId:r.runId});
+ f.service.start({...f.p,requestId:'new-run'});f.setFault(null);
+ assert.equal(f.service.leaderboard(f.p).rows.length,1);
+ assert.equal(f.one('SELECT COUNT(*) AS n FROM rogue_rank_outbox').n,0);
+ assert.equal(f.one('SELECT balance FROM tavern_members WHERE id=?','2').balance,90);
+});
+test('terminal action stays frozen when payout fails; another run can start and later retries old result',()=>{
+ const f=fixture(),r=f.service.start(f.p);
+ const checkpoint={...r,phase:'CHECKPOINT',act:1,slot:3,completed:3,completedActs:1,hp:22,room:{type:'checkpoint',completedAct:1}};
+ f.service.save(checkpoint);f.setFault('INSERT INTO tavern_ledger');
+ const stopped=f.service.act(command(f.p,checkpoint,'retreat',{type:'RETREAT',confirmed:true}));
+ assert.equal(stopped.result.type,'RETREAT');assert.equal(stopped.settlementPending,true);
+ assert.equal(f.one('SELECT status FROM rogue_runs WHERE id=?',r.runId).status,'RESULT');
+ assert.equal(f.one('SELECT COUNT(*) AS n FROM rogue_receipts').n,0);
+ const second=f.service.start({...f.p,requestId:'second'});
+ assert.notEqual(second.runId,r.runId);f.setFault(null);
+ f.service.resume({...f.p,runId:second.runId});
+ assert.equal(f.one('SELECT amount FROM rogue_receipts WHERE run_id=?',r.runId).amount,8);
+ assert.equal(f.one('SELECT balance FROM tavern_members WHERE id=?','2').balance,68);
+ assert.equal(f.service.act(command(f.p,checkpoint,'retreat',{type:'RETREAT',confirmed:true})).receipt.amount,8);
+});
