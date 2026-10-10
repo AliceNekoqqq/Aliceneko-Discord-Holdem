@@ -1,0 +1,683 @@
+{
+  "version": "1.0.1-beta.55",
+  "rulesVersion": "lantern-rules-v0.8",
+  "codeCommit": "1cabcfda20f031a8d6af070790c65ad2137c88ec",
+  "validation": {
+    "releaseScope": {
+      "passed": 225,
+      "total": 225
+    },
+    "knownUnrelatedFailuresNotRerun": [
+      "runtime-context participant reply targets",
+      "runtime-context switching personal dialogue"
+    ],
+    "simulation": {
+      "total": 160,
+      "samplesPerLevel": 32,
+      "levels": [
+        0,
+        3,
+        6,
+        8,
+        10
+      ],
+      "clears": [
+        29,
+        27,
+        23,
+        22,
+        13
+      ],
+      "allProfessionsInitialClear": true,
+      "realActions": true,
+      "hpInjection": false,
+      "humanWinRate": false
+    }
+  },
+  "production": {
+    "uploadSuccess": true,
+    "moduleCount": 114,
+    "originalModules": 110,
+    "added": 4,
+    "replaced": 8,
+    "unchanged": 102,
+    "mismatches": [],
+    "extra": [],
+    "settingsRetained": {
+      "bindings": true,
+      "compatibility_date": true,
+      "compatibility_flags": true,
+      "observability": true,
+      "cron": true
+    },
+    "has_assets": true,
+    "migration_tag": "v1",
+    "etag": "40420ea412dfe25eea58c579ff5bb1137cf0924232a28361befe87ede6735800",
+    "deployment": {
+      "id": "8a64f27e-b21f-4be3-a42e-b674b31112d6",
+      "source": "api",
+      "strategy": "percentage",
+      "annotations": {
+        "workers/message": "beta.55: Lantern City phases, pacts, pagination...",
+        "workers/triggered_by": "upload"
+      },
+      "versions": [
+        {
+          "version_id": "8fb3838e-dfcd-4043-b870-11342e6fe72c",
+          "percentage": 100
+        }
+      ],
+      "created_on": "2026-10-10T16:16:05.971754Z"
+    },
+    "bindings": [
+      {
+        "name": "ASSETS",
+        "type": "assets"
+      },
+      {
+        "name": "BOT_TOKEN",
+        "type": "secret_text"
+      },
+      {
+        "name": "CHAT_DB",
+        "type": "d1",
+        "database_id": "b9327b3d-b549-4c48-b221-689c5f4aa3a9"
+      },
+      {
+        "name": "DEVELOPER_DISCORD_USER_ID",
+        "type": "secret_text"
+      },
+      {
+        "name": "DISCORD_APPLICATION_ID",
+        "type": "plain_text"
+      },
+      {
+        "name": "DISCORD_PUBLIC_KEY",
+        "type": "plain_text"
+      },
+      {
+        "name": "GEMINI_API_BASE_URL",
+        "type": "plain_text"
+      },
+      {
+        "name": "GEMINI_API_KEY",
+        "type": "secret_text"
+      },
+      {
+        "name": "GEMINI_MODEL",
+        "type": "plain_text"
+      },
+      {
+        "name": "GEMINI_PERSONA",
+        "type": "plain_text"
+      },
+      {
+        "name": "GEMINI_PERSONA_CONT",
+        "type": "plain_text"
+      },
+      {
+        "name": "TABLES",
+        "type": "durable_object_namespace",
+        "namespace_id": "4b8575058fe745bd8abbb9eed752bf91"
+      }
+    ],
+    "moduleFingerprints": {
+      "tavern-art-data-tea.mjs": {
+        "chars": 83613,
+        "fnv1a": "04784374"
+      },
+      "tavern-map-ui.mjs": {
+        "chars": 1433,
+        "fnv1a": "c8611dc4"
+      },
+      "tavern-operations-live.mjs": {
+        "chars": 7528,
+        "fnv1a": "f7278de0"
+      },
+      "uno-ui.mjs": {
+        "chars": 20997,
+        "fnv1a": "72e6636a"
+      },
+      "chat-enrichment.mjs": {
+        "chars": 13599,
+        "fnv1a": "258167df"
+      },
+      "liar-engine.mjs": {
+        "chars": 11157,
+        "fnv1a": "d05e97b4"
+      },
+      "private-panels.mjs": {
+        "chars": 10942,
+        "fnv1a": "486a9ca1"
+      },
+      "rogue-difficulty.mjs": {
+        "chars": 1282,
+        "fnv1a": "4bdb73c2"
+      },
+      "tavern-art-data-water.mjs": {
+        "chars": 79193,
+        "fnv1a": "7d55a130"
+      },
+      "tavern-art-manifest.mjs": {
+        "chars": 5705,
+        "fnv1a": "12b8fb0a"
+      },
+      "tavern-ui.mjs": {
+        "chars": 19879,
+        "fnv1a": "2dae85da"
+      },
+      "computer.mjs": {
+        "chars": 1407,
+        "fnv1a": "254c085a"
+      },
+      "liar-rankings.mjs": {
+        "chars": 6317,
+        "fnv1a": "97476f72"
+      },
+      "rogue-run-v06.mjs": {
+        "chars": 21406,
+        "fnv1a": "8a45765e"
+      },
+      "tavern-catalog.mjs": {
+        "chars": 10116,
+        "fnv1a": "81967c86"
+      },
+      "tavern-map-bridge.mjs": {
+        "chars": 2141,
+        "fnv1a": "f0be0465"
+      },
+      "pet-catalog.mjs": {
+        "chars": 3856,
+        "fnv1a": "a1a056bd"
+      },
+      "tavern-art-data-oldstreet-cookie.mjs": {
+        "chars": 84781,
+        "fnv1a": "74a66ad9"
+      },
+      "tavern-art-data-scallion-pancake.mjs": {
+        "chars": 80697,
+        "fnv1a": "0b456dbe"
+      },
+      "tavern-art-data.mjs": {
+        "chars": 1748,
+        "fnv1a": "24db413c"
+      },
+      "tavern-map-image.mjs": {
+        "chars": 22434,
+        "fnv1a": "43816a95"
+      },
+      "tavern-art-data-lemon-honey.mjs": {
+        "chars": 92713,
+        "fnv1a": "158b771c"
+      },
+      "tavern-art-data-postcard-jelly.mjs": {
+        "chars": 83377,
+        "fnv1a": "c85154cb"
+      },
+      "emoji-art.mjs": {
+        "chars": 973,
+        "fnv1a": "365e642b"
+      },
+      "tavern-art-data-tomato-rice.mjs": {
+        "chars": 89525,
+        "fnv1a": "99b5e084"
+      },
+      "pet-registry.mjs": {
+        "chars": 1215,
+        "fnv1a": "f41ebfa6"
+      },
+      "pet-service.mjs": {
+        "chars": 13474,
+        "fnv1a": "347a3d43"
+      },
+      "tavern-art-data-pear-soup.mjs": {
+        "chars": 83857,
+        "fnv1a": "f9b54e65"
+      },
+      "tavern-art-data-plum-tea.mjs": {
+        "chars": 91005,
+        "fnv1a": "e8ace12d"
+      },
+      "equipment-art-manifest.mjs": {
+        "chars": 3620,
+        "fnv1a": "398c578d"
+      },
+      "pet-art.mjs": {
+        "chars": 1593,
+        "fnv1a": "373fa57e"
+      },
+      "uno-engine.mjs": {
+        "chars": 18568,
+        "fnv1a": "8f201049"
+      },
+      "worker.mjs": {
+        "chars": 34772,
+        "fnv1a": "22988985"
+      },
+      "tavern-art-data-sweet-potato.mjs": {
+        "chars": 81617,
+        "fnv1a": "5c0f6daa"
+      },
+      "card-image.mjs": {
+        "chars": 6254,
+        "fnv1a": "5f4742d8"
+      },
+      "liar-live.mjs": {
+        "chars": 3947,
+        "fnv1a": "be879bba"
+      },
+      "rogue-battle-v07.mjs": {
+        "chars": 15607,
+        "fnv1a": "abef1562"
+      },
+      "rogue-battle-v08.mjs": {
+        "chars": 15995,
+        "fnv1a": "2455ee9a"
+      },
+      "tavern-renovation-catalog.mjs": {
+        "chars": 4143,
+        "fnv1a": "7c8ce828"
+      },
+      "ghost-ui.mjs": {
+        "chars": 3932,
+        "fnv1a": "fce8b6a8"
+      },
+      "rogue-content-v06.mjs": {
+        "chars": 19061,
+        "fnv1a": "0e086f1b"
+      },
+      "rogue-run-v07.mjs": {
+        "chars": 20391,
+        "fnv1a": "6a26d839"
+      },
+      "ghost-engine.mjs": {
+        "chars": 4062,
+        "fnv1a": "5a980fd6"
+      },
+      "rogue-run.mjs": {
+        "chars": 994,
+        "fnv1a": "7a80bcfb"
+      },
+      "tavern-art-data-special.mjs": {
+        "chars": 77197,
+        "fnv1a": "24f94576"
+      },
+      "tavern-lobby.mjs": {
+        "chars": 7639,
+        "fnv1a": "68e94725"
+      },
+      "uno-profile.mjs": {
+        "chars": 9790,
+        "fnv1a": "cfadf232"
+      },
+      "liar-image.mjs": {
+        "chars": 7352,
+        "fnv1a": "2b5f9abe"
+      },
+      "pet-walk-map-data.mjs": {
+        "chars": 148621,
+        "fnv1a": "717caab2"
+      },
+      "rogue-battle.mjs": {
+        "chars": 720,
+        "fnv1a": "146917e3"
+      },
+      "rogue-run-v04.mjs": {
+        "chars": 17139,
+        "fnv1a": "8d28bd27"
+      },
+      "rogue-run-v08.mjs": {
+        "chars": 24592,
+        "fnv1a": "0f95a7ee"
+      },
+      "tavern-art-data-mushroom-noodles.mjs": {
+        "chars": 97993,
+        "fnv1a": "1bbc1c8c"
+      },
+      "uno-rank-bridge.mjs": {
+        "chars": 3384,
+        "fnv1a": "42fd7593"
+      },
+      "rogue-catalog.mjs": {
+        "chars": 10646,
+        "fnv1a": "236721c7"
+      },
+      "tavern-art-data-milk.mjs": {
+        "chars": 80677,
+        "fnv1a": "f8de5277"
+      },
+      "tavern-bridge.mjs": {
+        "chars": 1600,
+        "fnv1a": "991c9123"
+      },
+      "liar-ui.mjs": {
+        "chars": 7935,
+        "fnv1a": "f0ff8e83"
+      },
+      "nickname-font.mjs": {
+        "chars": 1331,
+        "fnv1a": "24c568e8"
+      },
+      "rogue-battle-v06.mjs": {
+        "chars": 14243,
+        "fnv1a": "dd321cdf"
+      },
+      "tavern-art-data-soda.mjs": {
+        "chars": 97357,
+        "fnv1a": "2ec06986"
+      },
+      "ai-chat.mjs": {
+        "chars": 50392,
+        "fnv1a": "42d794b2"
+      },
+      "tavern-art-data-river-mochi.mjs": {
+        "chars": 96441,
+        "fnv1a": "76fd5d2d"
+      },
+      "tavern-lobby-routing.mjs": {
+        "chars": 1487,
+        "fnv1a": "599054d7"
+      },
+      "card-glyphs.mjs": {
+        "chars": 620372,
+        "fnv1a": "63ff8d5f"
+      },
+      "ghost-image.mjs": {
+        "chars": 5256,
+        "fnv1a": "9d427402"
+      },
+      "rogue-ui.mjs": {
+        "chars": 52054,
+        "fnv1a": "677d64cd"
+      },
+      "tavern-building.mjs": {
+        "chars": 2942,
+        "fnv1a": "98b62a28"
+      },
+      "tavern-operations.mjs": {
+        "chars": 17383,
+        "fnv1a": "5fdbf5e4"
+      },
+      "engine.mjs": {
+        "chars": 15670,
+        "fnv1a": "7d7b32e5"
+      },
+      "equipment-art.mjs": {
+        "chars": 1831,
+        "fnv1a": "1819c2ed"
+      },
+      "tavern-service.mjs": {
+        "chars": 15741,
+        "fnv1a": "4a94b7c1"
+      },
+      "discord-gateway.mjs": {
+        "chars": 8243,
+        "fnv1a": "999ad780"
+      },
+      "lifecycle.mjs": {
+        "chars": 2767,
+        "fnv1a": "9cb69c42"
+      },
+      "rogue-difficulty-v08.mjs": {
+        "chars": 1140,
+        "fnv1a": "a6772c5f"
+      },
+      "tavern-art-data-cake.mjs": {
+        "chars": 84485,
+        "fnv1a": "031be343"
+      },
+      "tavern-operations-ui.mjs": {
+        "chars": 8509,
+        "fnv1a": "35215725"
+      },
+      "tavern-renovation-ui.mjs": {
+        "chars": 15124,
+        "fnv1a": "343b9f26"
+      },
+      "uno-rankings.mjs": {
+        "chars": 11031,
+        "fnv1a": "fcc5379a"
+      },
+      "rogue-content-v07.mjs": {
+        "chars": 11280,
+        "fnv1a": "a3705a14"
+      },
+      "tavern-map-service.mjs": {
+        "chars": 12017,
+        "fnv1a": "7ead3843"
+      },
+      "board-sync.mjs": {
+        "chars": 5229,
+        "fnv1a": "39f5b0c0"
+      },
+      "rogue-content-v08.mjs": {
+        "chars": 11496,
+        "fnv1a": "360c67d7"
+      },
+      "ui.mjs": {
+        "chars": 8653,
+        "fnv1a": "d828de1c"
+      },
+      "uno-social.mjs": {
+        "chars": 2572,
+        "fnv1a": "20157218"
+      },
+      "app-emojis.mjs": {
+        "chars": 2278,
+        "fnv1a": "da050d9e"
+      },
+      "nickname-glyphs.mjs": {
+        "chars": 1776440,
+        "fnv1a": "889c8a4c"
+      },
+      "ghost-service.mjs": {
+        "chars": 8680,
+        "fnv1a": "2bd651c7"
+      },
+      "liar-controller.mjs": {
+        "chars": 7622,
+        "fnv1a": "caeeae8b"
+      },
+      "pet-engine.mjs": {
+        "chars": 14714,
+        "fnv1a": "93a201b9"
+      },
+      "pet-walk-map.mjs": {
+        "chars": 2586,
+        "fnv1a": "cf0240a0"
+      },
+      "discord-chat-context.mjs": {
+        "chars": 7523,
+        "fnv1a": "cbc471c9"
+      },
+      "ghost-controller.mjs": {
+        "chars": 6417,
+        "fnv1a": "7d04043d"
+      },
+      "rogue-service.mjs": {
+        "chars": 14688,
+        "fnv1a": "7cf26cbe"
+      },
+      "tavern-art-data-snack.mjs": {
+        "chars": 90081,
+        "fnv1a": "3953f3f0"
+      },
+      "pet-art-data.mjs": {
+        "chars": 1667197,
+        "fnv1a": "3463f41f"
+      },
+      "tavern-renovation.mjs": {
+        "chars": 15217,
+        "fnv1a": "f80ac65f"
+      },
+      "pet-art-data-v2.mjs": {
+        "chars": 1921153,
+        "fnv1a": "071d547a"
+      },
+      "tavern-art-data-dumpling-soup.mjs": {
+        "chars": 83785,
+        "fnv1a": "912802cf"
+      },
+      "tavern-map-presentation.mjs": {
+        "chars": 2951,
+        "fnv1a": "54d5c531"
+      },
+      "uno-controller.mjs": {
+        "chars": 12428,
+        "fnv1a": "2e3ed74d"
+      },
+      "rogue-battle-v04.mjs": {
+        "chars": 12093,
+        "fnv1a": "5d80863a"
+      },
+      "rogue-economy.mjs": {
+        "chars": 2075,
+        "fnv1a": "53a64b13"
+      },
+      "rogue-interactions.mjs": {
+        "chars": 7245,
+        "fnv1a": "8996d94c"
+      },
+      "tavern-art-data-redbean-soy.mjs": {
+        "chars": 85989,
+        "fnv1a": "8d4072c4"
+      },
+      "tavern-menu-view.mjs": {
+        "chars": 6080,
+        "fnv1a": "bb67860c"
+      },
+      "uno-image.mjs": {
+        "chars": 14919,
+        "fnv1a": "5dd66457"
+      },
+      "bot-knowledge.mjs": {
+        "chars": 18378,
+        "fnv1a": "72771a66"
+      },
+      "pet-walk-art-data.mjs": {
+        "chars": 1314257,
+        "fnv1a": "ad4407f3"
+      },
+      "tavern-art.mjs": {
+        "chars": 2800,
+        "fnv1a": "09d9d8ae"
+      },
+      "emoji-sprites.mjs": {
+        "chars": 109858,
+        "fnv1a": "c60144a1"
+      },
+      "pet-ui.mjs": {
+        "chars": 20921,
+        "fnv1a": "b8b44e31"
+      },
+      "tavern-art-data-postcard-pudding.mjs": {
+        "chars": 80053,
+        "fnv1a": "497c13de"
+      },
+      "tavern-art-data-room.mjs": {
+        "chars": 220929,
+        "fnv1a": "de654d7e"
+      }
+    }
+  },
+  "online": {
+    "healthStatus": 200,
+    "health": {
+      "ok": true,
+      "version": "1.0.1-beta.55",
+      "roguelike": {
+        "rulesVersion": "lantern-rules-v0.8",
+        "entry": "灯下迷城",
+        "professions": 8,
+        "cards": 96,
+        "relics": 31,
+        "enemies": 30,
+        "items": 10,
+        "events": 15,
+        "difficulties": 11,
+        "stations": 15
+      }
+    },
+    "assetCount": 13,
+    "assets": [
+      {
+        "file": "art/equipment/mango-yogurt/v1.jpg",
+        "status": 200,
+        "match": true,
+        "mime": "image/jpeg"
+      },
+      {
+        "file": "art/equipment/cheese-toast/v1.jpg",
+        "status": 200,
+        "match": true,
+        "mime": "image/jpeg"
+      },
+      {
+        "file": "art/equipment/vanilla-sundae/v1.jpg",
+        "status": 200,
+        "match": true,
+        "mime": "image/jpeg"
+      },
+      {
+        "file": "art/equipment/coffee-machine/v1.jpg",
+        "status": 200,
+        "match": true,
+        "mime": "image/jpeg"
+      },
+      {
+        "file": "art/equipment/butter-croissant/v1.jpg",
+        "status": 200,
+        "match": true,
+        "mime": "image/jpeg"
+      },
+      {
+        "file": "art/equipment/cappuccino/v1.jpg",
+        "status": 200,
+        "match": true,
+        "mime": "image/jpeg"
+      },
+      {
+        "file": "art/equipment/redbean-parfait/v1.jpg",
+        "status": 200,
+        "match": true,
+        "mime": "image/jpeg"
+      },
+      {
+        "file": "art/equipment/americano/v1.jpg",
+        "status": 200,
+        "match": true,
+        "mime": "image/jpeg"
+      },
+      {
+        "file": "art/equipment/blender/v1.jpg",
+        "status": 200,
+        "match": true,
+        "mime": "image/jpeg"
+      },
+      {
+        "file": "art/equipment/ice-cream-maker/v1.jpg",
+        "status": 200,
+        "match": true,
+        "mime": "image/jpeg"
+      },
+      {
+        "file": "art/equipment/baking-oven/v1.jpg",
+        "status": 200,
+        "match": true,
+        "mime": "image/jpeg"
+      },
+      {
+        "file": "art/equipment/berry-smoothie/v1.jpg",
+        "status": 200,
+        "match": true,
+        "mime": "image/jpeg"
+      },
+      {
+        "file": "art/equipment/redbean-latte/v1.jpg",
+        "status": 200,
+        "match": true,
+        "mime": "image/jpeg"
+      }
+    ]
+  }
+}
