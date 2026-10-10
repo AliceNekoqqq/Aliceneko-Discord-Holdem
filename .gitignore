@@ -12,3 +12,7 @@ assets/equipment-art/original/
 /nickname-glyphs.mjs
 /pet-art-manifest.mjs
 /pet-walk-art-manifest.mjs
+
+# Private Gemini drafting tasks and local credentials
+.credentials/
+writer-tasks/
