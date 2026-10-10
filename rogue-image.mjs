@@ -124,8 +124,7 @@ async function battleImage(run,env){
  const F={headline:24,title:20,body:17,meta:15,small:14};
  const c=new Canvas(W,H);rect(c,0,0,W,H,K.bg);circle(c,480,303,205,[19,39,58]);
  title(c,'第 '+(run?.act??1)+' 幕 · 第 '+(run?.slot??1)+' 站',short(profession.name,7)+' 迎战 '+short(enemy.name||'敌人',8),'回合 '+(b.turn??0)+'  ·  '+(b.enemyPhase===2?'第二阶段':'第一阶段'));
- rect(c,31,112,898,332,[95,62,43],18);rect(c,34,115,892,326,K.panel,15);
- rect(c,41,122,438,312,[20,39,57],12);rect(c,481,122,438,312,[25,45,62],12);
+ rect(c,31,112,898,332,K.panel,18);rect(c,34,115,892,4,[47,75,96],3);rect(c,34,440,892,2,[44,67,83],2);
  line(c,480,128,480,430,K.line,2);circle(c,480,129,4,K.gold);circle(c,480,429,4,K.gold);
  line(c,52,123,466,123,[83,111,128],1);line(c,494,123,908,123,[111,89,63],1);
  rect(c,57,132,86,27,[39,58,75],8);circle(c,70,145,4,[167,180,183]);text(c,'敌方',82,137,F.meta,K.muted);
@@ -152,7 +151,7 @@ async function battleImage(run,env){
  text(c,'能量 '+String(b.energy??0)+'    出牌 '+String(b.plays??0)+' / '+String(playLimit),641,386,F.body,K.gold2);
  if(b.professionId==='tamer'||b.petHp)text(c,'灯狐 '+String(b.petHp??0),641,412,F.meta,K.gold2);
  if(b.professionId==='forger'||b.forge)text(c,'锻值 '+String(b.forge??0),780,412,F.meta,K.gold2);
- rect(c,31,462,898,292,[122,77,49],18);rect(c,36,467,888,280,[34,38,45],14);rect(c,41,472,878,270,[31,35,43],12);
+ rect(c,31,462,898,292,[122,77,49],18);rect(c,38,469,884,278,[31,35,43],13);
  line(c,49,468,911,468,[172,125,76],2);line(c,49,746,911,746,[78,55,44],2);
  for(const x of [52,908])for(const y of [474,740]){circle(c,x,y,5,[219,178,111]);circle(c,x,y,2,[255,225,154]);}
  text(c,'手牌',51,477,F.headline,K.cream);
@@ -162,7 +161,7 @@ async function battleImage(run,env){
  hand.forEach((e,i)=>{
   const card=model.cards.find(q=>q.id===e.uid),def=cardDefinition(e,catalog),x=Math.round(start+i*(cardW+gap)),y=520,w=cardW,h=204,play=card?.playable===true;
   const border=play?[145,108,58]:[72,88,102],face=play?[28,52,72]:[35,47,59];
-  rect(c,x+3,y+5,w,h,[8,17,28],10);rect(c,x-1,y-1,w+2,h+2,border,11);rect(c,x,y,w,h,face,9);rect(c,x+1,y+1,w-2,5,play?K.gold:K.gray,5);
+  rect(c,x+3,y+5,w,h,[8,17,28],10);rect(c,x,y,w,h,face,10);rect(c,x+1,y+1,w-2,5,play?K.gold:K.gray,5);line(c,x+1,y+2,x+w-2,y+2,border,2);line(c,x+1,y+2,x+1,y+h-2,border,2);line(c,x+w-2,y+2,x+w-2,y+h-2,border,2);line(c,x+1,y+h-2,x+w-2,y+h-2,border,2);
   circle(c,x+22,y+24,17,play?K.gold:[91,108,120]);circle(c,x+22,y+24,13,play?K.gold2:[112,128,139]);text(c,card?.cost??0,x+22,y+14,F.body,K.ink,true);
   text(c,'#'+e.uid,x+45,y+17,F.small,play?K.gold2:K.muted);
   if(e.upgraded){rect(c,x+w-51,y+10,43,21,[100,81,49],6);text(c,'强化+',x+w-47,y+13,F.small,K.gold2);}
