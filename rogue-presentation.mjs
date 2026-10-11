@@ -9,18 +9,22 @@ export async function rogueVisualResponse(service,interaction,{render=renderRogu
  const data=structuredClone(reply.data);
  data.attachments=[];
  if(!visual||!data.embeds?.length)return Response.json({...reply,data});
+ const textEmbeds=structuredClone(data.embeds);
  try{
   const png=await render(visual.run,{view:visual.view,env});
   if(!(png instanceof Blob)||png.type!=='image/png'||png.size>1500000)throw Error('invalid render');
   const filename=`lantern-${visual.view==='map'||visual.run.phase!=='BATTLE'?'map':'battle'}-${visual.run.version}.png`;
-  data.embeds[0].image={url:`attachment://${filename}`};
+  if(visual.run.phase==='BATTLE'&&visual.view==='auto'){
+   const text=data.embeds[0];
+   data.embeds=[{title:text.title,color:text.color,image:{url:`attachment://${filename}`}}, {...text,title:'战斗操作'}, ...data.embeds.slice(1)];
+  }else data.embeds[0].image={url:`attachment://${filename}`};
   data.attachments=[{id:0,filename,description:JSON.stringify(describeRogueImage(visual.run,visual.view)).slice(0,1000)}];
   delete data.flags;
   const body=new FormData();body.set('payload_json',JSON.stringify(data));body.set('files[0]',png,filename);
   return new Response(body);
  }catch(error){
   console.error('rogue_image_failed',{reason:error.message});
-  delete data.embeds[0].image;data.attachments=[];
+  data.embeds=textEmbeds;data.attachments=[];
   // Text panel and buttons remain usable; never repeat a state-changing action.
   return Response.json({...reply,data});
  }

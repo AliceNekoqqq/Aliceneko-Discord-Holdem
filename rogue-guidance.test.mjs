@@ -29,7 +29,7 @@ test('battle panel aligns duplicate UIDs, upgrade effects, targets and deadly se
  b.hand=[{uid:11,cardId:attackId,upgraded:false},{uid:12,cardId:attackId,upgraded:true},{uid:13,cardId:riskId,upgraded:false}];
  b.energy=3;b.plays=0;b.hp=1;run.hp=1;
  const before=JSON.stringify(run),r=renderRogue(run),body=r.data.embeds[0].description;
- assert.match(body,/#11/);assert.match(body,/#12/);assert.match(body,/已强化/);assert.match(body,/自损会倒下/);assert.match(body,/本轮提示/);
+ assert.match(body,/#11/);assert.match(body,/#12/);assert.match(body,/＋/);assert.match(body,/自损会倒下/);assert.doesNotMatch(body,/先看意图，再选牌/);assert.ok(r.data.components.flatMap(row=>row.components).some(c=>c.label==='手牌详情'));
  const opts=r.data.components.flatMap(row=>row.components).find(c=>c.type===3).options;
  assert.ok(opts.some(o=>o.value==='p:12:n'&&o.label.includes('＋')));
  assert.equal(JSON.stringify(run),before);

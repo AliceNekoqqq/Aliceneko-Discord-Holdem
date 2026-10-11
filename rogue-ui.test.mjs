@@ -68,7 +68,7 @@ test('four-card hand retains every play button and shared controls within five r
   assert.ok(all.some((c) => c.custom_id.endsWith(':refresh')));
   assert.ok(all.some((c) => c.custom_id.endsWith(':ask-abandon')));
   assert.match(m.data.embeds[0].description, /站点 3\/9/);
-  assert.match(m.data.embeds[0].description, /距失灯 10轮/);
+  assert.match(m.data.embeds[0].description, /剩余10轮/);
   checkLimits(m);
 });
 
@@ -85,7 +85,7 @@ test('battle panel distinguishes pure full-health healing from mixed effects', (
   const buttons = m.data.components.flatMap((r) => r.components).filter((c) => c.type === 3 && c.custom_id.endsWith(':play-target'));
   assert.equal(buttons.length, 1);
   assert.deepEqual(buttons[0].options.map((x) => x.value), ['p:1:n']);
-  assert.match(m.data.embeds[0].description, /生命已满，纯治疗牌不可用/);
+  assert.match(m.data.embeds[0].description, /生命已满/);
 });
 
 test('battle items disable full-health healing and cleanse with no burn using legalItems', () => {

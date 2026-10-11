@@ -1,5 +1,5 @@
 import { WORLD_INTRO, WORLD_STORY, PROFESSION_STORIES } from './rogue-lore.mjs';
-import { cardGroups, cardEffectLines, cardWarnings, unavailableReason, battleHints, playGuide } from './rogue-card-guide.mjs';
+import { cardGroups, cardEffectLines, cardWarnings, unavailableReason, playGuide } from './rogue-card-guide.mjs';
 import { CATALOG } from './rogue-catalog.mjs';
 import { legalCards, legalItems } from './rogue-battle.mjs';
 import { ITEMS, DIFFICULTIES, EVENTS } from './rogue-content-v07.mjs';
@@ -192,7 +192,15 @@ export function renderRogueDetails(run, kind = 'deck', { update = false, page = 
   let entries = [];
   let title = '远征详情';
   if (kind === 'guide' || kind === 'lore') return renderRogueReading(kind, run.professionId, { update, run });
-  if (kind === 'map') {
+  if (kind === 'hand') {
+    title = '手牌详情';
+    const b = run.battle;
+    const legal = b ? new Set(legalCards(b).map(e => e.uid)) : new Set();
+    entries = b ? (b.hand ?? []).map(e => {
+      const reason = unavailableReason(b, cardDef(e), expanded(run) ? 3 : 2, legal, e.uid);
+      return `#${e.uid} ${cardText(e)}${reason ? `\n不可用：${reason}` : ''}`;
+    }) : ['当前不在战斗中。'];
+  } else if (kind === 'map') {
     title = '迷城地图';
     const nodes = [];
     const plan = run.mapPlan;
@@ -263,12 +271,13 @@ function renderBattle(run, update) {
     return `${base}${amount}${extras.length ? ` · ${extras.join(' · ')}` : ''}`;
   };
   let intentLine;
-  if (intent.kind === 'conditional') intentLine = `公开分支：首张为攻击牌→${actionText(intent.onAttack)}；首张为其他牌／未出牌→${actionText(intent.onOther)}`;
+  if (intent.kind === 'conditional') intentLine = `公开分支：首张含直伤→${actionText(intent.onAttack)}；首张不含直伤／未出牌→${actionText(intent.onOther)}`;
   else if (intent.kind === 'charge') intentLine = `蓄力预告：下轮${actionText(intent.next ?? { ...intent, kind: 'attack' })}`;
   else intentLine = actionText(intent);
   const drawCount = expanded(run) ? 5 : 4, playLimit = expanded(run) ? 3 : 2;
   const playerMaxHp = run.maxHp ?? (expanded(run) && (run.difficulty ?? 0) >= 6 ? 28 : ACTIVE_CATALOG.player.maxHp);
-  const description = [`${enemy.name ?? '敌人'}　生命 ${b.enemyHp ?? '?'}　护甲 ${b.enemyArmor ?? 0}　架盾 ${b.enemyShield ?? 0}　灼烧 ${b.enemyBurn ?? 0}`, `你的生命 ${b.hp ?? run.hp}/${b.maxHp ?? playerMaxHp}　护盾 ${b.shield ?? 0}　能量 ${b.energy ?? 0}　已出牌 ${b.plays ?? 0}/${playLimit}${b.burn > 0 ? `\n⚠ 你的灼烧 ${b.burn}：轮末扣血，护盾挡不住。` : ''}`, `意图：${intentLine}`, `手牌：\n${(b.hand ?? []).map((e) => `#${e.uid} ${cardText(e)}${cardDef(e)?.selfCost >= (b.hp ?? run.hp) && cardDef(e)?.selfCost ? ' ⚠ 自损会倒下' : ''}`).join('\n') || '无'}`];
+  const enemyStates = [[b.enemyArmor,'护甲'],[b.enemyShield,'护盾'],[b.enemyBurn,'灼烧']].filter(([n]) => n > 0).map(([n,label]) => `${label}${n}`);
+  const description = [`**敌人**　${enemy.name ?? '敌人'} · 生命${b.enemyHp ?? '?'}${enemyStates.length ? ` · ${enemyStates.join(' · ')}` : ''}`, `**意图**　${intentLine}`, '', `**你**　生命${b.hp ?? run.hp}/${b.maxHp ?? playerMaxHp} · 护盾${b.shield ?? 0}`, `能量 ${b.energy ?? 0} · 已出牌 ${b.plays ?? 0}/${playLimit}${b.burn > 0 ? `\n⚠ 灼烧${b.burn}：轮末扣血，护盾挡不住` : ''}`];
   if (run.room?.storyEffect) description.push(`本战影响：${run.room.storyEffect}`);
   description.push(...storyLines(run));
   if (b.enemyPhase === 2) {
@@ -280,12 +289,17 @@ function renderBattle(run, update) {
   if ((b.enemyPhase ?? 1) >= 2 && phaseName) description.push(`敌人阶段：${phaseName}`);
   const resources = [];
   if (b.prepare) resources.push(`备势${b.prepare}`); if (b.mark) resources.push(`标记${b.mark}`); if (b.forge) resources.push(`锻造${b.forge}`);
-  if (Number.isFinite(b.petHp)) resources.push(`伙伴生命${b.petHp}`);
+  if (b.petHp > 0) resources.push(`伙伴生命${b.petHp}`);
   if (resources.length) description.push(resources.join(' · '));
   const legal = new Set(legalCards(b).map((c) => c.uid));
   const components = [];
   const disabledReasons = [];
   const hand = (b.hand ?? []).slice(0, drawCount);
+  description.push('', '**手牌：**', ...hand.map(e => {
+    const def = cardDef(e);
+    const brief = cardEffectLines(def).join('、');
+    return `#${e.uid} **${cardName(e.cardId)}${e.upgraded ? '＋' : ''}** · ${def?.cost ?? '?'}费 · ${brief}${def?.exhaust ? ' · 消耗' : ''}${def?.selfCost ? ` · 自损${def.selfCost}${def.selfCost >= (b.hp ?? run.hp) ? ' ⚠ 自损会倒下' : ''}` : ''}`;
+  }));
   const playOptions = [];
   const targetEffects = new Set(['sift', 'exhaust_other', 'retain']);
   const handTargets = hand.filter((e) => e != null);
@@ -297,14 +311,15 @@ function renderBattle(run, update) {
     const targets = handTargets.filter((t) => t.uid !== e.uid);
     if (requiredTarget && !targets.length) { disabledReasons.push(`#${e.uid} ${cardName(e.cardId)}：没有合法目标`); continue; }
     if (reason) continue;
-    const prefix = `${cardGroups(def).map(g=>g.label).join('/')} · ${cardName(e.cardId)}${e.upgraded ? '＋' : ''} #${e.uid}${def.selfCost ? ` · 自损${def.selfCost}` : ''}${def.exhaust ? ' · 消耗' : ''}`;
+    const prefix = `#${e.uid} ${cardName(e.cardId)}${e.upgraded ? '＋' : ''} · ${def.cost}费${def.selfCost ? ` · 自损${def.selfCost}` : ''}${def.exhaust ? ' · 消耗' : ''}`;
     if ((def?.effects ?? []).some((x) => targetEffects.has(x.kind))) {
       if (!requiredTarget) playOptions.push({ label: `${prefix} · 不选目标`, value: `p:${e.uid}:n`, description: `${cardText(e)} · 只执行基础效果` });
       for (const t of targets) playOptions.push({ label: `${prefix} → #${t.uid} ${cardName(t.cardId)}`, value: `p:${e.uid}:t:${t.uid}`, description: `${cardText(e)}；目标：${cardName(t.cardId)}` });
     } else playOptions.push({ label: prefix, value: `p:${e.uid}:n`, description: cardText(e) });
   }
-  description.push(`本轮提示：${battleHints(b, hand.map(cardDef), playLimit).join(' ')}`);
-  if (disabledReasons.length) description.push(`暂不可用：${disabledReasons.join('；')}`);
+  const criticalHint = intent.kind === 'conditional' ? `本轮首张：${b.firstCardKind === 'attack' ? '已选攻击分支' : b.firstCardKind === 'other' ? '已选其他分支' : '尚未出牌，留意上方分支'}` : '';
+  if (criticalHint) description.push(`本轮提示：${criticalHint}`);
+  if (disabledReasons.length) description.push(`不可用：${disabledReasons.map(s => s.replace('生命已满，纯治疗牌不可用','生命已满')).join('；')}`);
   if (playOptions.length) components.push(row(select(cid(run, 'play-target'), `选择牌与目标 · 剩余${Math.max(0, playLimit - (b.plays ?? 0))}次出牌 · ${b.energy ?? 0}能量`, playOptions)));
   else if (hand.length) components.push(row(select(cid(run, 'play-target'), '本轮没有可打出的牌', [{ label: '无可用牌', value: 'none' }], true)));
   const inventory = Array.isArray(run.inventory) ? run.inventory : [];
@@ -325,11 +340,11 @@ function renderBattle(run, update) {
     description.push(`道具：${labels.map((x) => `${x.index + 1}. ${ACTIVE_ITEMS[x.id]?.name ?? x.id}`).join('；')} · 本战${usedItem ? '已使用' : '最多使用1件，不占出牌次数'}`);
     components.push(row(...labels.map((x) => button(x.label, cid(run, 'item', x.index), 2, !x.available))));
   }
-  components.push(row(button('结束本轮', cid(run, 'end'), 2, Boolean(b.result))));
+  components.push(row(button('结束本轮', cid(run, 'end'), 2, Boolean(b.result)), button('手牌详情', cid(run, 'details', 'hand:0'), 2)));
   components.push(controlRow(run));
   const totalStations = expanded(run) ? 15 : 9;
   const stations = Math.min(totalStations, (run.completed ?? 0) + 1);
-  description.unshift(`第${run.act ?? '?'}幕 · 站点 ${stations}/${totalStations}${expanded(run) ? ` · 难度${run.difficulty ?? 0}` : ''} · 余烬 ${run.embers ?? 0} · 距失灯 ${Math.max(0, 12 - (b.turn ?? 0))}轮`);
+  description.unshift(`第${run.act ?? '?'}幕 · 站点 ${stations}/${totalStations}${expanded(run) ? ` · 难度${run.difficulty ?? 0}` : ''} · 余烬${run.embers ?? 0} · 剩余${Math.max(0, 12 - (b.turn ?? 0))}轮`, '');
   return panel(`第${b.turn ?? '?'}轮战斗`, description.join('\n'), components, update);
 }
 
@@ -669,7 +684,7 @@ export function parseRogueAction(customId, values = []) {
     case 'details-prev':
     case 'details-next':
     case 'details': {
-      const match = /^(deck|relics|inventory|map|guide|lore)(?::(\d{1,4}))?$/.exec(arg ?? '');
+      const match = /^(deck|hand|relics|inventory|map|guide|lore)(?::(\d{1,4}))?$/.exec(arg ?? '');
       return match && Number(match[2] ?? 0) <= 9999 ? { ui: 'details', runId, version, kind: match[1], page: Number(match[2] ?? 0) } : null;
     }
     case 'uid-prev':

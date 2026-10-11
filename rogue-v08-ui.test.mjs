@@ -146,8 +146,8 @@ test('reward selection survives reopening, full item slots explain skip, and con
 
 test('combat exposes player burn and authoritative health; result replays the same profession and explains coins', () => {
  const view=renderRogue(base({phase:'BATTLE',hp:24,battle:{enemyId:Object.keys(CATALOG_V08.enemies)[0],hp:17,maxHp:30,burn:4,enemyHp:20,enemyArmor:0,enemyShield:0,enemyBurn:0,hand:[],energy:2,plays:1,intent:{kind:'guard',value:3}}}));
- assert.match(view.data.embeds[0].description,/你的生命 17\/30/);
- assert.match(view.data.embeds[0].description,/你的灼烧 4：轮末扣血，护盾挡不住/);
+ assert.match(view.data.embeds[0].description,/生命17\/30/);
+ assert.match(view.data.embeds[0].description,/灼烧4：轮末扣血，护盾挡不住/);
  const professionId=Object.keys(PROFESSIONS).find(id=>id!=='traveler');
  const result=renderRogue(base({phase:'RESULT',professionId,rewardEligible:true,result:{type:'DEFEAT',reason:'LOST_LIGHT'},receipt:{amount:2,base_amount:8,score:123}}));
  assert.equal(components(result).find(c=>c.label==='再来一局').custom_id,`rl:settings:${professionId}`);
