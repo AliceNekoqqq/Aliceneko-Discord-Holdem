@@ -62,9 +62,10 @@ test('boss victory is recorded when the completed run clears battle state',()=>{
 
 test('same-length item replacement is a reward taken, and summaries expose four bounded Chinese lines',()=>{
  const before={ruleVersion:CURRENT_RULE_VERSION,version:2,phase:'REWARD',act:1,slot:2,completed:1,deck:[],relics:[],inventory:['old']};
- const after={...before,version:3,phase:'ROUTE',completed:2,inventory:['new'],reward:null};
+ const after={...before,version:3,phase:'ROUTE',slot:3,completed:2,inventory:['new'],reward:null};
  const o=recordObservation(before,after,NOW,{type:'REWARD_CLAIM'});
  assert.equal(o.counts.rewardsTaken,1);assert.equal(o.counts.rewardsSkipped,0);
+ assert.equal(o.entries[0].slot,2);
  const lines=summarizeObservationLines({...after,observation:o},NOW);
  assert.equal(lines.length,4);assert.ok(lines.every(x=>x.length<=120));
 });
