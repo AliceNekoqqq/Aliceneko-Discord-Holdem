@@ -2,6 +2,8 @@
 
 更新时间：2026-10-11（Asia/Shanghai）
 
+- 开发者系统红包 beta.76：已本地实现，仅账号993451176282574878真实@机器人后可创建；金额/名额程序提取，Gemini正常回复附领取卡。随机/均分、24小时有效、逐人唯一领取、原子钱包/流水/名额、重复消息幂等、原频道归属、图片静态资源。测试与GitHub/生产状态待下方发布记录更新。
+
 - 项目：红豆粉小酒馆 / `AliceNekoqqq/Aliceneko-Discord-Holdem`；主分支 `main`；Worker `discord-holdem`。
 - 当前主线版本：GitHub main / Cloudflare 已为 `1.0.1-beta.75`，运行提交 `9f161f376a1d470cc3279e251f75fd3b4f254db8`（PR #15）；新局规则v0.14，旧v13及更早存档冻结。生产部署 `6fdb8be6-0716-4e83-bff2-ea9da0a203b9`、版本 `9e2b24e1-f276-4d7c-afcc-1bd3a9e9e717` 接收100%流量；PR检查38145723558、main部署38145845704成功，配置比对不变。当前环境此前直读health遭Cloudflare403/1010，未声称健康接口已验证。
 - beta.65 UGC失败保留原始想法并增加重试操作，输出解析与生成韧性改进；GitHub Actions main run `38105700641` 和 Cloudflare 部署均成功。

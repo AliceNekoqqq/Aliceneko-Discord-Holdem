@@ -132,6 +132,17 @@ export default {
     "filename": "postcard-pudding-v1.jpg",
     "version": "v1"
   },
+  "red-packet": {
+    "path": "/art/red-packet/v1.jpg",
+    "mime": "image/jpeg",
+    "bytes": 144591,
+    "sha256": "53130b9e5662d1d1fdbdac0721d0db26ef936f3663f33ac6ee8be7046ba39c19",
+    "width": 960,
+    "height": 640,
+    "id": "red-packet",
+    "filename": "red-packet-v1.jpg",
+    "version": "v1"
+  },
   "red-wine": {
     "path": "/art/red-wine/v1.jpg",
     "mime": "image/jpeg",

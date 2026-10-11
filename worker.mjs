@@ -1,3 +1,4 @@
+import {RedPackets,packetCard,finishRedPacket} from './red-packet.mjs';
 import {serveArt} from './tavern-art.mjs';
 import {servePetArt} from './pet-art.mjs';
 import {servePetWalkArt} from './pet-walk-map.mjs';
@@ -142,6 +143,19 @@ export class PokerTable extends DurableObject {
           return json({ok:Boolean(answer),durationMs:Date.now()-started,replyChars:Array.from(answer).length,timeoutMs:90000,...(greeting||participants?{answer}:{})});
         }catch(error){return json({ok:false,durationMs:Date.now()-started,reason:error.message,status:error.status,timeoutMs:90000});}
       }
+      if(payload.op==='redPacket'){try{
+        const packets=this.redPackets??=new RedPackets(this.tavern);
+        if(payload.action==='create')return json(packets.create(payload.message,payload.botId));
+        if(payload.action==='bind')return json(packets.bind(payload.id,payload.messageId));
+        if(payload.action==='claim'){
+          const answer=packets.claim(payload.interaction);
+          const p=answer.packet;
+          // Credits are already committed. A Discord edit failure cannot undo or repeat them.
+          try{await fetch(`https://discord.com/api/v10/channels/${p.channel}/messages/${payload.interaction.message.id}`,{method:'PATCH',headers:{Authorization:`Bot ${this.env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({...packetCard(p),allowed_mentions:{parse:[]}}),signal:AbortSignal.timeout(8000)});}catch{}
+          return json({amount:answer.amount,repeated:answer.repeated});
+        }
+        return json({error:'无效红包操作。'});
+      }catch(e){return json({error:e.message});}}
       if(payload.op==='tavern'){try{
         if(payload.action?.startsWith('pet')){
           const home=await petHomeRequest(this.env,{id:payload.id,guild:payload.guild,claim:payload.action==='petAdopt'});
@@ -166,7 +180,7 @@ export class PokerTable extends DurableObject {
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
       if(payload.op==='unoRank'){try{return json(await this.rankings.dispatch(payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.75',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
+      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.76',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
       if(payload.op==='register'){
         if(!this.env.BOT_TOKEN)return json({registered:false});
         if(await this.ctx.storage.get('commandVersion')===COMMAND_VERSION)return json({registered:true});
@@ -339,6 +353,7 @@ async function handle(request,env,ctx){
   if(i?.application_id!==env.DISCORD_APPLICATION_ID)return new Response('Wrong application',{status:403});
   if(![2,3,5].includes(i.type)||!/^\d+$/.test(i.channel_id||'')||!/^\d+$/.test(i.guild_id||''))return json(privateReply('请在服务器文字频道内使用。'));
   const lobbyRoute=lobbyGameRequest(i);if(lobbyRoute?.error)return json(privateReply(lobbyRoute.error));if(lobbyRoute?.interaction)i=lobbyRoute.interaction;
+  if(i.type===3&&/^rp:\d{1,20}$/.test(i.data?.custom_id||'')){ctx.waitUntil(finishRedPacket(env,i));return json({type:5,data:{flags:64}});}
   if(rogueInteraction(i)){
     if(i.member?.user?.bot)return json(privateReply('灯下迷城只向真人来客开放。'));
     if(!i.member?.user?.id)return json(privateReply('请在服务器内使用灯下迷城。'));

@@ -6,7 +6,7 @@ import { MENU } from './tavern-catalog.mjs';
 import { ART_MANIFEST, artEmbed, getArtUrl, imageAsset, loadArt, serveArt } from './tavern-art.mjs';
 
 test('every permanent menu dish has a stable JPEG asset and the room is preserved', () => {
-  assert.deepEqual(Object.keys(ART_MANIFEST).sort(), ['room', ...MENU.filter(item => !item.requiresEquipment).map(item => item.id)].sort());
+  assert.deepEqual(Object.keys(ART_MANIFEST).sort(), ['room', 'red-packet', ...MENU.filter(item => !item.requiresEquipment).map(item => item.id)].sort());
   for (const id of Object.keys(ART_MANIFEST)) {
     assert.equal(imageAsset(id).filename, `${id}-v1.jpg`);
     assert.equal(imageAsset(id).mime, 'image/jpeg');
