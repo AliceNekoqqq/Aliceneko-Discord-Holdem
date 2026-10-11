@@ -200,6 +200,7 @@ test('zero-credit clear still unlocks and legacy confirmed clears inherit progre
 
 import {beginBattle as beginBattleV10} from './rogue-battle-v10.mjs';
 import {CATALOG_V10} from './rogue-content-v10.mjs';
+import {beginBattle as beginBattleV13} from './rogue-battle-v13.mjs';
 test('default v11 service resumes frozen v10 combat with metrics and observation once per request',()=>{
  const f=fixture(),old=new RogueService(f.host,'1',{idFactory:()=> 'frozen-v10',clock:f.clock,rulesVersion:V10_RULE_VERSION});
  let r=old.start({...f.p,requestId:'frozen-v10-start',mode:'normal',professionId:'medic',difficulty:0});
@@ -211,7 +212,7 @@ test('default v11 service resumes frozen v10 combat with metrics and observation
  assert.deepEqual(current.act(a),n);assert.deepEqual(current.resume({...f.p,runId:r.runId}),n);assert.ok(n.observation.entries.length>0);
 });
 test('v12 shop purchase is transactional and duplicate request cannot duplicate stock, debit or receipt',()=>{
- const f=fixture(),s=new RogueService(f.host,'1',{idFactory:()=> 'v12-shop',clock:f.clock});
+ const f=fixture(),s=new RogueService(f.host,'1',{idFactory:()=> 'v12-shop',clock:f.clock,rulesVersion:'lantern-rules-v0.12'});
  const r=s.start({...f.p,requestId:'v12-shop-start',mode:'normal'});
  assert.equal(r.ruleVersion,'lantern-rules-v0.12');
  r.phase='ROOM';r.embers=20;r.room={type:'shop',stock:['slash'],itemStock:[],prices:{cardByEnergy:{1:10},upgrade:12,remove:8,item:8},services:{upgrade:false,remove:false}};s.save(r);
@@ -220,4 +221,16 @@ test('v12 shop purchase is transactional and duplicate request cannot duplicate 
  const unchanged=s.resume({...f.p,runId:r.runId});assert.equal(unchanged.embers,20);assert.equal(unchanged.resourceLog.length,0);
  const n=s.act(action);assert.equal(n.embers,10);assert.equal(n.resourceLog.length,1);assert.equal(n.deck.length,r.deck.length+1);
  assert.deepEqual(s.act(action),n);assert.deepEqual(s.resume({...f.p,runId:r.runId}),n);
+});
+test('v13 service persists break progress once per successful request and consumes the break once',()=>{
+ const f=fixture(),s=new RogueService(f.host,'1',{idFactory:()=> 'v13-break',clock:f.clock});
+ const r=s.start({...f.p,requestId:'v13-start',mode:'normal'});
+ assert.equal(r.ruleVersion,'lantern-rules-v0.13');r.phase='BATTLE';r.room={type:'battle',battleType:'normal',enemyId:'a2_seam_duelist',rewardGranted:false};
+ r.deck=Array.from({length:8},(_,uid)=>({uid,cardId:'slash',upgraded:false}));r.battle=beginBattleV13({enemyId:r.room.enemyId,deck:r.deck,relics:[],hp:30,seed:'request-break'});s.save(r);
+ const action=command(f.p,r,'v13-play',{type:'PLAY',uid:r.battle.hand[0].uid});
+ const n=s.act(action);assert.equal(n.battle.chargeDamage,5);assert.deepEqual(s.act(action),n);
+ const second=s.act(command(f.p,n,'v13-play2',{type:'PLAY',uid:n.battle.hand[0].uid}));assert.equal(second.battle.chargeDamage,10);
+ const end=command(f.p,second,'v13-end',{type:'END_TURN'}),resolved=s.act(end);
+ assert.equal(resolved.battle.intent.kind,'attack');assert.equal(resolved.battle.intent.value,2);
+ assert.equal(resolved.battle.log.filter(x=>x.includes('破势：')).length,1);assert.deepEqual(s.act(end),resolved);
 });

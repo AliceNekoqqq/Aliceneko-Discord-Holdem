@@ -1,7 +1,7 @@
 import { Canvas, encodePNG } from './card-image.mjs';
 import { prepareNicknameFont } from './nickname-font.mjs';
 import { PROFESSIONS } from './rogue-content-v09.mjs';
-import { getCatalog } from './rogue-content-v12.mjs';
+import { getCatalog } from './rogue-content-v13.mjs';
 import { legalCards } from './rogue-battle.mjs';
 import { cardGroups, cardEffectLines, cardWarnings, unavailableReason, battleHints } from './rogue-card-guide.mjs';
 import {connectedPlanFor,routeAnchor,routeSupplyLines,routeNodeReference} from './rogue-route-view.mjs';
@@ -48,7 +48,7 @@ export function describeRogueImage(run,view='auto'){
   const b=run?.battle||{},catalog=getCatalog(run?.catalogVersion||run?.ruleVersion),profession=catalog.professions?.[b.professionId||run?.professionId]||PROFESSIONS[b.professionId||run?.professionId],enemy=catalog.enemies[b.enemyId];
   const playable=new Set(Array.isArray(b?.hand)?legalCards(b).map(e=>e.uid):[]);
   const playLimit=catalog.player?.playLimit,cards=(b?.hand||[]).map(e=>{const def=cardDefinition(e,catalog),groups=cardGroups(def),effects=cardEffectLines(def),warnings=cardWarnings(e,def,b.hp);return {id:e.uid,name:catalog.cards[e.cardId]?.name||e.cardId,cost:def.cost??0,playable:playable.has(e.uid),categories:groups.map(g=>({label:g.label,color:[...g.color]})),effects,warnings,reason:unavailableReason(b,def,playLimit,playable,e.uid)};});
-  return {mode:'battle',act:run?.act??1,turn:b?.turn??0,playLimit,profession:profession?.name||'旅人',enemy:enemy?.name||b?.enemyId||'敌人',intent:b.intent,cards,hints:battleHints(b,cards.map(e=>cardDefinition((b.hand||[]).find(h=>h.uid===e.id)||{},catalog)),playLimit),enemyHp:b?.enemyHp??0,enemyMaxHp:b?.enemyMaxHp??0,playerHp:b?.hp??run?.hp??0,playerMaxHp:b?.maxHp??0};
+  return {mode:'battle',act:run?.act??1,turn:b?.turn??0,playLimit,profession:profession?.name||'旅人',enemy:enemy?.name||b?.enemyId||'敌人',intent:b.intent,cards,hints:[...(b.ruleVersion==='lantern-rules-v0.13'&&b.intent?.chargeBreak?[`破势 ${Math.min(b.chargeDamage??0,b.intent.chargeBreak.threshold)}/${b.intent.chargeBreak.threshold} 达标下轮每段减${b.intent.chargeBreak.reduction}`]:[]),...battleHints(b,cards.map(e=>cardDefinition((b.hand||[]).find(h=>h.uid===e.id)||{},catalog)),playLimit)],enemyHp:b?.enemyHp??0,enemyMaxHp:b?.enemyMaxHp??0,playerHp:b?.hp??run?.hp??0,playerMaxHp:b?.maxHp??0};
  }
  const all=mode==='all'||mode==='overview';
  const catalog=getCatalog(run?.catalogVersion||run?.ruleVersion);
@@ -95,7 +95,7 @@ async function mapImage(run,view,env){
  const ly=all?738:675;rect(c,34,ly,892,55,[18,36,54],11);const legend=[['已完成',K.green],['当前可选',K.gold],['未抵达',K.gray]];legend.forEach(([s,col],i)=>{circle(c,65+i*170,ly+27,7,col);text(c,s,81+i*170,ly+18,17,K.cream);});text(c,model.acts.some(a=>a.connected)?'亮线为当前可走支路':'路径仅标记已选路线',570,ly+18,15,K.muted);
  return encodePNG(c);
 }
-function intentLabel(i){if(!i)return '等待行动';const name=i.label||({attack:'攻击',guard:'护盾',burn:'灼烧',cleanse:'净火',heal:'恢复',charge:'蓄力',thorns:'反伤',conditional:'条件反制'})[i.kind]||i.kind;const amount=i.kind==='attack'?` ${i.value??0}×${i.hits??1}`:i.kind!=='conditional'&&Number.isFinite(i.value)?` ${i.value}`:'';return short(name,12)+amount;}
+function intentLabel(i){if(!i)return '等待行动';if(i.kind==='charge'&&i.chargeBreak)return '蓄力 本轮不攻击';const name=i.label||({attack:'攻击',guard:'护盾',burn:'灼烧',cleanse:'净火',heal:'恢复',charge:'蓄力',thorns:'反伤',conditional:'条件反制'})[i.kind]||i.kind;const amount=i.kind==='attack'?` ${i.value??0}×${i.hits??1}`:i.kind!=='conditional'&&Number.isFinite(i.value)?` ${i.value}`:'';return short(name,12)+amount;}
 function intentDetail(i){if(!i)return '';if(i.kind==='conditional')return `首张含直接伤害的牌: ${intentLabel(i.onAttack)} / 否则: ${intentLabel(i.onOther)}`;if(i.kind==='charge')return `下轮：${i.next?.value??i.value}×${i.next?.hits??i.hits??1} 攻击`;return '';}
 function cardDefinition(entity,catalog){const base=catalog.cards[entity.cardId]||{};return entity.upgraded?{...base,...base.upgrade}:base;}
 function wrapLine(value,maxChars){const chars=[...String(value)];const lines=[];while(chars.length)lines.push(chars.splice(0,maxChars).join(''));return lines;}
