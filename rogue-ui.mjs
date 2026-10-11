@@ -5,6 +5,8 @@ import { legalCards, legalItems } from './rogue-battle.mjs';
 import { ITEMS, DIFFICULTIES, EVENTS } from './rogue-content-v07.mjs';
 import { PROFESSIONS, CATALOG_V08, ITEMS as ITEMS_V08, EVENTS as EVENTS_V08, DIFFICULTIES as DIFFICULTIES_V08 } from './rogue-content-v08.mjs';
 import { getCatalog } from './rogue-content-v09.mjs';
+import { analyzeRogueBuild, explainRogueCandidate, previewRogueDeckChange } from './rogue-build-guide.mjs';
+import { summarizeObservationLines } from './rogue-observation.mjs';
 let ACTIVE_CATALOG = getCatalog('0.7');
 let ACTIVE_ITEMS = ITEMS;
 let ACTIVE_EVENTS = EVENTS;
@@ -43,6 +45,18 @@ function cardDef(entity) {
   const b = cardOf(entity?.cardId);
   return b ? (entity.upgraded ? { ...b, ...b.upgrade } : b) : null;
 }
+function buildLines(run) {
+  const report = analyzeRogueBuild(run);
+  if (!report.analyzed) return [];
+  return ['构筑线索（仅核对已有组件）：', ...report.directions.map(d => `${d.name}：已有${d.components.join('、') || '暂无对应组件'}${d.gaps.length ? `；${d.gaps.join('；')}` : '；配合是否稳定仍取决于抽牌和出牌时机'}`), report.note];
+}
+function changePreview(run, entity, action) {
+  const p = previewRogueDeckChange({ ...run, uid: entity.uid, action });
+  if (!p.available) return p.supported ? p.reason : '';
+  if (action === 'remove') return p.cycleEffect;
+  const base = cardOf(entity.cardId);
+  return `升级前：${base.cost}能量，${cardEffectLines(base).join('、')}\n升级后：${p.upgrade.after.cost}能量，${cardEffectLines({ ...base, ...base.upgrade }).join('、')}`;
+}
 const uidEligible = (run, source, kind) => {
   const deck = run.deck ?? [];
   if (kind === 'upgrade') {
@@ -63,9 +77,10 @@ export function rogueUidEligible(run, source, kind, uid) {
 export function renderRogueUidPage(run, source, kind, page = 0, { update = false } = {}) {
   useRunCatalog(run);
   const entries = uidEligible(run, source, kind);
-  const totalPages = Math.max(1, Math.ceil(entries.length / 25));
+  const pageSize = run.ruleVersion === 'lantern-rules-v0.9' ? 5 : 25;
+  const totalPages = Math.max(1, Math.ceil(entries.length / pageSize));
   const active = Math.min(totalPages - 1, Math.max(0, Number.isSafeInteger(page) ? page : 0));
-  const visible = entries.slice(active * 25, (active + 1) * 25);
+  const visible = entries.slice(active * pageSize, (active + 1) * pageSize);
   const label = kind === 'upgrade' ? '升级' : '移除';
   const options = visible.map((e) => ({ label: `#${e.uid} ${cardName(e.cardId)}`, value: String(e.uid), description: cardText(e) }));
   const c = [];
@@ -73,7 +88,8 @@ export function renderRogueUidPage(run, source, kind, page = 0, { update = false
   else c.push(row(button('没有可选牌', cid(run, 'refresh', 'empty'), 2, true)));
   c.push(row(button('上一页', cid(run, 'uid-prev', `${source}:${kind}:${Math.max(0, active - 1)}`), 2, active === 0), button('下一页', cid(run, 'uid-next', `${source}:${kind}:${Math.min(totalPages - 1, active + 1)}`), 2, active >= totalPages - 1)));
   c.push(row(button(source === 'shop' ? '返回商店' : '返回房间', cid(run, 'refresh'), 2)));
-  return panel(`${source === 'shop' ? '商店' : source === 'camp' ? '营地' : '事件'} · ${label}牌`, `${kind === 'upgrade' ? '未升级且支持升级' : '所有牌'} · 第${active + 1}/${totalPages}页 · 共${entries.length}张。选择要处理的牌。`, c, update);
+  const previews = run.ruleVersion === 'lantern-rules-v0.9' ? visible.map(e => `#${e.uid} ${cardName(e.cardId)}\n${changePreview(run, e, kind)}`).join('\n\n') : '';
+  return panel(`${source === 'shop' ? '商店' : source === 'camp' ? '营地' : '事件'} · ${label}牌`, `${kind === 'upgrade' ? '未升级且支持升级' : '所有牌'} · 第${active + 1}/${totalPages}页 · 共${entries.length}张。选择要处理的牌。${previews ? `\n\n${previews}` : ''}`, c, update);
 }
 function cid(run, action, arg) {
   const id = String(run?.runId ?? '');
@@ -223,7 +239,8 @@ export function renderRogueDetails(run, kind = 'deck', { update = false, page = 
   const activePage = Math.max(0, Math.min(totalPages - 1, Number.isSafeInteger(page) ? page : 0));
   const visible = entries.slice(activePage * 12, (activePage + 1) * 12);
   const intro = kind === 'deck' ? `职业：${(ACTIVE_CATALOG.professions?.[run.professionId] ?? PROFESSIONS[run.professionId])?.name ?? '提灯旅人'}。${(ACTIVE_CATALOG.professions?.[run.professionId] ?? PROFESSIONS[run.professionId])?.description ?? ''}\n` : '';
-  const description = `${intro}${visible.join('\n')}\n\n第${activePage + 1}/${totalPages}页 · 共${entries.length}项`;
+  const hints = kind === 'deck' ? buildLines(run).join('\n') : '';
+  const description = `${intro}${hints ? `${hints}\n\n` : ''}${visible.join('\n')}\n\n第${activePage + 1}/${totalPages}页 · 共${entries.length}项`;
   const paging = row(button('上一页', cid(run, 'details-prev', `${kind}:${Math.max(0, activePage - 1)}`), 2, activePage === 0), button('下一页', cid(run, 'details-next', `${kind}:${Math.min(totalPages - 1, activePage + 1)}`), 2, activePage >= totalPages - 1));
   return panel(title, description, [row(button('牌组', cid(run, 'details', 'deck:0'), kind === 'deck' ? 1 : 2), button('地图', cid(run, 'details', 'map:0'), kind === 'map' ? 1 : 2), button('遗物', cid(run, 'details', 'relics:0'), kind === 'relics' ? 1 : 2), button('道具', cid(run, 'details', 'inventory:0'), kind === 'inventory' ? 1 : 2), button('玩法与故事', cid(run, 'details', 'guide:0'), 2)), paging, row(button('返回远征', cid(run, 'refresh'), 2))], update);
 }
@@ -498,7 +515,10 @@ function renderReward(run, update) {
     rows.push(row(button('确认领取所选奖励', cid(run, 'reward-claim'), 1), button('跳过全部奖励', cid(run, 'reward-skip'), 2)));
     rows.push(controlRow(run));
     const itemHint = kinds.includes('item') && (run.inventory ?? []).length >= 2 && selections.item?.id == null ? '\n道具栏已满：选择替换位置才会领取新道具，也可以跳过。' : '';
-    return panel('战利品 · 等待领取', `奖励尚未领取。可更换下拉选项，最后点击「确认领取所选奖励」继续；不更换就领取默认选项。\n\n${summaries.join('\n\n')}${itemHint}`, rows, update);
+    const cardCandidates = queue.find(stage => stage.kind === 'card')?.candidates ?? [];
+    const hints = ['messenger','medic'].includes(run.professionId) && run.ruleVersion === 'lantern-rules-v0.9'
+      ? cardCandidates.map(id => `${cardName(id)}：${explainRogueCandidate(run,id).reason ?? ''}`).join('\n') : '';
+    return panel('战利品 · 等待领取', `奖励尚未领取。可更换下拉选项，最后点击「确认领取所选奖励」继续；不更换就领取默认选项。\n\n${summaries.join('\n\n')}${itemHint}${hints ? `\n\n候选用途（可自由跳牌）：\n${hints}` : ''}`, rows, update);
   }
   const stage = reward.queue?.[reward.index];
   if (!stage) return panel('战利品', '当前奖励已处理。', [controlRow(run)], update);
@@ -533,6 +553,9 @@ function renderResult(run, update) {
   if (Number.isFinite(score)) lines.push(`积分：${score}`);
   if (run.settlementPending) lines.push('结果已保存，收益待入账。重新打开冒险会重试，不会重复领取。');
   if (rank) lines.push(rank);
+  const observation = summarizeObservationLines(run);
+  if (observation.length) lines.push('\n本局记录（仅含接入后操作）', ...observation);
+  if (run.ruleVersion === 'lantern-rules-v0.9') lines.push(`最终牌组：${run.deck?.length ?? 0}张 · 遗物：${run.relics?.length ?? 0}件`);
   const defaultProfession = Object.hasOwn(PROFESSIONS, run.professionId) ? run.professionId : Object.hasOwn(PROFESSIONS, 'traveler') ? 'traveler' : Object.keys(PROFESSIONS)[0];
   return panel('远征结算', lines.join('\n'), [row(button('再来一局', `rl:settings:${defaultProfession}`), button('挑战远征', 'rl:start:challenge')), row(button('返回首页', 'rl:home', 2), button('查看榜单', 'rl:board', 2))], update);
 }
@@ -574,6 +597,8 @@ export function renderRogueConfirmation(run, kind, { update = false } = {}) {
     const cost = kind.cost ?? (isUpgrade ? run.room?.upgradeCost : run.room?.removeCost) ?? 0;
     title = isUpgrade ? '确认升级？' : '确认移除？';
     body = isUpgrade ? `将支付${cost}余烬，升级实体牌 #${entity.uid}：${cardText(entity)}。` : `将支付${cost}余烬，永久移除实体牌 #${entity.uid}：${cardText(entity)}。`;
+    const preview = changePreview(run, entity, isUpgrade ? 'upgrade' : 'remove');
+    if (preview) body += `\n\n${preview}`;
     yes = button(isUpgrade ? '确认付款并升级' : '确认付款并移除', cid(run, `${kind.type}-confirm`, kind.uid), 1);
   } else if (kind && typeof kind === 'object' && kind.type === 'event-pact') {
     const room = run.room ?? {};

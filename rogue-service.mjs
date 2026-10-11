@@ -3,6 +3,7 @@ import {scoreRun,rewardAmount,dailySeedGroup,REWARDED_STARTS,ECONOMY_VERSION} fr
 import {DAILY_REWARD_CAP,dayKey,validId} from './tavern-catalog.mjs';
 import {PROFESSIONS} from './rogue-content-v09.mjs';
 import {MAX_DIFFICULTY} from './rogue-difficulty-v08.mjs';
+import {pruneObservation,recordObservation,summarizeObservation,summarizeObservationLines} from './rogue-observation.mjs';
 const PROFESSION_IDS=Object.keys(PROFESSIONS);
 const hashSeed=seed=>{let h=2166136261;for(const c of String(seed)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)>>>0;}return h;};
 const professionForSeed=seed=>PROFESSION_IDS[hashSeed(seed)%PROFESSION_IDS.length]??'traveler';
@@ -45,10 +46,15 @@ export class RogueService{
   if(!row||row.guild!==this.guild||row.owner!==p.id)fail('OWNER','不能操作这局冒险。');
   const run=JSON.parse(row.snapshot);
   if(run.guild!==this.guild||run.owner!==p.id||run.runId!==row.id)fail('SNAPSHOT','冒险记录不匹配。');
+  if(run.ruleVersion===CURRENT_RULE_VERSION){
+   const stored=run.observation,clean=pruneObservation(stored,this.clock());run.observation=clean;
+   if(JSON.stringify(stored??null)!==JSON.stringify(clean))this.sql.exec('UPDATE rogue_runs SET snapshot=? WHERE id=? AND guild=? AND owner=?',JSON.stringify(run),row.id,this.guild,p.id);
+  }
   if(run.phase!=='RESULT'&&!(SUPPORTED_RULE_VERSIONS??[RULE_VERSION,CURRENT_RULE_VERSION]).includes(run.ruleVersion))fail('VERSION','这局需要原规则版本，不能替换存档。');
   return run;
  }
  save(run){
+  if(run.ruleVersion===CURRENT_RULE_VERSION)run={...run,observation:pruneObservation(run.observation,this.clock())};
   const snapshot=run.phase==='RESULT'&&!run.settlement?{...run,settlement:{...scoreRun(run),economyVersion:ECONOMY_VERSION}}:run;
   this.sql.exec('INSERT INTO rogue_runs VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,version=excluded.version,snapshot=excluded.snapshot',snapshot.runId,snapshot.guild,snapshot.owner,snapshot.phase==='RESULT'?'RESULT':'ACTIVE',snapshot.version,JSON.stringify(snapshot));
  }
@@ -162,7 +168,9 @@ export class RogueService{
    run=this.expireInside(run,now);
    if(run.phase==='RESULT')return run;
    if(!Number.isInteger(p.version)||p.version!==run.version)fail('STALE','这个按钮已过期，请查看当前冒险。');
-   const next=runAction(run,p.action,now);this.save(next);this.remember(p,run.runId,'ACT');
+   const next=runAction(run,p.action,now);
+   if(run.ruleVersion===CURRENT_RULE_VERSION)next.observation=recordObservation(run,next,now,p.action);
+   this.save(next);this.remember(p,run.runId,'ACT');
    return next;
   });
   return this.respond(result);
@@ -178,6 +186,12 @@ export class RogueService{
   const seedGroup=dailySeedGroup(this.guild,day,this.rulesVersion,this.challengeDifficulty());
   this.drainRanks();
   return {day,seedGroup,difficulty:this.challengeDifficulty(),rows:this.sql.exec('SELECT b.owner,m.name,b.score,b.run_id,b.at,RANK() OVER (ORDER BY b.score DESC) AS rank FROM rogue_best b LEFT JOIN tavern_members m ON m.id=b.owner WHERE b.seed_group=? ORDER BY b.score DESC,b.at ASC,b.owner ASC LIMIT 20',seedGroup).toArray()};
+ }
+ observationSummary(p){
+  this.guard(p);const now=this.clock();validTime(now);
+  const run=this.storage.transactionSync(()=>this.load(p));
+  if(run.ruleVersion!==CURRENT_RULE_VERSION)fail('VERSION','仅支持查看 v0.9 冒险复盘。');
+  return {...summarizeObservation(run,now),lines:summarizeObservationLines(run,now)};
  }
  progressFor(owner,professionId){
   const row=this.one('SELECT * FROM rogue_progress WHERE owner=? AND profession=?',owner,professionId);
