@@ -18,7 +18,7 @@ const changed=(before=[],after=[])=>{const left=[...before],out=[];for(const x o
 // Record only successful v0.9 state transitions. No action payload is persisted.
 export function recordObservation(before,after,now,action={}){
  const o=pruneObservation(before?.observation,now);
- if(after?.version===before?.version||!['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13'].includes(before?.ruleVersion)||after?.ruleVersion!==before?.ruleVersion)return o;
+ if(after?.version===before?.version||!['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14'].includes(before?.ruleVersion)||after?.ruleVersion!==before?.ruleVersion)return o;
  if(action?.type==='ROUTE'){
   const picked=(after.path??[]).find(p=>p.act===before.act&&p.slot===before.slot);
   if(picked){append(o,'route',before,now,`${picked.type} ${picked.nodeId}`);o.counts.routes++;}

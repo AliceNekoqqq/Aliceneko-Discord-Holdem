@@ -1,12 +1,13 @@
 // Factual decision cues shared by text and raster views.
 export function enemyApproach(enemy) {
   if (!enemy) return '';
-  const intents = enemy.intents ?? [], cues = [];
+  const intents = (enemy.intents ?? []).flatMap(i=>i.kind==='conditional'?[i,i.onAttack,i.onOther]:[i]), cues = [];
+  if (intents.some(i => i.armor < 0)) cues.push('蓄力时护甲降低');
   if (intents.some(i => i.chargeBreak)) cues.push('蓄力可破势');
   else if (intents.some(i => i.kind === 'charge')) cues.push('蓄力后重击');
   if (intents.some(i => i.kind === 'conditional')) cues.push('首牌决定分支');
   if (intents.some(i => (i.hits ?? 1) > 1)) cues.push('多段攻击');
-  if (enemy.armor > 0) cues.push(`常驻护甲${enemy.armor}`);
+  if (enemy.armor > 0) cues.push(`${intents.some(i=>i.armor<0)?'基础':'常驻'}护甲${enemy.armor}`);
   if (intents.some(i => i.kind === 'burn')) cues.push('施加灼烧');
   if (intents.some(i => i.kind === 'cleanse')) cues.push('清除自身灼烧');
   if (!cues.length && intents.some(i => i.kind === 'guard')) cues.push('攻击与架盾交替');
@@ -16,10 +17,11 @@ export function enemyApproach(enemy) {
 export function enemyDecisionCue(b) {
   const i = b?.intent;
   if (!i) return '';
+  if (i.kind === 'charge' && i.next?.kind && i.next.kind !== 'attack') return `换阶段覆盖重击：下轮${i.next.kind === 'guard' ? `架盾${i.next.value}` : '按新阶段意图行动'}${i.chargeBreak ? '，本次破势不顺延' : ''}`;
   if (i.kind === 'charge' && i.chargeBreak) {
     const { threshold, reduction } = i.chargeBreak;
     const damage = Math.max(0, b.chargeDamage ?? 0);
-    return `破势 ${Math.min(damage, threshold)}/${threshold}：${damage >= threshold ? '已达标' : `本轮敌生命损失需达${threshold}`}，下轮重击每段-${reduction}，最低1；盾与护甲减免不计`;
+    return `${i.armor < 0 ? `破绽：本轮护甲${b.enemyArmor}；` : ''}破势 ${Math.min(damage, threshold)}/${threshold}：${damage >= threshold ? '已达标' : `本轮敌生命损失需达${threshold}`}，下轮重击每段-${reduction}，最低1；盾与护甲减免不计`;
   }
   if (i.kind === 'charge') return '本轮蓄力不攻击；下轮重击，护盾不会跨轮保留';
   if (i.kind === 'conditional') return b.firstCardKind == null
@@ -30,5 +32,19 @@ export function enemyDecisionCue(b) {
   if (i.kind === 'burn') return `施加${i.value}层灼烧，本轮末开始扣血；护盾无法抵挡`;
   if (i.kind === 'thorns' || i.thorns) return `本轮首次主动直伤造成生命损失时反伤${i.thorns ?? i.value}`;
   if (i.kind === 'attack' && (i.hits ?? 1) > 1) return `${i.hits}段攻击分别结算；每段先消耗护盾，再由伙伴挡伤`;
+  return '';
+}
+
+// Keep the image's single tactical line short enough for a phone screen.
+export function enemyImageCue(b) {
+  if (!['lantern-rules-v0.13','lantern-rules-v0.14'].includes(b?.ruleVersion)) return '';
+  const i=b.intent;
+  if (i?.kind === 'charge' && i.next?.kind && i.next.kind !== 'attack') return `换阶段覆盖重击${i.chargeBreak ? ' 本次破势不顺延' : ''}`;
+  if (i?.chargeBreak) {
+    return `${i.armor < 0 ? `本轮护甲${b.enemyArmor} ` : ''}破势 ${Math.min(b.chargeDamage??0,i.chargeBreak.threshold)}/${i.chargeBreak.threshold} 达标下轮每段减${i.chargeBreak.reduction}`;
+  }
+  if (b.ruleVersion === 'lantern-rules-v0.14' && i?.kind === 'conditional') return b.firstCardKind == null
+    ? '首牌决定分支 后续出牌不会改变'
+    : `分支已锁定 ${b.firstCardKind === 'attack' ? '首牌含直伤' : '首牌不含直伤'}`;
   return '';
 }
