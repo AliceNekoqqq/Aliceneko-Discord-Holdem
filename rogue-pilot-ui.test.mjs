@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createRun,CURRENT_RULE_VERSION,V08_RULE_VERSION} from './rogue-run.mjs';
+import {createRun,V09_RULE_VERSION as CURRENT_RULE_VERSION,V08_RULE_VERSION} from './rogue-run.mjs';
 import {renderRogue,renderRogueDetails,renderRogueUidPage} from './rogue-ui.mjs';
 const fresh=(professionId='messenger',ruleVersion=CURRENT_RULE_VERSION)=>createRun({runId:'pilot',owner:'1',guild:'1',seed:'pilot-901',professionId,ruleVersion,now:0});
 const body=r=>r.data.embeds[0].description;
