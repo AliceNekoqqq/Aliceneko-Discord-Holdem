@@ -5,7 +5,7 @@ export const UGC_TYPES=Object.freeze({drink:'drinks', dessert:'desserts', savory
 export const UGC_FIELDS=Object.freeze(['name','type','ingredients','flavor','method','temperature','description','appearance','lore']);
 const EQUIPMENT=new Set(['coffee_machine','baking_oven','blender','ice_cream_maker']);
 const ALLERGENS=[['乳制品',['牛奶','奶油','黄油','芝士','奶酪','酸奶','奶泡']],['蛋类',['鸡蛋','蛋黄','蛋白']],['麸质',['面粉','小麦','吐司','面包','燕麦','馄饨皮']],['花生',['花生']],['坚果',['杏仁','核桃','腰果','榛子']],['大豆',['豆浆','黄豆','豆腐','酱油']]];
-const bad=/酒精|白酒|啤酒|葡萄酒|威士忌|药用|治愈|治疗|毒药|刀片|玻璃粉/i;
+const bad=/药用|治愈|治疗|毒药|刀片|玻璃粉/i;
 export function validateUGCDraft(input,{requireComplete=false,price=null}={}){
  if(!input||typeof input!=='object'||Array.isArray(input))throw Error('菜品资料格式无效。');
  const allowed=new Set([...UGC_FIELDS,'category','allergens','equipment','pairing','serve','emoji','price']);
@@ -18,7 +18,7 @@ export function validateUGCDraft(input,{requireComplete=false,price=null}={}){
  for(const [key,max,label] of [['flavor',100,'风味/口感'],['method',300,'制作概述'],['description',180,'介绍'],['appearance',200,'摆盘/外观'],['lore',120,'创作缘由']])if(d[key]!==undefined){d[key]=plain(d[key],max,label);if(!d[key]&&key!=='lore')throw Error(`${label}不能为空。`);}
  if(d.temperature!==undefined&&!['warm','cold','room'].includes(d.temperature))throw Error('上桌温度无效。');
  if(d.equipment!==undefined&&(!Array.isArray(d.equipment)||d.equipment.some(x=>!EQUIPMENT.has(x))))throw Error('设备要求无效。');
- if(d.ingredients?.some(x=>bad.test(x))||Object.values(d).some(x=>typeof x==='string'&&bad.test(x)))throw Error('菜品包含不支持的酒精、药品或危险内容。');
+ if(d.ingredients?.some(x=>bad.test(x))||Object.values(d).some(x=>typeof x==='string'&&bad.test(x)))throw Error('菜品包含不支持的药品或危险内容。');
  const allergens=new Set(d.allergens||[]);for(const [name,terms] of ALLERGENS)if(d.ingredients?.some(i=>terms.some(t=>i.includes(t))))allergens.add(name);d.allergens=[...allergens];if(d.ingredients?.some(x=>!ALLERGENS.some(([,ts])=>ts.some(t=>x.includes(t)))&&!/水|糖|盐|冰块|香草|咖啡豆|茶叶|米饭|番茄|土豆|红薯|草莓|蓝莓|芒果|苹果|梨|柠檬|面粉/.test(x)))d.allergens.push('含待确认成分');
  d.equipment=deriveEquipment(d);
  if(price!==null){if(!Number.isInteger(price)||price<UGC_PRICE_MIN||price>UGC_PRICE_MAX)throw Error('售价必须是10至50之间的整数。');d.price=price;}

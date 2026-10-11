@@ -6,8 +6,8 @@ import {TavernOperationsLive} from './tavern-operations-live.mjs';
 test('UGC uses isolated structured generation without chat memory instructions or clipping',async()=>{
  const instruction=makeSystemInstruction('人格','ugc',[],'允许配方字段', '',{ugc:{target:'name'}});
  assert(instruction.includes('合法JSON'));assert(!instruction.includes('输出边界'));assert(!instruction.includes('sharedLongMemory'));
- assert.equal(buildOpenAIChatRequest([],'','ugc').max_tokens,2048);
- assert.equal(buildGenerateContentRequest([],'','ugc').generationConfig.maxOutputTokens,2048);
+ assert.equal(buildOpenAIChatRequest([],'','ugc').max_tokens,3072);
+ assert.equal(buildGenerateContentRequest([],'','ugc').generationConfig.maxOutputTokens,3072);
  const body=JSON.stringify({reply:'字'.repeat(1800),patch:{},missing:[]});let dbCalls=0;
  const answer=await generateGemini({GEMINI_API_KEY:'fixture',GEMINI_API_BASE_URL:'https://fixture.invalid/v1',CHAT_DB:{prepare(){dbCalls++;throw Error('must not log')}}},[{role:'user',parts:[{text:'私密研发'}]}],'ugc',async()=>Response.json({choices:[{message:{content:body},finish_reason:'stop'}]}));
  assert.equal(answer,body);assert.equal(dbCalls,0);
