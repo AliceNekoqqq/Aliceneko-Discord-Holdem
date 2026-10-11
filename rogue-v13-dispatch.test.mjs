@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRun, CURRENT_RULE_VERSION, SUPPORTED_RULE_VERSIONS } from './rogue-run.mjs';
+import { createRun, V13_RULE_VERSION, SUPPORTED_RULE_VERSIONS } from './rogue-run.mjs';
 import { beginBattle } from './rogue-battle.mjs';
 import { CATALOG_V12 } from './rogue-content-v12.mjs';
 import { CATALOG_V13, getCatalog } from './rogue-content-v13.mjs';
@@ -9,7 +9,7 @@ import { dailySeedGroup } from './rogue-economy.mjs';
 const versions = ['lantern-rules-v0.4','lantern-rules-v0.6','lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13'];
 
 test('v13 dispatch keeps the full historical ruleset range and selects the v13 catalog', () => {
-  assert.equal(CURRENT_RULE_VERSION, 'lantern-rules-v0.13');
+  assert.equal(V13_RULE_VERSION, 'lantern-rules-v0.13');
   for (const version of versions) assert(SUPPORTED_RULE_VERSIONS.includes(version), `${version} remains supported`);
   assert.equal(getCatalog('lantern-rules-v0.12'), CATALOG_V12);
   assert.equal(getCatalog('lantern-rules-v0.13'), CATALOG_V13);

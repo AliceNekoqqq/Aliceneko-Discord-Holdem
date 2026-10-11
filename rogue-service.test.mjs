@@ -223,7 +223,7 @@ test('v12 shop purchase is transactional and duplicate request cannot duplicate 
  assert.deepEqual(s.act(action),n);assert.deepEqual(s.resume({...f.p,runId:r.runId}),n);
 });
 test('v13 service persists break progress once per successful request and consumes the break once',()=>{
- const f=fixture(),s=new RogueService(f.host,'1',{idFactory:()=> 'v13-break',clock:f.clock});
+ const f=fixture(),s=new RogueService(f.host,'1',{idFactory:()=> 'v13-break',clock:f.clock,rulesVersion:'lantern-rules-v0.13'});
  const r=s.start({...f.p,requestId:'v13-start',mode:'normal'});
  assert.equal(r.ruleVersion,'lantern-rules-v0.13');r.phase='BATTLE';r.room={type:'battle',battleType:'normal',enemyId:'a2_seam_duelist',rewardGranted:false};
  r.deck=Array.from({length:8},(_,uid)=>({uid,cardId:'slash',upgraded:false}));r.battle=beginBattleV13({enemyId:r.room.enemyId,deck:r.deck,relics:[],hp:30,seed:'request-break'});s.save(r);
@@ -233,4 +233,23 @@ test('v13 service persists break progress once per successful request and consum
  const end=command(f.p,second,'v13-end',{type:'END_TURN'}),resolved=s.act(end);
  assert.equal(resolved.battle.intent.kind,'attack');assert.equal(resolved.battle.intent.value,2);
  assert.equal(resolved.battle.log.filter(x=>x.includes('破势：')).length,1);assert.deepEqual(s.act(end),resolved);
+});
+
+test('v14 sergeant break progress and resolved reduction persist only once for duplicate SQL requests',async()=>{
+ const {beginBattle}=await import('./rogue-battle-v14.mjs');
+ const f=fixture(),s=new RogueService(f.host,'1',{idFactory:()=> 'v14-elite-break',clock:f.clock});
+ const r=s.start({...f.p,requestId:'v14-elite-start',mode:'normal'});
+ r.phase='BATTLE';r.room={type:'battle',battleType:'elite',enemyId:'cracked_sergeant',rewardGranted:false};
+ r.deck=Array.from({length:8},(_,uid)=>({uid,cardId:'slash',upgraded:false}));
+ r.battle=beginBattle({enemyId:r.room.enemyId,deck:r.deck,relics:[],hp:30,seed:'request-elite'});s.save(r);
+ const charge=s.act(command(f.p,r,'v14-guard-end',{type:'END_TURN'}));
+ assert.equal(charge.battle.enemyArmor,0);assert.equal(charge.battle.enemyShield,5);
+ let n=charge;
+ for(let i=0;i<3;i++){
+  const action=command(f.p,n,`v14-elite-play-${i}`,{type:'PLAY',uid:n.battle.hand[0].uid});n=s.act(action);assert.deepEqual(s.act(action),n);
+ }
+ assert.equal(n.battle.turn,3);assert.equal(n.battle.intent.kind,'attack');assert.equal(n.battle.intent.value,6);
+ assert.equal(n.battle.log.filter(x=>x.startsWith('破势：')).length,1);
+ const end=command(f.p,n,'v14-elite-hit',{type:'END_TURN'}),resolved=s.act(end);assert.deepEqual(s.act(end),resolved);
+ assert.equal(resolved.battle.intent.kind,'attack');assert.equal(resolved.battle.intent.value,5);
 });
