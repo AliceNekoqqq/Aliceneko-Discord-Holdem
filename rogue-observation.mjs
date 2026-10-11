@@ -21,21 +21,21 @@ export function recordObservation(before,after,now,action={}){
  if(after?.version===before?.version||before?.ruleVersion!=='lantern-rules-v0.9'||after?.ruleVersion!=='lantern-rules-v0.9')return o;
  if(action?.type==='ROUTE'){
   const picked=(after.path??[]).find(p=>p.act===before.act&&p.slot===before.slot);
-  if(picked){append(o,'route',after,now,`${picked.type} ${picked.nodeId}`);o.counts.routes++;}
+  if(picked){append(o,'route',before,now,`${picked.type} ${picked.nodeId}`);o.counts.routes++;}
  }
  const newCards=changed(cardIds(before),cardIds(after));
  const newRelics=changed(before.relics??[],after.relics??[]),newItems=changed(before.inventory??[],after.inventory??[]);
- if(before.room?.type==='blessing'&&newRelics.length){append(o,'reward',after,now,`拿取遗物 ${newRelics.slice(0,3).join('、')}`);o.counts.rewardsTaken++;}
+ if(before.room?.type==='blessing'&&newRelics.length){append(o,'reward',before,now,`拿取遗物 ${newRelics.slice(0,3).join('、')}`);o.counts.rewardsTaken++;}
  const rewardsClaimed=before.phase==='REWARD'&&after.phase!=='REWARD'&&after.completed>before.completed;
- if(rewardsClaimed){const skipped=action.type==='REWARD_SKIP'||(!newCards.length&&!newRelics.length&&!newItems.length);const skippedKinds=(before.reward?.queue??[]).filter(q=>!q.done&&!(before.reward?.selections?.[q.kind]?.id??before.reward?.selections?.[q.kind])).map(q=>q.kind);const detail=skipped?'跳过奖励':`拿取 ${[...newCards,...newRelics,...newItems].slice(0,5).join('、')||'奖励'}${skippedKinds.length?`；跳过 ${skippedKinds.join('、')}`:''}`;append(o,skipped?'reward-skipped':'reward',after,now,detail);o.counts[skipped?'rewardsSkipped':'rewardsTaken']++;}
+ if(rewardsClaimed){const skipped=action.type==='REWARD_SKIP'||(!newCards.length&&!newRelics.length&&!newItems.length);const skippedKinds=(before.reward?.queue??[]).filter(q=>!q.done&&!(before.reward?.selections?.[q.kind]?.id??before.reward?.selections?.[q.kind])).map(q=>q.kind);const detail=skipped?'跳过奖励':`拿取 ${[...newCards,...newRelics,...newItems].slice(0,5).join('、')||'奖励'}${skippedKinds.length?`；跳过 ${skippedKinds.join('、')}`:''}`;append(o,skipped?'reward-skipped':'reward',before,now,detail);o.counts[skipped?'rewardsSkipped':'rewardsTaken']++;}
  const upgraded=(after.deck??[]).filter(c=>c.upgraded&&!before.deck?.find(b=>b.uid===c.uid)?.upgraded);
- if(upgraded.length){const card=upgraded[0];append(o,'upgrade',after,now,`升级 UID ${card.uid} ${card.cardId}`);o.counts.upgrades+=upgraded.length;}
+ if(upgraded.length){const card=upgraded[0];append(o,'upgrade',before,now,`升级 UID ${card.uid} ${card.cardId}`);o.counts.upgrades+=upgraded.length;}
  const removed=(before.deck??[]).filter(c=>!(after.deck??[]).some(n=>n.uid===c.uid));
- if(removed.length){const card=removed.find(c=>c.uid===action.uid)??removed[0];append(o,'remove',after,now,`删牌 UID ${card.uid} ${card.cardId}`);o.counts.removals+=removed.length;}
+ if(removed.length){const card=removed.find(c=>c.uid===action.uid)??removed[0];append(o,'remove',before,now,`删牌 UID ${card.uid} ${card.cardId}`);o.counts.removals+=removed.length;}
  const spent=Math.max(0,(before.embers??0)-(after.embers??0));
- if(spent&&before.room?.type==='shop'){const choice=action.choice,detail=choice==='buy'?`购买牌 ${action.cardId}`:choice==='item'?`购买道具 ${action.itemId}`:choice==='upgrade'||choice==='remove'?`商店${choice==='upgrade'?'升级':'删牌'} ${before.deck?.find(c=>c.uid===action.uid)?.cardId??''}`:`商店消费 ${spent} 余烬`;append(o,'shop-spend',after,now,`${detail}，${spent} 余烬`);o.counts.shopPurchases++;}
- if(before.room?.type==='camp'&&after.completed>before.completed){const choice=action.choice==='upgrade'?`升级 ${before.deck?.find(c=>c.uid===action.uid)?.cardId??''}`:action.choice==='heal'?'治疗':'离开';append(o,'camp',after,now,`营地：${choice}`);o.counts.campChoices++;}
- if(action.type==='ITEM'){append(o,'item-use',after,now,`使用道具 ${before.inventory?.[action.itemIndex]??'道具'}`);o.counts.itemUses++;}
+ if(spent&&before.room?.type==='shop'){const choice=action.choice,detail=choice==='buy'?`购买牌 ${action.cardId}`:choice==='item'?`购买道具 ${action.itemId}`:choice==='upgrade'||choice==='remove'?`商店${choice==='upgrade'?'升级':'删牌'} ${before.deck?.find(c=>c.uid===action.uid)?.cardId??''}`:`商店消费 ${spent} 余烬`;append(o,'shop-spend',before,now,`${detail}，${spent} 余烬`);o.counts.shopPurchases++;}
+ if(before.room?.type==='camp'&&after.completed>before.completed){const choice=action.choice==='upgrade'?`升级 ${before.deck?.find(c=>c.uid===action.uid)?.cardId??''}`:action.choice==='heal'?'治疗':'离开';append(o,'camp',before,now,`营地：${choice}`);o.counts.campChoices++;}
+ if(action.type==='ITEM'){append(o,'item-use',before,now,`使用道具 ${before.inventory?.[action.itemIndex]??'道具'}`);o.counts.itemUses++;}
  if(before.phase==='BATTLE'&&after.phase!=='BATTLE'&&before.battle&&['PLAY','ITEM','END_TURN'].includes(action.type)){const rounds=Math.max(0,Number.isInteger(after.battle?.turn)?after.battle.turn:Number.isInteger(before.battle.turn)?before.battle.turn:0),lost=after.result?.type==='DEFEAT';append(o,'battle-end',before,now,`战斗结束：${rounds} 轮${lost?`，失败 ${after.result.reason??'未知原因'}`:'，胜利'}`);o.counts.battles++;o.counts.battleRounds+=rounds;if(lost)o.counts.defeats++;}
  if(after.phase==='RESULT'&&before.phase!=='RESULT'&&['ABANDON','RETREAT'].includes(action.type))append(o,'exit',before,now,action.type==='ABANDON'?'主动放弃远征':'幕间撤退');
  o.entries=trimEntries(o.entries,now).slice(-OBSERVATION_MAX_ENTRIES);return o;
