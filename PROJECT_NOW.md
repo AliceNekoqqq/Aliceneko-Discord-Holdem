@@ -3,7 +3,7 @@
 更新时间：2026-10-11（Asia/Shanghai）
 
 - 项目：红豆粉小酒馆 / `AliceNekoqqq/Aliceneko-Discord-Holdem`；主分支 `main`；Worker `discord-holdem`。
-- 当前主线版本：GitHub main 为 `1.0.1-beta.66`，提交 `534f62bca337a5e2085515c8dfe2cd36ea7f278c`；Cloudflare Worker 部署版本 114 `6d5c6d6f-9bdc-4e60-af37-76091a7ffc71` 接收100%流量，部署 `a9816a5e-fa57-4b41-a2cd-676bca95199c`。灯下迷城规则仍 v0.8，保留已有存档。
+- 当前主线版本：GitHub main 与生产 Worker 均为 `1.0.1-beta.68`，灯下迷城新局采用 v0.9；v0.4/v0.6/v0.7/v0.8旧存档规则冻结。运行代码合并提交 `ee186e8c70df47c9d3d2d2a2771fc8b84dbbb39d`；Cloudflare 部署 `f076cbab-7ca4-46d8-ac22-f1ddd32f773a`、版本 `bcf5b4be-2463-4e68-9aa2-92f85545dbae` 接收100%流量，生产 `/health` 已核实。后续纯文档提交不改变生产版本。
 - beta.65 UGC失败保留原始想法并增加重试操作，输出解析与生成韧性改进；GitHub Actions main run `38105700641` 和 Cloudflare 部署均成功。
 - beta.66 酒水菜单与旧禁酒规则清理已上线：PR #7 以 squash 合并；PR 检查 run `38106012299` 及 main 发布/部署 run `38106073370` 均成功。固定菜单新增5款带规格、风味、搭配及插画的酒水；菜单、知识库、订单预览和快照同步；UGC与季节酒类候选允许酒类，但必须保留用户明确给出的容量和酒精度；两份历史运行知识快照中的旧“饮品均无酒精”句子也已删除。本地聊天5/5、酒馆24/24、Worker4/4、素材17/17、UGC上下文2/2通过，`git diff --check` 通过。
 - beta.63 灯下迷城战斗图精修已发布：PR #6 squash 合并，提交 `f5174112504414b9f3dc84bd93878ede53071d6c`。统一字号层级，卡牌正文提升到14px、角色与卡名20px，战场分区、卡框状态和角色阴影更清楚；画布保持960×800以控制免费 Worker CPU。PR/主分支构建、资源、灯下迷城、酒馆、聊天、UGC与Worker测试均通过。生产版本 ID `65796851-7de9-4967-88cd-c4bc9ba90692`（110），部署 ID `733fc697-39b6-4af3-8ef0-b161edbf1883`，接收100%流量；当前环境未能直读 `/health`。
@@ -38,3 +38,10 @@
 
 - beta.68 灯下迷城 PR #8 已 squash 合并，提交 `ee186e8c70df47c9d3d2d2a2771fc8b84dbbb39d`。PR检查 run38112460165、生产发布 run38112535194 全部通过；最终288局固定种子两策略复审，完整结果见 docs/roguelike/BALANCE_V09_AUDIT.md。调酒师/驯兽师偏强、医师最高进阶偏弱仍有信号；模拟不是真人胜率。无精确重复牌、新循环或重设计牌明显功能下位。
 - beta.68 Cloudflare deployment `f076cbab-7ca4-46d8-ac22-f1ddd32f773a`，version `bcf5b4be-2463-4e68-9aa2-92f85545dbae` 接收100%流量；实际 https://discord-holdem.aliceneko.workers.dev/health 返回 ok:true、beta.68、rulesVersion:v0.9。现有bindings/Secret名称与类型、compatibility_date、observability保持；wrangler/cron/D1/DO迁移配置未改。真人多局体验与高进阶职业反馈尚待观察。
+
+## 灯下迷城下一轮升级规划（2026-10-11）
+
+- 新入口：`docs/roguelike/UPGRADE_ROADMAP.md`，基线为 beta.68/v0.9。单局流程已完整，下一轮重点是构筑、路线、战斗、资源和重玩之间的闭环；历史规格中的候选机制不能视作当前功能。
+- 顺序：P0最小观察/规则索引 → P1构筑成立 → P2相连路线/资源 → P3战斗与三幕 → P4a局后回顾 → 按反馈逐批P4b可选长期目标 → P5整体验收。先保持八职业、三幕15站、三能量/三出牌/12轮基线。
+- 第一批为P0最小记录及P1信使/医师试点；16个流派方向仅为待验证候选。P2改变资源可达性后重跑两职业试点。真人选择原因、构筑兑现与重玩意愿是验收证据，模拟胜率不能代替趣味评估。
+- 本轮仅审视和规划，无运行代码变更、无版本升级、无Cloudflare部署；待开发事项不得标为已上线。
