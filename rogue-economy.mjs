@@ -8,8 +8,8 @@ export function scoreRun(run){
  const type=run.result?.type;
  if(!outcomes.has(type))throw Error('冒险尚未结算。');
  if(!Number.isInteger(run.completedActs)||run.completedActs<0||run.completedActs>3||
-    !Number.isInteger(run.completed)||run.completed<0||run.completed>(['lantern-rules-v0.7','lantern-rules-v0.8'].includes(run.ruleVersion)?15:9)||
-    !Number.isInteger(run.eliteWins)||run.eliteWins<0||run.eliteWins>(['lantern-rules-v0.7','lantern-rules-v0.8'].includes(run.ruleVersion)?6:3))throw Error('冒险进度无效。');
+    !Number.isInteger(run.completed)||run.completed<0||run.completed>(['lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9'].includes(run.ruleVersion)?15:9)||
+    !Number.isInteger(run.eliteWins)||run.eliteWins<0||run.eliteWins>(['lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9'].includes(run.ruleVersion)?6:3))throw Error('冒险进度无效。');
  if(type==='ABANDON'||type==='EXPIRED')return {score:0,baseCoins:0,ranked:false};
  const alive=type==='CLEAR'||type==='RETREAT';
  const health=alive?Math.max(0,Math.min(30,Math.floor(run.hp))):0;
@@ -21,6 +21,7 @@ export function rewardAmount(run,{totalEarned=0,rogueEarned=0,totalCap=150}={}){
  return run.rewardEligible?Math.max(0,Math.min(baseCoins,ROGUE_DAILY_CAP-rogueEarned,totalCap-totalEarned)):0;
 }
 export function dailySeedGroup(guild,day,ruleVersion,difficulty=0){
+ if(ruleVersion==='lantern-rules-v0.9'){if(!Number.isInteger(difficulty)||difficulty<0||difficulty>10)throw Error('难度无效');return `lantern/${guild}/${day}/${ruleVersion}/difficulty-${difficulty}/15stations-3energy-5draw-v09-balance`; }
  if(ruleVersion==='lantern-rules-v0.8'){if(!Number.isInteger(difficulty)||difficulty<0||difficulty>10)throw Error('难度无效');return `lantern/${guild}/${day}/${ruleVersion}/difficulty-${difficulty}/15stations-3energy-5draw-v08profiles-pacts`; }
  if(ruleVersion==='lantern-rules-v0.7'){if(!Number.isInteger(difficulty)||difficulty<0||difficulty>10)throw Error('难度无效');return `lantern/${guild}/${day}/${ruleVersion}/difficulty-${difficulty}/15stations-3energy-5draw-v07profiles`;}
  return `lantern/${guild}/${day}/${ruleVersion}/traveler-30hp-2energy-4draw-start8`;

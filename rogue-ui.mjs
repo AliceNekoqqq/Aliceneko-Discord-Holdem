@@ -2,14 +2,15 @@ import { WORLD_INTRO, WORLD_STORY, PROFESSION_STORIES } from './rogue-lore.mjs';
 import { cardGroups, cardEffectLines, cardWarnings, unavailableReason, battleHints, playGuide } from './rogue-card-guide.mjs';
 import { CATALOG } from './rogue-catalog.mjs';
 import { legalCards, legalItems } from './rogue-battle.mjs';
-import { ITEMS, DIFFICULTIES, EVENTS, getCatalog } from './rogue-content-v07.mjs';
+import { ITEMS, DIFFICULTIES, EVENTS } from './rogue-content-v07.mjs';
 import { PROFESSIONS, CATALOG_V08, ITEMS as ITEMS_V08, EVENTS as EVENTS_V08, DIFFICULTIES as DIFFICULTIES_V08 } from './rogue-content-v08.mjs';
+import { getCatalog } from './rogue-content-v09.mjs';
 let ACTIVE_CATALOG = getCatalog('0.7');
 let ACTIVE_ITEMS = ITEMS;
 let ACTIVE_EVENTS = EVENTS;
-const v08 = (run) => /(?:^|[^0-9])0\.8(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
-const expanded = (run) => run?.catalogVersion == null && run?.ruleVersion == null || /(?:^|[^0-9])0\.[78](?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
-const useRunCatalog = (run) => { ACTIVE_CATALOG = v08(run) ? CATALOG_V08 : getCatalog(run?.catalogVersion ?? run?.ruleVersion ?? '0.7'); ACTIVE_ITEMS = v08(run) ? ITEMS_V08 : ACTIVE_CATALOG.items ?? ITEMS; ACTIVE_EVENTS = v08(run) ? EVENTS_V08 : ACTIVE_CATALOG.events ?? EVENTS; return ACTIVE_CATALOG; };
+const v08 = (run) => /(?:^|[^0-9])0\.[89](?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
+const expanded = (run) => run?.catalogVersion == null && run?.ruleVersion == null || /(?:^|[^0-9])0\.[789](?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
+const useRunCatalog = (run) => { ACTIVE_CATALOG = getCatalog(run?.catalogVersion ?? run?.ruleVersion ?? '0.7'); ACTIVE_ITEMS = ACTIVE_CATALOG.items ?? ITEMS; ACTIVE_EVENTS = v08(run) ? EVENTS_V08 : ACTIVE_CATALOG.events ?? EVENTS; return ACTIVE_CATALOG; };
 function storyLines(run) {
   const story = run?.story;
   if (!story) return [];
@@ -127,13 +128,13 @@ export function renderRogueHome({ challengeProfession = null, homeInfo = {}, upd
   return panel('灯下迷城', `${WORLD_INTRO}\n\n先选择职业，再查看已解锁的难度。\n正式局：每天前2次开局可获得金币奖励，实际到账受每日上限限制。\n练习局：不发金币、不占奖励开局次数；通关也能推进职业难度。\n每日挑战：${challenge}\n职业进度：${progress.join('；') || '各职业从难度0开始'}\n\n${hint}`, components, update);
 }
 
-export function renderRogueSettings({ professionId, difficulty = 0, mode = 'normal', homeInfo = {}, update = false, catalogVersion = '0.8' } = {}) {
-  const prof = (String(catalogVersion).includes('0.8') ? CATALOG_V08 : getCatalog(catalogVersion)).professions?.[professionId] ?? PROFESSIONS[professionId];
+export function renderRogueSettings({ professionId, difficulty = 0, mode = 'normal', homeInfo = {}, update = false, catalogVersion = '0.9' } = {}) {
+  const prof = getCatalog(catalogVersion).professions?.[professionId] ?? PROFESSIONS[professionId];
   if (!prof) return renderRogueHome({ update });
   const progress = (homeInfo.progress ?? []).find((p) => p.professionId === professionId);
   const unlocked = Math.max(0, Math.min(10, Number.isInteger(progress?.unlocked) ? progress.unlocked : 0));
   const selected = Math.max(0, Math.min(unlocked, Number.isInteger(difficulty) ? difficulty : 0));
-  const allDifficulties = String(catalogVersion).includes('0.8') ? DIFFICULTIES_V08 : (Array.isArray(DIFFICULTIES) ? DIFFICULTIES : Object.values(DIFFICULTIES ?? {}));
+  const allDifficulties = /0\.[89]/.test(String(catalogVersion)) ? DIFFICULTIES_V08 : (Array.isArray(DIFFICULTIES) ? DIFFICULTIES : Object.values(DIFFICULTIES ?? {}));
   const diffs = allDifficulties.filter((d) => Number.isInteger(d.level) && d.level <= unlocked).sort((a,b) => a.level-b.level);
   const difficultyDef = allDifficulties.find((x) => x.level === selected);
   const options = diffs.map((d) => ({ label: `${d.level} · ${d.name}`, value: String(d.level), description: d.description ?? '' }));

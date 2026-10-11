@@ -44,6 +44,7 @@ export function battleHints(b,defs,playLimit) {
  const lines=[`先看意图，再选牌。还可打${Math.max(0,playLimit-(b.plays??0))}张；能量与出牌次数分别消耗。`];
  if(b.intent?.kind==='conditional')lines.push(`条件分支看本轮首张牌：${b.firstCardKind==='attack'?'已选攻击分支':b.firstCardKind==='other'?'已选其他分支':'首张含直接伤害效果→攻击分支，否则→其他分支'}。`);
  else if(b.intent?.kind==='attack')lines.push(`敌人将攻击${b.intent.value??0}×${b.intent.hits??1}；护盾在敌人行动后清空。`);
+ if(defs.some(d=>d.cost===0))lines.push('0能量牌仍占一次出牌，可给高费用牌留下能量。');
  const kinds=new Set(defs.flatMap(d=>(d?.effects||[]).map(e=>e.kind)));
  if(kinds.has('prepare')||kinds.has('mark'))lines.push('备势／标记加到下一次直伤并被消耗；可先蓄势，再打攻击。');
  else if(kinds.has('weapon_attack')||kinds.has('forge'))lines.push('先锻造可提高后续武器伤害；锻值保留到本战结束。');
