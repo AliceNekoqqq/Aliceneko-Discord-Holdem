@@ -59,4 +59,9 @@
 
 医师初版最高进阶两策略均0/4；治疗护盾改动后扩大样本见上表，扩样前后样本数量不同，不能单凭这一对比证明增益幅度。只据小样本零通关继续无限加数值会掩盖路线与策略影响，本轮保留风险策略可通关但难度较高的定位。
 
-验证：lantern152/152、worker25/25、chat78/78；CI将在发布前重新生成真实中文字体/静态资源并执行assets、lantern、tavern、chat、ugc-context、worker检查。Luna独立复核两次，无新循环或重设计牌明显功能下位。
+验证：lantern152/152、worker25/25、chat78/78；PR与生产CI均已通过，重新生成真实中文字体/静态资源并完成assets、lantern、tavern、chat、ugc-context、worker检查。Luna独立复核两次，无新循环或重设计牌明显功能下位。
+
+
+## 发布核验
+
+PR #8 已合并；beta.68生产发布run38112535194成功。HTTPS /health实际返回ok:true、beta.68、lantern-rules-v0.9；新版本接收100%流量。原绑定、Secret、兼容日期和日志设置保留，未修改wrangler、Cron或迁移配置。手机Discord的实际视觉效果和真人耐玩性尚待反馈。
