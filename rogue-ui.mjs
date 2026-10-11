@@ -4,30 +4,30 @@ import { CATALOG } from './rogue-catalog.mjs';
 import { legalCards, legalItems } from './rogue-battle.mjs';
 import { ITEMS, DIFFICULTIES, EVENTS } from './rogue-content-v07.mjs';
 import { PROFESSIONS, CATALOG_V08, ITEMS as ITEMS_V08, EVENTS as EVENTS_V08, DIFFICULTIES as DIFFICULTIES_V08 } from './rogue-content-v08.mjs';
-import { getCatalog } from './rogue-content-v11.mjs';
+import { getCatalog } from './rogue-content-v12.mjs';
 import { analyzeRogueBuild, explainRogueCandidate, previewRogueDeckChange } from './rogue-build-guide.mjs';
 import { summarizeObservationLines } from './rogue-observation.mjs';
 import {connectedPlanFor,routeNodeReference,nextRouteLabels,routeSupplyLines} from './rogue-route-view.mjs';
 import { analyzeBuild, candidateFit } from './rogue-build-system.mjs';
 import { normalizeEffectMetrics } from './rogue-effect-metrics.mjs';
-let ACTIVE_CATALOG = getCatalog('0.7');
+import { resourceEffectLines, lastResourceReceipt } from './rogue-resource-state.mjs';
+let ACTIVE_CATALOG = getCatalog('0.12');
 let ACTIVE_ITEMS = ITEMS;
 let ACTIVE_EVENTS = EVENTS;
-const v08 = (run) => /(?:^|[^0-9])0\.(?:[89]|1[01])(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
-const expanded = (run) => run?.catalogVersion == null && run?.ruleVersion == null || /(?:^|[^0-9])0\.(?:[789]|1[01])(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
-const useRunCatalog = (run) => { ACTIVE_CATALOG = getCatalog(run?.catalogVersion ?? run?.ruleVersion ?? '0.7'); ACTIVE_ITEMS = ACTIVE_CATALOG.items ?? ITEMS; ACTIVE_EVENTS = v08(run) ? EVENTS_V08 : ACTIVE_CATALOG.events ?? EVENTS; return ACTIVE_CATALOG; };
+const v08 = (run) => /(?:^|[^0-9])0\.(?:[89]|1[0-2])(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
+const expanded = (run) => run?.catalogVersion == null && run?.ruleVersion == null || /(?:^|[^0-9])0\.(?:[789]|1[0-2])(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
+const useRunCatalog = (run) => { ACTIVE_CATALOG = getCatalog(run?.catalogVersion ?? run?.ruleVersion ?? '0.12'); ACTIVE_ITEMS = ACTIVE_CATALOG.items ?? ITEMS; ACTIVE_EVENTS = ACTIVE_CATALOG.events ?? (v08(run) ? EVENTS_V08 : EVENTS); return ACTIVE_CATALOG; };
 function storyLines(run) {
   const story = run?.story;
   if (!story) return [];
   const lines = [];
-  if (story.debtBattles > 0) lines.push(`借火债：后续${story.debtBattles}场战斗敌人攻击+1`);
-  if (story.campPenalty > 0) lines.push(`营地基础治疗减少${story.campPenalty}点`);
-  if (story.weakenedBossActs?.includes(run.act)) lines.push(`本幕Boss生命已削弱15%`);
+  lines.push(...resourceEffectLines(run));
   return lines;
 }
 
 const esc = (s) => String(s ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const cap = (s, n) => [...String(s)].slice(0, n).join('');
+const paymentLine = (embers, cost) => embers < cost ? `余额${embers}余烬，不足${cost - embers}余烬` : `付款后${embers - cost}余烬`;
 const cardOf = (id) => ACTIVE_CATALOG.cards[id];
 const relicOf = (id) => ACTIVE_CATALOG.relics[id];
 const eventOf = (id) => Array.isArray(ACTIVE_EVENTS) ? ACTIVE_EVENTS.find((e) => e.eventId === id) : ACTIVE_EVENTS?.[id];
@@ -49,7 +49,7 @@ function cardDef(entity) {
   return b ? (entity.upgraded ? { ...b, ...b.upgrade } : b) : null;
 }
 function buildLines(run) {
-  if(['lantern-rules-v0.10','lantern-rules-v0.11'].includes(run.ruleVersion)){
+  if(['lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12'].includes(run.ruleVersion)){
     const report=analyzeBuild(run,ACTIVE_CATALOG);
     return ['构筑方向（组件参考）：', ...report.directions.map(d=>`${d.name}：${d.components.slice(0,3).join('、') || '尚无对应组件'}；${d.gaps.slice(0,2).join('；') || '组件存在，仍需安排兑现时机'}`), '牌组越厚，关键牌越难集中抽到；可以跳牌或改换方向。'];
   }
@@ -88,19 +88,23 @@ export function rogueUidEligible(run, source, kind, uid) {
 export function renderRogueUidPage(run, source, kind, page = 0, { update = false } = {}) {
   useRunCatalog(run);
   const entries = uidEligible(run, source, kind);
-  const pageSize = ['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11'].includes(run.ruleVersion) ? 5 : 25;
+  const pageSize = ['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12'].includes(run.ruleVersion) ? 5 : 25;
   const totalPages = Math.max(1, Math.ceil(entries.length / pageSize));
   const active = Math.min(totalPages - 1, Math.max(0, Number.isSafeInteger(page) ? page : 0));
   const visible = entries.slice(active * pageSize, (active + 1) * pageSize);
   const label = kind === 'upgrade' ? '升级' : '移除';
-  const options = visible.map((e) => ({ label: `#${e.uid} ${cardName(e.cardId)}`, value: String(e.uid), description: cardText(e) }));
+  const serviceCost = source === 'shop' ? (kind === 'upgrade' ? run.room?.prices?.upgrade ?? ACTIVE_CATALOG.shop.upgradeCost : run.room?.prices?.remove ?? ACTIVE_CATALOG.shop.removeCost) : 0;
+  const serviceBalance = paymentLine(run.embers,serviceCost);
+  const options = visible.map((e) => ({ label: `#${e.uid} ${cardName(e.cardId)}${e.upgraded ? '＋' : ''}`, value: String(e.uid), description: source === 'shop' ? cap(`${cardText(e)} · 同名持有${(run.deck ?? []).filter(x => x.cardId === e.cardId).length}张 · ${kind === 'upgrade' ? '升级' : '移除'}${serviceCost}余烬 · ${serviceBalance}`, 100) : cardText(e) }));
   const c = [];
   if (options.length) c.push(row(select(cid(run, 'uid-select', `${source}:${kind}`), `选择要${label}的实体牌`, options)));
   else c.push(row(button('没有可选牌', cid(run, 'refresh', 'empty'), 2, true)));
   c.push(row(button('上一页', cid(run, 'uid-prev', `${source}:${kind}:${Math.max(0, active - 1)}`), 2, active === 0), button('下一页', cid(run, 'uid-next', `${source}:${kind}:${Math.min(totalPages - 1, active + 1)}`), 2, active >= totalPages - 1)));
   c.push(row(button(source === 'shop' ? '返回商店' : '返回房间', cid(run, 'refresh'), 2)));
-  const previews = ['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11'].includes(run.ruleVersion) ? visible.map(e => `#${e.uid} ${cardName(e.cardId)}\n${changePreview(run, e, kind)}`).join('\n\n') : '';
-  return panel(`${source === 'shop' ? '商店' : source === 'camp' ? '营地' : '事件'} · ${label}牌`, `${kind === 'upgrade' ? '未升级且支持升级' : '所有牌'} · 第${active + 1}/${totalPages}页 · 共${entries.length}张。选择要处理的牌。${previews ? `\n\n${previews}` : ''}`, c, update);
+  const previews = ['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12'].includes(run.ruleVersion) ? visible.map(e => `#${e.uid} ${cardName(e.cardId)}${source === 'shop' ? ` · ${kind === 'upgrade' ? '升级' : '移除'}${serviceCost}余烬，${serviceBalance}` : ''}\n${changePreview(run, e, kind)}`).join('\n\n') : '';
+  const minimumDeck = ACTIVE_CATALOG.shop.minimumDeck ?? 0;
+  const minNote = source === 'shop' && kind === 'remove' && (run.deck ?? []).length <= minimumDeck ? `\n已达最小牌组${minimumDeck}张，移除服务不可用。` : '';
+  return panel(`${source === 'shop' ? '商店' : source === 'camp' ? '营地' : '事件'} · ${label}牌`, `${kind === 'upgrade' ? '未升级且支持升级' : '所有牌'} · 第${active + 1}/${totalPages}页 · 共${entries.length}张。选择要处理的牌。${minNote}${previews ? `\n\n${previews}` : ''}${source === 'shop' && lastResourceReceipt(run) ? `\n最近交易：${lastResourceReceipt(run)}` : ''}`, c, update);
 }
 function cid(run, action, arg) {
   const id = String(run?.runId ?? '');
@@ -155,13 +159,13 @@ export function renderRogueHome({ challengeProfession = null, homeInfo = {}, upd
   return panel('灯下迷城', `${WORLD_INTRO}\n\n先选择职业，再查看已解锁的难度。\n正式局：每天前2次开局可获得金币奖励，实际到账受每日上限限制。\n练习局：不发金币、不占奖励开局次数；通关也能推进职业难度。\n每日挑战：${challenge}\n职业进度：${progress.join('；') || '各职业从难度0开始'}\n\n${hint}`, components, update);
 }
 
-export function renderRogueSettings({ professionId, difficulty = 0, mode = 'normal', homeInfo = {}, update = false, catalogVersion = '0.11' } = {}) {
+export function renderRogueSettings({ professionId, difficulty = 0, mode = 'normal', homeInfo = {}, update = false, catalogVersion = '0.12' } = {}) {
   const prof = getCatalog(catalogVersion).professions?.[professionId] ?? PROFESSIONS[professionId];
   if (!prof) return renderRogueHome({ update });
   const progress = (homeInfo.progress ?? []).find((p) => p.professionId === professionId);
   const unlocked = Math.max(0, Math.min(10, Number.isInteger(progress?.unlocked) ? progress.unlocked : 0));
   const selected = Math.max(0, Math.min(unlocked, Number.isInteger(difficulty) ? difficulty : 0));
-  const allDifficulties = /0\.(?:[89]|1[01])/.test(String(catalogVersion)) ? DIFFICULTIES_V08 : (Array.isArray(DIFFICULTIES) ? DIFFICULTIES : Object.values(DIFFICULTIES ?? {}));
+  const allDifficulties = /0\.(?:[89]|1[0-2])/.test(String(catalogVersion)) ? DIFFICULTIES_V08 : (Array.isArray(DIFFICULTIES) ? DIFFICULTIES : Object.values(DIFFICULTIES ?? {}));
   const diffs = allDifficulties.filter((d) => Number.isInteger(d.level) && d.level <= unlocked).sort((a,b) => a.level-b.level);
   const difficultyDef = allDifficulties.find((x) => x.level === selected);
   const options = diffs.map((d) => ({ label: `${d.level} · ${d.name}`, value: String(d.level), description: d.description ?? '' }));
@@ -295,8 +299,9 @@ function renderBattle(run, update) {
   const playerMaxHp = run.maxHp ?? (expanded(run) && (run.difficulty ?? 0) >= 6 ? 28 : ACTIVE_CATALOG.player.maxHp);
   const enemyStates = [[b.enemyArmor,'护甲'],[b.enemyShield,'护盾'],[b.enemyBurn,'灼烧']].filter(([n]) => n > 0).map(([n,label]) => `${label}${n}`);
   const description = [`**敌人**　${enemy.name ?? '敌人'} · 生命${b.enemyHp ?? '?'}${enemyStates.length ? ` · ${enemyStates.join(' · ')}` : ''}`, `**意图**　${intentLine}`, '', `**你**　生命${b.hp ?? run.hp}/${b.maxHp ?? playerMaxHp} · 护盾${b.shield ?? 0}`, `能量 ${b.energy ?? 0} · 已出牌 ${b.plays ?? 0}/${playLimit}${b.burn > 0 ? `\n⚠ 灼烧${b.burn}：轮末扣血，护盾挡不住` : ''}`];
-  if (run.room?.storyEffect) description.push(`本战影响：${run.room.storyEffect}`);
+  if (run.room?.storyEffect) description.push(`本战影响：${String(run.room.storyEffect).replace('每段攻击+1','每段敌方攻击伤害+1')}`);
   description.push(...storyLines(run));
+  if ((b.turn ?? 0) <= 1 && run.resourceLog?.at(-1)?.act === run.act && run.resourceLog.at(-1).slot === run.slot - 1) description.push(lastResourceReceipt(run));
   if (b.enemyPhase === 2) {
     description.push((b.phaseStartTurn ?? 0) > (b.turn ?? 0)
       ? `第二阶段已触发：敌人获得阶段护盾；新阶段意图从第${b.phaseStartTurn}轮开始生效。`
@@ -413,9 +418,10 @@ function renderRoom(run, update) {
     }
     const nodeRows = [];
     for (let i = 0; i < choices.length; i += 3) nodeRows.push(row(...choices.slice(i, i + 3)));
-    const story = storyLines(run).filter(line => !line.startsWith('本幕Boss生命'));
+    const story = storyLines(run).filter(line => !line.startsWith('本幕首领生命'));
+    const receipt = lastResourceReceipt(run);
     const header = `第 ${run.act ?? 1} 幕 · 第 ${run.slot ?? 1} 站\n生命 ${run.hp ?? '—'}${run.maxHp ? `/${run.maxHp}` : ''} ｜ 余烬 ${run.embers ?? 0}`;
-    const reply = panel('选择路线', [header, ...details, ...(story.length ? [`远征影响：${story.join('；')}`] : [])].join('\n\n'), [...nodeRows, controlRow(run)], update);
+    const reply = panel('选择路线', [header, ...details, ...(story.length ? [`远征影响：${story.join('；')}`] : []), ...(receipt ? [receipt] : [])].join('\n\n'), [...nodeRows, controlRow(run)], update);
     if (fields.length) reply.data.embeds[0].fields = fields;
     reply.data.embeds[0].footer = { text: (nodes.length ? '点击对应编号前往' : '点击地点按钮前往') + '，选择后立即进入。基础属性未计入难度与远征影响。' + (expanded(run) ? '「迷城地图」可查看完整路线。' : '') };
     return reply;
@@ -426,7 +432,8 @@ function renderRoom(run, update) {
     const components = [row(button(`休整治疗（${healAmount}）`, cid(run, 'camp-heal'), 1, run.hp >= maxHp), button('离开营地', cid(run, 'camp-leave'), 2))];
     if (uidEligible(run, 'camp', 'upgrade').length) components.push(row(button('选择升级牌', cid(run, 'uid-page', 'camp:upgrade:0'), 2)));
     components.push(controlRow(run));
-    return panel('营地', `生命 ${run.hp}/${maxHp}。可恢复${healAmount}点生命或升级一张实体牌。`, components, update);
+    const ongoing = resourceEffectLines(run);
+    return panel('营地', `生命 ${run.hp}/${maxHp}。${run.story?.campPenalty > 0 ? `封印代价使营地基础治疗减少${run.story.campPenalty}点；` : ''}可恢复${healAmount}点生命或升级一张实体牌。${ongoing.length ? `\n远征影响：${ongoing.join('；')}` : ''}${lastResourceReceipt(run) ? `\n最近资源变化：${lastResourceReceipt(run)}` : ''}`, components, update);
   }
   if (r.type === 'shop') {
     const stock = r.stock ?? [];
@@ -440,22 +447,27 @@ function renderRoom(run, update) {
     const removeTargets = run.deck ?? [];
     const c = [];
     if (stock.length) c.push(row(select(cid(run, 'shop-buy'), '购买牌（可多次购买）', optionsFrom(stock, cardName, (id) => `价格${cardPrices[String(cardOf(id)?.cost)]}余烬`), canBuy.length === 0)));
-    if (upgradeTargets.length || removeTargets.length) c.push(row(button(`升级牌 · ${upgradePrice}`, cid(run, 'uid-page', 'shop:upgrade:0'), 2, Boolean(r.services?.upgrade) || run.embers < upgradePrice), button(`移除牌 · ${removePrice}`, cid(run, 'uid-page', 'shop:remove:0'), 2, Boolean(r.services?.remove) || run.embers < removePrice)));
+    const minimumDeck = ACTIVE_CATALOG.shop.minimumDeck ?? 0;
+    if (upgradeTargets.length || removeTargets.length) c.push(row(button(`升级牌 · ${upgradePrice}`, cid(run, 'uid-page', 'shop:upgrade:0'), 2, Boolean(r.services?.upgrade) || run.embers < upgradePrice), button(`移除牌 · ${removePrice}`, cid(run, 'uid-page', 'shop:remove:0'), 2, Boolean(r.services?.remove) || run.embers < removePrice || (run.deck ?? []).length <= minimumDeck)));
     const itemStock = r.itemStock ?? r.items ?? [];
     const inventory = Array.isArray(run.inventory) ? run.inventory : [];
     if (itemStock.length) {
       const itemOptions = itemStock.flatMap((entry) => {
         const id = typeof entry === 'string' ? entry : entry.id;
         return inventory.length < 2
-          ? [{ label: `${ACTIVE_ITEMS[id]?.name ?? id} · ${itemPrice}余烬`, value: `${id}:-1`, description: '放入空道具槽' }]
-          : inventory.map((oldId, index) => ({ label: `${ACTIVE_ITEMS[id]?.name ?? id} · 替换槽${index + 1}`, value: `${id}:${index}`, description: `替换${ACTIVE_ITEMS[oldId]?.name ?? oldId}，${itemPrice}余烬` }));
+          ? [{ label: `${ACTIVE_ITEMS[id]?.name ?? id} · ${itemPrice}余烬`, value: `${id}:-1`, description: cap(`${ACTIVE_ITEMS[id]?.description ?? '道具'}；放入空道具槽；${paymentLine(run.embers,itemPrice)}`,100) }]
+          : inventory.map((oldId, index) => ({ label: `${ACTIVE_ITEMS[id]?.name ?? id} · 替换槽${index + 1}`, value: `${id}:${index}`, description: cap(`${ACTIVE_ITEMS[id]?.description ?? '道具'}；替换${ACTIVE_ITEMS[oldId]?.name ?? oldId}；${paymentLine(run.embers,itemPrice)}`,100) }));
       });
       c.push(row(select(cid(run, 'shop-item'), `购买道具（${itemPrice}余烬）`, itemOptions, run.embers < itemPrice)));
     }
     c.push(row(button('免费离开', cid(run, 'shop-leave'), 2)));
     c.push(controlRow(run));
     const priceText = Object.entries(cardPrices).map(([energy, price]) => `${energy}能量牌${price}余烬`).join('、');
-    return panel(`商店 · ${run.embers}余烬`, `当前价格：${priceText || '以房间标价为准'}；升级${upgradePrice}余烬；移除${removePrice}余烬；道具${itemPrice}余烬。${r.services?.upgrade ? '升级服务已用。' : ''}${r.services?.remove ? '移除服务已用。' : ''}`, c, update);
+    const reply = panel(`商店 · ${run.embers}余烬`, `当前价格：${priceText || '以房间标价为准'}；升级${upgradePrice}余烬；移除${removePrice}余烬；道具${itemPrice}余烬。${r.services?.upgrade ? '升级服务已用。' : ''}${r.services?.remove ? '移除服务已用。' : ''}`, c, update);
+    const fields = stock.slice(0,25).map(id => { const card=cardOf(id),fit=candidateFit(run,id,ACTIVE_CATALOG),price=cardPrices[String(card?.cost)] ?? '?',role=r.stockRoles?.[id],balance=Number.isFinite(Number(price))?paymentLine(run.embers,Number(price)):'价格缺失'; return {name:cap(`${card?.name ?? id} · ${price}余烬`,256),value:cap(`${role ? `商店标记：${role}\n` : ''}${cardText({cardId:id,upgraded:false})}\n构筑适配：${fit.category} · ${fit.reason}\n同名持有：${(run.deck ?? []).filter(e=>e.cardId===id).length}张；${balance}`,1024),inline:false}; });
+    if(fields.length) reply.data.embeds[0].fields=fields;
+    const receipt=lastResourceReceipt(run); if(receipt) reply.data.embeds[0].description=cap(`${reply.data.embeds[0].description}\n最近交易：${receipt}`,4096);
+    return reply;
   }
   if (r.type === 'event') {
     const allowed = new Set(Array.isArray(r.choices) ? r.choices : ['heal', 'card', 'leave']);
@@ -472,8 +484,8 @@ function renderRoom(run, update) {
       const opts = (r.itemCandidates ?? []).flatMap((entry) => {
         const id = typeof entry === 'string' ? entry : entry.id;
         return inventory.length < 2
-          ? [{ label: ACTIVE_ITEMS[id]?.name ?? id, value: `${id}:-1`, description: '放入空道具槽' }]
-          : inventory.map((oldId, index) => ({ label: `${ACTIVE_ITEMS[id]?.name ?? id} · 替换槽${index + 1}`, value: `${id}:${index}`, description: `替换${ACTIVE_ITEMS[oldId]?.name ?? oldId}` }));
+          ? [{ label: ACTIVE_ITEMS[id]?.name ?? id, value: `${id}:-1`, description: cap(`${ACTIVE_ITEMS[id]?.description ?? '道具'}；放入空道具槽`,100) }]
+          : inventory.map((oldId, index) => ({ label: `${ACTIVE_ITEMS[id]?.name ?? id} · 替换槽${index + 1}`, value: `${id}:${index}`, description: cap(`${ACTIVE_ITEMS[id]?.description ?? '道具'}；替换${ACTIVE_ITEMS[oldId]?.name ?? oldId}`,100) }));
       });
       c.push(row(select(cid(run, 'event-item-ask'), `选择道具（${r.itemCost ?? 0}余烬）`, opts, run.embers < (r.itemCost ?? 0))));
     }
@@ -492,7 +504,9 @@ function renderRoom(run, update) {
       actionButtons.push(button(r.pactLabel ?? '确认契约', cid(run, 'event-pact-ask'), 4));
       if (allowed.has('leave')) actionButtons.push(button('离开', cid(run, 'event-leave'), 2));
       if (actionButtons.length) c.push(row(...actionButtons));
-      return panel(`${title} · 契约`, `${description}\n\n契约代价：${r.consequenceText ?? r.consequence?.text ?? '详情由本房间规则说明。'}\n遗物候选：${relic}\n契约会提升后续战斗强度；继续前需要确认。`, [...c, controlRow(run)], update);
+      const consequence = r.consequence ?? {};
+      const payment = consequence.kind === 'debt' ? `\n支付后余烬：${(run.embers ?? 0) + (consequence.emberAmount ?? 0)}（借取${consequence.emberAmount ?? 0}）` : consequence.kind === 'sacrifice' ? `\n支付后生命：${Math.max(0,(run.hp ?? 0)-(consequence.hpCost ?? 0))}` : '';
+      return panel(`${title} · 契约`, `${description}\n\n契约代价：${r.consequenceText ?? consequence.text ?? '详情由本房间规则说明。'}${payment}\n遗物候选：${relic}${storyLines(run).length ? `\n远征影响：${storyLines(run).join('；')}` : ''}${lastResourceReceipt(run) ? `\n最近资源变化：${lastResourceReceipt(run)}` : ''}\n继续前需要确认。`, [...c, controlRow(run)], update);
     }
     if (allowed.has('leave')) actionButtons.push(button('离开', cid(run, 'event-leave'), 2));
     if (actionButtons.length) c.push(row(...actionButtons));
@@ -503,7 +517,7 @@ function renderRoom(run, update) {
     const completedAct = r.completedAct ?? run.completedActs;
     const boss = ACTIVE_CATALOG.enemies[run.bosses?.[completedAct - 1]];
     const bossInfo = boss ? `\n本幕已击败Boss：${boss.name}（生命${boss.hp}，护甲${boss.armor}）。` : '';
-    return panel('抵达幕间', `已完成第${completedAct}幕。${bossInfo}\n继续深入，或确认撤退并结算。`, [row(button('继续', cid(run, 'continue'))), controlRow(run, true)], update);
+    return panel('抵达幕间', `已完成第${completedAct}幕。${bossInfo}${storyLines(run).length ? `\n远征影响：${storyLines(run).join('；')}` : ''}\n继续深入，或确认撤退并结算。`, [row(button('继续', cid(run, 'continue'))), controlRow(run, true)], update);
   }
   return panel('远征', '当前没有可显示的地点。', [controlRow(run)], update);
 }
@@ -550,11 +564,11 @@ function renderReward(run, update) {
     rows.push(controlRow(run));
     const itemHint = kinds.includes('item') && (run.inventory ?? []).length >= 2 && selections.item?.id == null ? '\n道具栏已满：选择替换位置才会领取新道具，也可以跳过。' : '';
     const cardCandidates = queue.find(stage => stage.kind === 'card')?.candidates ?? [];
-    const hints = ['lantern-rules-v0.10','lantern-rules-v0.11'].includes(run.ruleVersion)
+    const hints = ['lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12'].includes(run.ruleVersion)
       ? cardCandidates.map(id=>{const fit=candidateFit(run,id,ACTIVE_CATALOG);return `${cardName(id)} · ${fit.category}：${fit.reason}`;}).join('\n')
       : ['messenger','medic'].includes(run.professionId) && run.ruleVersion === 'lantern-rules-v0.9'
       ? cardCandidates.map(id => `${cardName(id)}：${explainRogueCandidate(run,id).reason ?? ''}`).join('\n') : '';
-    const recommendation=['lantern-rules-v0.10','lantern-rules-v0.11'].includes(run.ruleVersion) ? (reward.recommendedCard ? `\n补强参考：${cardName(reward.recommendedCard)}。${reward.recommendationReason ?? ''}` : '\n暂无明确补强参考；新卡默认跳过，可自行选择。') : '';
+    const recommendation=['lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12'].includes(run.ruleVersion) ? (reward.recommendedCard ? `\n补强参考：${cardName(reward.recommendedCard)}。${reward.recommendationReason ?? ''}` : '\n暂无明确补强参考；新卡默认跳过，可自行选择。') : '';
     return panel('战利品 · 等待领取', `奖励尚未领取。可更换各项选择，最后点击「确认领取所选奖励」。${recommendation}\n\n${summaries.join('\n\n')}${itemHint}${hints ? `\n\n候选用途（可自由跳牌）：\n${hints}` : ''}`, rows, update);
   }
   const stage = reward.queue?.[reward.index];
@@ -593,7 +607,7 @@ function renderResult(run, update) {
   const observation = summarizeObservationLines(run);
   if (observation.length) lines.push('\n本局记录（仅含接入后操作）', ...observation);
   if (run.effectMetrics) lines.push('\n效果兑现', ...effectMetricLines(run));
-  if (['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11'].includes(run.ruleVersion)) lines.push(`最终牌组：${run.deck?.length ?? 0}张 · 遗物：${run.relics?.length ?? 0}件`);
+  if (['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12'].includes(run.ruleVersion)) lines.push(`最终牌组：${run.deck?.length ?? 0}张 · 遗物：${run.relics?.length ?? 0}件`);
   const defaultProfession = Object.hasOwn(PROFESSIONS, run.professionId) ? run.professionId : Object.hasOwn(PROFESSIONS, 'traveler') ? 'traveler' : Object.keys(PROFESSIONS)[0];
   return panel('远征结算', lines.join('\n'), [row(button('再来一局', `rl:settings:${defaultProfession}`), button('挑战远征', 'rl:start:challenge')), row(button('返回首页', 'rl:home', 2), button('查看榜单', 'rl:board', 2))], update);
 }
@@ -641,8 +655,10 @@ export function renderRogueConfirmation(run, kind, { update = false } = {}) {
   } else if (kind && typeof kind === 'object' && kind.type === 'event-pact') {
     const room = run.room ?? {};
     const relic = room.relicCandidate ? `${relicName(room.relicCandidate)}：${relicOf(room.relicCandidate)?.description ?? ''}` : '无遗物候选。';
+    const consequence = room.consequence ?? {};
+    const impact = consequence.kind === 'debt' ? `支付后余烬${(run.embers ?? 0)+(consequence.emberAmount ?? 0)}；影响未来${consequence.battles ?? 0}场战斗，每段敌方攻击伤害+${consequence.attackBonus ?? 1}。` : consequence.kind === 'sacrifice' ? `支付后生命${Math.max(0,(run.hp ?? 0)-(consequence.hpCost ?? 0))}；营地基础治疗持续减少${consequence.campPenalty ?? 0}点。` : consequence.kind === 'boss_weaken' ? `支付后余烬${Math.max(0,(run.embers ?? 0)-(consequence.emberCost ?? 0))}；仅本幕首领生命降低15%。` : '影响范围见上方契约代价。';
     title = room.pactLabel ?? '确认契约？';
-    body = `${room.consequenceText ?? room.consequence?.text ?? '契约会改变后续远征。'}\n遗物候选：${relic}\n确认后会接受契约并提升后续战斗强度。`;
+    body = `${room.consequenceText ?? consequence.text ?? '契约会改变后续远征。'}\n${impact}\n遗物候选：${relic}\n确认后按所列代价与范围生效。`;
     yes = button('确认接受契约', cid(run, 'event-pact-confirm'), 4);
   } else throw new TypeError('unknown confirmation kind');
   return panel(title, body, [row(yes, button('返回面板', cid(run, 'refresh'), 2))], update);

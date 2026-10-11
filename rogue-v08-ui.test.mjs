@@ -72,7 +72,8 @@ test('pact metadata requires a confirmation and clearly describes the deferred c
   const ask = components(event).find((component) => component.custom_id.endsWith(':event-pact-ask'));
   const confirm = dispatchRogue(makeService(run), interaction(ask.custom_id));
   assert.equal(confirm.type, 7);
-  assert.match(confirm.data.embeds[0].description, /确认后会接受契约并提升后续战斗强度/);
+  assert.match(confirm.data.embeds[0].description, /支付后生命/);
+  assert.match(confirm.data.embeds[0].description, /营地基础治疗持续减少2点/);
   assert.deepEqual(parseRogueAction(components(confirm)[0].custom_id).action, { type: 'EVENT', choice: 'pact' });
 });
 
@@ -82,7 +83,7 @@ test('v08 impact status and enemy phase name are visible, while v07 still uses i
   const battleText = renderRogue(battle).data.embeds[0].description;
   assert.match(battleText, /敌人阶段：黑烛盛典/);
   assert.match(battleText, /本战影响：借火债/);
-  assert.match(battleText, /后续2场战斗敌人攻击\+1/);
+  assert.match(battleText, /未来2场战斗每段敌方攻击伤害\+1/);
   const old = { catalogVersion: '0.7', ruleVersion: 'lantern-rules-v0.7', runId: 'old_ui', version: 3, phase: 'REWARD', act: 1, slot: 1,
     hp: 20, embers: 0, deck: CATALOG_V07.starterDeck.map((cardId, uid) => ({ uid, cardId, upgraded: false })), relics: [], inventory: [],
     reward: { index: 0, queue: [{ kind: 'card', candidates: ['slash', 'pierce'] }] } };

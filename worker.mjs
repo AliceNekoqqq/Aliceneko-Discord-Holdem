@@ -10,7 +10,7 @@ import {TavernMapBridge} from './tavern-map-bridge.mjs';
 import {TavernMapPresentation} from './tavern-map-presentation.mjs';
 import {lobbyGameRequest} from './tavern-lobby-routing.mjs';
 import {RogueService} from './rogue-service.mjs';
-import {CATALOG_V11,PROFESSIONS,ITEMS,EVENTS,DIFFICULTIES} from './rogue-content-v11.mjs';
+import {CATALOG_V12,PROFESSIONS,ITEMS,EVENTS,DIFFICULTIES} from './rogue-content-v12.mjs';
 import {CURRENT_RULE_VERSION} from './rogue-run.mjs';
 import {rogueVisualResponse,patchRoguePanel} from './rogue-presentation.mjs';
 import {rogueInteraction,rogueCommand} from './rogue-ui.mjs';
@@ -166,7 +166,7 @@ export class PokerTable extends DurableObject {
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
       if(payload.op==='unoRank'){try{return json(await this.rankings.dispatch(payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.72',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG_V11.cards).length,relics:Object.keys(CATALOG_V11.relics).length,enemies:Object.keys(CATALOG_V11.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
+      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.73',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG_V12.cards).length,relics:Object.keys(CATALOG_V12.relics).length,enemies:Object.keys(CATALOG_V12.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
       if(payload.op==='register'){
         if(!this.env.BOT_TOKEN)return json({registered:false});
         if(await this.ctx.storage.get('commandVersion')===COMMAND_VERSION)return json({registered:true});
