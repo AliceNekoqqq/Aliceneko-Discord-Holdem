@@ -4,16 +4,17 @@ import { CATALOG } from './rogue-catalog.mjs';
 import { legalCards, legalItems } from './rogue-battle.mjs';
 import { ITEMS, DIFFICULTIES, EVENTS } from './rogue-content-v07.mjs';
 import { PROFESSIONS, CATALOG_V08, ITEMS as ITEMS_V08, EVENTS as EVENTS_V08, DIFFICULTIES as DIFFICULTIES_V08 } from './rogue-content-v08.mjs';
-import { getCatalog } from './rogue-content-v10.mjs';
+import { getCatalog } from './rogue-content-v11.mjs';
 import { analyzeRogueBuild, explainRogueCandidate, previewRogueDeckChange } from './rogue-build-guide.mjs';
 import { summarizeObservationLines } from './rogue-observation.mjs';
+import {connectedPlanFor,routeNodeReference,nextRouteLabels,routeSupplyLines} from './rogue-route-view.mjs';
 import { analyzeBuild, candidateFit } from './rogue-build-system.mjs';
 import { normalizeEffectMetrics } from './rogue-effect-metrics.mjs';
 let ACTIVE_CATALOG = getCatalog('0.7');
 let ACTIVE_ITEMS = ITEMS;
 let ACTIVE_EVENTS = EVENTS;
-const v08 = (run) => /(?:^|[^0-9])0\.(?:[89]|10)(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
-const expanded = (run) => run?.catalogVersion == null && run?.ruleVersion == null || /(?:^|[^0-9])0\.(?:[789]|10)(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
+const v08 = (run) => /(?:^|[^0-9])0\.(?:[89]|1[01])(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
+const expanded = (run) => run?.catalogVersion == null && run?.ruleVersion == null || /(?:^|[^0-9])0\.(?:[789]|1[01])(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
 const useRunCatalog = (run) => { ACTIVE_CATALOG = getCatalog(run?.catalogVersion ?? run?.ruleVersion ?? '0.7'); ACTIVE_ITEMS = ACTIVE_CATALOG.items ?? ITEMS; ACTIVE_EVENTS = v08(run) ? EVENTS_V08 : ACTIVE_CATALOG.events ?? EVENTS; return ACTIVE_CATALOG; };
 function storyLines(run) {
   const story = run?.story;
@@ -48,7 +49,7 @@ function cardDef(entity) {
   return b ? (entity.upgraded ? { ...b, ...b.upgrade } : b) : null;
 }
 function buildLines(run) {
-  if(run.ruleVersion === 'lantern-rules-v0.10'){
+  if(['lantern-rules-v0.10','lantern-rules-v0.11'].includes(run.ruleVersion)){
     const report=analyzeBuild(run,ACTIVE_CATALOG);
     return ['构筑方向（组件参考）：', ...report.directions.map(d=>`${d.name}：${d.components.slice(0,3).join('、') || '尚无对应组件'}；${d.gaps.slice(0,2).join('；') || '组件存在，仍需安排兑现时机'}`), '牌组越厚，关键牌越难集中抽到；可以跳牌或改换方向。'];
   }
@@ -87,7 +88,7 @@ export function rogueUidEligible(run, source, kind, uid) {
 export function renderRogueUidPage(run, source, kind, page = 0, { update = false } = {}) {
   useRunCatalog(run);
   const entries = uidEligible(run, source, kind);
-  const pageSize = ['lantern-rules-v0.9','lantern-rules-v0.10'].includes(run.ruleVersion) ? 5 : 25;
+  const pageSize = ['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11'].includes(run.ruleVersion) ? 5 : 25;
   const totalPages = Math.max(1, Math.ceil(entries.length / pageSize));
   const active = Math.min(totalPages - 1, Math.max(0, Number.isSafeInteger(page) ? page : 0));
   const visible = entries.slice(active * pageSize, (active + 1) * pageSize);
@@ -98,7 +99,7 @@ export function renderRogueUidPage(run, source, kind, page = 0, { update = false
   else c.push(row(button('没有可选牌', cid(run, 'refresh', 'empty'), 2, true)));
   c.push(row(button('上一页', cid(run, 'uid-prev', `${source}:${kind}:${Math.max(0, active - 1)}`), 2, active === 0), button('下一页', cid(run, 'uid-next', `${source}:${kind}:${Math.min(totalPages - 1, active + 1)}`), 2, active >= totalPages - 1)));
   c.push(row(button(source === 'shop' ? '返回商店' : '返回房间', cid(run, 'refresh'), 2)));
-  const previews = ['lantern-rules-v0.9','lantern-rules-v0.10'].includes(run.ruleVersion) ? visible.map(e => `#${e.uid} ${cardName(e.cardId)}\n${changePreview(run, e, kind)}`).join('\n\n') : '';
+  const previews = ['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11'].includes(run.ruleVersion) ? visible.map(e => `#${e.uid} ${cardName(e.cardId)}\n${changePreview(run, e, kind)}`).join('\n\n') : '';
   return panel(`${source === 'shop' ? '商店' : source === 'camp' ? '营地' : '事件'} · ${label}牌`, `${kind === 'upgrade' ? '未升级且支持升级' : '所有牌'} · 第${active + 1}/${totalPages}页 · 共${entries.length}张。选择要处理的牌。${previews ? `\n\n${previews}` : ''}`, c, update);
 }
 function cid(run, action, arg) {
@@ -154,13 +155,13 @@ export function renderRogueHome({ challengeProfession = null, homeInfo = {}, upd
   return panel('灯下迷城', `${WORLD_INTRO}\n\n先选择职业，再查看已解锁的难度。\n正式局：每天前2次开局可获得金币奖励，实际到账受每日上限限制。\n练习局：不发金币、不占奖励开局次数；通关也能推进职业难度。\n每日挑战：${challenge}\n职业进度：${progress.join('；') || '各职业从难度0开始'}\n\n${hint}`, components, update);
 }
 
-export function renderRogueSettings({ professionId, difficulty = 0, mode = 'normal', homeInfo = {}, update = false, catalogVersion = '0.10' } = {}) {
+export function renderRogueSettings({ professionId, difficulty = 0, mode = 'normal', homeInfo = {}, update = false, catalogVersion = '0.11' } = {}) {
   const prof = getCatalog(catalogVersion).professions?.[professionId] ?? PROFESSIONS[professionId];
   if (!prof) return renderRogueHome({ update });
   const progress = (homeInfo.progress ?? []).find((p) => p.professionId === professionId);
   const unlocked = Math.max(0, Math.min(10, Number.isInteger(progress?.unlocked) ? progress.unlocked : 0));
   const selected = Math.max(0, Math.min(unlocked, Number.isInteger(difficulty) ? difficulty : 0));
-  const allDifficulties = /0\.(?:[89]|10)/.test(String(catalogVersion)) ? DIFFICULTIES_V08 : (Array.isArray(DIFFICULTIES) ? DIFFICULTIES : Object.values(DIFFICULTIES ?? {}));
+  const allDifficulties = /0\.(?:[89]|1[01])/.test(String(catalogVersion)) ? DIFFICULTIES_V08 : (Array.isArray(DIFFICULTIES) ? DIFFICULTIES : Object.values(DIFFICULTIES ?? {}));
   const diffs = allDifficulties.filter((d) => Number.isInteger(d.level) && d.level <= unlocked).sort((a,b) => a.level-b.level);
   const difficultyDef = allDifficulties.find((x) => x.level === selected);
   const options = diffs.map((d) => ({ label: `${d.level} · ${d.name}`, value: String(d.level), description: d.description ?? '' }));
@@ -229,13 +230,18 @@ export function renderRogueDetails(run, kind = 'deck', { update = false, page = 
     const path = new Map((run.path ?? []).map((p) => [`${p.act}:${p.slot}`, p]));
     entries = nodes.flatMap(({ act, slot, choices }) => {
       const chosen = path.get(`${act}:${slot}`);
-      const head = `第${act}幕 · 站点${slot}${chosen ? ` · 已选 ${chosen.title ?? chosen.type ?? chosen.nodeId}` : ''}`;
+      const connectedPlan=connectedPlanFor(run,act);
+      const chosenRef=connectedPlan&&chosen?routeNodeReference(connectedPlan,chosen.nodeId):null;
+      const head = `第${act}幕 · 站点${slot}${chosen ? ` · 已选 ${chosenRef?.node.title ?? chosen.title ?? chosen.type ?? chosen.nodeId}` : ''}`;
       const lines = (choices ?? []).map((node) => {
         const enemy = node.enemyId ? ACTIVE_CATALOG.enemies[node.enemyId] : null;
         const stats = enemy ? ` · ${enemy.name}生命${enemy.hp}护甲${enemy.armor}` : '';
         const danger = node.dangerous ? ' · 危险路线' : '';
         const event = node.eventId ? (eventOf(node.eventId)?.title ?? node.eventId) : '';
-        return `  ${node.id ?? node.type}：${node.title ?? (node.type === 'normal' ? '普通战斗' : node.type === 'elite' ? '精英战斗' : node.type === 'camp' ? '营地' : node.type === 'shop' ? '商店' : event || '事件')}${danger}${stats}\n  ${node.description ?? ''}`;
+        const reference=connectedPlan?routeNodeReference(connectedPlan,node.id)?.label:null;
+        const next=connectedPlan&&slot<5?`\n  通往：${nextRouteLabels(connectedPlan,node.id).join('、')}`:'';
+        const current=connectedPlan&&act===run.act&&slot===run.slot&&run.phase==='ROUTE'&&!run.room?.choices?.includes(node.id)?' · 支路外':'';
+        return `  ${reference ?? node.id ?? node.type}：${node.title ?? (node.type === 'normal' ? '普通战斗' : node.type === 'elite' ? '精英战斗' : node.type === 'camp' ? '营地' : node.type === 'shop' ? '商店' : event || '事件')}${danger}${stats}${current}\n  ${node.description ?? ''}${next}`;
       });
       return [head, ...lines];
     });
@@ -371,6 +377,7 @@ function renderRoom(run, update) {
     const nodes = Array.isArray(r.nodes) ? r.nodes : [];
     const availableChoices = new Set(r.choices ?? nodes.filter((n) => n.available !== false).map((n) => n.id));
     const numbers = ['①', '②', '③', '④', '⑤'];
+    const connectedPlan = connectedPlanFor(run);
     const fields = nodes.map((node, index) => {
       const enemy = node.enemyId ? ACTIVE_CATALOG.enemies[node.enemyId] : null;
       const event = node.eventId ? eventOf(node.eventId)?.title : '';
@@ -383,13 +390,14 @@ function renderRoom(run, update) {
       const description = (node.description || '').replaceAll('Boss', '首领').replace(/支付(\d+)点余烬/g, '支付 $1 余烬').replace(/降低(\d+)%/g, '降低 $1%');
       if (node.dangerous) lines.push('敌人更强；获胜后额外获得余烬与遗物。');
       if (description && !['普通战斗', '精英战斗'].includes(description) && !description.startsWith('危险遭遇：')) lines.push(description);
+      if (connectedPlan && available) lines.push(`通往：${nextRouteLabels(connectedPlan,node.id).join('、')}`);
       if (!available) lines.push(`暂不可选：${(node.disabledReason || '当前路线条件未满足').replaceAll('Boss', '首领')}`);
       return { name: cap(`${numbers[index] || index + 1} ${name} · ${kind}`, 256), value: cap(lines.join('\n') || '选择后进入此地点。', 1024), inline: false };
     });
     const choices = nodes.length
       ? nodes.map((node, index) => button(`${numbers[index] || index + 1} 前往${(node.title || labels[node.type] || '地点').replaceAll('Boss交易', '削弱首领').replaceAll('Boss', '首领')}`, cid(run, 'route', node.id), node.dangerous ? 4 : 1, !availableChoices.has(node.id) || node.available === false))
       : (r.choices ?? []).map((choice) => button(labels[choice] ?? ACTIVE_CATALOG.enemies[choice]?.name ?? choice, cid(run, 'route', choice)));
-    const details = [];
+    const details = connectedPlan ? ['沿连线选择支路，第四站后进入首领。',...routeSupplyLines(run,connectedPlan)] : [];
     if (!nodes.length && r.normalEnemyId) {
       const foe = ACTIVE_CATALOG.enemies[r.normalEnemyId];
       if (foe) details.push(`普通战：${foe.name}，生命${foe.hp}，护甲${foe.armor}`);
@@ -542,11 +550,11 @@ function renderReward(run, update) {
     rows.push(controlRow(run));
     const itemHint = kinds.includes('item') && (run.inventory ?? []).length >= 2 && selections.item?.id == null ? '\n道具栏已满：选择替换位置才会领取新道具，也可以跳过。' : '';
     const cardCandidates = queue.find(stage => stage.kind === 'card')?.candidates ?? [];
-    const hints = run.ruleVersion === 'lantern-rules-v0.10'
+    const hints = ['lantern-rules-v0.10','lantern-rules-v0.11'].includes(run.ruleVersion)
       ? cardCandidates.map(id=>{const fit=candidateFit(run,id,ACTIVE_CATALOG);return `${cardName(id)} · ${fit.category}：${fit.reason}`;}).join('\n')
       : ['messenger','medic'].includes(run.professionId) && run.ruleVersion === 'lantern-rules-v0.9'
       ? cardCandidates.map(id => `${cardName(id)}：${explainRogueCandidate(run,id).reason ?? ''}`).join('\n') : '';
-    const recommendation=run.ruleVersion === 'lantern-rules-v0.10' ? (reward.recommendedCard ? `\n补强参考：${cardName(reward.recommendedCard)}。${reward.recommendationReason ?? ''}` : '\n暂无明确补强参考；新卡默认跳过，可自行选择。') : '';
+    const recommendation=['lantern-rules-v0.10','lantern-rules-v0.11'].includes(run.ruleVersion) ? (reward.recommendedCard ? `\n补强参考：${cardName(reward.recommendedCard)}。${reward.recommendationReason ?? ''}` : '\n暂无明确补强参考；新卡默认跳过，可自行选择。') : '';
     return panel('战利品 · 等待领取', `奖励尚未领取。可更换各项选择，最后点击「确认领取所选奖励」。${recommendation}\n\n${summaries.join('\n\n')}${itemHint}${hints ? `\n\n候选用途（可自由跳牌）：\n${hints}` : ''}`, rows, update);
   }
   const stage = reward.queue?.[reward.index];
@@ -585,7 +593,7 @@ function renderResult(run, update) {
   const observation = summarizeObservationLines(run);
   if (observation.length) lines.push('\n本局记录（仅含接入后操作）', ...observation);
   if (run.effectMetrics) lines.push('\n效果兑现', ...effectMetricLines(run));
-  if (['lantern-rules-v0.9','lantern-rules-v0.10'].includes(run.ruleVersion)) lines.push(`最终牌组：${run.deck?.length ?? 0}张 · 遗物：${run.relics?.length ?? 0}件`);
+  if (['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11'].includes(run.ruleVersion)) lines.push(`最终牌组：${run.deck?.length ?? 0}张 · 遗物：${run.relics?.length ?? 0}件`);
   const defaultProfession = Object.hasOwn(PROFESSIONS, run.professionId) ? run.professionId : Object.hasOwn(PROFESSIONS, 'traveler') ? 'traveler' : Object.keys(PROFESSIONS)[0];
   return panel('远征结算', lines.join('\n'), [row(button('再来一局', `rl:settings:${defaultProfession}`), button('挑战远征', 'rl:start:challenge')), row(button('返回首页', 'rl:home', 2), button('查看榜单', 'rl:board', 2))], update);
 }

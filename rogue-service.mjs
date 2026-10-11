@@ -47,7 +47,7 @@ export class RogueService{
   if(!row||row.guild!==this.guild||row.owner!==p.id)fail('OWNER','不能操作这局冒险。');
   const run=JSON.parse(row.snapshot);
   if(run.guild!==this.guild||run.owner!==p.id||run.runId!==row.id)fail('SNAPSHOT','冒险记录不匹配。');
-  if(['lantern-rules-v0.9',CURRENT_RULE_VERSION].includes(run.ruleVersion)){
+  if(['lantern-rules-v0.9','lantern-rules-v0.10',CURRENT_RULE_VERSION].includes(run.ruleVersion)){
    const stored=run.observation,clean=pruneObservation(stored,this.clock());run.observation=clean;
    if(JSON.stringify(stored??null)!==JSON.stringify(clean))this.sql.exec('UPDATE rogue_runs SET snapshot=? WHERE id=? AND guild=? AND owner=?',JSON.stringify(run),row.id,this.guild,p.id);
   }
@@ -55,7 +55,7 @@ export class RogueService{
   return run;
  }
  save(run){
-  if(['lantern-rules-v0.9',CURRENT_RULE_VERSION].includes(run.ruleVersion))run={...run,observation:pruneObservation(run.observation,this.clock())};
+  if(['lantern-rules-v0.9','lantern-rules-v0.10',CURRENT_RULE_VERSION].includes(run.ruleVersion))run={...run,observation:pruneObservation(run.observation,this.clock())};
   const snapshot=run.phase==='RESULT'&&!run.settlement?{...run,settlement:{...scoreRun(run),economyVersion:ECONOMY_VERSION}}:run;
   this.sql.exec('INSERT INTO rogue_runs VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,version=excluded.version,snapshot=excluded.snapshot',snapshot.runId,snapshot.guild,snapshot.owner,snapshot.phase==='RESULT'?'RESULT':'ACTIVE',snapshot.version,JSON.stringify(snapshot));
  }
@@ -140,7 +140,7 @@ export class RogueService{
    const runId=this.idFactory(),mode=p.mode??'normal';
    if(this.one('SELECT id FROM rogue_runs WHERE id=?',runId))fail('RUN_ID','冒险标识重复，请重试。');
    const ruleVersion=this.rulesVersion;
-   const expanded=['lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9','lantern-rules-v0.10'].includes(ruleVersion);
+   const expanded=['lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11'].includes(ruleVersion);
    const difficulty=expanded?(mode==='challenge'?this.challengeDifficulty():p.difficulty??0):0;
    if(!Number.isInteger(difficulty)||difficulty<0||difficulty>MAX_DIFFICULTY)fail('DIFFICULTY','请选择有效进阶等级。');
    const seed=mode==='challenge'?dailySeedGroup(this.guild,day,ruleVersion,difficulty):`${runId}/normal`;
@@ -170,8 +170,8 @@ export class RogueService{
    if(run.phase==='RESULT')return run;
    if(!Number.isInteger(p.version)||p.version!==run.version)fail('STALE','这个按钮已过期，请查看当前冒险。');
    let next=runAction(run,p.action,now);
-   if(run.ruleVersion===CURRENT_RULE_VERSION)next=mergeRunMetrics(run,next,p.action);
-   if(['lantern-rules-v0.9',CURRENT_RULE_VERSION].includes(run.ruleVersion))next.observation=recordObservation(run,next,now,p.action);
+   if(['lantern-rules-v0.10',CURRENT_RULE_VERSION].includes(run.ruleVersion))next=mergeRunMetrics(run,next,p.action);
+   if(['lantern-rules-v0.9','lantern-rules-v0.10',CURRENT_RULE_VERSION].includes(run.ruleVersion))next.observation=recordObservation(run,next,now,p.action);
    this.save(next);this.remember(p,run.runId,'ACT');
    return next;
   });
@@ -192,7 +192,7 @@ export class RogueService{
  observationSummary(p){
   this.guard(p);const now=this.clock();validTime(now);
   const run=this.storage.transactionSync(()=>this.load(p));
-  if(!['lantern-rules-v0.9',CURRENT_RULE_VERSION].includes(run.ruleVersion))fail('VERSION','这个旧规则版本没有复盘记录。');
+  if(!['lantern-rules-v0.9','lantern-rules-v0.10',CURRENT_RULE_VERSION].includes(run.ruleVersion))fail('VERSION','这个旧规则版本没有复盘记录。');
   return {...summarizeObservation(run,now),lines:summarizeObservationLines(run,now)};
  }
  progressFor(owner,professionId){
@@ -210,6 +210,6 @@ export class RogueService{
   this.sql.exec('INSERT INTO rogue_progress VALUES(?,?,?,?,?) ON CONFLICT(owner,profession) DO UPDATE SET unlocked=excluded.unlocked,clears=excluded.clears,last_run_id=excluded.last_run_id',run.owner,professionId,unlocked,old.clears+1,run.runId);
  }
  homeInfo(p){this.guard(p);return {rulesVersion:this.rulesVersion,progress:PROFESSION_IDS.map(id=>this.progressFor(p.id,id)),challengeProfession:this.challengeProfession(),challengeDifficulty:this.challengeDifficulty()};}
- challengeDifficulty(){return ['lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9','lantern-rules-v0.10'].includes(this.rulesVersion)?hashSeed(`${this.guild}|${dayKey(this.clock())}|${this.rulesVersion}|difficulty`)%4:0;}
+ challengeDifficulty(){return ['lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11'].includes(this.rulesVersion)?hashSeed(`${this.guild}|${dayKey(this.clock())}|${this.rulesVersion}|difficulty`)%4:0;}
  challengeProfession(p={}){const day=dayKey(this.clock());return professionForSeed(`${this.guild}|${day}|${this.rulesVersion}`);}
 }
