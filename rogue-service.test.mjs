@@ -237,7 +237,7 @@ test('v13 service persists break progress once per successful request and consum
 
 test('v14 sergeant break progress and resolved reduction persist only once for duplicate SQL requests',async()=>{
  const {beginBattle}=await import('./rogue-battle-v14.mjs');
- const f=fixture(),s=new RogueService(f.host,'1',{idFactory:()=> 'v14-elite-break',clock:f.clock});
+ const f=fixture(),s=new RogueService(f.host,'1',{idFactory:()=> 'v14-elite-break',clock:f.clock,rulesVersion:'lantern-rules-v0.14'});
  const r=s.start({...f.p,requestId:'v14-elite-start',mode:'normal'});
  r.phase='BATTLE';r.room={type:'battle',battleType:'elite',enemyId:'cracked_sergeant',rewardGranted:false};
  r.deck=Array.from({length:8},(_,uid)=>({uid,cardId:'slash',upgraded:false}));

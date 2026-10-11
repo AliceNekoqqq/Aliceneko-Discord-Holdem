@@ -2,7 +2,7 @@ import { Canvas, encodePNG } from './card-image.mjs';
 import { prepareNicknameFont } from './nickname-font.mjs';
 import { PROFESSIONS } from './rogue-content-v09.mjs';
 import { enemyImageCue } from './rogue-enemy-guide.mjs';
-import { getCatalog } from './rogue-content-v14.mjs';
+import { getCatalog } from './rogue-content-v15.mjs';
 import { legalCards } from './rogue-battle.mjs';
 import { cardGroups, cardEffectLines, cardWarnings, unavailableReason, battleHints } from './rogue-card-guide.mjs';
 import {connectedPlanFor,routeAnchor,routeSupplyLines,routeNodeReference} from './rogue-route-view.mjs';
@@ -96,8 +96,8 @@ async function mapImage(run,view,env){
  const ly=all?738:675;rect(c,34,ly,892,55,[18,36,54],11);const legend=[['已完成',K.green],['当前可选',K.gold],['未抵达',K.gray]];legend.forEach(([s,col],i)=>{circle(c,65+i*170,ly+27,7,col);text(c,s,81+i*170,ly+18,17,K.cream);});text(c,model.acts.some(a=>a.connected)?'亮线为当前可走支路':'路径仅标记已选路线',570,ly+18,15,K.muted);
  return encodePNG(c);
 }
-function intentLabel(i){if(!i)return '等待行动';if(i.kind==='charge'&&i.chargeBreak)return '蓄力 本轮不攻击';const name=i.label||({attack:'攻击',guard:'护盾',burn:'灼烧',cleanse:'净火',heal:'恢复',charge:'蓄力',thorns:'反伤',conditional:'条件反制'})[i.kind]||i.kind;const amount=i.kind==='attack'?` ${i.value??0}×${i.hits??1}`:i.kind!=='conditional'&&Number.isFinite(i.value)?` ${i.value}`:'';return short(name,12)+amount;}
-function intentDetail(i){if(!i)return '';if(i.kind==='conditional')return `首张含直接伤害的牌: ${intentLabel(i.onAttack)} / 否则: ${intentLabel(i.onOther)}`;if(i.kind==='charge')return i.next && i.next.kind!=='attack'?`下轮：${intentLabel(i.next)}`:`下轮：${i.next?.value??i.value}×${i.next?.hits??i.hits??1} 攻击`;return '';}
+function intentLabel(i){if(!i)return '等待行动';if(i.kind==='charge')return '蓄力 本轮不攻击';const name=i.label||({attack:'攻击',guard:'护盾',burn:'灼烧',cleanse:'净火',heal:'恢复',charge:'蓄力',thorns:'反伤',conditional:'条件反制'})[i.kind]||i.kind;const amount=i.kind==='attack'?` ${i.value??0}×${i.hits??1}`:i.kind!=='conditional'&&Number.isFinite(i.value)?` ${i.value}`:'';return short(name,12)+amount;}
+function intentDetail(i){if(!i)return '';if(i.kind==='tempo')return `至多${i.playThreshold}张: ${intentLabel(i.onCalm)} / 超过${i.playThreshold}张: ${intentLabel(i.onRush)}`;if(i.kind==='conditional')return `首张含直接伤害的牌: ${intentLabel(i.onAttack)} / 否则: ${intentLabel(i.onOther)}`;if(i.kind==='charge')return i.next && i.next.kind!=='attack'?`下轮：${intentLabel(i.next)}`:`下轮：${i.next?.value??i.value}×${i.next?.hits??i.hits??1} 攻击`;return '';}
 function cardDefinition(entity,catalog){const base=catalog.cards[entity.cardId]||{};return entity.upgraded?{...base,...base.upgrade}:base;}
 function wrapLine(value,maxChars){const chars=[...String(value)];const lines=[];while(chars.length)lines.push(chars.splice(0,maxChars).join(''));return lines;}
 function prepGlyphs(names,env){const chars=[...new Set(names.flatMap(s=>[...rawImageText(s)]))];return prepareNicknameFont(chars,env);}
@@ -134,7 +134,7 @@ async function battleImage(run,env){
  await prepGlyphs([...names,...UI_GLYPHS],env);
  const F={headline:24,title:20,body:17,meta:15,small:14};
  const c=new Canvas(W,H);rect(c,0,0,W,H,K.bg);circle(c,480,303,205,[19,39,58]);
- title(c,'第 '+(run?.act??1)+' 幕 · 第 '+(run?.slot??1)+' 站',short(profession.name,7)+' 迎战 '+short(enemy.name||'敌人',8),'回合 '+(b.turn??0)+'  ·  '+(b.enemyPhase===2?'第二阶段':'第一阶段'));
+ title(c,'第 '+(run?.act??1)+' 幕 · 第 '+(run?.slot??1)+' 站',short(profession.name,7)+' 迎战 '+short(enemy.name||'敌人',8),'回合 '+(b.turn??0)+'  ·  '+(b.enemyPhase===2?(b.phaseNextIntent&&b.phaseStartTurn>b.turn?'下轮第二阶段':'第二阶段'):'第一阶段'));
  rect(c,31,112,898,332,K.panel,18);rect(c,34,115,892,4,[47,75,96],3);rect(c,34,440,892,2,[44,67,83],2);
  line(c,480,128,480,430,K.line,2);circle(c,480,129,4,K.gold);circle(c,480,429,4,K.gold);
  line(c,52,123,466,123,[83,111,128],1);line(c,494,123,908,123,[111,89,63],1);
@@ -151,7 +151,7 @@ async function battleImage(run,env){
  if(intentDetail(b.intent))rgbaText(c,intentDetail(b.intent),526,193,F.small,K.muted,25);
  const enemyStats=[['护甲',b.enemyArmor,K.blue],['屏障',b.enemyShield,K.blue],['灼烧',b.enemyBurn,K.red]].filter(s=>s[1]);
  let sx=526;for(const [label,value,color] of enemyStats){const caption=label+' '+value,pw=Math.max(74,[...caption].length*F.small+18);if(sx+pw>892)break;rect(c,sx,226,pw,23,[34,53,69],7);text(c,caption,sx+8,230,F.small,color);sx+=pw+7;}
- if(b.enemyPhase===2&&enemy.phaseName){rect(c,523,256,184,24,[69,43,48],7);text(c,enemy.phaseName,534,260,F.small,K.gold2);}
+ if(b.enemyPhase===2&&enemy.phaseName){rect(c,523,256,184,24,[69,43,48],7);text(c,(b.phaseNextIntent&&b.phaseStartTurn>b.turn?'下轮 ':'')+enemy.phaseName,534,260,F.small,K.gold2);}
  circle(c,563,354,65,[38,51,58]);circle(c,563,354,58,[48,61,66]);
  silhouette(c,563,378,b.professionId,false);
  text(c,profession.name,641,280,F.title,K.cream);

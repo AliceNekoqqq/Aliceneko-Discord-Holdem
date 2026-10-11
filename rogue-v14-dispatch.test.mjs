@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {createRun,CURRENT_RULE_VERSION,SUPPORTED_RULE_VERSIONS} from './rogue-run.mjs';
+import {createRun,V14_RULE_VERSION as CURRENT_RULE_VERSION,SUPPORTED_RULE_VERSIONS} from './rogue-run.mjs';
 import {beginBattle} from './rogue-battle.mjs';
 import {CATALOG_V13} from './rogue-content-v13.mjs';
 import {CATALOG_V14,getCatalog} from './rogue-content-v14.mjs';
