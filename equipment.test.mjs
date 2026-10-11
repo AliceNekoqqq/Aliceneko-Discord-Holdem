@@ -13,12 +13,12 @@ const base={id:'1',name:'Alice',channel:'2'};
 function fund(s,id='1'){s.member(id);s.sql.exec('UPDATE tavern_members SET balance=20000 WHERE id=?',id);}
 function draft(s,item,key='buy',id='1'){return s.renovation.prepare({...base,id,item,requestKey:key});}
 test('equipment gate preserves original menu, prevents forged orders and unlocks public coffee after one paid purchase',()=>{
- const {store,s}=setup();assert.equal(s.operations.menu().length,20);assert.equal(s.operations.lockedMenu().length,9);
+ const {store,s}=setup();assert.equal(s.operations.menu().length,25);assert.equal(s.operations.lockedMenu().length,9);
  assert.equal(s.rows('SELECT * FROM tavern_members').length,0);
  for(const item of MENU.filter(x=>x.requiresEquipment))assert.throws(()=>s.prepare({...base,item:item.id,requestKey:'forged'}),/尚未解锁/);
  assert.equal(s.rows('SELECT * FROM tavern_drafts').length,0);
- fund(s);const d=draft(s,'coffee_machine');assert.equal(s.operations.menu().length,20);
- const answer=s.renovation.confirm('1',d.id,'2');assert.equal(answer.balance,19100);assert.equal(s.operations.menu().length,23);
+ fund(s);const d=draft(s,'coffee_machine');assert.equal(s.operations.menu().length,25);
+ const answer=s.renovation.confirm('1',d.id,'2');assert.equal(answer.balance,19100);assert.equal(s.operations.menu().length,28);
  assert.equal(s.view('9').menu.filter(x=>x.requiresEquipment==='coffee_machine').length,3);
  assert(s.renovation.confirm('1',d.id,'2').repeated);assert.equal(s.member('1').balance,19100);
  assert.equal(s.rows("SELECT * FROM tavern_ledger WHERE kind='renovation'").length,1);
@@ -38,16 +38,16 @@ test('concurrent previews buy shared equipment once, respecting owner/channel an
  const a=draft(s,'coffee_machine','a'),b=draft(s,'coffee_machine','b','9');
  assert.throws(()=>s.renovation.confirm('9',a.id,'2'),/不是你的/);assert.throws(()=>s.renovation.confirm('1',a.id,'4'),/不是你的/);
  s.renovation.confirm('1',a.id,'2');assert.throws(()=>s.renovation.confirm('9',b.id,'2'),/其他常客/);assert.equal(s.member('9').balance,20000);
- assert.equal(s.rows('SELECT * FROM tavern_reno_assets').length,1);assert.equal(s.operations.menu().length,23);
+ assert.equal(s.rows('SELECT * FROM tavern_reno_assets').length,1);assert.equal(s.operations.menu().length,28);
 });
 test('all four equipment map to nine unique menu items and unlock only their recipes',()=>{
  const {s}=setup();fund(s);s.renovation.board();s.sql.exec('INSERT INTO tavern_reno_consumption VALUES(?,?,?,?,?)','fixture','1','Alice',10000,Date.now());
- let expected=20;
+ let expected=25;
  for(const equipment of RENOVATION_ITEMS.filter(x=>x.menuUnlocks)){
   const dishes=MENU.filter(x=>x.requiresEquipment===equipment.id);assert.deepEqual(new Set(dishes.map(x=>x.name)),new Set(equipment.menuUnlocks));
   const d=draft(s,equipment.id,equipment.id);s.renovation.confirm('1',d.id,'2');expected+=dishes.length;assert.equal(s.operations.menu().length,expected);
  }
- assert.equal(expected,29);assert.equal(s.operations.lockedMenu().length,0);assert.equal(s.renovation.board().direct,8200);
+ assert.equal(expected,34);assert.equal(s.operations.lockedMenu().length,0);assert.equal(s.renovation.board().direct,8200);
 });
 test('confirmation revalidates equipment even for a fabricated pending order',()=>{
  const {s}=setup();fund(s);s.operations.menu();

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "style": "Warm storybook digital hand-painted illustration, tactile brush texture, gentle amber lamplight, rustic brown wood with restrained berry-pink accents, quiet riverside old-street tavern mood. Cozy, intimate food illustration with soft painterly edges and clear appetizing forms. No people or portraits, no text, lettering, watermark, logo, alcohol, packaging labels, or invented ingredients. Match only the defined ingredients; decorative props must remain clearly separate and must not imply extra ingredients. Do not alter or depict any original character.",
+  "style": "Warm storybook digital hand-painted illustration, tactile brush texture, gentle amber lamplight, rustic brown wood with restrained berry-pink accents, quiet riverside old-street tavern mood. Cozy, intimate food illustration with soft painterly edges and clear appetizing forms. No people or portraits, no text, lettering, watermark, logo, or packaging labels. Alcohol may appear only when the individual asset explicitly names an alcoholic drink. Never add alcoholic drinks to other assets. Match only the defined ingredients; decorative props must remain clearly separate and must not imply extra ingredients. Do not alter or depict any original character.",
   "assets": [
     {
       "id": "room",
@@ -266,6 +266,76 @@
       "width": 512,
       "height": 512,
       "sha256": "7fa3a604c4815c06d73c9326b3140e2baea0002d5aecd8d4a75749dfa8346986"
+    },
+    {
+      "id": "wheat-beer",
+      "subject": "河岸小麦啤酒",
+      "status": "ready",
+      "dimensions": "1024x1024 square",
+      "prompt": "Original image-generation prompt was not preserved. This is a reviewed asset brief, not a verbatim prompt. Depict 河岸小麦啤酒 as an individual tavern drink illustration in the established warm storybook, painterly riverside tavern style. Product specification: 330 ml · 4.8% vol. No readable text, brand marks, labels, or people.",
+      "review": "检查通过：酒品主题清楚，暖色手绘酒馆风格与现有菜单插画一致；无可读文字、品牌标记或人物。",
+      "batch": "1.0.1-beta.63",
+      "filename": "wheat-beer-v1.jpg",
+      "width": 512,
+      "height": 512,
+      "source": "generated image asset; retained source in this session workspace",
+      "sha256": "0eb546c0f54c14448dba25f92419da068d216ae14824e5d356cf8a1fd522e9aa"
+    },
+    {
+      "id": "plum-wine",
+      "subject": "雨巷青梅酒",
+      "status": "ready",
+      "dimensions": "1024x1024 square",
+      "prompt": "Original image-generation prompt was not preserved. This is a reviewed asset brief, not a verbatim prompt. Depict 雨巷青梅酒 as an individual tavern drink illustration in the established warm storybook, painterly riverside tavern style. Product specification: 90 ml · 12% vol. No readable text, brand marks, labels, or people.",
+      "review": "检查通过：酒品主题清楚，暖色手绘酒馆风格与现有菜单插画一致；无可读文字、品牌标记或人物。",
+      "batch": "1.0.1-beta.63",
+      "filename": "plum-wine-v1.jpg",
+      "width": 512,
+      "height": 512,
+      "source": "generated image asset; retained source in this session workspace",
+      "sha256": "9b0bef383f5f2da4c53ae00c6461c32eda2c800a9be5f602cdf0633eb48cee11"
+    },
+    {
+      "id": "red-wine",
+      "subject": "暮色赤霞珠",
+      "status": "ready",
+      "dimensions": "1024x1024 square",
+      "prompt": "Original image-generation prompt was not preserved. This is a reviewed asset brief, not a verbatim prompt. Depict 暮色赤霞珠 as an individual tavern drink illustration in the established warm storybook, painterly riverside tavern style. Product specification: 150 ml · 13% vol. No readable text, brand marks, labels, or people.",
+      "review": "检查通过：酒品主题清楚，暖色手绘酒馆风格与现有菜单插画一致；无可读文字、品牌标记或人物。",
+      "batch": "1.0.1-beta.63",
+      "filename": "red-wine-v1.jpg",
+      "width": 512,
+      "height": 512,
+      "source": "generated image asset; retained source in this session workspace",
+      "sha256": "6a68f6b0e727091d1e7836b3bc15e0067836e5d2ca8fdce4b81741c866a7645a"
+    },
+    {
+      "id": "gin-tonic",
+      "subject": "夜航金汤力",
+      "status": "ready",
+      "dimensions": "1024x1024 square",
+      "prompt": "Original image-generation prompt was not preserved. This is a reviewed asset brief, not a verbatim prompt. Depict 夜航金汤力 as an individual tavern drink illustration in the established warm storybook, painterly riverside tavern style. Product specification: 250 ml · 8% vol. No readable text, brand marks, labels, or people.",
+      "review": "检查通过：酒品主题清楚，暖色手绘酒馆风格与现有菜单插画一致；无可读文字、品牌标记或人物。",
+      "batch": "1.0.1-beta.63",
+      "filename": "gin-tonic-v1.jpg",
+      "width": 512,
+      "height": 512,
+      "source": "generated image asset; retained source in this session workspace",
+      "sha256": "621d45a58c8019b2563d0fd942ed04b05e2053e696f135e0492b86dc8cc2d8de"
+    },
+    {
+      "id": "whiskey",
+      "subject": "壁炉威士忌",
+      "status": "ready",
+      "dimensions": "1024x1024 square",
+      "prompt": "Original image-generation prompt was not preserved. This is a reviewed asset brief, not a verbatim prompt. Depict 壁炉威士忌 as an individual tavern drink illustration in the established warm storybook, painterly riverside tavern style. Product specification: 40 ml · 40% vol. No readable text, brand marks, labels, or people.",
+      "review": "检查通过：酒品主题清楚，暖色手绘酒馆风格与现有菜单插画一致；无可读文字、品牌标记或人物。",
+      "batch": "1.0.1-beta.63",
+      "filename": "whiskey-v1.jpg",
+      "width": 512,
+      "height": 512,
+      "source": "generated image asset; retained source in this session workspace",
+      "sha256": "4d8eb36ca8979ba08ec7dbdde473c41e4a0fdebbc3504e22b68daba6519be057"
     }
   ]
 }

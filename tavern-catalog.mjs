@@ -35,7 +35,12 @@ export const MENU=Object.freeze([
  {id:'berry-smoothie',name:'莓果奶昔',emoji:'🍓',price:30,category:'drinks',requiresEquipment:'blender',ingredients:['草莓','蓝莓','牛奶'],flavor:'浓稠酸甜',pairing:'适合搭配暖炉黄油可颂',allergens:['乳制品'],servingTemperature:'cold',description:'莓果打成细腻奶昔，像一杯粉色云朵。',serve:'送来莓果奶昔，杯沿点缀着一颗草莓。'},
  {id:'mango-yogurt',name:'芒果酸奶冰沙',emoji:'🥭',price:32,category:'drinks',requiresEquipment:'blender',ingredients:['芒果','酸奶','冰块'],flavor:'果香清酸',pairing:'适合搭配葱香小煎饼',allergens:['乳制品'],servingTemperature:'cold',description:'金黄芒果与酸奶，绵密又清凉。',serve:'端来芒果酸奶冰沙，金黄果肉贴着杯壁。'},
  {id:'vanilla-sundae',name:'香草云朵圣代',emoji:'🍨',price:34,category:'desserts',requiresEquipment:'ice_cream_maker',ingredients:['牛奶','奶油','香草','糖'],flavor:'冰甜奶香',pairing:'适合搭配河岸美式',allergens:['乳制品'],servingTemperature:'cold',description:'香草软冰淇淋卷成轻盈的小山。',serve:'放下一碗香草圣代，小勺靠在碗边。'},
- {id:'redbean-parfait',name:'红豆糯米芭菲',emoji:'🍧',price:40,category:'desserts',requiresEquipment:'ice_cream_maker',ingredients:['牛奶','奶油','红豆','糯米','糖'],flavor:'冰软糯甜',pairing:'适合搭配热茶',allergens:['乳制品'],servingTemperature:'cold',description:'红豆、糯米团与冰淇淋层层相叠。',serve:'送来红豆糯米芭菲，杯中叠着凉甜与软糯。'}
+ {id:'redbean-parfait',name:'红豆糯米芭菲',emoji:'🍧',price:40,category:'desserts',requiresEquipment:'ice_cream_maker',ingredients:['牛奶','奶油','红豆','糯米','糖'],flavor:'冰软糯甜',pairing:'适合搭配热茶',allergens:['乳制品'],servingTemperature:'cold',description:'红豆、糯米团与冰淇淋层层相叠。',serve:'送来红豆糯米芭菲，杯中叠着凉甜与软糯。'},
+ {id:'wheat-beer',name:'河岸小麦啤酒',emoji:'🍺',price:28,category:'drinks',ingredients:['大麦麦芽','水','啤酒花','酵母'],flavor:'柔和麦芽香，收口清爽微苦',pairing:'适合搭配深夜小食拼盘',allergens:['麸质'],servingTemperature:'cold',description:'330 ml · 4.8% vol',servingSizeMl:330,alcoholPercent:4.8},
+ {id:'plum-wine',name:'雨巷青梅酒',emoji:'🍶',price:35,category:'drinks',ingredients:['青梅','米酒','冰糖'],flavor:'青梅酸甜，酒香柔和',pairing:'适合搭配红豆小酥',allergens:[],servingTemperature:'cold',description:'90 ml · 12% vol',servingSizeMl:90,alcoholPercent:12},
+ {id:'red-wine',name:'暮色赤霞珠',emoji:'🍷',price:48,category:'drinks',ingredients:['赤霞珠葡萄'],flavor:'黑色浆果果香，单宁饱满',pairing:'适合搭配番茄蛋饭',allergens:[],servingTemperature:'room',description:'150 ml · 13% vol',servingSizeMl:150,alcoholPercent:13},
+ {id:'gin-tonic',name:'夜航金汤力',emoji:'🍸',price:42,category:'drinks',ingredients:['金酒','汤力水','青柠','冰块'],flavor:'杜松子与青柠清新，带有微苦气泡',pairing:'适合搭配小巷馄饨',allergens:[],servingTemperature:'cold',description:'250 ml · 8% vol',servingSizeMl:250,alcoholPercent:8},
+ {id:'whiskey',name:'壁炉威士忌',emoji:'🥃',price:50,category:'drinks',ingredients:['威士忌'],flavor:'焦糖与橡木香气，回味温暖',pairing:'适合搭配暖炉黄油可颂',allergens:[],servingTemperature:'room',description:'40 ml · 40% vol',servingSizeMl:40,alcoholPercent:40}
 ].map(item=>Object.freeze({...item,ingredients:Object.freeze(item.ingredients),allergens:Object.freeze(item.allergens)})));
 export const SWEETNESS=Object.freeze({light:'少糖',normal:'正常甜度',sweet:'偏甜'});
 export const TEMPERATURE=Object.freeze({warm:'温热',cold:'冰凉',room:'常温'});
@@ -52,7 +57,7 @@ export const menuItem=id=>MENU.find(p=>p.id===id);
 export function makeOrderDetails(item,profile,options={}){
  const sweetness=options.sweetness??profile.sweetness,temperature=options.temperature??profile.temperature,mood=options.mood??'calm';
  if(!Object.hasOwn(SWEETNESS,sweetness)||!Object.hasOwn(TEMPERATURE,temperature)||!Object.hasOwn(MOODS,mood))throw Error('请从菜单里的口味和心情选项中选择。');
- return {sweetness,temperature:item.servingTemperature??(item.id==='tea'?'warm':temperature),mood,category:item.category,ingredients:item.ingredients,flavor:item.flavor,pairing:item.pairing,allergens:item.allergens,itemName:item.id==='special'?`${item.name}「${SPECIAL_NAMES[mood]}」`:item.name,seat:profile.seat,restrictions:profile.restrictions,alcohol:'无酒精'};
+ return {sweetness,temperature:item.servingTemperature??(item.id==='tea'?'warm':temperature),mood,category:item.category,ingredients:item.ingredients,flavor:item.flavor,pairing:item.pairing,allergens:item.allergens,itemName:item.id==='special'?`${item.name}「${SPECIAL_NAMES[mood]}」`:item.name,seat:profile.seat,restrictions:profile.restrictions,alcohol:item.alcoholPercent?`${item.alcoholPercent}% vol`:'无酒精',...(item.alcoholPercent?{alcoholPercent:item.alcoholPercent,servingSizeMl:item.servingSizeMl}:{})};
 }
 export function beginTavernRound(t,now=Date.now()){t.tavernRound={startedAt:now,actions:{}};}
 export function noteTavernAction(t,id){if(!t.tavernRound||!t.players.some(p=>p.id===id&&!p.bot))return;t.tavernRound.actions[id]=(t.tavernRound.actions[id]||0)+1;}

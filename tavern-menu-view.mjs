@@ -31,7 +31,9 @@ const equipmentNames = Object.freeze({ coffee_machine: '咖啡机', baking_oven:
 
 function itemSummary(item) {
   const name = displayMenuName(item);
-  const flavor = clean(item.flavor || item.description, 110);
+  const flavor = item.alcoholPercent
+    ? `${Number(item.servingSizeMl)} ml · ${Number(item.alcoholPercent)}% vol`
+    : clean(item.flavor || item.description, 110);
   const credit = item.source === 'ugc' ? `\n作者：${clean(item.author || item.author_name, 32)} · ${item.imageStatus === 'ready' ? '已配图' : '待补图'}` : '';
   return `${item.emoji || '🍵'} **${name}** · ${priceText(item)}\n${flavor}${credit}`;
 }
@@ -53,10 +55,11 @@ export function renderMenu(data, id, guild, publicView = false, category = 'all'
     const ugcCount = menu.filter(dish => dish.ugc || dish.source === 'ugc').length;
     const seasonal = counts.seasonal ? `当季上新 ${counts.seasonal} 款，随季节更新。` : '当季暂无限定上新。';
     const lockedText = lockedMenu.length ? `\n🔒 **设备新品（购置设备后永久解锁）**\n${lockedMenu.map(item => `${item.emoji || '🍵'} ${clean(item.name, 80)} · 需要${equipmentNames[item.requiresEquipment] || clean(item.requiresEquipment, 40)}`).join('\n')}` : '';
-    content = `🍵 **红豆粉的小酒馆 · 今日菜单**\n先逛类别，再选一份喜欢的；所有饮品均无酒精。${pageCount > 1 ? `\n本页 ${items.length} 款 · 第 ${selectedPage + 1}/${pageCount} 页` : ''}\n🥤 饮品 ${counts.drinks} 款：茶饮与清爽特调。\n🍰 甜点 ${counts.desserts} 款：酥香软甜，适合配茶。\n🥨 小食 ${counts.savory} 款：咸甜小份，聊天时慢慢吃。\n🌸 季节 ${seasonal}\n玩家创作 ${ugcCount} 款，名称带“${UGC_SUFFIX}”标识并附作者署名。${lockedText}\n${publicView ? '选好后打开自己的点单面板，确认后才上桌。' : `你的余额：**${clean(data?.member?.balance, 20) || '0'}币** · 选好后还会再请你确认。`}`;
+    content = `🍵 **红豆粉的小酒馆 · 今日菜单**\n先逛类别，再选一份喜欢的；饮品分类包含茶饮、特调与酒水，酒水规格和酒精度会列在商品信息里。${pageCount > 1 ? `\n本页 ${items.length} 款 · 第 ${selectedPage + 1}/${pageCount} 页` : ''}\n🥤 饮品 ${counts.drinks} 款：茶饮、咖啡、清爽特调与酒水。\n🍰 甜点 ${counts.desserts} 款：酥香软甜，适合配茶。\n🥨 小食 ${counts.savory} 款：咸甜小份，聊天时慢慢吃。\n🌸 季节 ${seasonal}\n玩家创作 ${ugcCount} 款，名称带“${UGC_SUFFIX}”标识并附作者署名。${lockedText}\n${publicView ? '选好后打开自己的点单面板，确认后才上桌。' : `你的余额：**${clean(data?.member?.balance, 20) || '0'}币** · 选好后还会再请你确认。`}`;
   } else {
     const heading = MENU_CATEGORIES.find(item => item.id === selectedCategory);
-    const intro = selectedCategory === 'seasonal' && allItems.length === 0 ? '当季暂无限定上新。' : `${heading.emoji} ${heading.name} · ${allItems.length} 款`;
+    const alcoholicCount = allItems.filter(item => item.alcoholPercent).length;
+    const intro = selectedCategory === 'seasonal' && allItems.length === 0 ? '当季暂无限定上新。' : selectedCategory === 'drinks' ? `${heading.emoji} ${heading.name} · ${allItems.length} 款，其中酒水 ${alcoholicCount} 款` : `${heading.emoji} ${heading.name} · ${allItems.length} 款`;
     content = `🍵 **红豆粉的小酒馆 · 今日菜单**\n**${intro}**${allItems.length > 20 ? ` · 第 ${selectedPage + 1}/${pageCount} 页` : ''}\n${items.map(itemSummary).join('\n\n') || '这个类别暂时没有商品。'}\n${publicView ? '选好后打开自己的点单面板，确认后才上桌。' : `你的余额：**${clean(data?.member?.balance, 20) || '0'}币** · 选好后还会再请你确认。`}`;
     const categoryLocked = lockedMenu.filter(item => categoryOf(item) === selectedCategory);
     if (categoryLocked.length) content += `\n\n🔒 **购置设备后永久解锁**\n${categoryLocked.map(item => `${item.emoji || '🍵'} ${clean(item.name, 80)} · 需要${equipmentNames[item.requiresEquipment] || clean(item.requiresEquipment, 40)}`).join('\n')}`;
@@ -87,10 +90,12 @@ export function renderMenu(data, id, guild, publicView = false, category = 'all'
 export function renderDishDetails(item) {
   const title = displayMenuName(item) || '菜单商品';
   const lines = [`${item?.emoji || '🍵'} **${title}**`];
-  if (item?.ingredients) lines.push(`食材：${clean(Array.isArray(item.ingredients) ? item.ingredients.join('、') : item.ingredients, 300)}`);
+  if (item?.ingredients) lines.push(`${item?.alcoholPercent ? '原料' : '食材'}：${clean(Array.isArray(item.ingredients) ? item.ingredients.join('、') : item.ingredients, 300)}`);
   if (item?.flavor) lines.push(`风味：${clean(item.flavor, 300)}`);
   if (item?.pairing) lines.push(`搭配：${clean(item.pairing, 300)}`);
   if (Array.isArray(item?.allergens) && item.allergens.length) lines.push(`已知配方含有：${item.allergens.map(value => clean(value, 40)).filter(Boolean).join('、')}`);
+  if (item?.servingSizeMl) lines.push(`容量：${clean(item.servingSizeMl, 20)} ml`);
+  if (item?.alcoholPercent) lines.push(`酒精度：${clean(item.alcoholPercent, 20)}% vol`);
   if (item?.servingTemperature) lines.push(`上桌温度：${TEMPERATURE[item.servingTemperature] || clean(item.servingTemperature, 40)}`);
   return lines.join('\n');
 }
