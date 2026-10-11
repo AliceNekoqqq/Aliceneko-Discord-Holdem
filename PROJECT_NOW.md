@@ -34,4 +34,7 @@
 - UGC beta.61 已上线：实现提交 f886047，生产发布 run 38094021788 成功。研发入口、私密临时会话、自定价、逐项修改、确认/回退、每日额度与定稿存储已实现；机器人知识库同步补入对应规则。Tavern158、Worker25、Chat78、上下文/菜图6项通过。
 - beta.62 菜单分类调整：玩家研发菜按饮品/甜点/小食进入总菜单原分类，菜名附“（玩家创作）”后缀与作者署名；“创作菜单”快捷入口改为打开总菜单。分类/分页、面板与版本测试通过；已更新 Slash 命令描述并递增命令注册版本。GitHub发布run 38095136578成功；Cloudflare部署version 22892006-6f48-4202-a330-d4ff9c156657接收100%流量。本轮终端代理无法访问HTTPS /health，未据此声称端点验收通过。
 
-- 灯下迷城 v0.9 本地阶段完成：信使整理与医师治疗遗物、13张牌战术重设计、灼烧升级/遗物每轮限次、单营地随机站位、分幕奖励池34/32/24、至少一个当幕新牌候选与0费牌出牌限制；v04/v06/v07/v08运行时冻结。lantern152/152、worker25/25、chat78/78通过，Luna独立审查通过；完整最终样本与发布状态见 docs/roguelike/BALANCE_V09_AUDIT.md。
+- 灯下迷城 v0.9 实现与发布完成：信使整理与医师治疗遗物、13张牌战术重设计、灼烧升级/遗物每轮限次、单营地随机站位、分幕奖励池34/32/24、至少一个当幕新牌候选与0费牌出牌限制；v04/v06/v07/v08运行时冻结。lantern152/152、worker25/25、chat78/78通过，Luna独立审查通过；完整最终样本与发布状态见 docs/roguelike/BALANCE_V09_AUDIT.md。
+
+- beta.68 灯下迷城 PR #8 已 squash 合并，提交 `ee186e8c70df47c9d3d2d2a2771fc8b84dbbb39d`。PR检查 run38112460165、生产发布 run38112535194 全部通过；最终288局固定种子两策略复审，完整结果见 docs/roguelike/BALANCE_V09_AUDIT.md。调酒师/驯兽师偏强、医师最高进阶偏弱仍有信号；模拟不是真人胜率。无精确重复牌、新循环或重设计牌明显功能下位。
+- beta.68 Cloudflare deployment `f076cbab-7ca4-46d8-ac22-f1ddd32f773a`，version `bcf5b4be-2463-4e68-9aa2-92f85545dbae` 接收100%流量；实际 https://discord-holdem.aliceneko.workers.dev/health 返回 ok:true、beta.68、rulesVersion:v0.9。现有bindings/Secret名称与类型、compatibility_date、observability保持；wrangler/cron/D1/DO迁移配置未改。真人多局体验与高进阶职业反馈尚待观察。
