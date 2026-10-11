@@ -10,10 +10,12 @@ const base=Date.parse('2026-10-10T10:00:00+08:00');
 function setup(){const store=storage(),host=new TavernService(store),ugc=new UGCService(host);return {store,host,ugc}}
 const p=(action,more={})=>({action,guild:'456',id:'123',name:'小葵',...more});
 
-test('strict recipe validation applies user price bounds, text types, length limits and derived allergens/equipment',()=>{
+test('strict recipe validation applies user price bounds, text types, length limits and derived equipment',()=>{
  const d={name:'晨雾拿铁',type:'drink',ingredients:['咖啡豆','牛奶'],flavor:'醇香',method:'使用咖啡机萃取并加热牛奶',temperature:'warm',description:'柔和香浓的一杯饮品。',appearance:'白色奶泡上撒少许可可粉。'};
  for(const price of [UGC_PRICE_MIN,UGC_PRICE_MAX])assert.equal(validateUGCDraft(d,{requireComplete:true,price}).price,price);
- assert.deepEqual(validateUGCDraft(d).equipment,['coffee_machine']);assert(validateUGCDraft(d).allergens.includes('乳制品'));
+ assert.deepEqual(validateUGCDraft(d).equipment,['coffee_machine']);assert.equal(validateUGCDraft(d).allergens,undefined);
+ assert.equal(validateUGCDraft({...d,allergens:['乳制品']}).allergens,undefined);
+ assert.equal(ugcMenuItem({id:'old',author_name:'小葵',current_revision:1},JSON.stringify({...d,allergens:['乳制品']})).allergens,undefined);
  for(const value of [9,51,10.5,'20',0])assert.throws(()=>validateUGCDraft(d,{requireComplete:true,price:value}));
  assert.throws(()=>validateUGCDraft({...d,name:42}),/必须是文本/);assert.throws(()=>validateUGCDraft({...d,name:'这是一道名字长到超过二十四个字符的菜品名字真的很长很长'}),/不能超过/);
 });
