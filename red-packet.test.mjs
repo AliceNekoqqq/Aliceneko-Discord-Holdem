@@ -13,3 +13,30 @@ test('create replay, restart, claim replay and exhaustion only credit once with 
 test('channel, guild, message and bot constraints reject before any credit; expired leftovers are not minted',()=>{const {packets,tavern}=setup();packets.create(message(),'99',100);packets.bind('123','456');for(const extra of [{guild_id:'3'},{channel_id:'4'},{message:{id:'789'}},{member:{user:{id:'10',bot:true}}}])assert.throws(()=>packets.claim(interaction('10',extra),200));assert.throws(()=>packets.claim(interaction(),100+RED_PACKET_TTL),/过期/);assert.equal(tavern.one('SELECT COUNT(*) n FROM tavern_members').n,0);});
 test('wallet or ledger failure rolls back claim and member creation too',()=>{const {packets,db}=setup();packets.create(message(),'99',100);db.exec("CREATE TRIGGER reject_red BEFORE INSERT ON tavern_ledger WHEN NEW.kind='system_red_packet' BEGIN SELECT RAISE(ABORT,'fault'); END");assert.throws(()=>packets.claim(interaction(),200),/fault/);assert.equal(packets.view('123').claims.length,0);assert.equal(db.prepare('SELECT COUNT(*) n FROM tavern_members').get().n,0);db.exec('DROP TRIGGER reject_red');assert.equal(packets.claim(interaction(),300).repeated,false);});
 test('ordinary users never call mint RPC; parser failures never mint',async()=>{let calls=0;const env={TABLES:{get(){calls++;throw Error('no')},idFromName:x=>x}};assert.equal(await prepareRedPacket(env,{...message(),author:{id:'10'}},'99'),null);assert.ok((await prepareRedPacket(env,message('<@99> 发1.5元红包，名额1个'),'99')).error);assert.equal(calls,0);});
+
+test('real screenshot and everyday variants accept omitted currency, changed order, fullwidth and Chinese numbers',()=>{
+ const cases=[
+  ['给大家发个600的拼手气红包！5个名额！',600,5,'random'],
+  ['发个600红包，5个',600,5,'random'],
+  ['给五个人发六百元的红包',600,5,'random'],
+  ['发一个六百的拼手气红包，五个名额',600,5,'random'],
+  ['发红包600，5个人',600,5,'random'],
+  ['🧧给大家发个600块的红包，人数：5',600,5,'random'],
+  ['发一万二千元的均分红包，名额十个',12000,10,'equal'],
+  ['发６００元的平均红包，５个名额',600,5,'equal'],
+  ['发红包，总额600，5份',600,5,'random']
+ ];for(const [text,total,slots,mode]of cases)assert.deepEqual(parseRedPacket(message('<@99> '+text),'99'),{total,slots,mode},text);
+ for(const text of ['发六百点五元红包，五个名额','发600红包，五个名额和六个名额','发−600红包，5个名额'])assert.ok(parseRedPacket(message('<@99> '+text),'99').error,text);
+});
+
+test('Gemini extraction is independently gated and must supply actual current-message numeric evidence',async()=>{
+ const {validateExtractedPacket,decodePacketReply}=await import('./red-packet.mjs');
+ const m=message('<@99> 给大家发一个六百的红包，五个名额');
+ const data={total:600,slots:5,mode:'random',totalEvidence:'六百',slotsEvidence:'五'};
+ assert.deepEqual(validateExtractedPacket(m,'99',data),{total:600,slots:5,mode:'random'});
+ assert.ok(validateExtractedPacket(m,'99',{...data,total:6000}).error);
+ assert.ok(validateExtractedPacket(m,'99',{...data,totalEvidence:'600'}).error);
+ assert.equal(validateExtractedPacket({...m,author:{id:'55'}},'99',data),null);
+ assert.deepEqual(decodePacketReply('```json\n{"reply":"试试手气。","packet":null}\n```'),{reply:'试试手气。',packet:null});
+ assert.throws(()=>decodePacketReply('自然回复 {"packet":{}}'));
+});
