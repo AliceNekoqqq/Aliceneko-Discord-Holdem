@@ -1,8 +1,9 @@
 import {generateGemini} from './ai-chat.mjs';
+import {validateUGCDraft} from './tavern-ugc-catalog.mjs';
 
 const FIELDS=new Set(['name','type','ingredients','flavor','method','temperature','description','appearance','lore']);
 const FAILURE='这轮没有生成成功，草稿保持不变。请稍后重试。';
-function parsePayload(text){
+function parsePayload(text,turn={}){
  const raw=String(text||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
  const value=JSON.parse(raw);
  if(!value||typeof value!=='object'||Array.isArray(value))throw Error('invalid_shape');
@@ -13,6 +14,9 @@ function parsePayload(text){
  if(value.patch===undefined)value.patch={};
  if(!value.patch||typeof value.patch!=='object'||Array.isArray(value.patch))throw Error('invalid_patch');
  if(Object.keys(value.patch).some(k=>!FIELDS.has(k)))throw Error('invalid_patch_keys');
+ const current=turn.draft||{},target=turn.edit_target;
+ if(target){if(!Object.hasOwn(value.patch,target))throw Error('missing_edit_value');validateUGCDraft({...current,[target]:value.patch[target]});}
+ else{const next={...current,...value.patch};if(current.type)next.type=current.type;validateUGCDraft(next);}
  if(value.readySuggestion!==undefined&&typeof value.readySuggestion!=='boolean')throw Error('invalid_ready');
  return {reply:value.reply,patch:value.patch,missing:value.missing,...(value.readySuggestion===undefined?{}:{readySuggestion:value.readySuggestion})};
 }
@@ -39,8 +43,8 @@ async function ask(env,payload,repair=false,repairSource=''){
  };
  try{
   const text=await generateGemini(safeEnv,contents,'ugc',once,[], '',undefined,'',{ugc:payload});
-  try{return parsePayload(text);}catch(error){if(repair)throw error;return ask(env,payload,true,text);}
- }catch{return null;}
+  try{return parsePayload(text,payload);}catch(error){if(repair)throw error;return ask(env,payload,true,text);}
+ }catch(error){if(repair)console.warn('ugc_model_output_repair_failed',{reason:String(error?.message||error?.name||'unknown').slice(0,100)});else console.warn('ugc_model_request_failed',{reason:String(error?.message||error?.name||'unknown').slice(0,100)});return null;}
 }
 
 /** Generate a private, structured UGC candidate. Provider errors and raw output never escape. */

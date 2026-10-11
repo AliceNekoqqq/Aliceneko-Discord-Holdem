@@ -47,13 +47,15 @@ function homePage(b,g,u){
   const candidate=s.edit_candidate;
   const candidatePreview=candidate?`\n\n**修改候选** · ${editFields.find(([k])=>k===candidate.target)?.[1]||'字段'}\n${clean(candidate.value,300)}\n采用后才会更新整张菜品卡。`:'';
   const lastReply=s.edit_history?.at(-1)?.reply||s.history?.at(-1)?.reply;
-  parts.push(`🔒 **私密菜品研发**\n${s.status==='CHOOSING'?'先选择菜品类型。':compactDishText(s)}${lastReply?`\n\n**当前引导**\n${clean(lastReply,350)}`:''}${candidatePreview}\n\n${missing.length?`还缺：${missing.join('、')}`:'配方信息已齐，可以检查定稿。'}${s.status==='GENERATING'?'\n\n正在整理这一轮，请稍候。':''}`);
+  parts.push(`🔒 **私密菜品卡 · 研发**\n${s.status==='CHOOSING'?'先选择菜品类型。':compactDishText(s)}${lastReply?`\n\n**当前引导**\n${clean(lastReply,350)}`:''}${candidatePreview}\n\n${missing.length?`还缺：${missing.join('、')}`:'配方信息已齐，可以检查定稿。'}${s.status==='GENERATING'?'\n\n正在整理这一轮，请稍候。':''}`);
   if(s.status==='CHOOSING'){
    parts.push(row(sessionButton(g,u,s,'ugcType~drink','🥤 饮品'),sessionButton(g,u,s,'ugcType~dessert','🍰 甜点'),sessionButton(g,u,s,'ugcType~savory','🥪 小食/主食')));
    parts.push(row(sessionButton(g,u,s,'ugcAskConfirm~cancel','取消研发',2)));
   } else {
    const generating=s.status==='GENERATING';
-   parts.push(row(sessionButton(g,u,s,'ugcChat','告诉她我的想法',1,generating),sessionButton(g,u,s,'ugcEdit','修改一项',2,generating||!!candidate),sessionButton(g,u,s,'ugcPrice','填写/修改售价',2,generating)));
+   const controls=[sessionButton(g,u,s,'ugcChat',s.retryText?'继续补充想法':'告诉她我的想法',1,generating),sessionButton(g,u,s,'ugcEdit','修改一项',2,generating||!!candidate),sessionButton(g,u,s,'ugcPrice','填写/修改售价',2,generating)];
+   if(s.retryText)controls.push(sessionButton(g,u,s,'ugcRetry','重试上一轮',1,generating));
+   parts.push(row(...controls));
    parts.push(row(sessionButton(g,u,s,`ugcAskConfirm~undo`,'回退上一轮',2,generating||!(s.snapshots?.length)),sessionButton(g,u,s,'ugcAskConfirm~restart','重新研发'),sessionButton(g,u,s,'ugcAskConfirm~cancel','取消研发')));
    if(candidate)parts.push(row(sessionButton(g,u,s,`ugcEdit~${candidate.target}`,'继续讨论'),sessionButton(g,u,s,'ugcAdoptEdit~'+s.revision,'采用修改',1),sessionButton(g,u,s,'ugcDiscardEdit~'+s.revision,'放弃本次修改',2)));
    else if(s.edit_target)parts.push(row(sessionButton(g,u,s,'ugcDiscardEdit~'+s.revision,'放弃本次修改',2)));
@@ -78,6 +80,13 @@ function decodeQuery(s){try{const raw=atob(String(s).replaceAll('-','+').replace
 function browsePage(b,g,u,query=''){const items=b.items||[],page=b.page||0,components=[];if(items.length)components.push(row({type:3,custom_id:cid(g,u,'ugcBrowsePick'),placeholder:'选择一款创作菜品，打开私密点单预览',min_values:1,max_values:1,options:items.slice(0,20).map(x=>({label:clean(x.name,86),value:String(x.id).slice(0,100),description:`${clean(x.author,32)} · ${x.price}币`.slice(0,100)}))}));const nav=[],token=query?encodeQuery([...query].slice(0,8).join('')):'';if(page>0)nav.push(button(g,u,`ugcB~${page-1}~${token}`,'上一页'));if(b.hasMore)nav.push(button(g,u,`ugcB~${page+1}~${token}`,'下一页'));nav.push(button(g,'any','ugcBrowse','刷新'),button(g,u,'ugcBrowseSearch','搜索'),button(g,u,'ugcView','我的研发'));components.push(row(...nav.slice(0,5)));return {content:`🔒 **大家的创作菜单** · 第 ${page+1} 页${query?` · 搜索：${clean(query,8)}`:''}\n${items.map(x=>`• **${clean(x.name,24)}** · ${clean(x.author,32)} · ${Number.isInteger(x.price)?`${x.price}币`:''}`).join('\n')||'这里还没有公开作品。'}\n\n选择作品只会打开你的私密点单预览；确认前不会扣款。`,components,allowed_mentions:mentionAllowed};}
 function modal(g,u,action,title,label,max=800,min=1){return {type:9,data:{custom_id:cid(g,u,action),title,components:[row({type:4,custom_id:'value',label,style:2,min_length:min,max_length:max,required:true})]}};}
 function valueFrom(i,key='value'){return i.data?.components?.flatMap(x=>x.components||[]).find(x=>x.custom_id===key)?.value??'';}
+function failedTurnPage(view,g,u,isEdit){const page=homePage(view,g,u);page.content=`⚠️ ${isEdit?'本轮修改':'本轮研发'}没有完成，菜品卡未改变；你输入的要求已经暂存。点击“重试上一轮”会用原文重新生成，无需重打。\n\n${page.content}`.slice(0,1900);return page;}
+async function runTurn(env,p,turn,turnBase){
+ const isEdit=!!turn.target,model=await generateUgcCandidate(env,{...turn,text:turn.text});
+ if(model.errorCode){console.warn('ugc_generation_failed',{reason:model.errorCode});const view=await call(env,{...turnBase,action:'ugcFailTurn',errorCode:model.errorCode});return failedTurnPage(view,p.g,p.u,isEdit);}
+ try{return homePage(await call(env,{...turnBase,action:'ugcFinishTurn',reply:model.reply,patch:model.patch,missing:model.missing}),p.g,p.u);}
+ catch(error){console.error('ugc_candidate_persist_failed',{reason:String(error?.message||error?.name||'unknown').slice(0,120)});const view=await call(env,{...turnBase,action:'ugcFailTurn',errorCode:'candidate_persist_failed'});return failedTurnPage(view,p.g,p.u,isEdit);}
+}
 async function dispatch(env,p,action,i){const base={...baseOf(p),...(p.sessionId?{sessionId:p.sessionId,revision:p.revision}:{})};
  if(action==='研发'||action==='ugcView'){return homePage(await call(env,{...base,action:'ugcView'}),p.g,p.u);}
  if(action==='创作菜单'||action==='ugcBrowse'){const b=await call(env,{...base,action:'ugcList',page:0});return browsePage(b,p.g,p.u);}
@@ -89,17 +98,26 @@ async function dispatch(env,p,action,i){const base={...baseOf(p),...(p.sessionId
  if(action==='ugcStart'){return homePage(await call(env,{...base,action:'ugcStart'}),p.g,p.u);}
  if(action.startsWith('ugcType~')){const value=action.split('~')[1];if(!['drink','dessert','savory'].includes(value))throw Error('请选择有效的菜品类型。');return homePage(await call(env,{...base,action:'ugcType',value}),p.g,p.u);}
  if(action==='ugcChat')return modal(p.g,p.u,'ugcSubmitTurn','告诉她我的想法','最多800字',800);
+ if(action==='ugcRetry'){
+  const view=await call(env,{...base,action:'ugcView'}),s=sessionOf(view);
+  if(!s?.retryText)throw Error('没有可重试的上一轮，请刷新菜品卡后继续。');
+  if((base.sessionId&&s.id!==base.sessionId)||(base.revision!==undefined&&s.revision!==base.revision))throw Error('菜品卡已更新，请刷新后再重试。');
+  const turn=await call(env,{...base,action:'ugcBeginTurn',text:s.retryText,...(s.retryTarget?{target:s.retryTarget}:{}),requestKey:i.id});
+  if(turn.repeated)return homePage({session:turn.session},p.g,p.u);
+  const turnBase={...base,sessionId:turn.session?.id||base.sessionId,revision:turn.revision,turnId:turn.turnId};
+  return runTurn(env,p,turn,turnBase);
+ }
  if(action==='ugcSubmitTurn'){
   const text=valueFrom(i);if(!text.trim()||text.length>800)throw Error('请输入1～800字的研发想法。');
   const turn=await call(env,{...base,action:'ugcBeginTurn',text:text.trim(),requestKey:i.id});
   if(turn.repeated)return homePage({session:turn.session,attemptsRemaining:undefined},p.g,p.u);
   const turnBase={...base,sessionId:turn.session?.id||base.sessionId,revision:turn.revision,turnId:turn.turnId};
-  const model=await generateUgcCandidate(env,{...turn,text:text.trim()});if(model.errorCode){await call(env,{...turnBase,action:'ugcFailTurn',errorCode:model.errorCode});throw Error(model.userMessage);}
-  try{const b=await call(env,{...turnBase,action:'ugcFinishTurn',reply:model.reply,patch:model.patch,missing:model.missing});return homePage(b,p.g,p.u);}catch{await call(env,{...turnBase,action:'ugcFailTurn',errorCode:'model_or_validation'}).catch(()=>{});throw Error('这轮没有生成成功，原草稿已保留，请稍后重试。');}
+  return runTurn(env,p,turn,turnBase);
  }
  if(action==='ugcEdit'){
   const context={id:p.sessionId,revision:p.revision},components=[];for(let n=0;n<editFields.length;n+=5)components.push(row(...editFields.slice(n,n+5).map(([target,label])=>sessionButton(p.g,p.u,context,`ugcEdit~${target}`,label))));
-  return {content:'选择要逐项修改的字段。修改先生成候选，采用后才更新菜品卡。',components,allowed_mentions:mentionAllowed};
+  components.push(row(sessionButton(p.g,p.u,context,'ugcView','取消并返回菜品卡')));
+  return {content:'选择要逐项修改的字段。还没提交修改时，可以取消并返回菜品卡；提交后的候选也可以放弃。采用后才更新菜品卡。',components,allowed_mentions:mentionAllowed};
  }
  if(action.startsWith('ugcEdit~')){
   throw Error('请重新打开修改字段面板。');
@@ -112,8 +130,7 @@ async function dispatch(env,p,action,i){const base={...baseOf(p),...(p.sessionId
   const turn=await call(env,{...base,action:'ugcBeginTurn',text:text.trim(),target,requestKey:i.id});
   if(turn.repeated)return homePage({session:turn.session},p.g,p.u);
   const turnBase={...base,sessionId:turn.session?.id||base.sessionId,revision:turn.revision,turnId:turn.turnId};
-  const model=await generateUgcCandidate(env,{...turn,text:text.trim()});if(model.errorCode){await call(env,{...turnBase,action:'ugcFailTurn',errorCode:model.errorCode});throw Error(model.userMessage);}
-  try{const b=await call(env,{...turnBase,action:'ugcFinishTurn',reply:model.reply,patch:model.patch,missing:model.missing});return homePage(b,p.g,p.u);}catch{await call(env,{...turnBase,action:'ugcFailTurn',errorCode:'model_or_validation'}).catch(()=>{});throw Error('这轮修改没有完成，原菜品卡保持不变。');}
+  return runTurn(env,p,turn,turnBase);
  }
  if(action==='ugcSetPrice'){const raw=valueFrom(i);if(!/^\d+$/.test(raw)||Number(raw)<10||Number(raw)>50)throw Error('售价只能填写10～50之间的整数。');return homePage(await call(env,{...base,action:'ugcPrice',value:Number(raw)}),p.g,p.u);}
  if(action.startsWith('ugcAdoptEdit~'))return homePage(await call(env,{...base,action:'ugcAdoptEdit',revision:Number(action.split('~')[1])}),p.g,p.u);

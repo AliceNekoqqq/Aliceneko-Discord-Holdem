@@ -6,10 +6,10 @@ import {answerUgc,immediateUgcReply} from './tavern-ugc-ui.mjs';
 
 test('private UGC flow opens modals immediately, carries user ideas, edits one field, prices and publishes once',async t=>{
  const db=new DatabaseSync(':memory:'),map=new Map(),store={sql:{exec(q,...args){const st=db.prepare(q);if(st.columns().length){const rows=st.all(...args);return {toArray:()=>rows,one:()=>rows[0]};}st.run(...args);return {toArray:()=>[]};}},transactionSync(fn){db.exec('BEGIN');try{const r=fn();db.exec('COMMIT');return r;}catch(e){db.exec('ROLLBACK');throw e;}},get:async k=>map.get(k),put:async(k,v)=>map.set(k,v)};
- const service=new TavernService(store),g='12345678901234567890',u='22345678901234567890';let id=0,modelCalls=0;const errors=[];
- const env={GEMINI_API_KEY:'fixture',GEMINI_API_BASE_URL:'https://fixture.invalid/v1',TABLES:{idFromName:n=>n,get:()=>({fetch:async(_url,init)=>{try{return Response.json(await service.dispatch(JSON.parse(init.body)));}catch(e){errors.push(e.message);return Response.json({error:e.message});}}})}};
- const oldFetch=globalThis.fetch;t.after(()=>{globalThis.fetch=oldFetch;db.close();});
- globalThis.fetch=async(_url,init)=>{modelCalls++;const body=JSON.parse(init.body);assert(body.messages.some(m=>m.content.includes('柠檬')));assert(!JSON.stringify(body).includes(u));return Response.json({choices:[{message:{content:JSON.stringify({reply:'这杯可以搭配小饼干。',patch:modelCalls===1?{name:'柠檬清茶',type:'drink',ingredients:['柠檬','茶叶','清水'],flavor:'清香微酸',method:'茶汤加入柠檬片',temperature:'cold',description:'清爽的柠檬茶',appearance:'玻璃杯与柠檬片'}:{flavor:'柠檬香气更浓'},missing:[]})},finish_reason:'stop'}]});};
+ const service=new TavernService(store),g='12345678901234567890',u='22345678901234567890';let id=0,modelCalls=0,failPersist=true;const errors=[],warnings=[],loggedErrors=[];
+ const env={GEMINI_API_KEY:'fixture',GEMINI_API_BASE_URL:'https://fixture.invalid/v1',TABLES:{idFromName:n=>n,get:()=>({fetch:async(_url,init)=>{try{const request=JSON.parse(init.body);if(request.action==='ugcFinishTurn'&&failPersist){failPersist=false;errors.push('injected_finish_failure');return Response.json({error:'injected_finish_failure'});}return Response.json(await service.dispatch(request));}catch(e){errors.push(e.message);return Response.json({error:e.message});}}})}};
+ const oldFetch=globalThis.fetch,oldWarn=console.warn,oldError=console.error;t.after(()=>{globalThis.fetch=oldFetch;console.warn=oldWarn;console.error=oldError;db.close();});console.warn=(...args)=>warnings.push(args);console.error=(...args)=>loggedErrors.push(args);
+ globalThis.fetch=async(_url,init)=>{modelCalls++;const body=JSON.parse(init.body);assert(body.messages.some(m=>m.content.includes('柠檬')));assert(!JSON.stringify(body).includes(u));const patch=modelCalls<=2?{ingredients:'柠檬'}:modelCalls===5?{flavor:'柠檬香气更浓'}:{name:'柠檬清茶',type:'drink',ingredients:['柠檬','茶叶','清水'],flavor:'清香微酸',method:'茶汤加入柠檬片',temperature:'cold',description:'清爽的柠檬茶',appearance:'玻璃杯与柠檬片'};return Response.json({choices:[{message:{content:JSON.stringify({reply:'这杯可以搭配小饼干。',patch,missing:[]})},finish_reason:'stop'}]});};
  const interact=(custom,type=3,value)=>({type,id:String(++id),guild_id:g,channel_id:'33',member:{nick:'测试研发者',user:{id:u}},message:{flags:64},data:type===2?{name:'酒馆',options:[{name:'研发'}]}:{custom_id:custom,...(value===undefined?{}:{components:[{components:[{custom_id:'value',value}]}]})}});
  const check=page=>{assert(page.content.length<=2000);assert(Array.isArray(page.components),page.content+' '+errors.join('; '));assert(page.components.length<=5);const ids=[];for(const row of page.components){assert(row.components.length<=5);for(const c of row.components)if(c.custom_id){assert(c.custom_id.length<=100,c.custom_id);ids.push(c.custom_id);}}assert.equal(new Set(ids).size,ids.length);return page;};
  const find=(page,part)=>{const c=page.components.flatMap(r=>r.components).find(c=>c.custom_id?.includes(part));assert(c,part);return c.custom_id;};
@@ -17,11 +17,18 @@ test('private UGC flow opens modals immediately, carries user ideas, edits one f
  page=check(await answerUgc(env,interact(find(page,':ugcStart'))));
  page=check(await answerUgc(env,interact(find(page,':ugcType~drink'))));
  let modal=immediateUgcReply(interact(find(page,':ugcChat')));assert.equal(modal.type,9);assert(modal.data.custom_id.length<=100);
- page=check(await answerUgc(env,interact(modal.data.custom_id,5,'我想研发清爽的柠檬茶')));assert(page.content.includes('可以搭配小饼干'));
+ page=check(await answerUgc(env,interact(modal.data.custom_id,5,'我想研发清爽的柠檬茶')));assert(page.content.includes('原文重新生成'));assert(page.content.includes('重试上一轮'));
+ assert.equal(service.one('SELECT last_failed_text FROM tavern_ugc_sessions').last_failed_text,'我想研发清爽的柠檬茶');
+ page=check(await answerUgc(env,interact(find(page,':ugcRetry'))));assert(page.content.includes('原文重新生成'));assert.equal(service.one('SELECT last_failed_text FROM tavern_ugc_sessions').last_failed_text,'我想研发清爽的柠檬茶');assert(loggedErrors.some(([code,details])=>code==='ugc_candidate_persist_failed'&&details.reason==='injected_finish_failure'));
+ page=check(await answerUgc(env,interact(find(page,':ugcRetry'))));assert(page.content.includes('柠檬清茶'));assert(!page.components.flatMap(r=>r.components).some(c=>c.custom_id?.includes(':ugcRetry')));
+ assert.equal(service.one('SELECT last_failed_text FROM tavern_ugc_sessions').last_failed_text,null);
  modal=immediateUgcReply(interact(find(page,':ugcPrice')));assert.equal(modal.type,9);
  page=check(await answerUgc(env,interact(modal.data.custom_id,5,'20')));assert(page.content.includes('20币'));
  const fields=await answerUgc(env,interact(find(page,':ugcEdit~')));
- modal=immediateUgcReply(interact(find(fields,':ugcEdit~flavor')));assert.equal(modal.type,9);
+ assert(fields.content.includes('取消并返回菜品卡'));
+ page=check(await answerUgc(env,interact(find(fields,':ugcView~'))));assert(page.content.includes('菜品卡'));
+ const reopened=await answerUgc(env,interact(find(page,':ugcEdit~')));
+ modal=immediateUgcReply(interact(find(reopened,':ugcEdit~flavor')));assert.equal(modal.type,9);
  page=check(await answerUgc(env,interact(modal.data.custom_id,5,'让柠檬的香气更浓一点')));assert(page.content.includes('修改候选'));
  page=check(await answerUgc(env,interact(find(page,':ugcAdoptEdit~'))));
  assert(page.content.includes('柠檬香气更浓'));assert(page.content.includes('20币'));
@@ -32,5 +39,5 @@ test('private UGC flow opens modals immediately, carries user ideas, edits one f
  assert.equal(service.one('SELECT COUNT(*) n FROM tavern_ugc_dishes').n,1);
  assert.equal(service.one('SELECT COUNT(*) n FROM tavern_ugc_daily').n,1);
  const saved=service.one('SELECT draft_json,history_json,snapshots_json FROM tavern_ugc_sessions');assert.equal(saved.draft_json,'{}');assert.equal(saved.history_json,'[]');assert.equal(saved.snapshots_json,'[]');
- assert.equal(modelCalls,2);
+ assert.equal(modelCalls,5);
 });
