@@ -4,14 +4,16 @@ import { CATALOG } from './rogue-catalog.mjs';
 import { legalCards, legalItems } from './rogue-battle.mjs';
 import { ITEMS, DIFFICULTIES, EVENTS } from './rogue-content-v07.mjs';
 import { PROFESSIONS, CATALOG_V08, ITEMS as ITEMS_V08, EVENTS as EVENTS_V08, DIFFICULTIES as DIFFICULTIES_V08 } from './rogue-content-v08.mjs';
-import { getCatalog } from './rogue-content-v09.mjs';
+import { getCatalog } from './rogue-content-v10.mjs';
 import { analyzeRogueBuild, explainRogueCandidate, previewRogueDeckChange } from './rogue-build-guide.mjs';
 import { summarizeObservationLines } from './rogue-observation.mjs';
+import { analyzeBuild, candidateFit } from './rogue-build-system.mjs';
+import { normalizeEffectMetrics } from './rogue-effect-metrics.mjs';
 let ACTIVE_CATALOG = getCatalog('0.7');
 let ACTIVE_ITEMS = ITEMS;
 let ACTIVE_EVENTS = EVENTS;
-const v08 = (run) => /(?:^|[^0-9])0\.[89](?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
-const expanded = (run) => run?.catalogVersion == null && run?.ruleVersion == null || /(?:^|[^0-9])0\.[789](?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
+const v08 = (run) => /(?:^|[^0-9])0\.(?:[89]|10)(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
+const expanded = (run) => run?.catalogVersion == null && run?.ruleVersion == null || /(?:^|[^0-9])0\.(?:[789]|10)(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
 const useRunCatalog = (run) => { ACTIVE_CATALOG = getCatalog(run?.catalogVersion ?? run?.ruleVersion ?? '0.7'); ACTIVE_ITEMS = ACTIVE_CATALOG.items ?? ITEMS; ACTIVE_EVENTS = v08(run) ? EVENTS_V08 : ACTIVE_CATALOG.events ?? EVENTS; return ACTIVE_CATALOG; };
 function storyLines(run) {
   const story = run?.story;
@@ -46,6 +48,10 @@ function cardDef(entity) {
   return b ? (entity.upgraded ? { ...b, ...b.upgrade } : b) : null;
 }
 function buildLines(run) {
+  if(run.ruleVersion === 'lantern-rules-v0.10'){
+    const report=analyzeBuild(run,ACTIVE_CATALOG);
+    return ['构筑方向（组件参考）：', ...report.directions.map(d=>`${d.name}：${d.components.slice(0,3).join('、') || '尚无对应组件'}；${d.gaps.slice(0,2).join('；') || '组件存在，仍需安排兑现时机'}`), '牌组越厚，关键牌越难集中抽到；可以跳牌或改换方向。'];
+  }
   const report = analyzeRogueBuild(run);
   if (!report.analyzed) return [];
   return ['构筑线索（仅核对已有组件）：', ...report.directions.map(d => `${d.name}：已有${d.components.join('、') || '暂无对应组件'}${d.gaps.length ? `；${d.gaps.join('；')}` : '；配合是否稳定仍取决于抽牌和出牌时机'}`), report.note];
@@ -56,6 +62,10 @@ function changePreview(run, entity, action) {
   if (action === 'remove') return p.cycleEffect;
   const base = cardOf(entity.cardId);
   return `升级前：${base.cost}能量，${cardEffectLines(base).join('、')}\n升级后：${p.upgrade.after.cost}能量，${cardEffectLines({ ...base, ...base.upgrade }).join('、')}`;
+}
+function effectMetricLines(run){
+  const m=normalizeEffectMetrics(run.effectMetrics);
+  return [`实际治疗${m.healing} · 溢出${m.overheal} · 盾吸收${m.shieldAbsorbed}`, `备势投入${m.prepareConsumed} · 标记投入${m.markConsumed}（直伤仍受护甲与盾减免）`, `主动补抽${m.drawSucceeded} · 成功保留${m.retainSucceeded} · 强化牌使用${m.upgradedCardsPlayed} · 回声${m.echoReplays}次`];
 }
 const uidEligible = (run, source, kind) => {
   const deck = run.deck ?? [];
@@ -77,7 +87,7 @@ export function rogueUidEligible(run, source, kind, uid) {
 export function renderRogueUidPage(run, source, kind, page = 0, { update = false } = {}) {
   useRunCatalog(run);
   const entries = uidEligible(run, source, kind);
-  const pageSize = run.ruleVersion === 'lantern-rules-v0.9' ? 5 : 25;
+  const pageSize = ['lantern-rules-v0.9','lantern-rules-v0.10'].includes(run.ruleVersion) ? 5 : 25;
   const totalPages = Math.max(1, Math.ceil(entries.length / pageSize));
   const active = Math.min(totalPages - 1, Math.max(0, Number.isSafeInteger(page) ? page : 0));
   const visible = entries.slice(active * pageSize, (active + 1) * pageSize);
@@ -88,7 +98,7 @@ export function renderRogueUidPage(run, source, kind, page = 0, { update = false
   else c.push(row(button('没有可选牌', cid(run, 'refresh', 'empty'), 2, true)));
   c.push(row(button('上一页', cid(run, 'uid-prev', `${source}:${kind}:${Math.max(0, active - 1)}`), 2, active === 0), button('下一页', cid(run, 'uid-next', `${source}:${kind}:${Math.min(totalPages - 1, active + 1)}`), 2, active >= totalPages - 1)));
   c.push(row(button(source === 'shop' ? '返回商店' : '返回房间', cid(run, 'refresh'), 2)));
-  const previews = run.ruleVersion === 'lantern-rules-v0.9' ? visible.map(e => `#${e.uid} ${cardName(e.cardId)}\n${changePreview(run, e, kind)}`).join('\n\n') : '';
+  const previews = ['lantern-rules-v0.9','lantern-rules-v0.10'].includes(run.ruleVersion) ? visible.map(e => `#${e.uid} ${cardName(e.cardId)}\n${changePreview(run, e, kind)}`).join('\n\n') : '';
   return panel(`${source === 'shop' ? '商店' : source === 'camp' ? '营地' : '事件'} · ${label}牌`, `${kind === 'upgrade' ? '未升级且支持升级' : '所有牌'} · 第${active + 1}/${totalPages}页 · 共${entries.length}张。选择要处理的牌。${previews ? `\n\n${previews}` : ''}`, c, update);
 }
 function cid(run, action, arg) {
@@ -144,13 +154,13 @@ export function renderRogueHome({ challengeProfession = null, homeInfo = {}, upd
   return panel('灯下迷城', `${WORLD_INTRO}\n\n先选择职业，再查看已解锁的难度。\n正式局：每天前2次开局可获得金币奖励，实际到账受每日上限限制。\n练习局：不发金币、不占奖励开局次数；通关也能推进职业难度。\n每日挑战：${challenge}\n职业进度：${progress.join('；') || '各职业从难度0开始'}\n\n${hint}`, components, update);
 }
 
-export function renderRogueSettings({ professionId, difficulty = 0, mode = 'normal', homeInfo = {}, update = false, catalogVersion = '0.9' } = {}) {
+export function renderRogueSettings({ professionId, difficulty = 0, mode = 'normal', homeInfo = {}, update = false, catalogVersion = '0.10' } = {}) {
   const prof = getCatalog(catalogVersion).professions?.[professionId] ?? PROFESSIONS[professionId];
   if (!prof) return renderRogueHome({ update });
   const progress = (homeInfo.progress ?? []).find((p) => p.professionId === professionId);
   const unlocked = Math.max(0, Math.min(10, Number.isInteger(progress?.unlocked) ? progress.unlocked : 0));
   const selected = Math.max(0, Math.min(unlocked, Number.isInteger(difficulty) ? difficulty : 0));
-  const allDifficulties = /0\.[89]/.test(String(catalogVersion)) ? DIFFICULTIES_V08 : (Array.isArray(DIFFICULTIES) ? DIFFICULTIES : Object.values(DIFFICULTIES ?? {}));
+  const allDifficulties = /0\.(?:[89]|10)/.test(String(catalogVersion)) ? DIFFICULTIES_V08 : (Array.isArray(DIFFICULTIES) ? DIFFICULTIES : Object.values(DIFFICULTIES ?? {}));
   const diffs = allDifficulties.filter((d) => Number.isInteger(d.level) && d.level <= unlocked).sort((a,b) => a.level-b.level);
   const difficultyDef = allDifficulties.find((x) => x.level === selected);
   const options = diffs.map((d) => ({ label: `${d.level} · ${d.name}`, value: String(d.level), description: d.description ?? '' }));
@@ -248,7 +258,8 @@ export function renderRogueDetails(run, kind = 'deck', { update = false, page = 
   const visible = entries.slice(activePage * 12, (activePage + 1) * 12);
   const intro = kind === 'deck' ? `职业：${(ACTIVE_CATALOG.professions?.[run.professionId] ?? PROFESSIONS[run.professionId])?.name ?? '提灯旅人'}。${(ACTIVE_CATALOG.professions?.[run.professionId] ?? PROFESSIONS[run.professionId])?.description ?? ''}\n` : '';
   const hints = kind === 'deck' ? buildLines(run).join('\n') : '';
-  const description = `${intro}${hints ? `${hints}\n\n` : ''}${visible.join('\n')}\n\n第${activePage + 1}/${totalPages}页 · 共${entries.length}项`;
+  const metrics=kind==='deck'&&run.effectMetrics ? effectMetricLines(run).join('\n') : '';
+  const description = `${intro}${hints ? `${hints}\n\n` : ''}${visible.join('\n')}${metrics ? `\n\n本局兑现记录：\n${metrics}` : ''}\n\n第${activePage + 1}/${totalPages}页 · 共${entries.length}项`;
   const paging = row(button('上一页', cid(run, 'details-prev', `${kind}:${Math.max(0, activePage - 1)}`), 2, activePage === 0), button('下一页', cid(run, 'details-next', `${kind}:${Math.min(totalPages - 1, activePage + 1)}`), 2, activePage >= totalPages - 1));
   return panel(title, description, [row(button('牌组', cid(run, 'details', 'deck:0'), kind === 'deck' ? 1 : 2), button('地图', cid(run, 'details', 'map:0'), kind === 'map' ? 1 : 2), button('遗物', cid(run, 'details', 'relics:0'), kind === 'relics' ? 1 : 2), button('道具', cid(run, 'details', 'inventory:0'), kind === 'inventory' ? 1 : 2), button('玩法与故事', cid(run, 'details', 'guide:0'), 2)), paging, row(button('返回远征', cid(run, 'refresh'), 2))], update);
 }
@@ -531,9 +542,12 @@ function renderReward(run, update) {
     rows.push(controlRow(run));
     const itemHint = kinds.includes('item') && (run.inventory ?? []).length >= 2 && selections.item?.id == null ? '\n道具栏已满：选择替换位置才会领取新道具，也可以跳过。' : '';
     const cardCandidates = queue.find(stage => stage.kind === 'card')?.candidates ?? [];
-    const hints = ['messenger','medic'].includes(run.professionId) && run.ruleVersion === 'lantern-rules-v0.9'
+    const hints = run.ruleVersion === 'lantern-rules-v0.10'
+      ? cardCandidates.map(id=>{const fit=candidateFit(run,id,ACTIVE_CATALOG);return `${cardName(id)} · ${fit.category}：${fit.reason}`;}).join('\n')
+      : ['messenger','medic'].includes(run.professionId) && run.ruleVersion === 'lantern-rules-v0.9'
       ? cardCandidates.map(id => `${cardName(id)}：${explainRogueCandidate(run,id).reason ?? ''}`).join('\n') : '';
-    return panel('战利品 · 等待领取', `奖励尚未领取。可更换下拉选项，最后点击「确认领取所选奖励」继续；不更换就领取默认选项。\n\n${summaries.join('\n\n')}${itemHint}${hints ? `\n\n候选用途（可自由跳牌）：\n${hints}` : ''}`, rows, update);
+    const recommendation=run.ruleVersion === 'lantern-rules-v0.10' ? (reward.recommendedCard ? `\n补强参考：${cardName(reward.recommendedCard)}。${reward.recommendationReason ?? ''}` : '\n暂无明确补强参考；新卡默认跳过，可自行选择。') : '';
+    return panel('战利品 · 等待领取', `奖励尚未领取。可更换各项选择，最后点击「确认领取所选奖励」。${recommendation}\n\n${summaries.join('\n\n')}${itemHint}${hints ? `\n\n候选用途（可自由跳牌）：\n${hints}` : ''}`, rows, update);
   }
   const stage = reward.queue?.[reward.index];
   if (!stage) return panel('战利品', '当前奖励已处理。', [controlRow(run)], update);
@@ -570,7 +584,8 @@ function renderResult(run, update) {
   if (rank) lines.push(rank);
   const observation = summarizeObservationLines(run);
   if (observation.length) lines.push('\n本局记录（仅含接入后操作）', ...observation);
-  if (run.ruleVersion === 'lantern-rules-v0.9') lines.push(`最终牌组：${run.deck?.length ?? 0}张 · 遗物：${run.relics?.length ?? 0}件`);
+  if (run.effectMetrics) lines.push('\n效果兑现', ...effectMetricLines(run));
+  if (['lantern-rules-v0.9','lantern-rules-v0.10'].includes(run.ruleVersion)) lines.push(`最终牌组：${run.deck?.length ?? 0}张 · 遗物：${run.relics?.length ?? 0}件`);
   const defaultProfession = Object.hasOwn(PROFESSIONS, run.professionId) ? run.professionId : Object.hasOwn(PROFESSIONS, 'traveler') ? 'traveler' : Object.keys(PROFESSIONS)[0];
   return panel('远征结算', lines.join('\n'), [row(button('再来一局', `rl:settings:${defaultProfession}`), button('挑战远征', 'rl:start:challenge')), row(button('返回首页', 'rl:home', 2), button('查看榜单', 'rl:board', 2))], update);
 }

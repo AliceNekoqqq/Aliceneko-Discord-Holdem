@@ -1,7 +1,7 @@
-import { getCatalog } from './rogue-content-v09.mjs';
+import { getCatalog } from './rogue-content-v10.mjs';
 import { cardEffectLines } from './rogue-card-guide.mjs';
 
-const supported09 = (version) => /(?:^|[^0-9])0\.9(?:$|[^0-9])/.test(String(version ?? ''));
+const supported09 = (version) => /(?:^|[^0-9])0\.(?:9|10)(?:$|[^0-9])/.test(String(version ?? ''));
 const effectsOf = (card) => Array.isArray(card?.effects) ? card.effects : [];
 const countKind = (cards, kind) => cards.reduce((n, card) => n + effectsOf(card).filter((e) => e.kind === kind).length, 0);
 const unique = (xs) => [...new Set(xs)];

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CATALOG_V09 as C, getCatalog, PROFESSIONS } from './rogue-content-v09.mjs';
 import { CATALOG_V08 } from './rogue-content-v08.mjs';
-import { createRun, runAction, CURRENT_RULE_VERSION, V08_RULE_VERSION } from './rogue-run.mjs';
+import { createRun, runAction, V09_RULE_VERSION as CURRENT_RULE_VERSION, V08_RULE_VERSION } from './rogue-run.mjs';
 import { beginBattle, battleAction } from './rogue-battle.mjs';
 import { renderRogue, renderRogueDetails } from './rogue-ui.mjs';
 const fresh=(seed='audit')=>createRun({runId:'audit',owner:'1',guild:'1',seed,professionId:'messenger',ruleVersion:CURRENT_RULE_VERSION,now:0});
