@@ -1,6 +1,6 @@
 # 项目当前快照
 
-更新时间：2026-10-11（Asia/Shanghai）
+更新时间：2026-10-12（Asia/Shanghai）
 
 - beta.78部署核验补强已上线：22:45/22:47生产请求日志确认仍走旧systemRedPacket流程，无隐藏JSON；beta.77文件14:43:56Z已部署，常驻Gateway实际更新延后，此前单独health不足以证明聊天代码已更新。新增真实Gateway连接/认证/运行指纹核验，旧指纹或未就绪时health.ready=false，数据健康ok独立。聊天79、Worker27通过；main运行提交c166f30d06953d2dd5ada51cbb888bf15b79c8cb，发布检查38150717446全部成功；CF部署0a5c814d-93a4-41b4-bff3-0e133418fefe、版本46c77af4-007a-4764-832a-cc1d833f86f5接收100%，与beta.77版本资源bindings/配置/迁移标记比对不变，Cron仍每分钟。实际health已确认beta.78、ready:true、gateway.connected/ready:true、chatRuntime和expectedRuntime均chat78-red-packet-json。诊断tail已删除。真实新红包句式的Gemini提取/Discord领取仍待用户验证，勿将mock或连接就绪说成真实红包已成功。
 
@@ -96,3 +96,9 @@
 - beta.75/v0.14本地完成：只改裂甲巡官和镜链斗士两名精英。巡官蓄力护甲0、实际生命损失8破势、紧接重击每段减4；链斗士首牌直伤→4×3/5×3，否则7/9单击，后续牌不改。半血覆盖蓄力重击时立即更新next实际预告，破势取消不顺延。旧v13及更早冻结。
 - 本地灯下迷城266/266、Worker25/25通过，战斗图实渲目检；Luna独立128场v13/v14配对，50/64→58/64胜；30次实际减伤、5次阶段取消；新版巡官32/32胜是需观察的难度信号，不能证明真人平衡。详见docs/roguelike/P3_ELITE_AUDIT.md。
 - PR #15已合并，运行提交9f161f376a1d470cc3279e251f75fd3b4f254db8；PR检查38145723558与main部署38145845704成功。Cloudflare部署6fdb8be6-0716-4e83-bff2-ea9da0a203b9、版本9e2b24e1-f276-4d7c-afcc-1bd3a9e9e717接收100%流量；bindings/Secret名类型/compatibility/observability比对不变，wrangler/Cron/迁移未改。本环境未直接核验health。P3第二批完成，下一步首领阶段机制与预告，真人手机呈现与趣味待反馈，不能标为P3整体验收。
+
+## 灯下迷城 P3第三批（2026-10-12）
+
+- beta.79/v0.15本地完成：无灯执炬者8实际HP损失破势/紧接每段-4；镜巷执政官二阶段开场至多2牌架盾8、第三牌触发4×2攻击，最终张数结算不锁首牌；无灯钟主二阶段12实际HP损失破势/每段-2。6Bosscharge.next与实际循环同步，阶段触发时保存phaseNextIntent，图片/文字显示真实下一轮开场，旧v14及更早冻结。
+- 本地灯下迷城297/297、Worker27/27，战斗图实渲目检及标题/阶段转换标签专项12/12通过。Luna64局全程v14/v15同种子，两版13/32通关，各78次Boss遭遇、61胜17败；20次破势、10次tempo两分支、29次阶段预告实际匹配，难度10/65%阈值专项通过。见P3_BOSS_AUDIT.md。
+- 当前本地完成，准备PR/CI/部署；生产仍beta.78，已有红包与Gateway指纹代码保持，wrangler/绑定/Secret/迁移/Cron未改。P3三批机制实现完成但真人趣味和平衡未验收；下一步专项职业构筑与高进阶失败原因分析，再针对证据调整。
