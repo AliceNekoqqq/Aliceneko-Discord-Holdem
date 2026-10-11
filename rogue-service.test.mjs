@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {RogueService} from './rogue-service.mjs';
-import {RULE_VERSION,CURRENT_RULE_VERSION} from './rogue-run.mjs';
+import {RULE_VERSION,CURRENT_RULE_VERSION,V10_RULE_VERSION} from './rogue-run.mjs';
 import {dayKey} from './tavern-catalog.mjs';
 
 const NOW=Date.parse('2026-10-10T11:15:00Z');
@@ -196,4 +196,17 @@ test('zero-credit clear still unlocks and legacy confirmed clears inherit progre
  const s=new RogueService(f.host,'1',{idFactory:()=> 'zero-credit',clock:f.clock});assert.equal(s.progressFor('2','traveler').unlocked,1);
  f.db.prepare('INSERT INTO tavern_daily VALUES(?,?,150) ON CONFLICT(user_id,day) DO UPDATE SET earned=150').run('2',dayKey(NOW));
  const r=s.start({...f.p,requestId:'zero-start',mode:'normal',professionId:'traveler',difficulty:1});f.terminal(r);const done=s.settle({...f.p,runId:r.runId});assert.equal(done.receipt.amount,0);assert.equal(s.progressFor('2','traveler').unlocked,2);
+});
+
+import {beginBattle as beginBattleV10} from './rogue-battle-v10.mjs';
+import {CATALOG_V10} from './rogue-content-v10.mjs';
+test('default v11 service resumes frozen v10 combat with metrics and observation once per request',()=>{
+ const f=fixture(),old=new RogueService(f.host,'1',{idFactory:()=> 'frozen-v10',clock:f.clock,rulesVersion:V10_RULE_VERSION});
+ let r=old.start({...f.p,requestId:'frozen-v10-start',mode:'normal',professionId:'medic',difficulty:0});
+ r=old.act(command(f.p,r,'frozen-v10-bless',{type:'BLESSING',relicId:r.room.candidates[0]}));
+ r.phase='BATTLE';r.room={type:'battle',battleType:'normal',enemyId:CATALOG_V10.acts[0].normalPool[0],rewardGranted:false};
+ r.battle=beginBattleV10({enemyId:r.room.enemyId,professionId:'medic',hp:29,seed:'metrics',relics:[],deck:Array.from({length:8},(_,uid)=>({uid,cardId:'field_wrap',upgraded:false}))});old.save(r);
+ const current=new RogueService(f.host,'1',{clock:f.clock}),a=command(f.p,r,'frozen-v10-heal',{type:'PLAY',uid:r.battle.hand[0].uid});
+ const n=current.act(a);assert.equal(n.ruleVersion,V10_RULE_VERSION);assert.equal(n.effectMetrics.healing,1);assert.equal(n.effectMetrics.overheal,2);
+ assert.deepEqual(current.act(a),n);assert.deepEqual(current.resume({...f.p,runId:r.runId}),n);assert.ok(n.observation.entries.length>0);
 });

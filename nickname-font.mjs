@@ -39,6 +39,6 @@ export async function prepareNicknameFont(names,env){
  for(const char of missing){const key=Math.floor(char.codePointAt(0)/256);if(nicknameBlocks[key]){if(!groups.has(key))groups.set(key,[]);groups.get(key).push(char);}}
  await Promise.all([...groups].map(async([key,chars])=>{
   const entries=new Map((await loadBlock(key,env)).map(entry=>[entry[0],entry]));
-  for(const char of chars){const entry=entries.get(char.codePointAt(0));if(entry)glyphs[char]=[24,24,entry[1],entry[2],24];}
+  for(const char of chars){const entry=entries.get(char.codePointAt(0));if(entry)glyphs[char]=[24,24,entry[1],entry[2],entry[2].length,24];}
  }));
 }

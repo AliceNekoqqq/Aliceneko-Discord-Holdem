@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createRun,CURRENT_RULE_VERSION} from './rogue-run.mjs';
+import {createRun,V10_RULE_VERSION as CURRENT_RULE_VERSION} from './rogue-run.mjs';
 import {PROFESSIONS} from './rogue-content-v10.mjs';
 import {renderRogue,renderRogueDetails} from './rogue-ui.mjs';
 const body=r=>r.data.embeds[0].description;

@@ -1,9 +1,11 @@
 import { Canvas, encodePNG } from './card-image.mjs';
 import { prepareNicknameFont } from './nickname-font.mjs';
 import { PROFESSIONS } from './rogue-content-v09.mjs';
-import { getCatalog } from './rogue-content-v10.mjs';
+import { getCatalog } from './rogue-content-v11.mjs';
 import { legalCards } from './rogue-battle.mjs';
 import { cardGroups, cardEffectLines, cardWarnings, unavailableReason, battleHints } from './rogue-card-guide.mjs';
+import {connectedPlanFor,routeAnchor,routeSupplyLines,routeNodeReference} from './rogue-route-view.mjs';
+import {nextNodeIds,reachableNodeIds} from './rogue-route-graph.mjs';
 import { glyphs } from './card-glyphs.mjs';
 
 const W=960, H=800;
@@ -13,7 +15,7 @@ const WOOD=[91,58,43],WOOD_DARK=[57,39,34],WOOD_GOLD=[161,112,66];
 const rect=(c,x,y,w,h,col,r=0)=>c.rect(Math.round(x),Math.round(y),Math.round(w),Math.round(h),col,r);
 function circle(c,x,y,r,col){x=Math.round(x);y=Math.round(y);r=Math.round(r);for(let yy=-r;yy<=r;yy++)for(let xx=-r;xx<=r;xx++)if(xx*xx+yy*yy<=r*r)c.pixel(x+xx,y+yy,col);}
 function line(c,x1,y1,x2,y2,col,width=3){const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,y2-y1)));for(let i=0;i<=n;i++){const x=Math.round(x1+(x2-x1)*i/n),y=Math.round(y1+(y2-y1)*i/n);rect(c,x-width/2,y-width/2,width,width,col);}}
-const PUNCTUATION=new Map([['，',' '],['。','.'],['；',' / '],['：',' '],['、',' / '],['（',' '],['）',' '],['·',' '],['×','x'],['→',' '],['≤','至多'],['与','和']]);
+const PUNCTUATION=new Map([['①','1号'],['②','2号'],['③','3号'],['，',' '],['。','.'],['；',' / '],['：',' '],['、',' / '],['（',' '],['）',' '],['·',' '],['×','x'],['→',' '],['≤','至多'],['与','和']]);
 const rawImageText=value=>[...String(value??'')].map(ch=>PUNCTUATION.get(ch)??ch).join('').replace(/\s+/g,' ').trim();
 export function normalizeRogueImageText(value){return [...rawImageText(value)].filter(ch=>glyphs[ch]).join('');}
 function text(c,s,x,y,size,color=K.cream,center=false){c.text(normalizeRogueImageText(s),Math.round(x),Math.round(y),size,color,center);}
@@ -27,15 +29,18 @@ function routeModel(run,act,catalog){
  const plan=Array.isArray(run?.mapPlan)?run.mapPlan.find(p=>p.act===act):null;
  if(!plan){const visible=run?.act===act&&run?.room?.type==='route'&&Array.isArray(run.room.nodes)?run.room.nodes.map(n=>{const allowed=n.available===true&&(!Array.isArray(run.room.choices)||run.room.choices.includes(n.id));return {id:n.id,type:n.type,name:short(getName(n,catalog),8),status:allowed?'available':'future',disabled:!allowed};}):[];return {act,name:catalog.acts?.[act-1]?.name||`第 ${act} 幕`,known:false,visible};}
  const path=(run.path||[]).filter(p=>p.act===act),selected=new Map(path.map(p=>[p.nodeId,p.slot]));
+ const connected=Boolean(connectedPlanFor(run,act)),anchor=connected?routeAnchor(run,plan):null;
+ const reachable=new Set(connected?reachableNodeIds(plan,anchor):[]),nextIds=new Set(connected?nextNodeIds(plan,anchor):[]);
  const live=run.act===act&&run.phase==='ROUTE'&&run.room?.type==='route'?new Map((run.room.nodes||[]).map(n=>[n.id,n])):new Map();
  const columns=(plan.nodes||[]).map((nodes,i)=>(nodes||[]).map((base,j)=>{
-  const node=live.get(base.id)||base,station=(act-1)*5+i,done=run.completed>station,chosen=selected.has(base.id),current=chosen&&!done,choiceAllowed=!Array.isArray(run.room?.choices)||run.room.choices.includes(base.id),available=live.has(base.id)&&node.available===true&&choiceAllowed;
-  return {id:base.id,type:base.type,name:short(getName(base,catalog),8),status:chosen&&done?'completed':current?'current':available?'available':'future',chosen,disabled:live.has(base.id)&&(!choiceAllowed||node.available===false)};
+  const node=live.get(base.id)||base,station=(act-1)*5+i,done=run.completed>station,chosen=selected.has(base.id),current=chosen&&!done,choiceAllowed=!Array.isArray(run.room?.choices)||run.room.choices.includes(base.id),available=live.has(base.id)&&node.available===true&&choiceAllowed&&(!connected||nextIds.has(base.id));
+  const outside=connected&&!chosen&&run.act>=act&&(done||run.act>act||!reachable.has(base.id));
+  return {id:base.id,type:base.type,name:short(getName(base,catalog),8),status:chosen&&done?'completed':current?'current':available?'available':outside?'unreachable':'future',chosen,reachable:!connected||reachable.has(base.id),dangerous:Boolean(base.dangerous),mark:connected?routeNodeReference(plan,base.id)?.mark:null,disabled:outside||live.has(base.id)&&(!choiceAllowed||node.available===false)};
  }));
  const bossId=plan.bossId||run.bosses?.[act-1];
  const bossChosen=selected.has(`a${act}s5boss`),bossDone=run.completed>=(act-1)*5+5;
  const boss={id:`a${act}s5boss`,type:'boss',name:short(catalog.enemies[bossId]?.name||'Boss',8),status:bossChosen&&bossDone?'completed':bossChosen?'current':'future'};
- return {act,name:catalog.acts?.[act-1]?.name||`第 ${act} 幕`,known:true,columns,boss};
+ return {act,name:catalog.acts?.[act-1]?.name||`第 ${act} 幕`,known:true,columns,boss,connected,edges:connected?plan.edges.map(e=>({...e})):[],anchor,supplies:connected?routeSupplyLines(run,plan):[]};
 }
 export function describeRogueImage(run,view='auto'){
  const mode=view==='auto'?(run?.phase==='BATTLE'&&run?.battle?'battle':'map'):view;
@@ -50,10 +55,10 @@ export function describeRogueImage(run,view='auto'){
  return {mode:'map',act:run?.act??1,phase:run?.phase??'ROUTE',acts:(all?[1,2,3]:[run?.act??1]).map(a=>routeModel(run,a,catalog))};
 }
 function nodeColor(status){return status==='completed'?K.green:status==='available'||status==='current'?K.gold:K.gray;}
-function node(c,n,x,y,w=142,h=83){const col=nodeColor(n.status);rect(c,x,y,w,h,n.status==='future'?[29,46,62]:K.panel2,10);rect(c,x,y,w,4,col,4);if(h<50){text(c,n.name,x+w/2,y+9,15,n.status==='future'?K.muted:K.cream,true);return;}circle(c,x+17,y+21,6,col);text(c,n.status==='current'?'当前位置':labelType(n),x+30,y+13,15,n.status==='future'?K.muted:K.gold2);text(c,n.name,x+w/2,y+39,19,n.status==='future'?K.muted:K.cream,true);if(n.disabled)text(c,'暂不可选',x+w/2,y+62,13,K.muted,true);}
+function node(c,n,x,y,w=142,h=83){const col=nodeColor(n.status),muted=['future','unreachable'].includes(n.status);rect(c,x,y,w,h,n.status==='unreachable'?[20,34,47]:muted?[29,46,62]:K.panel2,10);rect(c,x,y,w,4,n.dangerous&&n.status==='available'?K.red:col,4);if(h<50){text(c,short(`${n.mark||''}${n.name}`,8),x+w/2,y+9,15,muted?K.muted:K.cream,true);return;}circle(c,x+17,y+21,6,col);const label=n.status==='current'?'当前位置':`${n.mark||''}${n.dangerous?'危险':labelType(n)}`;text(c,label,x+30,y+13,15,muted?K.muted:K.gold2);text(c,n.name,x+w/2,y+39,17,muted?K.muted:K.cream,true);if(n.disabled)text(c,n.status==='unreachable'?'支路外':'暂不可选',x+w/2,y+62,13,K.muted,true);}
 async function mapImage(run,view,env){
  const model=describeRogueImage(run,view),all=model.acts.length===3;
- const names=['灯下迷城','三幕行程','路线节点只表示走过明确记录的选择','已完成','当前可选','未抵达','第 1 站','第 2 站','第 3 站','第 4 站','Boss','暂不可选','旧存档未保存地图；当前没有可见路线选项。','当前路线选项','路径仅标记已选路线',String(run?.phase||''),String(run?.hp??'—')+' HP',...model.acts.flatMap(a=>[a.name,...(a.columns||[]).flatMap(col=>col.map(n=>n.name)),...(a.visible||[]).map(n=>n.name),a.boss?.name||''])];await prepGlyphs([...names,...UI_GLYPHS],env);
+ const names=['①②③','支路外','危险','沿连线规划','亮线为当前可走支路','营地与商店位置见上方提示',...model.acts.flatMap(a=>a.supplies||[]),'灯下迷城','三幕行程','路线节点只表示走过明确记录的选择','已完成','当前可选','未抵达','第 1 站','第 2 站','第 3 站','第 4 站','Boss','暂不可选','旧存档未保存地图；当前没有可见路线选项。','当前路线选项','路径仅标记已选路线',String(run?.phase||''),String(run?.hp??'—')+' HP',...model.acts.flatMap(a=>[a.name,...(a.columns||[]).flatMap(col=>col.map(n=>n.name)),...(a.visible||[]).map(n=>n.name),a.boss?.name||''])];await prepGlyphs([...names,...UI_GLYPHS],env);
  const c=new Canvas(W,H);rect(c,0,0,W,H,K.bg);
  // Quiet lantern glow and skyline marks frame the route board.
  circle(c,862,59,22,[60,74,83]);circle(c,862,59,12,K.gold);circle(c,868,54,10,K.bg);
@@ -67,12 +72,16 @@ async function mapImage(run,view,env){
    continue;
   }
   const x0=49, colGap=174, cardW=142, nodeY=(col,row)=>y+(all?56:76)+row*(all?40:104);
-  // Muted links show the option stages; colored links are only recorded choices.
+  // New rules draw only saved edges. Old maps retain their stage links.
   for(let col=0;col<4;col++){
    const prev=a.columns[col]||[],next=col===3?[a.boss]:(a.columns[col+1]||[]);
    for(let row=0;row<prev.length;row++)for(let nr=0;nr<next.length;nr++){
+    const fromNode=prev[row],toNode=next[nr];
+    if(a.connected&&!a.edges.some(e=>e.from===fromNode.id&&e.to===toNode.id))continue;
+    const active=a.connected&&fromNode.id===a.anchor&&toNode.status==='available';
+    const edgeColor=active?K.gold:a.connected&&!fromNode.reachable?[31,44,56]:[48,70,88];
     const toRow=col===3?0:nr,fromX=x0+col*colGap+cardW,fromY=nodeY(col,row)+(all?17:39),toX=x0+(col+1)*colGap,toY=nodeY(col+1,toRow)+(all?17:39);
-    line(c,fromX,fromY,toX,toY,[48,70,88],2);
+    line(c,fromX,fromY,toX,toY,edgeColor,active?3:2);
    }
   }
   const recorded=(run.path||[]).filter(p=>p.act===a.act).sort((u,v)=>(u.slot??0)-(v.slot??0));
@@ -80,9 +89,10 @@ async function mapImage(run,view,env){
   for(let i=1;i<recorded.length;i++){const from=pos.get(recorded[i-1].nodeId),to=pos.get(recorded[i].nodeId);if(from&&to){const col=(from[2]==='completed'&&to[2]==='completed')?K.green:K.gold;line(c,from[0],from[1],to[0],to[1],col,4);}}
   for(let col=0;col<4;col++)for(let row=0;row<(a.columns[col]||[]).length;row++)node(c,a.columns[col][row],x0+col*colGap,nodeY(col,row),cardW,all?34:82);
   node(c,a.boss,x0+4*colGap,nodeY(4,0),cardW,all?34:82);
+  if(!all&&a.connected){text(c,a.supplies[0]||'',x0,y+413,16,K.cream);text(c,a.supplies[1]||'',x0,y+440,15,K.muted);}
   if(!all){text(c,'第 1 站',x0+70,y+48,13,K.muted,true);text(c,'第 2 站',x0+244,y+48,13,K.muted,true);text(c,'第 3 站',x0+418,y+48,13,K.muted,true);text(c,'第 4 站',x0+592,y+48,13,K.muted,true);text(c,'Boss',x0+766,y+48,13,K.muted,true);}
  }
- const ly=all?738:675;rect(c,34,ly,892,55,[18,36,54],11);const legend=[['已完成',K.green],['当前可选',K.gold],['未抵达',K.gray]];legend.forEach(([s,col],i)=>{circle(c,65+i*170,ly+27,7,col);text(c,s,81+i*170,ly+18,17,K.cream);});text(c,'路径仅标记已选路线',590,ly+18,15,K.muted);
+ const ly=all?738:675;rect(c,34,ly,892,55,[18,36,54],11);const legend=[['已完成',K.green],['当前可选',K.gold],['未抵达',K.gray]];legend.forEach(([s,col],i)=>{circle(c,65+i*170,ly+27,7,col);text(c,s,81+i*170,ly+18,17,K.cream);});text(c,model.acts.some(a=>a.connected)?'亮线为当前可走支路':'路径仅标记已选路线',570,ly+18,15,K.muted);
  return encodePNG(c);
 }
 function intentLabel(i){if(!i)return '等待行动';const name=i.label||({attack:'攻击',guard:'护盾',burn:'灼烧',cleanse:'净火',heal:'恢复',charge:'蓄力',thorns:'反伤',conditional:'条件反制'})[i.kind]||i.kind;const amount=i.kind==='attack'?` ${i.value??0}×${i.hits??1}`:i.kind!=='conditional'&&Number.isFinite(i.value)?` ${i.value}`:'';return short(name,12)+amount;}
