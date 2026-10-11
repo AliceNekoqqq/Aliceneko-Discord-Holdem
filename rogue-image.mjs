@@ -1,7 +1,7 @@
 import { Canvas, encodePNG } from './card-image.mjs';
 import { prepareNicknameFont } from './nickname-font.mjs';
 import { PROFESSIONS } from './rogue-content-v09.mjs';
-import { getCatalog } from './rogue-content-v11.mjs';
+import { getCatalog } from './rogue-content-v12.mjs';
 import { legalCards } from './rogue-battle.mjs';
 import { cardGroups, cardEffectLines, cardWarnings, unavailableReason, battleHints } from './rogue-card-guide.mjs';
 import {connectedPlanFor,routeAnchor,routeSupplyLines,routeNodeReference} from './rogue-route-view.mjs';

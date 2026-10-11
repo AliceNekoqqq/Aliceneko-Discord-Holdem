@@ -210,3 +210,14 @@ test('default v11 service resumes frozen v10 combat with metrics and observation
  const n=current.act(a);assert.equal(n.ruleVersion,V10_RULE_VERSION);assert.equal(n.effectMetrics.healing,1);assert.equal(n.effectMetrics.overheal,2);
  assert.deepEqual(current.act(a),n);assert.deepEqual(current.resume({...f.p,runId:r.runId}),n);assert.ok(n.observation.entries.length>0);
 });
+test('v12 shop purchase is transactional and duplicate request cannot duplicate stock, debit or receipt',()=>{
+ const f=fixture(),s=new RogueService(f.host,'1',{idFactory:()=> 'v12-shop',clock:f.clock});
+ const r=s.start({...f.p,requestId:'v12-shop-start',mode:'normal'});
+ assert.equal(r.ruleVersion,'lantern-rules-v0.12');
+ r.phase='ROOM';r.embers=20;r.room={type:'shop',stock:['slash'],itemStock:[],prices:{cardByEnergy:{1:10},upgrade:12,remove:8,item:8},services:{upgrade:false,remove:false}};s.save(r);
+ const action=command(f.p,r,'v12-shop-buy',{type:'SHOP',choice:'buy',cardId:'slash'});
+ f.setFault('INSERT INTO rogue_requests');assert.throws(()=>s.act(action),/injected/);f.setFault(null);
+ const unchanged=s.resume({...f.p,runId:r.runId});assert.equal(unchanged.embers,20);assert.equal(unchanged.resourceLog.length,0);
+ const n=s.act(action);assert.equal(n.embers,10);assert.equal(n.resourceLog.length,1);assert.equal(n.deck.length,r.deck.length+1);
+ assert.deepEqual(s.act(action),n);assert.deepEqual(s.resume({...f.p,runId:r.runId}),n);
+});
