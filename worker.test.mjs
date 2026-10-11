@@ -16,7 +16,7 @@ test('signed Discord flow, private cards, stale click, duplicate, modal, timeout
  const call=async(data)=>{const i={application_id:'123',guild_id:'3',channel_id:'2',id:String(++counter),token:'transient-secret',member:{user:{id:'1'},permissions:'0'},...data};const body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');const ctx=context();const r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);await Promise.all(ctx.tasks);return {reply:await r.json(),i};};
  const unsigned=await worker.fetch(new Request('https://test/interactions',{method:'POST',body:'{}'}),env,context());assert.equal(unsigned.status,401);
  const hidden=await worker.fetch(new Request('https://test/.env'),env,context());assert.equal(hidden.status,404);
- const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.75',roguelike:{rulesVersion:'lantern-rules-v0.14',entry:'灯下迷城',professions:8,cards:96,relics:31,enemies:30,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
+ const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.76',roguelike:{rulesVersion:'lantern-rules-v0.14',entry:'灯下迷城',professions:8,cards:96,relics:31,enemies:30,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
  assert.deepEqual((await call({type:1})).reply,{type:1});
  const create={type:2,data:{name:'德州',options:[{name:'创建'}]}};
  let {reply:b}=await call(create);assert.equal(b.type,4);assert(!JSON.stringify(b).includes(env.BOT_TOKEN));
@@ -245,3 +245,13 @@ test('private interactions acknowledge only; latest hand refresh travels encrypt
  const refresh=await call(3,{custom_id:key('p~1~hand')},'1',{id:'888',flags:64});assert.deepEqual(refresh,{type:6});
 });
 
+
+test('signed red packet clicks route to guild wallet and acknowledge privately, bypassing active game tables',async t=>{
+ const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);const ctx=context(),rpc=[],patches=[];
+ const env={DISCORD_APPLICATION_ID:'99',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex'),TABLES:{idFromName:n=>n,get:n=>({fetch:async(url,opts)=>{rpc.push({name:n,...JSON.parse(opts.body)});return Response.json({amount:123,repeated:false});}})}};
+ t.mock.method(globalThis,'fetch',async(url,opts)=>{patches.push({url,body:JSON.parse(opts.body)});return Response.json({});});
+ const i={type:3,application_id:'99',id:'100',token:'test',guild_id:'1',channel_id:'2',member:{user:{id:'10'}},message:{id:'456'},data:{custom_id:'rp:123'}};
+ const body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');
+ const r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);
+ assert.deepEqual(await r.json(),{type:5,data:{flags:64}});await Promise.all(ctx.tasks);assert.equal(rpc[0].name,'tavern:1');assert.equal(rpc[0].action,'claim');assert.match(patches[0].body.content,/123 酒馆币/);assert.deepEqual(patches[0].body.allowed_mentions,{parse:[]});
+});

@@ -1,3 +1,4 @@
+import {parseRedPacket,prepareRedPacket,packetCard,packetRpc} from './red-packet.mjs';
 import {handleNaturalTavern} from './tavern-ui.mjs';
 import {tavernRequest} from './tavern-service.mjs';
 import {BOT_CAPABILITY_INDEX, getBotKnowledge} from "./bot-knowledge.mjs";
@@ -575,18 +576,20 @@ export function startTypingIndicator(env, channelId, fetcher = fetch) {
   };
 }
 
-async function sendChannelReply(env, message, content) {
+async function sendChannelReply(env, message, content, packet=null) {
   const response = await fetch("https://discord.com/api/v10/channels/" + message.channel_id + "/messages",{
     method:"POST",
     headers:{Authorization:"Bot " + env.BOT_TOKEN,"Content-Type":"application/json"},
     body:JSON.stringify({
       content:clamp(content,MAX_REPLY_CHARS),
+      ...(packet?.id?{...packetCard(packet),nonce:message.id,enforce_nonce:true}:{}),
       message_reference:{message_id:message.id,fail_if_not_exists:false},
       allowed_mentions:{parse:[]}
     }),
     signal:AbortSignal.timeout(8000)
   });
   if (!response.ok) {const error=new Error("discord_reply_failed");error.status=response.status;throw error;}
+  if(packet?.id){const sent=await response.json();await packetRpc(env,message.guild_id,{action:'bind',id:packet.id,messageId:sent.id}).catch(()=>{});}
 }
 
 async function getHistory(db,guildId,userId) {
@@ -728,7 +731,8 @@ export async function replyToMention(env, message, botId) {
   let channelHistory = [];
   let config = {};
 
-  if(await handleNaturalTavern(env,message,content))return true;
+  const packetIntent=parseRedPacket(message,botId);
+  if(!packetIntent&&await handleNaturalTavern(env,message,content))return true;
 
   if (!env.GEMINI_API_KEY) {
     console.warn("ai_reply_failed",{reason:"missing_gemini_key"});
@@ -760,6 +764,7 @@ export async function replyToMention(env, message, botId) {
     }
   }
 
+  const packet=packetIntent?await prepareRedPacket(env,message,botId):null;
   const imageParts=discordImageParts(message);
   const currentUserText=content||(imageParts.length?"请看看我发的图片，描述或回应图片内容。":"你好。");
   const memoryUserText=currentUserText+(imageParts.length?`\n[本轮附带${imageParts.length}张图片；历史记录不保存原图]`:'');
@@ -778,6 +783,7 @@ export async function replyToMention(env, message, botId) {
   try {
     const last=history.at(-1);
     const runtimeData={currentSpeaker:prepared.currentSpeaker};
+    if(packet)runtimeData.systemRedPacket=packet.error?{status:'rejected',error:packet.error}:{status:'created',total:packet.total,slots:packet.slots,mode:packet.mode,currency:'酒馆币',source:'system',instruction:'红包已由程序创建，本条回复附带领取卡。自然回应姐姐的发放要求，金额和名额必须使用以上值，不承诺额外发币。'};
     if(prepared.channelConversation)runtimeData.channelConversation=prepared.channelConversation;
     if(Object.keys(prepared.discord||{}).length)runtimeData.discord=JSON.parse(redactDeveloperDiscordIdFromPrompt(JSON.stringify(prepared.discord),env));
     if(runtimeData.discord?.replyReference)runtimeData.replyReference=runtimeData.discord.replyReference;
@@ -791,12 +797,13 @@ export async function replyToMention(env, message, botId) {
     generated = true;
   } catch(error) {
     console.warn("ai_reply_failed",{reason:error?.message||error?.name||"Error",status:error?.status,maxRetries:GEMINI_MAX_RETRIES});
-    return true;
+    if(!packet)return true;
+    responseText='';
   } finally {
     stopTyping();
   }
   try {
-    await sendChannelReply(env,message,responseText);
+    await sendChannelReply(env,message,packet?.error?`${responseText||''}\n${packet.error}`.trim():responseText,packet);
     console.info("ai_reply_sent",{messageId:message.id,channelId});
   } catch(error) {
     console.warn("ai_reply_delivery_failed",{messageId:message.id,channelId,reason:error?.message||error?.name||"Error",status:error?.status});
