@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {TavernService} from './tavern-service.mjs';
 import {UGCService} from './tavern-ugc-service.mjs';
-import {validateUGCDraft,UGC_PRICE_MIN,UGC_PRICE_MAX} from './tavern-ugc-catalog.mjs';
+import {validateUGCDraft,ugcMenuItem,UGC_PRICE_MIN,UGC_PRICE_MAX} from './tavern-ugc-catalog.mjs';
 
 function storage(){const db=new DatabaseSync(':memory:'),map=new Map();return {db,sql:{exec(q,...a){const s=db.prepare(q);if(s.columns().length){const rows=s.all(...a);return {toArray:()=>rows,one:()=>rows[0]}}s.run(...a);return {toArray:()=>[]}}},transactionSync(fn){db.exec('BEGIN');try{const r=fn();db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}},get:async k=>map.get(k),put:async(k,v)=>map.set(k,v),delete:async k=>map.delete(k)}}
 const base=Date.parse('2026-10-10T10:00:00+08:00');
@@ -16,6 +16,29 @@ test('strict recipe validation applies user price bounds, text types, length lim
  assert.deepEqual(validateUGCDraft(d).equipment,['coffee_machine']);assert(validateUGCDraft(d).allergens.includes('乳制品'));
  for(const value of [9,51,10.5,'20',0])assert.throws(()=>validateUGCDraft(d,{requireComplete:true,price:value}));
  assert.throws(()=>validateUGCDraft({...d,name:42}),/必须是文本/);assert.throws(()=>validateUGCDraft({...d,name:'这是一道名字长到超过二十四个字符的菜品名字真的很长很长'}),/不能超过/);
+});
+
+test('alcohol recipes are allowed, require declared volume and ABV, and retain specs in published items',()=>{
+ const recipe={name:'小葵特调金汤力',type:'drink',ingredients:['金酒','汤力水','青柠','冰块'],flavor:'清爽微苦',method:'将金酒与汤力水加冰搅匀',temperature:'cold',description:'青柠与金酒调成的一杯饮品。',appearance:'装在透明高球杯中。',servingSizeMl:250,alcoholPercent:8};
+ const complete=validateUGCDraft(recipe,{requireComplete:true,price:32});assert.equal(complete.alcoholPercent,8);assert.equal(complete.servingSizeMl,250);
+ assert.throws(()=>validateUGCDraft({...recipe,servingSizeMl:undefined},{requireComplete:true,price:32}),/容量和酒精度/);
+ assert.throws(()=>validateUGCDraft({...recipe,servingSizeMl:undefined,alcoholPercent:undefined},{requireComplete:true,price:32}),/容量和酒精度/);
+ assert.throws(()=>validateUGCDraft({...recipe,servingSizeMl:250.5}),/整数/);
+ assert.throws(()=>validateUGCDraft({...recipe,alcoholPercent:101}),/酒精度/);
+ const item=ugcMenuItem({id:'ugc_testdrink',author_name:'小葵',current_revision:1},complete,{status:'ready',asset_key:'art/ugc/test.png'});
+ assert.deepEqual([item.servingSizeMl,item.alcoholPercent,item.imageStatus],[250,8,'ready']);
+});
+
+test('published alcohol recipe specs survive into the normal order snapshot',async()=>{
+ const {ugc,host}=setup();let view=await ugc.dispatch(p('ugcStart',{now:base})),sessionId=view.session.sessionId;
+ await ugc.dispatch(p('ugcType',{sessionId,value:'drink',revision:view.session.revision,now:base+1}));
+ const turn=await ugc.dispatch(p('ugcBeginTurn',{sessionId,text:'制作一款金汤力，250ml，8%vol',requestKey:'alcohol-turn',now:base+2}));
+ view=await ugc.dispatch(p('ugcFinishTurn',{sessionId,turnId:turn.turnId,reply:'规格按你提供的记录。',patch:{name:'小葵特调金汤力',ingredients:['金酒','汤力水','青柠','冰块'],flavor:'清爽微苦',method:'将金酒与汤力水加冰搅匀',temperature:'cold',description:'青柠与金酒调成的一杯饮品。',appearance:'装在透明高球杯中。',servingSizeMl:250,alcoholPercent:8},now:base+3}));
+ view=await ugc.dispatch(p('ugcPrice',{sessionId,value:32,revision:view.session.revision,now:base+4}));
+ const published=await ugc.dispatch(p('ugcPublish',{sessionId,revision:view.session.revision,requestKey:'alcohol-publish',now:base+5}));
+ const menuItem=host.operations.item(published.dish.id,base+6);assert.equal(menuItem.alcoholPercent,8);assert.equal(menuItem.servingSizeMl,250);
+ const order=host.prepare({id:'123',name:'小葵',channel:'33',item:published.dish.id,requestKey:'alcohol-order'},base+6);
+ assert.equal(order.details.alcoholPercent,8);assert.equal(order.details.servingSizeMl,250);
 });
 
 test('adds private retry-text columns when migrating an existing session table',()=>{

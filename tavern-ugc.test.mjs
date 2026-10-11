@@ -7,6 +7,9 @@ const interaction=(custom_id,user='22',flags=64,type=3)=>({type,guild_id:'11',ch
 
 test('UGC model output keeps usable recipe fields and normalizes common model formats',()=>{
  assert.deepEqual(parseUgcModelOutput('{"reply":"还想补充什么？","patch":{"flavor":"清新果香"},"missing":["制作方式"]}'),{reply:'还想补充什么？',patch:{flavor:'清新果香'},missing:['制作方式']});
+ const alcohol=parseUgcModelOutput('{"reply":"还需确认容量与酒精度","patch":{"name":"夜航金汤力","ingredients":["金酒"],"type":"drink"},"missing":[]}',{draft:{type:'drink'}});
+ assert(alcohol.missing.includes('servingSizeMl'));assert(alcohol.missing.includes('alcoholPercent'));
+ assert.deepEqual(parseUgcModelOutput('{"reply":"规格已确认","patch":{"servingSizeMl":330,"alcoholPercent":4.8},"missing":[]}',{draft:{type:'drink'}}).patch,{servingSizeMl:330,alcoholPercent:4.8});
  const fence=String.fromCharCode(96).repeat(3);
  const wrapped=parseUgcModelOutput('这是候选：\n'+fence+'json\n{"reply":"先试一杯","patch":{"ingredients":"柠檬、茶叶、清水","temperature":"冰凉","price":30},"missing":[],"extra":"忽略"}\n'+fence,{draft:{type:'drink'}});
  assert.deepEqual(wrapped.patch,{ingredients:['柠檬','茶叶','清水'],temperature:'cold'});

@@ -3,7 +3,9 @@
 更新时间：2026-10-11（Asia/Shanghai）
 
 - 项目：红豆粉小酒馆 / `AliceNekoqqq/Aliceneko-Discord-Holdem`；主分支 `main`；Worker `discord-holdem`。
-- 当前版本：GitHub main 为 `1.0.1-beta.63`；Cloudflare Worker `discord-holdem` 部署版本 110 接收100%流量。灯下迷城规则仍 v0.8，保留已有存档。
+- 当前主线版本：GitHub main 为 `1.0.1-beta.65`，提交 `5573989dfbaf78d6dc7329d9a8c931bbe4abfde8`；Cloudflare Worker 部署版本 113 `353c92d4-b205-4198-84e6-0c0035bb5704` 接收100%流量，部署 `6e4af81f-6474-4e85-bf36-0175de225298`。灯下迷城规则仍 v0.8，保留已有存档。
+- beta.65 UGC失败保留原始想法并增加重试操作，输出解析与生成韧性改进；GitHub Actions main run `38105700641` 和 Cloudflare 部署均成功。
+- beta.66 酒水菜单与旧禁酒规则清理正在 PR #7：新增5款带规格、风味、搭配及插画的酒水；菜单、知识库、订单预览和快照同步；UGC与季节酒类候选允许酒类，但必须保留用户明确给出的容量和酒精度。PR 分支已基于 beta.65 重建，CI 待完成；本地聊天5/5、酒馆24/24、Worker4/4、素材17/17、UGC上下文2/2通过，`git diff --check` 通过。
 - beta.63 灯下迷城战斗图精修已发布：PR #6 squash 合并，提交 `f5174112504414b9f3dc84bd93878ede53071d6c`。统一字号层级，卡牌正文提升到14px、角色与卡名20px，战场分区、卡框状态和角色阴影更清楚；画布保持960×800以控制免费 Worker CPU。PR/主分支构建、资源、灯下迷城、酒馆、聊天、UGC与Worker测试均通过。生产版本 ID `65796851-7de9-4967-88cd-c4bc9ba90692`（110），部署 ID `733fc697-39b6-4af3-8ef0-b161edbf1883`，接收100%流量；当前环境未能直读 `/health`。
 - 灯下迷城卡加载已修复并上线：路线页重复地图 custom_id 导致 Discord HTTP 400 / COMPONENT_CUSTOM_ID_DUPLICATED。beta.58 删除重复按钮，修复详情/实体牌分页编号碰撞，增加唯一性校验。四规则版本存档通过命令/主页/过期刷新重进测试；无需重置存档，真人 Discord 重进尚待确认。
 - 最近状态记录：聊天短回复改动提交 `da9a893` 当时标为本地提交、GitHub 同步未通过；继续相关工作前先核对 main，勿盲目重做或重推。

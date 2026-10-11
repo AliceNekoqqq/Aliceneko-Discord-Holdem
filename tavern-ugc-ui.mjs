@@ -1,12 +1,13 @@
 import {tavernRequest} from './tavern-service.mjs';
 import {generateUgcCandidate} from './tavern-ugc-ai.mjs';
+import {isAlcoholicUGCDraft} from './tavern-ugc-catalog.mjs';
 
 const mentions={parse:[]},row=(...components)=>({type:1,components});
 const cid=(g,u,a)=>`t:${g}:${u}:${a}`;
 const button=(g,u,a,label,style=2,disabled=false)=>({type:2,custom_id:cid(g,u,a),label:String(label).slice(0,80),style,disabled});
 const sessionButton=(g,u,s,a,label,style=2,disabled=false)=>button(g,u,`${a}~${s.id}~${s.revision}`,label,style,disabled);
 const okId=x=>/^\d{1,20}$/.test(String(x||''));
-const editFields=[['name','名称'],['type','类型'],['ingredients','食材'],['flavor','风味/口感'],['method','制作概述'],['temperature','温度'],['description','介绍'],['appearance','摆盘/外观'],['lore','创作缘由']];
+const editFields=[['name','名称'],['type','类型'],['ingredients','食材'],['flavor','风味/口感'],['method','制作概述'],['temperature','温度'],['servingSizeMl','容量 ml'],['alcoholPercent','酒精度 %'],['description','介绍'],['appearance','摆盘/外观'],['lore','创作缘由']];
 const clean=(v,n=300)=>String(v??'').replace(/<@!?\d+>/g,'＠').replace(/@/g,'＠').replace(/[\r\n]+/g,' ').slice(0,n)||'未填写';
 const mentionAllowed={parse:[]};
 const typeNames={drink:'饮品',dessert:'甜点',savory:'小食/主食'},tempNames={warm:'温热',cold:'冰凉',room:'常温'},equipmentNames={coffee_machine:'咖啡机',baking_oven:'烘焙烤箱',blender:'搅拌机',ice_cream_maker:'冰淇淋机'};
@@ -38,12 +39,12 @@ function sessionOf(b){return b?.session||b?.mine?.session||null;}
 function dishText(d){
  const fields=d?.draft||d?.recipe||d||{};
  const ingredients=Array.isArray(fields.ingredients)?fields.ingredients.join('、'):fields.ingredients;
- return [`**${clean(fields.name,24)}** · ${clean(typeNames[fields.type]||fields.type,30)}`,`食材：${clean(ingredients,300)}`,`风味：${clean(fields.flavor,100)}`,`制作：${clean(fields.method,300)}`,`温度：${clean(tempNames[fields.temperature]||fields.temperature,30)}`,`介绍：${clean(fields.description,180)}`,`摆盘/外观：${clean(fields.appearance,200)}`,`创作缘由：${clean(fields.lore,120)}`,`已知过敏原：${clean(Array.isArray(fields.allergens)?fields.allergens.join('、'):'待检查',120)}`,`设备要求：${clean(Array.isArray(fields.equipment)&&fields.equipment.length?fields.equipment.map(k=>equipmentNames[k]||k).join('、'):'无额外设备',100)}`,`售价：${Number.isInteger(d?.price)?`${d.price}币`:'待填写（10～50币）'}`,`作者：${clean(d?.author||d?.author_name,32)}`].join('\n');
+ return [`**${clean(fields.name,24)}** · ${clean(typeNames[fields.type]||fields.type,30)}`,`食材：${clean(ingredients,300)}`,`风味：${clean(fields.flavor,100)}`,`制作：${clean(fields.method,300)}`,`温度：${clean(tempNames[fields.temperature]||fields.temperature,30)}`,...(isAlcoholicUGCDraft(fields)?[`容量：${clean(fields.servingSizeMl,20)} ml`,`酒精度：${clean(fields.alcoholPercent,20)}% vol`]:[]),`介绍：${clean(fields.description,180)}`,`摆盘/外观：${clean(fields.appearance,200)}`,`创作缘由：${clean(fields.lore,120)}`,`已知过敏原：${clean(Array.isArray(fields.allergens)?fields.allergens.join('、'):'待检查',120)}`,`设备要求：${clean(Array.isArray(fields.equipment)&&fields.equipment.length?fields.equipment.map(k=>equipmentNames[k]||k).join('、'):'无额外设备',100)}`,`售价：${Number.isInteger(d?.price)?`${d.price}币`:'待填写（10～50币）'}`,`作者：${clean(d?.author||d?.author_name,32)}`].join('\n');
 }
-function compactDishText(d){const f=d?.draft||d?.recipe||d||{},ingredients=Array.isArray(f.ingredients)?f.ingredients.join('、'):f.ingredients;return [`**${clean(f.name,24)}** · ${clean(typeNames[f.type]||f.type,30)}`,`食材：${clean(ingredients,300)}`,`风味：${clean(f.flavor,100)}`,`制作：${clean(f.method,120)}`,`温度：${clean(tempNames[f.temperature]||f.temperature,30)}`,`介绍：${clean(f.description,90)}`,`摆盘：${clean(f.appearance,90)}`,`创作缘由：${clean(f.lore,80)}`,`过敏原：${clean(Array.isArray(f.allergens)?f.allergens.join('、'):'待检查',100)}`,`设备：${clean(Array.isArray(f.equipment)&&f.equipment.length?f.equipment.map(k=>equipmentNames[k]||k).join('、'):'无额外设备',80)}`,`售价：${Number.isInteger(d?.price)?`${d.price}币`:'待填写（10～50币）'}`,`作者：${clean(d?.author||d?.author_name,32)}`].join('\n');}
+function compactDishText(d){const f=d?.draft||d?.recipe||d||{},ingredients=Array.isArray(f.ingredients)?f.ingredients.join('、'):f.ingredients;return [`**${clean(f.name,24)}** · ${clean(typeNames[f.type]||f.type,30)}`,`食材：${clean(ingredients,300)}`,`风味：${clean(f.flavor,100)}`,`制作：${clean(f.method,120)}`,`温度：${clean(tempNames[f.temperature]||f.temperature,30)}`,...(isAlcoholicUGCDraft(f)?[`容量：${clean(f.servingSizeMl,20)} ml`,`酒精度：${clean(f.alcoholPercent,20)}% vol`]:[]),`介绍：${clean(f.description,90)}`,`摆盘：${clean(f.appearance,90)}`,`创作缘由：${clean(f.lore,80)}`,`过敏原：${clean(Array.isArray(f.allergens)?f.allergens.join('、'):'待检查',100)}`,`设备：${clean(Array.isArray(f.equipment)&&f.equipment.length?f.equipment.map(k=>equipmentNames[k]||k).join('、'):'无额外设备',80)}`,`售价：${Number.isInteger(d?.price)?`${d.price}币`:'待填写（10～50币）'}`,`作者：${clean(d?.author||d?.author_name,32)}`].join('\n');}
 function homePage(b,g,u){
  const s=sessionOf(b),parts=[];
- if(s){const draft=s.draft||{},required=[['name','名称'],['type','类型'],['ingredients','食材'],['flavor','风味/口感'],['method','制作概述'],['temperature','温度'],['description','介绍'],['appearance','摆盘/外观']],missing=required.filter(([k])=>draft[k]===undefined||draft[k]===null||draft[k]===''||(Array.isArray(draft[k])&&!draft[k].length)).map(([,label])=>label);
+ if(s){const draft=s.draft||{},required=[['name','名称'],['type','类型'],['ingredients','食材'],['flavor','风味/口感'],['method','制作概述'],['temperature','温度'],...(isAlcoholicUGCDraft(draft)?[['servingSizeMl','容量'],['alcoholPercent','酒精度']]:[]),['description','介绍'],['appearance','摆盘/外观']],missing=required.filter(([k])=>draft[k]===undefined||draft[k]===null||draft[k]===''||(Array.isArray(draft[k])&&!draft[k].length)).map(([,label])=>label);
   const candidate=s.edit_candidate;
   const candidatePreview=candidate?`\n\n**修改候选** · ${editFields.find(([k])=>k===candidate.target)?.[1]||'字段'}\n${clean(candidate.value,300)}\n采用后才会更新整张菜品卡。`:'';
   const lastReply=s.edit_history?.at(-1)?.reply||s.history?.at(-1)?.reply;

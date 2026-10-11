@@ -13,7 +13,7 @@ Luna账本仅编辑 `tavern-operations.mjs`、`tavern-operations.test.mjs`。导
 - `claim(p,now)`：`{id,day}`；当天共同活动完成且本人曾参与才能领一次纪念章（非货币），重试幂等；返回board(id)。活动按日期轮换三款（游戏3局/付费点单3位/游戏2局+付费点单2位），无聊天刷条奖励。
 - `recordOrder(order,insideTransaction=true)`：新确认的price>0订单仅该人该日首单计1研发分/一位品鉴者；免费或重复不计。`order:{id,user_id,name?,price,at}`。若调用在transaction内不能嵌套，并与原订单回滚。先将用户加入候选。参与者署名使用host成员姓名；不保存忌口/余额。
 - `recordGame(key,result,actors,insideTransaction=true)`：仅主模型已校验合格且同组每日前8局的结果进入，包含id/name的actors已排除bot/认输/无动作；每个去重key计1研发分、1活动局，记录演员为参与者。时间用result.at归属事件日/月，不用重试到达日；过去的合格事件可补旧日进度，不能解锁当前月或改变旧选中饮品。无历史订单/比赛追溯研发。
-- 当月30分时事务内冻结最高票选中饮品，平票固定目录顺序；0票取首项。各季节有3款预设新品，每个候选最多3个命名选项也可省略为固定候选名（一票共同选最终新品名字）。可跨月更新的季节菜单仅当月已解锁的一款，价格28/32/35，无限库存、无酒精。
+- 当月30分时事务内冻结最高票选中饮品，平票固定目录顺序；0票取首项。各季节有3款预设新品，每个候选最多3个命名选项也可省略为固定候选名（一票共同选最终新品名字）。可跨月更新的季节菜单仅当月已解锁的一款，价格28/32/35，无限库存；候选不设无酒精限制，酒类候选须显示容量和酒精度。
 - `menu(now)`：基础MENU + 当前月已解锁商品；季节商品id为 `season_YYYYMM_candidate`，完整商品字段与MENU一致。`item(id,now)`：只返回当前可购买目录里的商品。跨月旧未确认预览在confirm拒绝，无扣款；已购买订单依旧可看。
 - `scene(now)`：program_confirmed_operations，只输出公开店长名称（无id）、当日推荐/氛围/欢迎语、研发及活动摘要，不含mine、余额、私人历史、原账号ID。
 - `dispatch(p)`：opsBoard先visit(p.id,p.name)再board(p.privateView?p.id:null)，opsSet/opsVote/opsClaim分别上述，opsMenu=>menu，opsScene=>scene。id/guild在主service已校验；仍验证操作id、日期/月份和值。

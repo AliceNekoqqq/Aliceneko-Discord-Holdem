@@ -1,18 +1,42 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {MENU, MENU_CATEGORIES, WELCOME_COINS, DAILY_REWARD_CAP, ROSTER_DAILY_LIMIT, ORDER_TTL, REWARDS, makeOrderDetails} from './tavern-catalog.mjs';
+import {renderDishDetails} from './tavern-menu-view.mjs';
 
 test('menu catalogue has stable unique ids, complete metadata, and each category fits a Discord select',()=>{
- assert.equal(MENU.length,29);
+ assert.equal(MENU.length,34);
  assert.ok(MENU_CATEGORIES.every(c=>MENU.filter(x=>x.category===c.id).length+1<=25));
- assert.equal(MENU.filter(x=>!x.requiresEquipment).length,20);
+ assert.equal(MENU.filter(x=>!x.requiresEquipment).length,25);
  assert.equal(new Set(MENU.map(item=>item.id)).size,MENU.length);
  assert.deepEqual(MENU_CATEGORIES.map(({id})=>id),['drinks','desserts','savory','seasonal']);
  assert.ok(MENU.every(item=>['drinks','desserts','savory'].includes(item.category)));
  assert.ok(MENU.every(item=>Array.isArray(item.ingredients)&&item.ingredients.length>0&&typeof item.flavor==='string'&&Array.isArray(item.allergens)));
- assert.ok(MENU.every(item=>typeof item.pairing==='string'&&item.pairing.length>0));
+ assert.ok(MENU.filter(item=>!item.alcoholPercent).every(item=>typeof item.pairing==='string'&&item.pairing.length>0));
  assert.ok(MENU.every(item=>item.description.length<=40));
  assert.ok(MENU.every(item=>Object.isFrozen(item)&&Object.isFrozen(item.ingredients)&&Object.isFrozen(item.allergens)));
+});
+
+test('alcohol menu entries publish exact serving specs in order details',()=>{
+ const expected=[
+  ['wheat-beer','河岸小麦啤酒',28,330,4.8,'cold'],
+  ['plum-wine','雨巷青梅酒',35,90,12,'cold'],
+  ['red-wine','暮色赤霞珠',48,150,13,'room'],
+  ['gin-tonic','夜航金汤力',42,250,8,'cold'],
+  ['whiskey','壁炉威士忌',50,40,40,'room'],
+ ];
+ const profile={sweetness:'normal',temperature:'cold',seat:'window',restrictions:''};
+ for(const [id,name,price,servingSizeMl,alcoholPercent,temperature] of expected){
+  const item=MENU.find(entry=>entry.id===id);assert.ok(item,id);
+  assert.deepEqual([item.name,item.price,item.servingSizeMl,item.alcoholPercent,item.servingTemperature],[name,price,servingSizeMl,alcoholPercent,temperature]);
+  const details=makeOrderDetails(item,profile);
+  assert.equal(details.alcohol,`${alcoholPercent}% vol`);
+  assert.ok(item.flavor.length>0);assert.ok(item.pairing.length>0);
+  assert.equal(details.servingSizeMl,servingSizeMl);
+  assert.equal(details.temperature,temperature);
+  const rendered=renderDishDetails({...details,...item});
+  assert.match(rendered,new RegExp(`容量：${servingSizeMl} ml`));
+  assert.match(rendered,new RegExp(`酒精度：${alcoholPercent}% vol`));
+ }
 });
 
 test('original seven menu ids, names, prices, and serving text are preserved',()=>{
