@@ -2,14 +2,14 @@
 
 更新时间：2026-10-11（Asia/Shanghai）
 
-- beta.78部署核验补强本地完成：22:45/22:47生产请求日志确认仍走旧systemRedPacket流程，无隐藏JSON；beta.77文件14:43:56Z已部署，因此此前health不足以证明常驻Gateway已更新。新增真实Gateway连接/认证/运行指纹核验，旧指纹或未就绪时health.ready=false，保持数据健康ok独立。聊天79、Worker27通过；待发布并验证实际连接。
+- beta.78部署核验补强已上线：22:45/22:47生产请求日志确认仍走旧systemRedPacket流程，无隐藏JSON；beta.77文件14:43:56Z已部署，常驻Gateway实际更新延后，此前单独health不足以证明聊天代码已更新。新增真实Gateway连接/认证/运行指纹核验，旧指纹或未就绪时health.ready=false，数据健康ok独立。聊天79、Worker27通过；main运行提交c166f30d06953d2dd5ada51cbb888bf15b79c8cb，发布检查38150717446全部成功；CF部署0a5c814d-93a4-41b4-bff3-0e133418fefe、版本46c77af4-007a-4764-832a-cc1d833f86f5接收100%，与beta.77版本资源bindings/配置/迁移标记比对不变，Cron仍每分钟。实际health已确认beta.78、ready:true、gateway.connected/ready:true、chatRuntime和expectedRuntime均chat78-red-packet-json。诊断tail已删除。真实新红包句式的Gemini提取/Discord领取仍待用户验证，勿将mock或连接就绪说成真实红包已成功。
 
 - beta.77红包识别改进已上线：同一次Gemini回复包含隐藏结构化红包数据（总额、名额、模式、数字来源），程序校验真实开发者@、本轮数字证据、范围后创建；只发送自然回复和红包卡。支持截图省略单位、中文数字、全角与语序变化，模型失败用程序兜底；重复错误提示取消。已测红包16、聊天78、酒馆含红包182、Worker26；PR #17最终检查38148154122、main发布38148297950成功，运行提交d37805d602f0511d9d48ed9ee5904c28ae03672d。Cloudflare部署203aae77-401e-4358-8cbf-8ef5023a491b，版本ff842e88-11eb-4051-9da6-7df71c0767b7接收100%流量；配置/bindings/Secret名称类型/兼容/observability比对保持。实际health确认ok:true、beta.77。生产Gemini/Discord新句式实际发送待用户验证，不能将mock测试说成已真实模型演练。
 
 - 开发者系统红包 beta.76 已上线：仅账号993451176282574878真实@机器人后可创建；金额/名额程序提取，Gemini正常回复附领取卡。随机/均分、24小时有效、逐人唯一领取、原子钱包/流水/名额、重复消息幂等、原频道归属；系统奖励不扣钱包、不占普通每日上限。正常Gemini/失败仍发卡、权限/分配/回滚/签名路由已测。聊天78/78、酒馆含红包176/176、Worker26/26通过；PR #16最终检查38146908524及main发布38147042821成功，运行提交fab50f70175606bb04809bff63581827ebd5b6e2。Cloudflare部署87777413-45e0-41d0-b389-4ad5a12fde1e，版本a34e22ee-023b-4e23-9199-6b8d920bf22c接收100%流量；配置/bindings/Secret名称类型/兼容/observability比对不变。实际health确认ok:true、beta.76，红包JPEG线上与源文件SHA256一致（144591字节）；Discord真人领取待验证。
 
 - 项目：红豆粉小酒馆 / `AliceNekoqqq/Aliceneko-Discord-Holdem`；主分支 `main`；Worker `discord-holdem`。
-- 当前主线版本：GitHub main / Cloudflare 已为 `1.0.1-beta.77`，运行提交 `d37805d602f0511d9d48ed9ee5904c28ae03672d`（PR #17）；新局规则仍v0.14，旧v13及更早存档冻结。系统红包上线，生产与线上图片已核验；详见上方最新记录。灯下迷城下一步仍为P3首领阶段机制与预告。
+- 当前主线版本：GitHub main / Cloudflare 已为 `1.0.1-beta.78`，运行提交 `c166f30d06953d2dd5ada51cbb888bf15b79c8cb`；新局规则仍v0.14，旧v13及更早存档冻结。系统红包上线，生产与线上图片已核验；详见上方最新记录。灯下迷城下一步仍为P3首领阶段机制与预告。
 - beta.65 UGC失败保留原始想法并增加重试操作，输出解析与生成韧性改进；GitHub Actions main run `38105700641` 和 Cloudflare 部署均成功。
 - beta.66 酒水菜单与旧禁酒规则清理已上线：PR #7 以 squash 合并；PR 检查 run `38106012299` 及 main 发布/部署 run `38106073370` 均成功。固定菜单新增5款带规格、风味、搭配及插画的酒水；菜单、知识库、订单预览和快照同步；UGC与季节酒类候选允许酒类，但必须保留用户明确给出的容量和酒精度；两份历史运行知识快照中的旧“饮品均无酒精”句子也已删除。本地聊天5/5、酒馆24/24、Worker4/4、素材17/17、UGC上下文2/2通过，`git diff --check` 通过。
 - beta.63 灯下迷城战斗图精修已发布：PR #6 squash 合并，提交 `f5174112504414b9f3dc84bd93878ede53071d6c`。统一字号层级，卡牌正文提升到14px、角色与卡名20px，战场分区、卡框状态和角色阴影更清楚；画布保持960×800以控制免费 Worker CPU。PR/主分支构建、资源、灯下迷城、酒馆、聊天、UGC与Worker测试均通过。生产版本 ID `65796851-7de9-4967-88cd-c4bc9ba90692`（110），部署 ID `733fc697-39b6-4af3-8ef0-b161edbf1883`，接收100%流量；当前环境未能直读 `/health`。
