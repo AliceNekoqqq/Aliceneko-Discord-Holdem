@@ -1,6 +1,6 @@
 import { replyToMention } from "./ai-chat.mjs";
 
-export const CHAT_PIPELINE_RUNTIME = 'chat50-channel-order-speaker-map';
+export const CHAT_PIPELINE_RUNTIME = 'chat78-red-packet-json';
 const GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 const GATEWAY_INTENTS = (1 << 0) | (1 << 9); // GUILDS + GUILD_MESSAGES; message content is only used for direct bot mentions.
 
@@ -36,6 +36,12 @@ export class DiscordGateway {
     this.botId = await this.storage.get("gatewayBotId") || null;
     this.connect();
     return {connected:true,connecting:true,chatRuntime:CHAT_PIPELINE_RUNTIME};
+  }
+
+  status() {
+    return {connected:this.socket?.readyState === WebSocket.OPEN,
+      ready:this.socket?.readyState === WebSocket.OPEN && Boolean(this.botId),
+      chatRuntime:CHAT_PIPELINE_RUNTIME};
   }
 
   connect() {

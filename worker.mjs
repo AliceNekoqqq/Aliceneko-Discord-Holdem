@@ -23,7 +23,7 @@ import {GhostController} from './ghost-controller.mjs';
 import {GhostService,specialInteraction,finishSpecial} from './ghost-service.mjs';
 import {command as ghostCommand} from './ghost-ui.mjs';
 import {aiCommand,handleAiCommand,commentOnGameTransition,generateGemini,prepareChatContext} from './ai-chat.mjs';
-import {DiscordGateway} from './discord-gateway.mjs';
+import {CHAT_PIPELINE_RUNTIME,DiscordGateway} from './discord-gateway.mjs';
 import {AppEmojis} from './app-emojis.mjs';
 import { profileInteraction, finishProfile } from './uno-profile.mjs';
 import { UnoRankings, rankingInteraction, finishRanking } from './uno-rankings.mjs';
@@ -130,7 +130,8 @@ export class PokerTable extends DurableObject {
         catch(e){return json(privateReply(e.message||'远征暂时无法打开，请稍后重试。'));}
       }
       if(payload.op==='petHome'){try{return json(await dispatchPetHome(this.ctx.storage,payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='gatewayEnsure'){try{return json({...await this.discordGateway.ensure(),runtime:'chat50-channel-order-speaker-map'});}catch{return json({connected:false,runtime:'chat50-channel-order-speaker-map'});}}
+      if(payload.op==='gatewayEnsure'){try{return json(await this.discordGateway.ensure());}catch{return json({connected:false,chatRuntime:CHAT_PIPELINE_RUNTIME});}}
+      if(payload.op==='gatewayStatus')return json(this.discordGateway.status());
       if(payload.op==='aiProbe'){
         const started=Date.now();
         try{
@@ -180,7 +181,7 @@ export class PokerTable extends DurableObject {
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
       if(payload.op==='unoRank'){try{return json(await this.rankings.dispatch(payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.77',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
+      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.78',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
       if(payload.op==='register'){
         if(!this.env.BOT_TOKEN)return json({registered:false});
         if(await this.ctx.storage.get('commandVersion')===COMMAND_VERSION)return json({registered:true});
@@ -342,7 +343,18 @@ async function handle(request,env,ctx){
   if(path.startsWith('/art/pet-walk/'))return servePetWalkArt(request,env);
   if(path.startsWith('/art/pets/'))return servePetArt(request,env);
   if(path.startsWith('/art/'))return serveArt(request,env);
-  if(path==='/health'&&request.method==='GET')return env.TABLES.get(env.TABLES.idFromName('system-health')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'health'})});
+  if(path==='/health'&&request.method==='GET'){
+    const health=await env.TABLES.get(env.TABLES.idFromName('system-health')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'health'})});
+    const data=await health.json();
+    let gateway={connected:false,ready:false,chatRuntime:null};
+    try{
+      const response=await env.TABLES.get(env.TABLES.idFromName('system-discord-gateway')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayStatus'})});
+      const actual=await response.json();
+      gateway={connected:actual.connected===true,ready:actual.ready===true,chatRuntime:typeof actual.chatRuntime==='string'?actual.chatRuntime:null};
+    }catch{}
+    const ready=data.ok===true&&gateway.ready&&gateway.chatRuntime===CHAT_PIPELINE_RUNTIME;
+    return json({...data,ready,gateway:{...gateway,expectedRuntime:CHAT_PIPELINE_RUNTIME}});
+  }
   if(path!=='/interactions')return new Response('Not found',{status:404});
   if(request.method!=='POST')return new Response('Method not allowed',{status:405,headers:{Allow:'POST'}});
   if(Number(request.headers.get('Content-Length'))>65536)return new Response('Payload too large',{status:413});

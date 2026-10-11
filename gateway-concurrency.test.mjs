@@ -3,6 +3,16 @@ import assert from 'node:assert/strict';
 import {CHAT_PIPELINE_RUNTIME,DiscordGateway} from './discord-gateway.mjs';
 
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
+
+test('gateway readiness requires its real open socket and authenticated bot',t=>{
+  t.mock.method(globalThis,'WebSocket',class {static OPEN=1;});
+  const gateway=new DiscordGateway({env:{},ctx:{storage:{}}});
+  assert.deepEqual(gateway.status(),{connected:false,ready:false,chatRuntime:CHAT_PIPELINE_RUNTIME});
+  gateway.socket={readyState:1};
+  assert.equal(gateway.status().ready,false);
+  gateway.botId='bot';assert.equal(gateway.status().ready,true);
+  gateway.socket.readyState=3;assert.equal(gateway.status().ready,false);
+});
 function fixture(t,fetcher,extraEnv={}){
   t.mock.method(globalThis,'fetch',fetcher);
   const tasks=[];
