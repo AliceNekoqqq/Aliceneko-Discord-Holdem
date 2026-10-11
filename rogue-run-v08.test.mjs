@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createRun,runAction,CURRENT_RULE_VERSION,V07_RULE_VERSION} from './rogue-run.mjs';
+import {createRun,runAction,V08_RULE_VERSION as CURRENT_RULE_VERSION,V07_RULE_VERSION} from './rogue-run.mjs';
 import {CATALOG_V08 as C,EVENTS} from './rogue-content-v08.mjs';
 const fresh=(extra={})=>createRun({ruleVersion:CURRENT_RULE_VERSION,runId:'v08',owner:'1',guild:'1',seed:'persist-pacts',now:0,...extra});
 const blessing=r=>runAction(r,{type:'BLESSING',relicId:null},1);

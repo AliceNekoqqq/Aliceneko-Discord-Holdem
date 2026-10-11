@@ -26,7 +26,7 @@ function fixture(guild='1'){
  return {db,service,p,one,terminal,setFault:v=>fault=v,setNow:v=>currentTime=v,host,clock};
 }
 const command=(p,r,requestId,action,now=p.now)=>({...p,runId:r.runId,version:r.version,requestId,action,now});
-test('production service defaults to v0.8 and challenge profession is fixed server-side',()=>{
+test('production service defaults to v0.9 and challenge profession is fixed server-side',()=>{
  const f=fixture(),service=new RogueService(f.host,'1',{idFactory:()=> 'daily-v06',clock:f.clock});
  assert.equal(service.rulesVersion,CURRENT_RULE_VERSION);
  const run=service.start({...f.p,requestId:'v06-start',professionId:'traveler',inventory:['tonic','bandage']});

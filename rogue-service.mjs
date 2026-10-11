@@ -1,7 +1,7 @@
 import {createRun,runAction,expireRun,RULE_VERSION,CURRENT_RULE_VERSION,SUPPORTED_RULE_VERSIONS} from './rogue-run.mjs';
 import {scoreRun,rewardAmount,dailySeedGroup,REWARDED_STARTS,ECONOMY_VERSION} from './rogue-economy.mjs';
 import {DAILY_REWARD_CAP,dayKey,validId} from './tavern-catalog.mjs';
-import {PROFESSIONS} from './rogue-content-v08.mjs';
+import {PROFESSIONS} from './rogue-content-v09.mjs';
 import {MAX_DIFFICULTY} from './rogue-difficulty-v08.mjs';
 const PROFESSION_IDS=Object.keys(PROFESSIONS);
 const hashSeed=seed=>{let h=2166136261;for(const c of String(seed)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)>>>0;}return h;};
@@ -133,7 +133,7 @@ export class RogueService{
    const runId=this.idFactory(),mode=p.mode??'normal';
    if(this.one('SELECT id FROM rogue_runs WHERE id=?',runId))fail('RUN_ID','冒险标识重复，请重试。');
    const ruleVersion=this.rulesVersion;
-   const expanded=['lantern-rules-v0.7','lantern-rules-v0.8'].includes(ruleVersion);
+   const expanded=['lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9'].includes(ruleVersion);
    const difficulty=expanded?(mode==='challenge'?this.challengeDifficulty():p.difficulty??0):0;
    if(!Number.isInteger(difficulty)||difficulty<0||difficulty>MAX_DIFFICULTY)fail('DIFFICULTY','请选择有效进阶等级。');
    const seed=mode==='challenge'?dailySeedGroup(this.guild,day,ruleVersion,difficulty):`${runId}/normal`;
@@ -194,6 +194,6 @@ export class RogueService{
   this.sql.exec('INSERT INTO rogue_progress VALUES(?,?,?,?,?) ON CONFLICT(owner,profession) DO UPDATE SET unlocked=excluded.unlocked,clears=excluded.clears,last_run_id=excluded.last_run_id',run.owner,professionId,unlocked,old.clears+1,run.runId);
  }
  homeInfo(p){this.guard(p);return {rulesVersion:this.rulesVersion,progress:PROFESSION_IDS.map(id=>this.progressFor(p.id,id)),challengeProfession:this.challengeProfession(),challengeDifficulty:this.challengeDifficulty()};}
- challengeDifficulty(){return ['lantern-rules-v0.7','lantern-rules-v0.8'].includes(this.rulesVersion)?hashSeed(`${this.guild}|${dayKey(this.clock())}|${this.rulesVersion}|difficulty`)%4:0;}
+ challengeDifficulty(){return ['lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9'].includes(this.rulesVersion)?hashSeed(`${this.guild}|${dayKey(this.clock())}|${this.rulesVersion}|difficulty`)%4:0;}
  challengeProfession(p={}){const day=dayKey(this.clock());return professionForSeed(`${this.guild}|${day}|${this.rulesVersion}`);}
 }
