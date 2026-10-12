@@ -1,12 +1,12 @@
 {
   "name": "aliceneko-discord-holdem",
-  "version": "1.0.1-beta.81",
+  "version": "1.0.1-beta.82",
   "private": true,
   "type": "module",
   "scripts": {
     "scope": "node scripts/repo-scope.mjs",
     "test": "node --import=./test-static-assets.mjs --test *.test.mjs",
-    "test:chat": "node --import=./test-static-assets.mjs --test ai-chat.test.mjs chat-enrichment.test.mjs discord-chat-context.test.mjs gateway-concurrency.test.mjs runtime-context.test.mjs",
+    "test:chat": "node --import=./test-static-assets.mjs --test ai-chat.test.mjs chat-enrichment.test.mjs discord-chat-context.test.mjs gateway-concurrency.test.mjs runtime-context.test.mjs relationship-memory.test.mjs",
     "test:lantern": "node --import=./test-static-assets.mjs --test rogue-*.test.mjs",
     "test:tavern": "node --import=./test-static-assets.mjs --test tavern*.test.mjs red-packet*.test.mjs",
     "test:worker": "node --import=./test-static-assets.mjs --test worker.test.mjs lifecycle.test.mjs private-panels.test.mjs board-sync.test.mjs",

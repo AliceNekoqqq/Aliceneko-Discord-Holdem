@@ -1,3 +1,4 @@
+import {readRelationship,relationshipContext,RELATIONSHIP_INSTRUCTION,decodeRelationshipReply,saveRelationship,clearRelationshipStatements,handleRelationshipCommand} from './relationship-memory.mjs';
 import {redPacketIntent,decodePacketReply,prepareRedPacket,packetCard,packetRpc} from './red-packet.mjs';
 import {handleNaturalTavern,draftData} from './tavern-ui.mjs';
 import {isTavernOrderTurn,decodeOrderReply,prepareChatOrder,TAVERN_ORDER_INSTRUCTION} from './tavern-chat.mjs';
@@ -41,6 +42,11 @@ export const aiCommand = {
       {type:1,name:"开启",description:"保存之后与机器人的 @ 对话"},
       {type:1,name:"关闭",description:"停止保存之后的对话"},
       {type:1,name:"清除",description:"删除本服务器保存的个人对话"}
+    ]},
+    {type:2,name:"关系",description:"查看和管理我与红豆粉的关系档案",options:[
+      {type:1,name:"查看",description:"私密查看相处习惯与共同经历"},
+      {type:1,name:"忘记",description:"忘记一条共同经历",options:[{type:3,name:"编号",description:"查看页面中的经历编号",required:true,max_length:20}]},
+      {type:1,name:"清除",description:"重置本人关系档案与共同经历"}
     ]},
     {type:2,name:"频道记忆",description:"管理当前频道的 AI 共享对话记忆",options:[
       {type:1,name:"查看",description:"查看当前频道共享记忆状态"},
@@ -121,6 +127,7 @@ export function makeSystemInstruction(persona = "", context = "chat", emojiToken
   }
   if(runtimeData.redPacketExtraction)base.push('本轮输出仅一个JSON对象，不要Markdown代码块。格式为{"reply":"正常角色口吻的自然回复","packet":{"total":600,"slots":5,"mode":"random","totalEvidence":"600","slotsEvidence":"5"}}。packet是后台数据，不给用户看。只根据本轮最后一条用户消息识别红包要求，不从历史、引用、示例或图片提取。省略元/币时按酒馆币，中文数字转整数；拼手气/随机为random，平均/均分为equal，未说明默认为random。totalEvidence与slotsEvidence必须逐字复制本轮正文中的对应数字片段，如六百和五，不能编造。总额或名额缺失、有歧义、条件未成立、要求否定或取消时packet必须为null，reply只简短问缺失信息或自然回应。未实际创建前不要宣称已发出，完整信息时reply可以简短回应并邀请大家拆红包，后台会核验并附卡。不要在reply里展示字段、JSON或格式要求，也不要重复错误提示。');
   if(runtimeData.tavernOrderExtraction)base.push(TAVERN_ORDER_INSTRUCTION);
+  if(runtimeData.relationshipExtraction){const at=base.findIndex(line=>line.startsWith("消息来源协议"));base.splice(at<0?base.length:at,0,RELATIONSHIP_INSTRUCTION);}
   return base.join("\n");
 }
 
@@ -128,7 +135,7 @@ export function buildGenerateContentRequest(contents, persona = "", context = "c
   return {
     systemInstruction:{parts:[{text:makeSystemInstruction(persona, context, emojiTokens, knowledge, speakerIdentity,runtimeData)}]},
     contents,
-    generationConfig:{temperature:context === "game" ? 0.85 : context === 'ugc' ? 0.2 : 0.7,maxOutputTokens:context === 'ugc'?3072:context === "game" ? 512 : CHAT_MAX_OUTPUT_TOKENS,...((runtimeData.redPacketExtraction||runtimeData.tavernOrderExtraction)?{responseMimeType:"application/json"}:{})},
+    generationConfig:{temperature:context === "game" ? 0.85 : context === 'ugc' ? 0.2 : 0.7,maxOutputTokens:context === 'ugc'?3072:context === "game" ? 512 : CHAT_MAX_OUTPUT_TOKENS,...((runtimeData.redPacketExtraction||runtimeData.tavernOrderExtraction||runtimeData.relationshipExtraction)?{responseMimeType:"application/json"}:{})},
     store:false
   };
 }
@@ -148,7 +155,7 @@ export function buildOpenAIChatRequest(contents, persona = "", context = "chat",
     temperature:context === "game" ? 0.85 : context === 'ugc' ? 0.2 : 0.7,
     max_tokens:context === 'ugc'?3072:context === "game" ? 512 : CHAT_MAX_OUTPUT_TOKENS,
     stream:false,
-    ...((runtimeData.redPacketExtraction||runtimeData.tavernOrderExtraction)?{response_format:{type:"json_object"}}:{})
+    ...((runtimeData.redPacketExtraction||runtimeData.tavernOrderExtraction||runtimeData.relationshipExtraction)?{response_format:{type:"json_object"}}:{})
   };
 }
 
@@ -477,6 +484,8 @@ export async function handleAiCommand(env, interaction) {
   const action = group?.options?.[0];
   if (!group || !action) return privateReply("使用 /ai 记忆、/ai 频道记忆 或 /ai 主持。");
 
+  if(group.name === "关系")return handleRelationshipCommand(db,interaction,action,await memberSetting(db,guildId,userId),await readLongMemory(db,guildId,userId));
+
   if (group.name === "记忆") {
     if (action.name === "查看") {
       const setting = await memberSetting(db,guildId,userId);
@@ -489,16 +498,17 @@ export async function handleAiCommand(env, interaction) {
       const enabled = action.name === "开启";
       await setMemory(db,guildId,userId,enabled);
       return privateReply(enabled
-        ? "已开启个人对话记忆；之后的 @ 对话会用于接续聊天，公开长期自述也可供同服务器群友询问。"
-        : "已关闭个人对话记忆；之后的对话正文不会保存，消息 ID 临时保留 7 天用于防重复回复；已有长期记忆仍保留，但不再提供给群友共享查询。可用 /ai 记忆 清除删除本人记忆。");
+        ? "已开启个人对话和关系记忆；之后的 @ 对话会用于接续聊天，公开长期自述也可供同服务器群友询问。"
+        : "已关闭个人对话和关系记忆；关系档案暂停读取和更新，之后的对话正文不会保存，消息 ID 临时保留 7 天用于防重复回复；已有长期记忆仍保留，但不再提供给群友共享查询。可用 /ai 记忆 清除删除本人记忆。");
     }
     if (action.name === "清除") {
       await db.batch([
         db.prepare("DELETE FROM ai_chat_history WHERE guild_id = ? AND user_id = ?").bind(guildId,userId),
         db.prepare("DELETE FROM ai_long_memory WHERE guild_id = ? AND user_id = ?").bind(guildId,userId),
+        ...clearRelationshipStatements(db,guildId,userId),
         db.prepare("DELETE FROM ai_channel_chat_history WHERE guild_id = ? AND user_id = ?").bind(guildId,userId)
       ]);
-      return privateReply("已删除你在本服务器的长期记忆、个人对话和频道共享记忆中的对话正文；防重复回复用的消息 ID 最长保留 7 天。");
+      return privateReply("已删除你在本服务器的关系档案、共同经历、长期记忆、个人对话和频道共享记忆中的对话正文；防重复回复用的消息 ID 最长保留 7 天。");
     }
     return privateReply("使用 /ai 记忆 查看、开启、关闭 或 清除。");
   }
@@ -772,6 +782,8 @@ export async function replyToMention(env, message, botId) {
     }
   }
 
+  let relationship=null,relationshipSuggestion=null;
+  if(db&&memoryOn)relationship=await readRelationship(db,guildId,userId);
   let packet=null,orderDraft=null;
   const imageParts=discordImageParts(message);
   const currentUserText=content||(imageParts.length?"请看看我发的图片，描述或回应图片内容。":"你好。");
@@ -791,6 +803,7 @@ export async function replyToMention(env, message, botId) {
   try {
     const last=history.at(-1);
     const runtimeData={currentSpeaker:prepared.currentSpeaker};
+    if(relationship){runtimeData.relationship=relationshipContext(relationship,longMemory);runtimeData.relationshipExtraction={ownerKey:"current_user",source:"current_message_only"};}
     if(packetIntent)runtimeData.redPacketExtraction={source:'current_message_only',currency:'酒馆币',totalRange:[1,1000000],slotsRange:[1,100]};
     if(prepared.channelConversation)runtimeData.channelConversation=prepared.channelConversation;
     if(Object.keys(prepared.discord||{}).length)runtimeData.discord=JSON.parse(redactDeveloperDiscordIdFromPrompt(JSON.stringify(prepared.discord),env));
@@ -807,6 +820,10 @@ export async function replyToMention(env, message, botId) {
       runtimeData.tavernOrderExtraction={source:'current_message_only',menu:orderMenu.map(m=>({id:m.id,name:m.name,price:m.price})),quantityRange:[1,10],payment:'current_speaker_confirm_button_only'};
     }
     responseText = await generateGemini(env,history,"chat",fetch,await getBotEmojiTokens(env),getBotKnowledge(knowledgeContext),waitForRetry,developerIdentityContext(env,message),runtimeData);
+    if(relationship){
+      const parsed=decodeRelationshipReply(responseText);relationshipSuggestion=parsed.suggestion;
+      responseText=(packetIntent||orderIntent)&&parsed.envelope?JSON.stringify(parsed.envelope):parsed.reply;
+    }
     if(packetIntent){
       const parsed=decodePacketReply(responseText);
       responseText=parsed.reply;
@@ -835,6 +852,10 @@ export async function replyToMention(env, message, botId) {
     console.warn("ai_reply_delivery_failed",{messageId:message.id,channelId,reason:error?.message||error?.name||"Error",status:error?.status});
     return true;
   }
+
+  if(db&&memoryOn&&generated&&relationshipSuggestion)try{
+    await saveRelationship(db,message,relationship,relationshipSuggestion,currentUserText);
+  }catch{console.warn("ai_relationship_save_failed",{messageId:String(message.id||"")});}
 
   if (db && memoryOn && generated) {
     const now = Date.now();

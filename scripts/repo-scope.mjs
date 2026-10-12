@@ -7,7 +7,7 @@ const ROOT = resolve(new URL('..', import.meta.url).pathname);
 
 const SCOPES = Object.freeze({
   chat: [
-    'ai-chat.mjs', 'chat-enrichment.mjs', 'discord-chat-context.mjs',
+    'ai-chat.mjs', 'relationship-memory.mjs', 'relationship-memory.test.mjs', 'chat-enrichment.mjs', 'discord-chat-context.mjs',
     'discord-gateway.mjs', 'migrations', 'ai-chat.test.mjs',
     'chat-enrichment.test.mjs', 'discord-chat-context.test.mjs',
     'gateway-concurrency.test.mjs', 'runtime-context.test.mjs',
