@@ -1,6 +1,6 @@
 {
   "name": "aliceneko-discord-holdem",
-  "version": "1.0.1-beta.87",
+  "version": "1.0.1-beta.87+ugc-recovery.1",
   "private": true,
   "type": "module",
   "scripts": {
