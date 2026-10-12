@@ -2,7 +2,7 @@
 
 更新时间：2026-10-12（Asia/Shanghai）
 
-- beta.82关系档案已完成本地实现，待GitHub同步/生产发布：无信任度；熟悉度、好感、相处习惯、来源可追溯的8项共同经历，复用同次Gemini隐藏JSON；本人私密 /ai 关系 查看/忘记/清除。个人记忆开关与整体清除覆盖关系，事务每日额度/消息幂等/30分钟冷却/epoch在途清除保护；公开自述共享不变。聊天91、关系专项8（已含聊天接入）、Worker27通过，git diff检查通过。实现和迁移见docs/ai/RELATIONSHIPS.md；待先应用0005迁移，再发布并核验Gateway chat82-relationships。真人关系表现未验证。
+- beta.82关系档案实现完成、GitHub PR #21已同步且检查38256218618成功，生产迁移/发布阻塞：无信任度；熟悉度、好感、相处习惯、来源可追溯的8项共同经历，复用同次Gemini隐藏JSON；本人私密 /ai 关系 查看/忘记/清除。个人记忆开关与整体清除覆盖关系，事务每日额度/消息幂等/30分钟冷却/epoch在途清除保护；公开自述共享不变。聊天91、关系专项8（已含聊天接入）、Worker27通过，git diff检查通过。实现和迁移见docs/ai/RELATIONSHIPS.md；运行提交e86adddd92f35f4b1eb7b61be21a1152bcc97638。0005生产迁移调用被自动审批拒绝，理由为需用户明确授权生产D1建表/索引/触发器；未执行迁移、未合并PR、未部署Worker。请用户明确允许在现有aliceneko-ai生产D1创建3张关系表、2个索引和1个触发器，再应用迁移/合并/发布beta.82并核验Gateway chat82-relationships。已有项目授权未被本次自动审批采纳，不绕过拒绝。线上仍beta.81；真人关系表现未验证。
 
 - beta.81 引用读取/模型点单/商品赠送已上线：空嵌入引用按同频道原ID重读，Gateway按应用许可申请Message Content；模型同次回复附隐藏订单，实时菜单和当前明确收礼人再次核验，付款人确认后扣款。私密点单卡支持收礼人选择/改为自己享用，/酒馆 点单支持赠给/数量；同品1至10份。赠送只扣付款人，收礼人可见收到的订单，事务回滚/幂等/重名和机器人拒绝/收礼人变化保护已测。聊天82、酒馆194、Worker27通过；PR #20检查38250917003成功，main ba2aec7059c13bc0f2cf8497e520c6b17f6014fa。主分支自动部署未启动，采用标准Worker完整上传；最终版本24f9034f-f74b-42ca-a5f9-f96dc3d143ba、部署e34a7d0f-6ce2-42f8-9b99-7184f6b321d2接收100%。TABLES须显式本地class_name:PokerTable，不使用inherit，原命名空间4b8575058fe745bd8abbb9eed752bf91/13绑定/v1/D1/Cron/兼容配置保留。上传源码SHA256 feafa41601053bde9a4138edd16c5610f3f974c9701421e0be0ec06b26e27d1c已读回匹配；首次上传截断校验失败未改线上，完整性校验后重传完成。实读health确认beta.81/ready:true/gateway.connected:true/ready:true/chat81-tavern-actions/messageContentEnabled:true；UGC图片HTTP200/83175字节/SHA一致。无需修改Discord权限。CLI推送因未认证改用已连接GitHub；受保护临时固定模型验证入口仍被自动审批拒绝，未创建、未作真实Gemini演练或额外权限修改。真人引用、模型点单和赠送待用户测试；后续从反馈定位，不重做已发布代码。
 
