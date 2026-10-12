@@ -2,6 +2,8 @@
 
 更新时间：2026-10-13（Asia/Shanghai）
 
+- beta.86 / 灯下迷城v0.17本地完成，待PR/CI/部署：五件灼烧增强/挡伤施火遗物每次1层、每轮一次且每战最多3次，计数入存档并显示剩余次数；13张治疗牌基础/升级治疗各减1，野外包扎和止血药盾保留医师特色。敌人生命系数提高8%、每段攻击增加1；营地回复仍9/高阶7。新局移除12轮失败，空手自动推进每次动作有限，旧v16冻结并保留主动回声/每日榜隔离。灯下迷城51文件、聊天6文件、Worker4文件通过。Luna同种子32局v16/v17完整远征30/32→29/32通关，平均结束HP22.5→16.91，营地回血3→15次，无超时；医师仅2/4，样本小，后续真人观察。现有好感度/专属红包/聊天指纹保持chat84-exclusive-red-packet。审计见docs/roguelike/V17_BALANCE_AUDIT.md和V17_BALANCE_SIM.json。
+
 - beta.85 / 灯下迷城v0.16已上线：1费高盾下调（铁门闭合9→6）、低伤1费攻击补强；回声按钮主动选牌、下轮免费重放，双回声/最后出牌窗口/25项分页和自动联动说明补齐。新局v16，旧局冻结。接到最新beta.84主线，现有好感度与专属红包保留。灯下迷城308/308、Worker27/27，PR #24检查38289552308与main发布38289667202成功；运行提交1e2a21243e8ff564204d7e3edcc486740845573e。CF部署6f7d1908-321a-481d-9faf-a850fe350482、版本8625bc92-1839-4bc1-89e1-d0e66820fa8e接收100%。13项绑定/Secret名类型/人设/DO命名空间/D1/ASSETS、兼容设置、观测及Cron比对保持；实读health确认beta.85/v0.16/ready:true，Gateway connected:true/ready:true，chatRuntime与expectedRuntime均chat84-exclusive-red-packet。真人平衡与趣味待反馈，本批发布已完成，勿重复发布。审计见docs/roguelike/V16_FEEDBACK_AUDIT.md。
 
 - beta.84专属红包已上线：开发者真实@机器人及唯一其他真人，金额1～1,000,000酒馆币，一人全额；系统出钱/24小时/同人账号去重保持。SQLite安全补列兼容旧红包；指定人/金额证据/拒绝零钱包变动/模型失败兜底已测，红包23/23、聊天93/93、Worker27/27通过。PR #23检查38287283512及main发布38287450200成功，运行提交97fb44c5840a7add89767a2f74ce4f004ccdf34f。CF部署79da1454-2b94-4382-9961-6063f50570b7、版本357e9762-3fa3-4ecc-9ded-48dfd0c5e8ea接收100%；绑定/Secret名类型/人设变量、兼容/观测配置对比保持。部署后约6分钟Gateway完成切换，实读health beta.84/ready:true/gateway.connected:true/ready:true/chatRuntime与expectedRuntime均chat84-exclusive-red-packet。真人Discord专属红包待用户测试，未额外发测试红包。详见docs/red-packet/EXCLUSIVE.md。

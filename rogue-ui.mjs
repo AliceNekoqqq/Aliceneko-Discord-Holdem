@@ -5,6 +5,7 @@ import { legalCards, legalItems, legalEchoes } from './rogue-battle.mjs';
 import { ITEMS, DIFFICULTIES, EVENTS } from './rogue-content-v07.mjs';
 import { PROFESSIONS, CATALOG_V08, ITEMS as ITEMS_V08, EVENTS as EVENTS_V08, DIFFICULTIES as DIFFICULTIES_V08 } from './rogue-content-v08.mjs';
 import { getCatalog } from './rogue-content.mjs';
+import { DIFFICULTIES as DIFFICULTIES_V17 } from './rogue-difficulty-v17.mjs';
 import { analyzeRogueBuild, explainRogueCandidate, previewRogueDeckChange } from './rogue-build-guide.mjs';
 import { summarizeObservationLines } from './rogue-observation.mjs';
 import {connectedPlanFor,routeNodeReference,nextRouteLabels,routeSupplyLines} from './rogue-route-view.mjs';
@@ -12,12 +13,12 @@ import { analyzeBuild, candidateFit } from './rogue-build-system.mjs';
 import { normalizeEffectMetrics } from './rogue-effect-metrics.mjs';
 import { enemyApproach, enemyDecisionCue } from './rogue-enemy-guide.mjs';
 import { resourceEffectLines, lastResourceReceipt } from './rogue-resource-state.mjs';
-let ACTIVE_CATALOG = getCatalog('0.16');
+let ACTIVE_CATALOG = getCatalog('0.17');
 let ACTIVE_ITEMS = ITEMS;
 let ACTIVE_EVENTS = EVENTS;
-const v08 = (run) => /(?:^|[^0-9])0\.(?:[89]|1[0-6])(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
-const expanded = (run) => run?.catalogVersion == null && run?.ruleVersion == null || /(?:^|[^0-9])0\.(?:[789]|1[0-6])(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
-const useRunCatalog = (run) => { ACTIVE_CATALOG = getCatalog(run?.catalogVersion ?? run?.ruleVersion ?? '0.16'); ACTIVE_ITEMS = ACTIVE_CATALOG.items ?? ITEMS; ACTIVE_EVENTS = ACTIVE_CATALOG.events ?? (v08(run) ? EVENTS_V08 : EVENTS); return ACTIVE_CATALOG; };
+const v08 = (run) => /(?:^|[^0-9])0\.(?:[89]|1[0-7])(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
+const expanded = (run) => run?.catalogVersion == null && run?.ruleVersion == null || /(?:^|[^0-9])0\.(?:[789]|1[0-7])(?:$|[^0-9])/.test(String(run?.catalogVersion ?? run?.ruleVersion ?? ''));
+const useRunCatalog = (run) => { ACTIVE_CATALOG = getCatalog(run?.catalogVersion ?? run?.ruleVersion ?? '0.17'); ACTIVE_ITEMS = ACTIVE_CATALOG.items ?? ITEMS; ACTIVE_EVENTS = ACTIVE_CATALOG.events ?? (v08(run) ? EVENTS_V08 : EVENTS); return ACTIVE_CATALOG; };
 function storyLines(run) {
   const story = run?.story;
   if (!story) return [];
@@ -50,7 +51,7 @@ function cardDef(entity) {
   return b ? (entity.upgraded ? { ...b, ...b.upgrade } : b) : null;
 }
 function buildLines(run) {
-  if(['lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16'].includes(run.ruleVersion)){
+  if(['lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion)){
     const report=analyzeBuild(run,ACTIVE_CATALOG);
     return ['构筑方向（组件参考）：', ...report.directions.map(d=>`${d.name}：${d.components.slice(0,3).join('、') || '尚无对应组件'}；${d.gaps.slice(0,2).join('；') || '组件存在，仍需安排兑现时机'}`), '牌组越厚，关键牌越难集中抽到；可以跳牌或改换方向。'];
   }
@@ -89,7 +90,7 @@ export function rogueUidEligible(run, source, kind, uid) {
 export function renderRogueUidPage(run, source, kind, page = 0, { update = false } = {}) {
   useRunCatalog(run);
   const entries = uidEligible(run, source, kind);
-  const pageSize = ['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16'].includes(run.ruleVersion) ? 5 : 25;
+  const pageSize = ['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion) ? 5 : 25;
   const totalPages = Math.max(1, Math.ceil(entries.length / pageSize));
   const active = Math.min(totalPages - 1, Math.max(0, Number.isSafeInteger(page) ? page : 0));
   const visible = entries.slice(active * pageSize, (active + 1) * pageSize);
@@ -102,7 +103,7 @@ export function renderRogueUidPage(run, source, kind, page = 0, { update = false
   else c.push(row(button('没有可选牌', cid(run, 'refresh', 'empty'), 2, true)));
   c.push(row(button('上一页', cid(run, 'uid-prev', `${source}:${kind}:${Math.max(0, active - 1)}`), 2, active === 0), button('下一页', cid(run, 'uid-next', `${source}:${kind}:${Math.min(totalPages - 1, active + 1)}`), 2, active >= totalPages - 1)));
   c.push(row(button(source === 'shop' ? '返回商店' : '返回房间', cid(run, 'refresh'), 2)));
-  const previews = ['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16'].includes(run.ruleVersion) ? visible.map(e => `#${e.uid} ${cardName(e.cardId)}${source === 'shop' ? ` · ${kind === 'upgrade' ? '升级' : '移除'}${serviceCost}余烬，${serviceBalance}` : ''}\n${changePreview(run, e, kind)}`).join('\n\n') : '';
+  const previews = ['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion) ? visible.map(e => `#${e.uid} ${cardName(e.cardId)}${source === 'shop' ? ` · ${kind === 'upgrade' ? '升级' : '移除'}${serviceCost}余烬，${serviceBalance}` : ''}\n${changePreview(run, e, kind)}`).join('\n\n') : '';
   const minimumDeck = ACTIVE_CATALOG.shop.minimumDeck ?? 0;
   const minNote = source === 'shop' && kind === 'remove' && (run.deck ?? []).length <= minimumDeck ? `\n已达最小牌组${minimumDeck}张，移除服务不可用。` : '';
   return panel(`${source === 'shop' ? '商店' : source === 'camp' ? '营地' : '事件'} · ${label}牌`, `${kind === 'upgrade' ? '未升级且支持升级' : '所有牌'} · 第${active + 1}/${totalPages}页 · 共${entries.length}张。选择要处理的牌。${minNote}${previews ? `\n\n${previews}` : ''}${source === 'shop' && lastResourceReceipt(run) ? `\n最近交易：${lastResourceReceipt(run)}` : ''}`, c, update);
@@ -160,13 +161,13 @@ export function renderRogueHome({ challengeProfession = null, homeInfo = {}, upd
   return panel('灯下迷城', `${WORLD_INTRO}\n\n先选择职业，再查看已解锁的难度。\n正式局：每天前2次开局可获得金币奖励，实际到账受每日上限限制。\n练习局：不发金币、不占奖励开局次数；通关也能推进职业难度。\n每日挑战：${challenge}\n职业进度：${progress.join('；') || '各职业从难度0开始'}\n\n${hint}`, components, update);
 }
 
-export function renderRogueSettings({ professionId, difficulty = 0, mode = 'normal', homeInfo = {}, update = false, catalogVersion = '0.16' } = {}) {
+export function renderRogueSettings({ professionId, difficulty = 0, mode = 'normal', homeInfo = {}, update = false, catalogVersion = '0.17' } = {}) {
   const prof = getCatalog(catalogVersion).professions?.[professionId] ?? PROFESSIONS[professionId];
   if (!prof) return renderRogueHome({ update });
   const progress = (homeInfo.progress ?? []).find((p) => p.professionId === professionId);
   const unlocked = Math.max(0, Math.min(10, Number.isInteger(progress?.unlocked) ? progress.unlocked : 0));
   const selected = Math.max(0, Math.min(unlocked, Number.isInteger(difficulty) ? difficulty : 0));
-  const allDifficulties = /0\.(?:[89]|1[0-6])/.test(String(catalogVersion)) ? DIFFICULTIES_V08 : (Array.isArray(DIFFICULTIES) ? DIFFICULTIES : Object.values(DIFFICULTIES ?? {}));
+  const allDifficulties = /0\.17/.test(String(catalogVersion)) ? DIFFICULTIES_V17 : /0\.(?:[89]|1[0-7])/.test(String(catalogVersion)) ? DIFFICULTIES_V08 : (Array.isArray(DIFFICULTIES) ? DIFFICULTIES : Object.values(DIFFICULTIES ?? {}));
   const diffs = allDifficulties.filter((d) => Number.isInteger(d.level) && d.level <= unlocked).sort((a,b) => a.level-b.level);
   const difficultyDef = allDifficulties.find((x) => x.level === selected);
   const options = diffs.map((d) => ({ label: `${d.level} · ${d.name}`, value: String(d.level), description: d.description ?? '' }));
@@ -181,8 +182,8 @@ export function renderRogueSettings({ professionId, difficulty = 0, mode = 'norm
 export function renderRogueReading(kind = 'guide', professionId, { update = false, run = null } = {}) {
   const lore = PROFESSION_STORIES[professionId];
   const guide = kind === 'guide';
-  const rules = run ? useRunCatalog(run).player : CATALOG_V08.player;
-  const body = guide ? playGuide({ ...rules, modern: !run || expanded(run), echoManual: run?.ruleVersion === 'lantern-rules-v0.16' })
+  const rules = run ? useRunCatalog(run).player : getCatalog('0.17').player;
+  const body = guide ? playGuide({ ...rules, modern: !run || expanded(run), echoManual: !run || ['lantern-rules-v0.16','lantern-rules-v0.17'].includes(run?.ruleVersion), turnLimit: rules.turnLimit })
     : lore ? `${lore.background}\n\n出发动机：${lore.motive}\n招牌打法：${lore.signature}\n\n这是《灯下迷城》盒内角色的故事。`
     : WORLD_STORY;
   const buttons = run
@@ -298,12 +299,13 @@ function renderBattle(run, update) {
   else if(intent.kind==='tempo')intentLine=actionText(intent);
   else if (intent.kind === 'charge') intentLine = `蓄力预告：下轮${actionText(intent.next ?? { ...intent, kind: 'attack' })}`;
   else intentLine = actionText(intent);
-  const decisionCue = ['lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16'].includes(run.ruleVersion) ? enemyDecisionCue(b) : '';
+  const decisionCue = ['lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion) ? enemyDecisionCue(b) : '';
   if (decisionCue) intentLine += `\n${decisionCue}`;
   const drawCount = expanded(run) ? 5 : 4, playLimit = expanded(run) ? 3 : 2;
   const playerMaxHp = run.maxHp ?? (expanded(run) && (run.difficulty ?? 0) >= 6 ? 28 : ACTIVE_CATALOG.player.maxHp);
   const enemyStates = [[b.enemyArmor,'护甲'],[b.enemyShield,'护盾'],[b.enemyBurn,'灼烧']].filter(([n]) => n > 0).map(([n,label]) => `${label}${n}`);
   const description = [`**敌人**　${enemy.name ?? '敌人'} · 生命${b.enemyHp ?? '?'}${enemyStates.length ? ` · ${enemyStates.join(' · ')}` : ''}`, `**意图**　${intentLine}`, '', `**你**　生命${b.hp ?? run.hp}/${b.maxHp ?? playerMaxHp} · 护盾${b.shield ?? 0}`, `能量 ${b.energy ?? 0} · 已出牌 ${b.plays ?? 0}/${playLimit}${b.burn > 0 ? `\n⚠ 灼烧${b.burn}：轮末扣血，护盾挡不住` : ''}`];
+  if(run.ruleVersion==='lantern-rules-v0.17'){const limited=(b.relics??[]).filter(id=>ACTIVE_CATALOG.relics[id]?.maxTriggersPerBattle!=null);if(limited.length)description.push('灼烧遗物剩余触发：'+limited.map(id=>`${ACTIVE_CATALOG.relics[id].name}${Math.max(0,ACTIVE_CATALOG.relics[id].maxTriggersPerBattle-(b.relicTriggerCounts?.[id]??0))}次`).join(' · '));}
   if (run.room?.storyEffect) description.push(`本战影响：${String(run.room.storyEffect).replace('每段攻击+1','每段敌方攻击伤害+1')}`);
   description.push(...storyLines(run));
   if ((b.turn ?? 0) <= 1 && run.resourceLog?.at(-1)?.act === run.act && run.resourceLog.at(-1).slot === run.slot - 1) description.push(lastResourceReceipt(run));
@@ -313,7 +315,7 @@ function renderBattle(run, update) {
       : '敌人已进入第二阶段，新阶段意图正在生效。');
   }
   const phaseName = b.phaseName ?? enemy.phaseName ?? enemy.phases?.[b.enemyPhase - 1]?.name ?? enemy.phases?.[b.enemyPhase]?.name;
-  if(['lantern-rules-v0.15','lantern-rules-v0.16'].includes(run.ruleVersion) && b.phaseNextIntent && b.phaseStartTurn>b.turn)description.push(`下轮阶段开场：${actionText(b.phaseNextIntent)}`);
+  if(['lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion) && b.phaseNextIntent && b.phaseStartTurn>b.turn)description.push(`下轮阶段开场：${actionText(b.phaseNextIntent)}`);
   if ((b.enemyPhase ?? 1) >= 2 && phaseName) description.push(`敌人阶段：${phaseName}`);
   const resources = [];
   if (b.prepare) resources.push(`备势${b.prepare}`); if (b.mark) resources.push(`标记${b.mark}`); if (b.forge) resources.push(`锻造${b.forge}`);
@@ -325,8 +327,8 @@ function renderBattle(run, update) {
   const hand = (b.hand ?? []).slice(0, drawCount);
   description.push('', '**手牌：**', ...hand.map(e => {
     const def = cardDef(e);
-    const brief = cardEffectLines(def, { echoManual: run.ruleVersion === 'lantern-rules-v0.16' }).join('、');
-    return `#${e.uid} **${cardName(e.cardId)}${e.upgraded ? '＋' : ''}** · ${def?.cost ?? '?'}费 · ${brief}${run.ruleVersion==='lantern-rules-v0.16'&&def?.replayable&&!def.effects.some(x=>x.kind==='heal')?' · 可回声':''}${def?.exhaust ? ' · 消耗' : ''}${def?.selfCost ? ` · 自损${def.selfCost}${def.selfCost >= (b.hp ?? run.hp) ? ' ⚠ 自损会倒下' : ''}` : ''}`;
+    const brief = cardEffectLines(def, { echoManual: ['lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion) }).join('、');
+    return `#${e.uid} **${cardName(e.cardId)}${e.upgraded ? '＋' : ''}** · ${def?.cost ?? '?'}费 · ${brief}${['lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion)&&def?.replayable&&!def.effects.some(x=>x.kind==='heal')?' · 可回声':''}${def?.exhaust ? ' · 消耗' : ''}${def?.selfCost ? ` · 自损${def.selfCost}${def.selfCost >= (b.hp ?? run.hp) ? ' ⚠ 自损会倒下' : ''}` : ''}`;
   }));
   const playOptions = [];
   const targetEffects = new Set(['sift', 'exhaust_other', 'retain']);
@@ -341,13 +343,13 @@ function renderBattle(run, update) {
     if (reason) continue;
     const prefix = `#${e.uid} ${cardName(e.cardId)}${e.upgraded ? '＋' : ''} · ${def.cost}费${def.selfCost ? ` · 自损${def.selfCost}` : ''}${def.exhaust ? ' · 消耗' : ''}`;
     if ((def?.effects ?? []).some((x) => targetEffects.has(x.kind))) {
-      if (!requiredTarget) playOptions.push({ label: `${prefix} · 不选目标`, value: `p:${e.uid}:n`, description: `${cardText(e, run.ruleVersion === 'lantern-rules-v0.16')} · 只执行基础效果` });
-      for (const t of targets) playOptions.push({ label: `${prefix} → #${t.uid} ${cardName(t.cardId)}`, value: `p:${e.uid}:t:${t.uid}`, description: `${cardText(e, run.ruleVersion === 'lantern-rules-v0.16')}；目标：${cardName(t.cardId)}` });
-    } else playOptions.push({ label: prefix, value: `p:${e.uid}:n`, description: cardText(e, run.ruleVersion === 'lantern-rules-v0.16') });
+      if (!requiredTarget) playOptions.push({ label: `${prefix} · 不选目标`, value: `p:${e.uid}:n`, description: `${cardText(e, ['lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion))} · 只执行基础效果` });
+      for (const t of targets) playOptions.push({ label: `${prefix} → #${t.uid} ${cardName(t.cardId)}`, value: `p:${e.uid}:t:${t.uid}`, description: `${cardText(e, ['lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion))}；目标：${cardName(t.cardId)}` });
+    } else playOptions.push({ label: prefix, value: `p:${e.uid}:n`, description: cardText(e, ['lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion)) });
   }
   const criticalHint = intent.kind === 'conditional' ? `本轮首张：${b.firstCardKind === 'attack' ? '已选攻击分支' : b.firstCardKind === 'other' ? '已选其他分支' : '尚未出牌，留意上方分支'}` : '';
   if (criticalHint) description.push(`本轮提示：${criticalHint}`);
-  if (run.ruleVersion === 'lantern-rules-v0.16') {
+  if (['lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion)) {
     const directKinds = new Set(['damage','pet_attack','weapon_attack','sacrifice','damage_from_shield']);
     const directCards = hand.filter(e => cardDef(e)?.effects?.some(x => directKinds.has(x.kind))).map(e => `#${e.uid} ${cardName(e.cardId)}`);
     const weaponCards = hand.filter(e => cardDef(e)?.effects?.some(x => x.kind === 'weapon_attack')).map(e => `#${e.uid} ${cardName(e.cardId)}`);
@@ -384,7 +386,7 @@ function renderBattle(run, update) {
     components.push(row(...labels.map((x) => button(x.label, cid(run, 'item', x.index), 2, !x.available))));
   }
   components.push(row(button('结束本轮', cid(run, 'end'), 2, Boolean(b.result)), button('手牌详情', cid(run, 'details', 'hand:0'), 2)));
-  if (run.ruleVersion === 'lantern-rules-v0.16') components.push(row(button(b.echoReady ? '使用回声' : '回声说明', cid(run, 'echo'), 1)));
+  if (['lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion)) components.push(row(button(b.echoReady ? '使用回声' : '回声说明', cid(run, 'echo'), 1)));
   components.push(controlRow(run));
   const totalStations = expanded(run) ? 15 : 9;
   const stations = Math.min(totalStations, (run.completed ?? 0) + 1);
@@ -394,7 +396,7 @@ function renderBattle(run, update) {
 
 export function renderRogueEchoMenu(run, { update = false, page = 0 } = {}) {
   useRunCatalog(run);
-  if (run?.ruleVersion !== 'lantern-rules-v0.16' || run.phase !== 'BATTLE' || !run.battle) return panel('回声控制', '当前规则或阶段不能使用回声。', [row(button('返回远征', cid(run, 'refresh'), 2))], update);
+  if (!['lantern-rules-v0.16','lantern-rules-v0.17'].includes(run?.ruleVersion) || run.phase !== 'BATTLE' || !run.battle) return panel('回声控制', '当前规则或阶段不能使用回声。', [row(button('返回远征', cid(run, 'refresh'), 2))], update);
   const b = run.battle;
   const choices = legalEchoes(b);
   const pages = Math.max(1, Math.ceil(choices.length / 25));
@@ -441,7 +443,7 @@ function renderRoom(run, update) {
       const available = availableChoices.has(node.id) && node.available !== false;
       const lines = [];
       if (enemy) lines.push(`基础属性：生命 ${enemy.hp} ｜ 护甲 ${enemy.armor}`);
-      if (enemy && ['lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16'].includes(run.ruleVersion)) lines.push(`战术特征：${enemyApproach(enemy)}`);
+      if (enemy && ['lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion)) lines.push(`战术特征：${enemyApproach(enemy)}`);
       if (enemy && enemy.name !== node.title) lines.push(`敌人：${enemy.name}`);
       const description = (node.description || '').replaceAll('Boss', '首领').replace(/支付(\d+)点余烬/g, '支付 $1 余烬').replace(/降低(\d+)%/g, '降低 $1%');
       if (node.dangerous) lines.push('敌人更强；获胜后额外获得余烬与遗物。');
@@ -615,11 +617,11 @@ function renderReward(run, update) {
     rows.push(controlRow(run));
     const itemHint = kinds.includes('item') && (run.inventory ?? []).length >= 2 && selections.item?.id == null ? '\n道具栏已满：选择替换位置才会领取新道具，也可以跳过。' : '';
     const cardCandidates = queue.find(stage => stage.kind === 'card')?.candidates ?? [];
-    const hints = ['lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16'].includes(run.ruleVersion)
+    const hints = ['lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion)
       ? cardCandidates.map(id=>{const fit=candidateFit(run,id,ACTIVE_CATALOG);return `${cardName(id)} · ${fit.category}：${fit.reason}`;}).join('\n')
       : ['messenger','medic'].includes(run.professionId) && run.ruleVersion === 'lantern-rules-v0.9'
       ? cardCandidates.map(id => `${cardName(id)}：${explainRogueCandidate(run,id).reason ?? ''}`).join('\n') : '';
-    const recommendation=['lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16'].includes(run.ruleVersion) ? (reward.recommendedCard ? `\n补强参考：${cardName(reward.recommendedCard)}。${reward.recommendationReason ?? ''}` : '\n暂无明确补强参考；新卡默认跳过，可自行选择。') : '';
+    const recommendation=['lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion) ? (reward.recommendedCard ? `\n补强参考：${cardName(reward.recommendedCard)}。${reward.recommendationReason ?? ''}` : '\n暂无明确补强参考；新卡默认跳过，可自行选择。') : '';
     return panel('战利品 · 等待领取', `奖励尚未领取。可更换各项选择，最后点击「确认领取所选奖励」。${recommendation}\n\n${summaries.join('\n\n')}${itemHint}${hints ? `\n\n候选用途（可自由跳牌）：\n${hints}` : ''}`, rows, update);
   }
   const stage = reward.queue?.[reward.index];
@@ -658,7 +660,7 @@ function renderResult(run, update) {
   const observation = summarizeObservationLines(run);
   if (observation.length) lines.push('\n本局记录（仅含接入后操作）', ...observation);
   if (run.effectMetrics) lines.push('\n效果兑现', ...effectMetricLines(run));
-  if (['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16'].includes(run.ruleVersion)) lines.push(`最终牌组：${run.deck?.length ?? 0}张 · 遗物：${run.relics?.length ?? 0}件`);
+  if (['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion)) lines.push(`最终牌组：${run.deck?.length ?? 0}张 · 遗物：${run.relics?.length ?? 0}件`);
   const defaultProfession = Object.hasOwn(PROFESSIONS, run.professionId) ? run.professionId : Object.hasOwn(PROFESSIONS, 'traveler') ? 'traveler' : Object.keys(PROFESSIONS)[0];
   return panel('远征结算', lines.join('\n'), [row(button('再来一局', `rl:settings:${defaultProfession}`), button('挑战远征', 'rl:start:challenge')), row(button('返回首页', 'rl:home', 2), button('查看榜单', 'rl:board', 2))], update);
 }

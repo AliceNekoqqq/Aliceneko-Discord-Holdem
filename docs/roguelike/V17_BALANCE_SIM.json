@@ -1,0 +1,584 @@
+{
+  "generatedAt": "2026-10-12T18:40:44.046Z",
+  "rules": "lantern-rules-v0.17",
+  "scope": "8 professions \u00d7 4 paired seeds \u00d7 difficulty 0 = 32 v17 full runs; prior v16 cohort reused, not rerun",
+  "method": "Two-action legal greedy battle lookahead; explicit legal ECHO choices; normal route preference, choose camp when HP <= 24, heal at camp when HP <= 24; claim default rewards; no injected HP; JSON roundtrip after every action.",
+  "limits": "Deterministic small automated sample, not evidence of human fun or population balance. Seed cohort is paired to prior v16 audit.",
+  "v16Baseline": {
+    "cohort": "same 8 professions \u00d7 4 seeds, run previously against frozen v16 at difficulty 0",
+    "summary": {
+      "runs": 32,
+      "clears": 30,
+      "defeats": 2,
+      "timeouts": 0,
+      "meanEndingHp": 22.47,
+      "combatHpLostBeforeHealing": 925,
+      "battleHealing": 659,
+      "campHealUses": 3,
+      "campHpRestored": 25
+    },
+    "medic": [
+      {
+        "seedIndex": 1,
+        "outcome": "CLEAR",
+        "endingHp": 25
+      },
+      {
+        "seedIndex": 2,
+        "outcome": "CLEAR",
+        "endingHp": 14
+      },
+      {
+        "seedIndex": 3,
+        "outcome": "CLEAR",
+        "endingHp": 17
+      },
+      {
+        "seedIndex": 4,
+        "outcome": "CLEAR",
+        "endingHp": 22
+      }
+    ]
+  },
+  "v17": {
+    "summary": {
+      "runs": 32,
+      "clears": 29,
+      "defeats": 3,
+      "timeouts": 0,
+      "meanEndingHp": 16.91,
+      "combatHpLostBeforeHealing": 1258,
+      "battleHealing": 698,
+      "campHealUses": 15,
+      "campHpRestored": 132
+    },
+    "byProfession": {
+      "traveler": {
+        "runs": 4,
+        "clears": 4,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 9.75,
+        "combatHpLostBeforeHealing": 190,
+        "battleHealing": 92,
+        "campHealUses": 2,
+        "campHpRestored": 17
+      },
+      "warden": {
+        "runs": 4,
+        "clears": 4,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 27,
+        "combatHpLostBeforeHealing": 136,
+        "battleHealing": 96,
+        "campHealUses": 3,
+        "campHpRestored": 28
+      },
+      "brewer": {
+        "runs": 4,
+        "clears": 4,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 19.75,
+        "combatHpLostBeforeHealing": 146,
+        "battleHealing": 82,
+        "campHealUses": 3,
+        "campHpRestored": 23
+      },
+      "messenger": {
+        "runs": 4,
+        "clears": 3,
+        "defeats": 1,
+        "timeouts": 0,
+        "meanEndingHp": 7.25,
+        "combatHpLostBeforeHealing": 218,
+        "battleHealing": 92,
+        "campHealUses": 4,
+        "campHpRestored": 33
+      },
+      "smith": {
+        "runs": 4,
+        "clears": 4,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 17.5,
+        "combatHpLostBeforeHealing": 138,
+        "battleHealing": 88,
+        "campHealUses": 0,
+        "campHpRestored": 0
+      },
+      "medic": {
+        "runs": 4,
+        "clears": 2,
+        "defeats": 2,
+        "timeouts": 0,
+        "meanEndingHp": 12,
+        "combatHpLostBeforeHealing": 193,
+        "battleHealing": 105,
+        "campHealUses": 1,
+        "campHpRestored": 9
+      },
+      "tamer": {
+        "runs": 4,
+        "clears": 4,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 25.25,
+        "combatHpLostBeforeHealing": 66,
+        "battleHealing": 47,
+        "campHealUses": 0,
+        "campHpRestored": 0
+      },
+      "forger": {
+        "runs": 4,
+        "clears": 4,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 16.75,
+        "combatHpLostBeforeHealing": 171,
+        "battleHealing": 96,
+        "campHealUses": 2,
+        "campHpRestored": 22
+      }
+    },
+    "runs": [
+      {
+        "professionId": "traveler",
+        "seedIndex": 1,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 9,
+        "campUses": 2,
+        "campHpRestored": 17,
+        "camps": [
+          {
+            "act": 2,
+            "choice": "heal",
+            "hpBefore": 24,
+            "hpAfter": 30,
+            "hpRestored": 6
+          },
+          {
+            "act": 3,
+            "choice": "heal",
+            "hpBefore": 18,
+            "hpAfter": 29,
+            "hpRestored": 11
+          }
+        ]
+      },
+      {
+        "professionId": "traveler",
+        "seedIndex": 2,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 9,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "traveler",
+        "seedIndex": 3,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 17,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "traveler",
+        "seedIndex": 4,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 4,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "warden",
+        "seedIndex": 1,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 23,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "warden",
+        "seedIndex": 2,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 30,
+        "campUses": 2,
+        "campHpRestored": 17,
+        "camps": [
+          {
+            "act": 2,
+            "choice": "heal",
+            "hpBefore": 21,
+            "hpAfter": 30,
+            "hpRestored": 9
+          },
+          {
+            "act": 3,
+            "choice": "heal",
+            "hpBefore": 22,
+            "hpAfter": 30,
+            "hpRestored": 8
+          }
+        ]
+      },
+      {
+        "professionId": "warden",
+        "seedIndex": 3,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 30,
+        "campUses": 1,
+        "campHpRestored": 11,
+        "camps": [
+          {
+            "act": 3,
+            "choice": "heal",
+            "hpBefore": 17,
+            "hpAfter": 28,
+            "hpRestored": 11
+          }
+        ]
+      },
+      {
+        "professionId": "warden",
+        "seedIndex": 4,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 25,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "brewer",
+        "seedIndex": 1,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 23,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "brewer",
+        "seedIndex": 2,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 29,
+        "campUses": 1,
+        "campHpRestored": 8,
+        "camps": [
+          {
+            "act": 2,
+            "choice": "heal",
+            "hpBefore": 22,
+            "hpAfter": 30,
+            "hpRestored": 8
+          }
+        ]
+      },
+      {
+        "professionId": "brewer",
+        "seedIndex": 3,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 13,
+        "campUses": 1,
+        "campHpRestored": 7,
+        "camps": [
+          {
+            "act": 2,
+            "choice": "heal",
+            "hpBefore": 23,
+            "hpAfter": 30,
+            "hpRestored": 7
+          }
+        ]
+      },
+      {
+        "professionId": "brewer",
+        "seedIndex": 4,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 14,
+        "campUses": 1,
+        "campHpRestored": 8,
+        "camps": [
+          {
+            "act": 3,
+            "choice": "heal",
+            "hpBefore": 22,
+            "hpAfter": 30,
+            "hpRestored": 8
+          }
+        ]
+      },
+      {
+        "professionId": "messenger",
+        "seedIndex": 1,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 10,
+        "campUses": 1,
+        "campHpRestored": 6,
+        "camps": [
+          {
+            "act": 3,
+            "choice": "heal",
+            "hpBefore": 24,
+            "hpAfter": 30,
+            "hpRestored": 6
+          }
+        ]
+      },
+      {
+        "professionId": "messenger",
+        "seedIndex": 2,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 16,
+        "campUses": 1,
+        "campHpRestored": 6,
+        "camps": [
+          {
+            "act": 1,
+            "choice": "heal",
+            "hpBefore": 24,
+            "hpAfter": 30,
+            "hpRestored": 6
+          }
+        ]
+      },
+      {
+        "professionId": "messenger",
+        "seedIndex": 3,
+        "outcome": "DEFEAT",
+        "stationsCompleted": 11,
+        "endingHp": 0,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "messenger",
+        "seedIndex": 4,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 3,
+        "campUses": 2,
+        "campHpRestored": 21,
+        "camps": [
+          {
+            "act": 2,
+            "choice": "heal",
+            "hpBefore": 20,
+            "hpAfter": 30,
+            "hpRestored": 10
+          },
+          {
+            "act": 3,
+            "choice": "heal",
+            "hpBefore": 19,
+            "hpAfter": 30,
+            "hpRestored": 11
+          }
+        ]
+      },
+      {
+        "professionId": "smith",
+        "seedIndex": 1,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 17,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "smith",
+        "seedIndex": 2,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 18,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "smith",
+        "seedIndex": 3,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 24,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "smith",
+        "seedIndex": 4,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 11,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "medic",
+        "seedIndex": 1,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 22,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "medic",
+        "seedIndex": 2,
+        "outcome": "DEFEAT",
+        "stationsCompleted": 9,
+        "endingHp": 0,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "medic",
+        "seedIndex": 3,
+        "outcome": "DEFEAT",
+        "stationsCompleted": 9,
+        "endingHp": 0,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "medic",
+        "seedIndex": 4,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 26,
+        "campUses": 1,
+        "campHpRestored": 9,
+        "camps": [
+          {
+            "act": 3,
+            "choice": "heal",
+            "hpBefore": 21,
+            "hpAfter": 30,
+            "hpRestored": 9
+          }
+        ]
+      },
+      {
+        "professionId": "tamer",
+        "seedIndex": 1,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 28,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "tamer",
+        "seedIndex": 2,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 30,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "tamer",
+        "seedIndex": 3,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 22,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "tamer",
+        "seedIndex": 4,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 21,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "forger",
+        "seedIndex": 1,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 13,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "forger",
+        "seedIndex": 2,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 8,
+        "campUses": 2,
+        "campHpRestored": 22,
+        "camps": [
+          {
+            "act": 2,
+            "choice": "heal",
+            "hpBefore": 15,
+            "hpAfter": 26,
+            "hpRestored": 11
+          },
+          {
+            "act": 3,
+            "choice": "heal",
+            "hpBefore": 12,
+            "hpAfter": 23,
+            "hpRestored": 11
+          }
+        ]
+      },
+      {
+        "professionId": "forger",
+        "seedIndex": 3,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 27,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      },
+      {
+        "professionId": "forger",
+        "seedIndex": 4,
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 19,
+        "campUses": 0,
+        "campHpRestored": 0,
+        "camps": []
+      }
+    ]
+  }
+}
