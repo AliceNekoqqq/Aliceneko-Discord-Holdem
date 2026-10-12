@@ -2,6 +2,8 @@
 
 更新时间：2026-10-12（Asia/Shanghai）
 
+- 黄金椰椰乌龙配图已上线并绑定菜单：运行提交 d21feedc5a59d0486a283c2d150ba00bc65e0a2c，发布检查38220183471成功；CF部署df38c647-07c1-4b06-abcc-7e78dd98a8b0、版本54413ffb-1d01-4133-b8c8-018325c16317接收100%。当前dish_id ugc_edf5fe7e7ef740f7ba85/r1/8a988a6d条件更新ready；公开JPEG HTTP200、83175字节、SHA256与源文件一致，现有菜单映射验证通过。512×512图在assets/ugc-art，发布脚本已支持复制到art/ugc；后续照docs/ugc/ART_UPLOAD.md继续。定时任务在补图对话启用，每6小时扫描并完整上传/绑定/验证，已有合格图勿重画。Discord真人重新打开菜单呈现待用户查看。
+
 - beta.78部署核验补强已上线：22:45/22:47生产请求日志确认仍走旧systemRedPacket流程，无隐藏JSON；beta.77文件14:43:56Z已部署，常驻Gateway实际更新延后，此前单独health不足以证明聊天代码已更新。新增真实Gateway连接/认证/运行指纹核验，旧指纹或未就绪时health.ready=false，数据健康ok独立。聊天79、Worker27通过；main运行提交c166f30d06953d2dd5ada51cbb888bf15b79c8cb，发布检查38150717446全部成功；CF部署0a5c814d-93a4-41b4-bff3-0e133418fefe、版本46c77af4-007a-4764-832a-cc1d833f86f5接收100%，与beta.77版本资源bindings/配置/迁移标记比对不变，Cron仍每分钟。实际health已确认beta.78、ready:true、gateway.connected/ready:true、chatRuntime和expectedRuntime均chat78-red-packet-json。诊断tail已删除。真实新红包句式的Gemini提取/Discord领取仍待用户验证，勿将mock或连接就绪说成真实红包已成功。
 
 - beta.77红包识别改进已上线：同一次Gemini回复包含隐藏结构化红包数据（总额、名额、模式、数字来源），程序校验真实开发者@、本轮数字证据、范围后创建；只发送自然回复和红包卡。支持截图省略单位、中文数字、全角与语序变化，模型失败用程序兜底；重复错误提示取消。已测红包16、聊天78、酒馆含红包182、Worker26；PR #17最终检查38148154122、main发布38148297950成功，运行提交d37805d602f0511d9d48ed9ee5904c28ae03672d。Cloudflare部署203aae77-401e-4358-8cbf-8ef5023a491b，版本ff842e88-11eb-4051-9da6-7df71c0767b7接收100%流量；配置/bindings/Secret名称类型/兼容/observability比对保持。实际health确认ok:true、beta.77。生产Gemini/Discord新句式实际发送待用户验证，不能将mock测试说成已真实模型演练。
