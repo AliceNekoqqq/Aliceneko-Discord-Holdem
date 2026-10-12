@@ -2,6 +2,8 @@
 
 更新时间：2026-10-13（Asia/Shanghai）
 
+- beta.89 / 灯下迷城v0.20本地完成，待完整远征与PR/发布：6普通敌人攻击后架盾；精英第7轮+1，首领第7/11轮+1/+2封顶，无回合数失败；压力/蓄力/阶段预告按实际轮次。热铁先锻后攻、锻4穿甲；医牌每轮首次实际治疗额外备势1（满血/道具不触发）；退件重投回收牌本轮减1费。旧v19冻结，124牌/30敌/营地保持。迷城353/聊天93/Worker27通过；审计与Git/生产状态待补，见docs/roguelike/V20_AUDIT.md。继承5bdd0e5主线的UGC复活赛图片，保留配置。
+
 - beta.88 / 灯下迷城v0.19已上线：职业未持有专属/通用发现/构筑补强候选；缝合拆盾仅消耗有效偶数护盾，升级6盾治3；护盾回收识别兑换和暂存；私密面板动态抽牌/回收/治疗提示；缺启动组件不再强推兑换牌；自损说明与版本目录升级预览补齐。344迷城/93聊天/27Worker通过，旧v18及更早冻结。保留菜品研发恢复热修，版本beta.88；Wrangler/绑定/数据库未改。96次配对全程：难度0通关31/32→29/32，难度3 7/16→9/16；新牌获得66→96，无卡死/错职业与幕次候选，真实商店购买250→236。PR #33检查38321957182与main发布38322083254成功；运行提交db26e6b018a70a260ef3633b56664ae4591938a4。CF部署1f2c601b-d07f-48af-bb73-126d2ab0245f、版本c03d915a-9e5d-4ee2-9c9f-c7ffec8395c2接收100%。13项bindings（含Secret名称类型/人设）、DO原命名空间/D1/ASSETS、兼容日期2026-10-07/flags/observability比对保持；Cron仍每分钟，仅修改时间随发布更新。实读health beta.88/rulesv0.19/cards124/ready:true，Gateway connected:true/ready:true，chatRuntime与expectedRuntime均chat84-exclusive-red-packet。保留菜品研发恢复热修。真人辅助牌体验及职业平衡待反馈。 最后成功：发布与健康核验；下一步按真人体验检查敌人压力/职业差距，审计见docs/roguelike/V19_AUDIT.md，不重复本版发布。
 
 - 菜品研发会话恢复热修已随灯下迷城 beta.87 构建上线：版本 `1.0.1-beta.87+ugc-recovery.1`（`+ugc-recovery.1` 是区分热修构建的 build metadata，未另占灯下迷城 beta 号；beta.88、beta.89 保留）。PR #26 恢复实现、PR #31 版本对齐；PR CI run 38320491438 与 main 发布 run 38320623746 均成功，main 提交 `3aea93be36bc58a103e804b8ab0da408cd6e3e5c`。Cloudflare 部署 `abeb4160-6872-4b32-b47f-2ba87bda8bea`、Worker 版本 `fdbabd59-8e2d-49a7-ba01-95d8ec565801` 接收 100% 流量。13 项绑定（含 Secret 名称/类型）、TABLES Durable Object 命名空间 `4b8575058fe745bd8abbb9eed752bf91`、D1 `b9327b3d-b549-4c48-b221-689c5f4aa3a9`、兼容日期 `2026-10-07`、每分钟 Cron 保持；无新增 DO 迁移。线上 `/health` HTTP 读取未验证：当前执行环境拦截对 workers.dev 的出站请求；Cloudflare 部署/配置 API 读取成功。真人 Discord 恢复流程待体验反馈。
