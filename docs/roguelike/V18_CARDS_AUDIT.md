@@ -39,4 +39,4 @@
 
 ## 发布
 
-待PR检查、合并、Cloudflare部署与线上health/配置核验。基于最新主线保留菜品研发草稿恢复修复。
+PR #28检查38320104108与main发布38320215641成功；运行提交ce9a6465751447cc0e2bf6c1e2c854cbe6596f49。CF部署b90788c7-f7b3-426b-b4fe-f6398a416663、版本76c464ce-bf5e-427f-a8a2-3beaa549ab42接收100%。13项bindings/Secret名类型/人设、DO命名空间/D1/ASSETS、兼容/观测设置比对保持，Cron仍每分钟。实读health beta.87/v0.18/cards124/ready:true，Gateway connected:true/ready:true，chatRuntime与expectedRuntime均chat84-exclusive-red-packet。基于786c10d保留菜品研发草稿恢复修复。最后成功：代码发布、线上健康与配置核验完成；下一步仅按真人新牌/职业反馈调整，本批勿重复发布。
