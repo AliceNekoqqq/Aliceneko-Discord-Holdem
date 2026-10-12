@@ -48,7 +48,7 @@ function homePage(b,g,u){
   const candidate=s.edit_candidate;
   const candidatePreview=candidate?`\n\n**修改候选** · ${editFields.find(([k])=>k===candidate.target)?.[1]||'字段'}\n${clean(candidate.value,300)}\n采用后才会更新整张菜品卡。`:'';
   const lastReply=s.edit_history?.at(-1)?.reply||s.history?.at(-1)?.reply;
-  parts.push(`🔒 **私密菜品卡 · 研发**\n${s.status==='CHOOSING'?'先选择菜品类型。':compactDishText(s)}${lastReply?`\n\n**当前引导**\n${clean(lastReply,350)}`:''}${candidatePreview}\n\n${missing.length?`还缺：${missing.join('、')}`:'配方信息已齐，可以检查定稿。'}${s.status==='GENERATING'?'\n\n正在整理这一轮，请稍候。':''}`);
+  parts.push(`🔒 **私密菜品卡 · 研发**${b?.resumed?'\n\n🛟 已恢复上次中断的研发；草稿、已完成问答和本轮未完成的原文已找回（数据保留7天）。':''}\n${s.status==='CHOOSING'?'先选择菜品类型。':compactDishText(s)}${lastReply?`\n\n**当前引导**\n${clean(lastReply,350)}`:''}${candidatePreview}\n\n${missing.length?`还缺：${missing.join('、')}`:'配方信息已齐，可以检查定稿。'}${s.status==='GENERATING'?'\n\n正在整理这一轮，请稍候。':''}`);
   if(s.status==='CHOOSING'){
    parts.push(row(sessionButton(g,u,s,'ugcType~drink','🥤 饮品'),sessionButton(g,u,s,'ugcType~dessert','🍰 甜点'),sessionButton(g,u,s,'ugcType~savory','🥪 小食/主食')));
    parts.push(row(sessionButton(g,u,s,'ugcAskConfirm~cancel','取消研发',2)));
@@ -148,3 +148,4 @@ async function dispatch(env,p,action,i){const base={...baseOf(p),...(p.sessionId
 }
 function modelFailure(){return 'ugc_model_failure';}
 export async function answerUgc(env,i){const p=validate(i);try{return await dispatch(env,p,p.action,i);}catch(e){return {content:e?.message||'操作没有完成，请重新打开研发面板。',flags:64,allowed_mentions:mentions};}}
+

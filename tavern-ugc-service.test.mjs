@@ -46,7 +46,7 @@ test('published alcohol recipe specs survive into the normal order snapshot',asy
 test('adds private retry-text columns when migrating an existing session table',()=>{
  const store=storage();store.sql.exec('CREATE TABLE tavern_ugc_sessions(session_id TEXT PRIMARY KEY,guild TEXT NOT NULL,user_id TEXT NOT NULL,status TEXT NOT NULL)');
  const host={storage:store,sql:store.sql,rows:(q,...args)=>store.sql.exec(q,...args).toArray(),one:(q,...args)=>store.sql.exec(q,...args).toArray()[0]||null};
- new UGCService(host);const columns=store.sql.exec('PRAGMA table_info(tavern_ugc_sessions)').toArray().map(x=>x.name);assert(columns.includes('last_failed_text'));assert(columns.includes('last_failed_target'));store.db.close();
+ new UGCService(host);const columns=store.sql.exec('PRAGMA table_info(tavern_ugc_sessions)').toArray().map(x=>x.name);assert(columns.includes('last_failed_text'));assert(columns.includes('last_failed_target'));assert(columns.includes('resume_status'));assert(columns.includes('recovery_until'));store.db.close();
 });
 
 test('same user resumes one session per guild, budgets rounds, binds undo confirmation and restores full prior draft',async()=>{
@@ -72,16 +72,22 @@ test('publish is idempotent, server-scoped, and atomically consumes the Beijing-
  assert.equal(ugc._menuFor('456')[0].author,'小葵');await assert.rejects(ugc.dispatch(p('ugcStart',{now:base+7})),/今天已经成功研发/);assert.deepEqual(ugc.list(p('ugcList'),base).items.length,1);
 });
 
-test('sessions and published dishes remain isolated by guild, cleanup erases session text, and nextExpiry is exposed',async()=>{
- const {ugc,host}=setup();let v=await ugc.dispatch(p('ugcStart',{now:base}));await ugc.dispatch({...p('ugcType',{sessionId:v.session.sessionId,value:'drink',now:base+1}),guild:'456'});v=await ugc.dispatch({...p('ugcStart',{now:base+2}),guild:'789'});assert.notEqual(v.session.sessionId,undefined);
- assert.equal(ugc.nextExpiry(base+2),base+1800001);assert.equal(ugc.cleanup(base+1800001),1);assert.equal(host.one('SELECT draft_json,history_json FROM tavern_ugc_sessions WHERE guild=?','456').draft_json,'{}');assert.equal(host.one('SELECT history_json FROM tavern_ugc_sessions WHERE guild=?','456').history_json,'[]');
- const old=await ugc.dispatch({...p('ugcView',{sessionId:v.session.sessionId}),guild:'456',now:base+1000});assert.equal(old.session,null);const other=await ugc.dispatch({...p('ugcView',{sessionId:v.session.sessionId}),guild:'789',now:base+1000});assert.equal(other.session.sessionId,v.session.sessionId);
+test('sessions remain server-isolated and expiration preserves drafts for recovery',async()=>{
+ const {ugc,host}=setup();let first=await ugc.dispatch({...p('ugcStart',{now:base}),guild:'456'}),firstId=first.session.sessionId;await ugc.dispatch({...p('ugcType',{sessionId:firstId,value:'drink',now:base+1}),guild:'456'});let second=await ugc.dispatch({...p('ugcStart',{now:base+2}),guild:'789'}),secondId=second.session.sessionId;assert.notEqual(firstId,secondId);
+ assert.equal(ugc.nextExpiry(base+2),base+1800001);assert.equal(ugc.cleanup(base+1800001),1);let saved=host.one('SELECT status,draft_json,history_json FROM tavern_ugc_sessions WHERE session_id=?',firstId);assert.equal(saved.status,'EXPIRED');assert.equal(JSON.parse(saved.draft_json).type,'drink');assert.equal(saved.history_json,'[]');
+ const recovered=await ugc.dispatch({...p('ugcView'),guild:'456',now:base+1800002});assert.equal(recovered.session.sessionId,firstId);assert.equal(recovered.session.status,'DRAFTING');assert.equal(recovered.session.draft.type,'drink');assert.equal(recovered.resumed,true);
+ const other=await ugc.dispatch({...p('ugcView'),guild:'789',now:base+1800002});assert.equal(other.session.sessionId,secondId);
 });
 
-test('background cleanup deletes a failed turn after its private session expires',async()=>{
- const {ugc,host}=setup();let v=await ugc.dispatch(p('ugcStart',{now:base}));const sid=v.session.sessionId;v=await ugc.dispatch(p('ugcType',{sessionId:sid,value:'drink',revision:v.session.revision,now:base+1}));const turn=await ugc.dispatch(p('ugcBeginTurn',{sessionId:sid,text:'只在这轮使用的研发要求',requestKey:'expire-failed-turn',revision:v.session.revision,now:base+2}));await ugc.dispatch(p('ugcFailTurn',{sessionId:sid,turnId:turn.turnId,now:base+3}));assert.equal(host.one('SELECT last_failed_text FROM tavern_ugc_sessions WHERE session_id=?',sid).last_failed_text,'只在这轮使用的研发要求');assert.equal(ugc.cleanup(base+1800001),1);const row=host.one('SELECT status,last_failed_text,last_failed_target FROM tavern_ugc_sessions WHERE session_id=?',sid);assert.equal(row.status,'EXPIRED');assert.equal(row.last_failed_text,null);assert.equal(row.last_failed_target,null);
+test('background cleanup retains failed input and opening research restores the same session',async()=>{
+ const {ugc,host}=setup();let v=await ugc.dispatch(p('ugcStart',{now:base}));const sid=v.session.sessionId;v=await ugc.dispatch(p('ugcType',{sessionId:sid,value:'drink',revision:v.session.revision,now:base+1}));const turn=await ugc.dispatch(p('ugcBeginTurn',{sessionId:sid,text:'只在这轮使用的研发要求',requestKey:'expire-failed-turn',revision:v.session.revision,now:base+2}));v=await ugc.dispatch(p('ugcFailTurn',{sessionId:sid,turnId:turn.turnId,now:base+3}));assert.equal(host.one('SELECT last_failed_text FROM tavern_ugc_sessions WHERE session_id=?',sid).last_failed_text,'只在这轮使用的研发要求');assert.equal(ugc.cleanup(v.session.idleUntil),1);const row=host.one('SELECT status,draft_json,last_failed_text,last_failed_target,recovery_until FROM tavern_ugc_sessions WHERE session_id=?',sid);assert.equal(row.status,'EXPIRED');assert.equal(JSON.parse(row.draft_json).type,'drink');assert.equal(row.last_failed_text,'只在这轮使用的研发要求');assert.equal(row.last_failed_target,null);assert(Number.isFinite(row.recovery_until));
+ const resumed=await ugc.dispatch(p('ugcStart',{now:v.session.idleUntil+1}));assert.equal(resumed.session.sessionId,sid);assert.equal(resumed.session.retryText,'只在这轮使用的研发要求');assert.equal(resumed.resumed,true);assert.equal(resumed.attemptsRemaining,2);
 });
 
+
+test('expired session text is purged after the seven-day recovery window',async()=>{
+ const {ugc,host}=setup();const v=await ugc.dispatch(p('ugcStart',{now:base})),sid=v.session.sessionId,expires=v.session.idleUntil;assert.equal(ugc.cleanup(expires),1);const recoveryUntil=host.one('SELECT recovery_until FROM tavern_ugc_sessions WHERE session_id=?',sid).recovery_until;assert.equal(recoveryUntil,expires+7*24*60*60*1000);assert.equal(ugc.nextExpiry(expires),recoveryUntil);ugc.cleanup(recoveryUntil);assert.equal(host.one('SELECT session_id FROM tavern_ugc_sessions WHERE session_id=?',sid),null);
+});
 
 test('expired generation lease recovers the pre-turn draft and permits a fresh request key',async()=>{
  const {ugc,host}=setup();let v=await ugc.dispatch(p('ugcStart',{now:base}));const sid=v.session.sessionId;await ugc.dispatch(p('ugcType',{sessionId:sid,value:'drink',now:base+1}));const turn=await ugc.dispatch(p('ugcBeginTurn',{sessionId:sid,text:'旧轮次',requestKey:'lease-old',now:base+2}));assert.equal(turn.session.status,'GENERATING');
@@ -111,3 +117,5 @@ test('failed publication transaction rolls back dish, daily slot, receipt and pr
 test('cancel confirmation erases failed-turn text and a repeated confirmation returns the saved receipt once',async()=>{
  const {ugc,host}=setup();let v=await ugc.dispatch(p('ugcStart',{now:base}));const sid=v.session.sessionId;await ugc.dispatch(p('ugcType',{sessionId:sid,value:'drink',revision:v.session.revision,now:base+1}));let t=await ugc.dispatch(p('ugcBeginTurn',{sessionId:sid,text:'保留在临时会话的描述',requestKey:'cancel-turn',revision:(await ugc.dispatch(p('ugcView',{sessionId:sid,now:base+2}))).session.revision,now:base+2}));v=await ugc.dispatch(p('ugcFailTurn',{sessionId:sid,turnId:t.turnId,revision:t.revision,now:base+3}));assert.equal(v.session.retryText,'保留在临时会话的描述');v=await ugc.dispatch(p('ugcView',{sessionId:sid,now:base+4}));const c=await ugc.dispatch(p('ugcAskConfirm',{sessionId:sid,operation:'cancel',revision:v.session.revision,now:base+5}));const one=await ugc.dispatch(p('ugcExecuteConfirm',{token:c.token,now:base+6}));const two=await ugc.dispatch(p('ugcExecuteConfirm',{token:c.token,now:base+7}));assert.equal(one.status,'CANCELLED');assert.equal(two.status,'CANCELLED');const row=host.one('SELECT status,draft_json,history_json,snapshots_json,last_failed_text,last_failed_target FROM tavern_ugc_sessions WHERE session_id=?',sid);assert.equal(row.draft_json,'{}');assert.equal(row.history_json,'[]');assert.equal(row.snapshots_json,'[]');assert.equal(row.last_failed_text,null);assert.equal(row.last_failed_target,null);
 });
+
+
