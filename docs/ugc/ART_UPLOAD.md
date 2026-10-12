@@ -22,3 +22,13 @@
 - 复用已有JPEG；生产公开地址返回HTTP 200、image/jpeg、83175字节，SHA256与源图一致。GitHub源图及构建接入已存在，不重复上传或部署。
 - 条件绑定匹配guild、dish_id、revision=1及recipe_hash=8a988a6d；SQL实际更新1行，读回status=ready及正确asset_key。配方、价格、用户资料未变。
 - 本轮缺图已清零。继续巡检新入库菜品；真人Discord展示尚未实测。
+
+## 2026-10-13 07:32 巡检及复活赛补图完成
+
+- 用户主动询问后实际重新枚举31个PokerTable对象，有UGC档案的对象2个；在售菜品2款，缺图1款“复活赛”。其入库北京时间01:04:07，早于任务04:13运行记录；当前可见上下文未提供该次执行详情，不能断言漏扫或失败的具体原因。任务触发记录不能替代扫描回执。
+- dish_id：ugc_25451bb14a77495f96e7；guild：1554411807978819615；revision：1；recipe_hash：b5dfad58。
+- 按完整recipe_json使用内置图片生成：暖色酒馆木桌背景，600ml透明高球杯，冷雪碧与冰红茶浑浊琥珀茶汽液、冰块和沉底熟汉堡肉饼碎、杯心斜插巧乐兹巧克力冰棒、杯沿三颗半切草莓；无文字。食材冷热和装饰检查通过。
+- 源图：assets/ugc-art/ugc_25451bb14a77495f96e7-r1-b5dfad58.jpg；512×512 JPEG、98862字节；SHA256 b48ff9d41944cec4d9984c0c7d3a3b58f651171d010de4c7b1a47d919cb7d53d。ASSETS键：art/ugc/ugc_25451bb14a77495f96e7-r1-b5dfad58.jpg。
+- GitHub提交fcdda2c873bca64afe2c49ef00629aa23157f668；发布检查38322533335成功。Cloudflare部署efa7d132-f739-490a-a939-959f9b9b48dd、版本be62d8c4-2980-4789-9d39-8d35b9494d02接收100%；bindings及runtime配置与beta.88生产版本一致。
+- 公开JPEG HTTP200、image/jpeg、长度及SHA256与源图一致后，以guild/dish/revision/hash/active条件更新1行；回读ready与正确asset_key，缺图数0。配方价格和用户资料未改；真人Discord展示未实测。
+- 最后成功：生产资源核验与当前配方菜单绑定；下一步继续扫描新入库菜品并保留扫描及失败阶段的具体回执，不能用任务last_run_time冒充扫描完成。
