@@ -2,7 +2,7 @@ import { Canvas, encodePNG } from './card-image.mjs';
 import { prepareNicknameFont } from './nickname-font.mjs';
 import { PROFESSIONS } from './rogue-content-v09.mjs';
 import { enemyImageCue } from './rogue-enemy-guide.mjs';
-import { getCatalog } from './rogue-content-v15.mjs';
+import { getCatalog } from './rogue-content.mjs';
 import { legalCards } from './rogue-battle.mjs';
 import { cardGroups, cardEffectLines, cardWarnings, unavailableReason, battleHints } from './rogue-card-guide.mjs';
 import {connectedPlanFor,routeAnchor,routeSupplyLines,routeNodeReference} from './rogue-route-view.mjs';
@@ -48,7 +48,7 @@ export function describeRogueImage(run,view='auto'){
  if(mode==='battle'){
   const b=run?.battle||{},catalog=getCatalog(run?.catalogVersion||run?.ruleVersion),profession=catalog.professions?.[b.professionId||run?.professionId]||PROFESSIONS[b.professionId||run?.professionId],enemy=catalog.enemies[b.enemyId];
   const playable=new Set(Array.isArray(b?.hand)?legalCards(b).map(e=>e.uid):[]);
-  const playLimit=catalog.player?.playLimit,cards=(b?.hand||[]).map(e=>{const def=cardDefinition(e,catalog),groups=cardGroups(def),effects=cardEffectLines(def),warnings=cardWarnings(e,def,b.hp);return {id:e.uid,name:catalog.cards[e.cardId]?.name||e.cardId,cost:def.cost??0,playable:playable.has(e.uid),categories:groups.map(g=>({label:g.label,color:[...g.color]})),effects,warnings,reason:unavailableReason(b,def,playLimit,playable,e.uid)};});
+  const playLimit=catalog.player?.playLimit,cards=(b?.hand||[]).map(e=>{const def=cardDefinition(e,catalog),groups=cardGroups(def),effects=cardEffectLines(def,{echoManual:run?.ruleVersion==='lantern-rules-v0.16'}),warnings=cardWarnings(e,def,b.hp);return {id:e.uid,name:catalog.cards[e.cardId]?.name||e.cardId,cost:def.cost??0,playable:playable.has(e.uid),categories:groups.map(g=>({label:g.label,color:[...g.color]})),effects,warnings,reason:unavailableReason(b,def,playLimit,playable,e.uid)};});
   return {mode:'battle',act:run?.act??1,turn:b?.turn??0,playLimit,profession:profession?.name||'旅人',enemy:enemy?.name||b?.enemyId||'敌人',intent:b.intent,cards,hints:[...(enemyImageCue(b)?[enemyImageCue(b)]:[]),...battleHints(b,cards.map(e=>cardDefinition((b.hand||[]).find(h=>h.uid===e.id)||{},catalog)),playLimit)],enemyHp:b?.enemyHp??0,enemyMaxHp:b?.enemyMaxHp??0,playerHp:b?.hp??run?.hp??0,playerMaxHp:b?.maxHp??0};
  }
  const all=mode==='all'||mode==='overview';
