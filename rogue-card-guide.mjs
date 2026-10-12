@@ -1,3 +1,4 @@
+import { supportUnavailable as supportUnavailable19 } from './rogue-card-effects-v19.mjs';
 // Presentation only: legality and effects remain owned by the battle engine.
 export const DIRECT_EFFECTS = new Set(['damage','pet_attack','weapon_attack','sacrifice','damage_from_shield']);
 import { newEffectLine, compactEffectLine } from './rogue-card-text-v18.mjs';
@@ -42,6 +43,7 @@ export function unavailableReason(b,def,playLimit,legal,uid) {
  if((b.plays??0)>=playLimit)return '本轮出牌次数已满';
  if(legal.has(uid))return '';
  if(def?.cost>(b.energy??0))return '能量不足';
+ if(b.ruleVersion==='lantern-rules-v0.19'){const why=supportUnavailable19(b,{...def,uid},getCatalog(b.ruleVersion));if(why)return why;}
  if(b.ruleVersion==='lantern-rules-v0.18'){const why=supportUnavailable(b,{...def,uid},getCatalog(b.ruleVersion));if(why)return why;}
  const effects=def?.effects||[];
  if(effects.length&&effects.every(e=>e.kind==='heal')&&b.hp>=b.maxHp)return '生命已满，纯治疗牌不可用';

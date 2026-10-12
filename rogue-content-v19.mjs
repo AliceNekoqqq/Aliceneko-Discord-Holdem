@@ -1,0 +1,13 @@
+import { CATALOG_V18 } from './rogue-content-v18.mjs';
+import { newEffectLine } from './rogue-card-text-v18.mjs';
+export const CATALOG_V19=structuredClone(CATALOG_V18);
+CATALOG_V19.version='0.19';
+const card=CATALOG_V19.cards.medic_shield_suture;
+card.effects.find(e=>e.kind==='shield_heal').evenOnly=true;
+Object.assign(card.upgrade.effects.find(e=>e.kind==='shield_heal'),{value:6,evenOnly:true});
+for(const face of [card,card.upgrade])face.description=face.effects.map(e=>newEffectLine(e)??`标记${e.value}`).join('；')+'；本战消耗。';
+for(const face of [CATALOG_V19.cards.shared_sprint,CATALOG_V19.cards.shared_sprint.upgrade])face.description+=' 自损2点生命。';
+export const PROFESSIONS=CATALOG_V19.professions;
+export const ITEMS=CATALOG_V19.items;
+export const EVENTS=CATALOG_V19.events;
+export { DIFFICULTIES } from './rogue-content-v17.mjs';
