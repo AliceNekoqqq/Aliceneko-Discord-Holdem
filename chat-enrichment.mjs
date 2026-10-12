@@ -7,7 +7,7 @@ export function memoryChanges(text='') {
   if(/(?:忘记|删除|清除)(?:我的)?偏好/.test(s))return [{delete:'preferences'}];
   const clean=value=>value.trim().replace(/[。！!，,；;？?]+$/,'').replace(/(?:就好|就行|好了|吧)$/,'').trim();
   const direct=s.replace(/^(?:(?:对了|其实|还有|另外|顺便说一下)[，,:：\s]*)+/,'');
-  const name=direct.match(/^\s*(?:(?:以后|请|可以|你就|你可以)\s*){0,3}(?:叫我|称呼我为?|我的名字(?:是|叫)|我叫(?!你))\s*[“「"]?([^。！!，,；;？?\n”」"]{1,20})/)
+  const name=direct.match(/^\s*(?:(?:以后|请|可以|就|你就|你可以)\s*){0,3}(?:叫我|称呼我为?|我的名字(?:是|叫)|我叫(?!你))\s*[“「"]?([^。！!，,；;？?\n”」"]{1,20})/)
     ||s.match(/^(?:你是不是|你怎么|你为什么)(?:把)?我的名字([^。！!，,；;？?\n]{1,20}?)(?:识别成|当成|理解成)/);
   if(name&&/^[\p{L}\p{N} _·.-]+$/u.test(clean(name[1])))changes.push({key:'address',value:'希望被称呼为：'+clean(name[1])});
   const alias=direct.match(/^\s*(?:我自称|我的别名(?:是|叫)|网名(?:是|叫))\s*[“「"]?([^。！!，,；;？?\n”」"]{1,20})/);

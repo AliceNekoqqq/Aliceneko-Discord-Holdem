@@ -139,3 +139,5 @@ test('explicit mutual teasing preferences are stable, reversible and not inferre
  assert(memoryChanges('不要拿我开玩笑').some(c=>c.key==='interaction_style'&&c.value.includes('不希望')));
  assert.deepEqual(memoryChanges('她说我喜欢互相吐槽'),[]);
 });
+
+test('以后就叫我 keeps the explicit nickname including spaces',()=>{assert(memoryChanges('以后就叫我Trouble Maker').some(c=>c.key==='address'&&c.value==='希望被称呼为：Trouble Maker'));});

@@ -107,3 +107,12 @@ test('real chat flow reads persistent relationship without history, keeps quoted
  await db.prepare('INSERT INTO ai_member_settings(guild_id,user_id,memory_enabled,updated_at) VALUES(?,?,0,?)').bind('g','u',base).run();
  failDelivery=false;await replyToMention(env,{...msg,id:'off'},'bot');assert(!requests.at(-1).includes('relationshipExtraction'));assert(!requests.at(-1).includes('一起完成了重要的事情'));
 });
+
+test('knowledge and current speaker relationship expose real scores for explicit personal questions',async()=>{
+ const {BOT_CAPABILITY_INDEX,getBotKnowledge}=await import('./bot-knowledge.mjs');
+ assert.match(BOT_CAPABILITY_INDEX,/熟悉度与好感关系档案/);
+ for(const query of ['你对我的好感度是多少？','你对我的印象呢','我在你心里是什么样'])assert.match(getBotKnowledge(query),/好感关系系统已经上线/);
+ const context=relationshipContext({familiarity:26,goodwill:5,notes:[]});
+ assert.deepEqual(context.scores,{familiarity:26,goodwill:5});assert.equal(context.ownerKey,'current_user');
+ assert.match(getBotKnowledge('好感度'),/不公开他人的个人关系数值/);
+});
