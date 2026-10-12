@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "scan_at": "2026-10-13T07:28:23+08:00",
+  "completed_at": "2026-10-13T07:32:20+08:00",
+  "source": "manual_recovery_after_user_report",
+  "namespace_id": "4b8575058fe745bd8abbb9eed752bf91",
+  "scan_complete": true,
+  "objects_listed": 31,
+  "ugc_objects": 2,
+  "active_dishes": 2,
+  "initial_missing": 1,
+  "items": [
+    {
+      "dish_id": "ugc_25451bb14a77495f96e7",
+      "recipe_revision": 1,
+      "recipe_hash": "b5dfad58",
+      "stage": "ready_verified",
+      "asset_key": "art/ugc/ugc_25451bb14a77495f96e7-r1-b5dfad58.jpg",
+      "github_commit": "fcdda2c873bca64afe2c49ef00629aa23157f668",
+      "workflow_run": 38322533335,
+      "workflow_conclusion": "success",
+      "deployment_id": "efa7d132-f739-490a-a939-959f9b9b48dd",
+      "http_status": 200,
+      "content_type": "image/jpeg",
+      "bytes": 98862,
+      "sha256": "b48ff9d41944cec4d9984c0c7d3a3b58f651171d010de4c7b1a47d919cb7d53d",
+      "binding_readback": "ready"
+    }
+  ],
+  "remaining_missing": 0,
+  "errors": [],
+  "prior_automation_run": {
+    "recorded_trigger_time": "2026-10-13T04:13:06+08:00",
+    "execution_details_available": false,
+    "cause": "unknown"
+  },
+  "automation_prompt_updated_at": "2026-10-13T07:34:51+08:00",
+  "next_scheduled_run_validation": "pending"
+}
