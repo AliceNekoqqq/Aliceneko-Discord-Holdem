@@ -69,3 +69,46 @@ test('linked duplicate sends a public followup while wallet acknowledgements sta
  assert.equal(calls.length,2);assert.equal(calls[0].method,'PATCH');assert.match(calls[0].body.content,/大小号/);assert.doesNotMatch(calls[0].body.content,/123/);
  assert.equal(calls[1].method,'POST');assert.equal(calls[1].body.flags,0);assert.equal(calls[1].body.content,'文小弟领了一次还想领？贪心！');assert.deepEqual(calls[1].body.allowed_mentions,{parse:[]});
 });
+
+test('exclusive packet resolves only a real unique recipient, migrates old SQLite rows, and gates claims atomically',()=>{
+ const {packets,tavern,db,store}=setup();
+ const m={...message('<@99> 给 <@1402174864827219978> 发一个725元专属红包'),mentions:[{id:'99',bot:true},{id:'1402174864827219978'}]};
+ assert.deepEqual(parseRedPacket(m,'99'),{total:725,slots:1,mode:'equal',kind:'exclusive',targetUserId:'1402174864827219978'});
+ const p=packets.create(m,'99',100);assert.equal(p.target_user_id,'1402174864827219978');
+ const card=packetCard(p,200);assert.match(card.embeds[0].title,/专属红包/);assert.match(card.embeds[0].description,/<@1402174864827219978>/);
+ assert.throws(()=>packets.claim(interaction('10'),200),/指定收礼人/);assert.equal(tavern.one('SELECT COUNT(*) n FROM tavern_members').n,0);
+ const associated=interaction('1360154014146363446');assert.equal(packets.claim(associated,300).amount,725);assert.equal(tavern.member('1360154014146363446').balance,785);
+ const before=tavern.member('10').balance;assert.throws(()=>packets.claim(interaction('10'),400),/指定收礼人/);assert.equal(tavern.member('10').balance,before);
+});
+test('exclusive extraction and fallback reject absent, ambiguous, bot, self, or model-invented recipients without public downgrade',async()=>{
+ const {validateExtractedPacket}=await import('./red-packet.mjs');
+ const base={...message('<@99> 给 <@22> 发一个600元专属红包'),mentions:[{id:'99',bot:true},{id:'22'}]};
+ const data={kind:'exclusive',targetUserId:'22',total:600,slots:1,mode:'equal',totalEvidence:'600'};
+ assert.deepEqual(validateExtractedPacket(base,'99',data),{total:600,slots:1,mode:'equal',kind:'exclusive',targetUserId:'22'});
+ assert.ok(validateExtractedPacket(base,'99',{...data,targetUserId:'23'}).error);
+ assert.deepEqual(parseRedPacket({...base,content:'<@99> 给 <@22> 发600的专属红包'},'99'),{total:600,slots:1,mode:'equal',kind:'exclusive',targetUserId:'22'});
+ assert.ok(validateExtractedPacket({...base,content:'<@99> 给 <@22> 发600红包'},'99',{...data,kind:'exclusive'}).error);
+ for(const bad of [{...base,mentions:[{id:'99',bot:true}]},{...base,content:'<@99> 给 <@22> 和 <@23> 发一个600元专属红包',mentions:[{id:'99',bot:true},{id:'22'},{id:'23'}]},{...base,mentions:[{id:'99',bot:true},{id:RED_PACKET_OWNER}]}])assert.ok(parseRedPacket(bad,'99').error);
+ const env={TABLES:{get(){throw Error('should not create')},idFromName:x=>x}};
+ assert.ok((await prepareRedPacket(env,{...base,mentions:[{id:'99',bot:true}]},'99')).error);
+});
+test('SQLite upgrade adds exclusive target without changing a legacy packet',()=>{
+ const {db,store,tavern}=setup();
+ db.exec('DROP TABLE tavern_red_packets');
+ db.exec('CREATE TABLE tavern_red_packets (id TEXT PRIMARY KEY,guild TEXT NOT NULL,channel TEXT NOT NULL,total INTEGER NOT NULL,slots INTEGER NOT NULL,mode TEXT NOT NULL,parts TEXT NOT NULL,created INTEGER NOT NULL,expires INTEGER NOT NULL,message_id TEXT)');
+ db.prepare('INSERT INTO tavern_red_packets VALUES(?,?,?,?,?,?,?,?,?,?)').run('old','1','2',60,2,'equal','[30,30]',10,1000,'456');
+ const migrated=new RedPackets(new TavernService(store));
+ assert.equal(migrated.view('old').total,60);assert.equal(migrated.view('old').target_user_id,null);
+ assert.ok(db.prepare('PRAGMA table_info(tavern_red_packets)').all().some(c=>c.name==='target_user_id'));
+});
+
+test('exclusive amount evidence supports suffix and prefix numbers and rejects invalid or conflicting totals',async()=>{
+ const {validateExtractedPacket}=await import('./red-packet.mjs');
+ const m=content=>({...message(content),mentions:[{id:'99',bot:true},{id:'22'}]});
+ for(const text of ['<@99> 给 <@22> 发一个六百的专属红包','<@99> 给 <@22> 发专属红包，金额600']){
+ assert.equal(parseRedPacket(m(text),'99').total,600);
+ assert.equal(validateExtractedPacket(m(text),'99',{kind:'exclusive',total:600,slots:1,mode:'equal',totalEvidence:text.includes('六百')?'六百':'600'}).targetUserId,'22');
+ }
+ for(const value of ['-600','1.5','1000001'])assert.ok(parseRedPacket(m(`<@99> 给 <@22> 发${value}元专属红包`),'99').error);
+ assert.ok(parseRedPacket(m('<@99> 给 <@22> 发600元和700元专属红包'),'99').error);
+});
