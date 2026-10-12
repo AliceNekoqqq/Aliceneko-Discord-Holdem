@@ -1,0 +1,27 @@
+name: Draft linked-account red packet copy
+on:
+  push:
+    branches: [fix/red-packet-linked-accounts]
+    paths: [.github/workflows/draft-red-packet-copy.yml]
+permissions:
+  contents: read
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Generate five short lines with Gemini
+        env:
+          GEMINI_WRITER_API_KEY: ${{ secrets.GEMINI_WRITER_API_KEY || secrets.GEMINI_API_KEY }}
+        run: |
+          node --input-type=module <<'JS'
+          import {writeFile} from 'node:fs/promises';
+          import {generate} from './docs/ai/tools/gemini-writer.mjs';
+          const brief={purpose:'红包重复领取公开提示',requirements:'只输出JSON数组，恰好5句不同的中文短句，每句含文小弟；模仿“文小弟领了一次还想领？贪心！”轻松打趣已领红包却换小号再领。每句15到35字；不用辱骂、身份隐私或技术术语，不重复原句，不附解释。',locked_facts:'这是同一人的大小号重复领取同一个红包；不能再领。',max_tokens:512,max_chars:250,max_calls:1};
+          await writeFile('/tmp/red-copy.json',JSON.stringify({status:'brief',brief,attempts:[]}),{mode:0o600});
+          const result=await generate('/tmp/red-copy.json');
+          console.log('GEMINI_DRAFT_RESULT '+JSON.stringify(result));
+          JS
