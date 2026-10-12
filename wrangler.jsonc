@@ -11,8 +11,9 @@
   },
   "durable_objects": {"bindings": [{"name": "TABLES", "class_name": "PokerTable"}]},
   "d1_databases": [{"binding": "CHAT_DB", "database_name": "aliceneko-ai", "database_id": "b9327b3d-b549-4c48-b221-689c5f4aa3a9"}],
-  "migrations": [{"tag": "v1", "new_sqlite_classes": ["PokerTable"]}],
+  // Production PokerTable namespace already exists; retain v1 without recreating it.
+  // For a fresh Worker installation, v1 must include new_sqlite_classes: ["PokerTable"].
+  "migrations": [{"tag": "v1"}],
   "triggers": {"crons": ["* * * * *"]},
   "observability": {"enabled": true,"head_sampling_rate": 1,"logs":{"enabled":true,"invocation_logs":true,"persist":true}}
 }
-
