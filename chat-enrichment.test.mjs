@@ -133,3 +133,9 @@ test('date is supplied without search; live queries receive sources and never in
   assert.ok(!failed.includes('Eight arms'));
 });
 
+
+test('explicit mutual teasing preferences are stable, reversible and not inferred from quotes',()=>{
+ assert(memoryChanges('我喜欢互相吐槽').some(c=>c.key==='interaction_style'&&c.value.includes('互相')));
+ assert(memoryChanges('不要拿我开玩笑').some(c=>c.key==='interaction_style'&&c.value.includes('不希望')));
+ assert.deepEqual(memoryChanges('她说我喜欢互相吐槽'),[]);
+});

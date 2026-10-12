@@ -19,6 +19,8 @@ export function memoryChanges(text='') {
   if(avoid&&/^[\p{L}\p{N} _·.-]+$/u.test(clean(avoid[1])))changes.push({key:'avoid_address',value:'不希望被称呼为：'+clean(avoid[1])});
   const styles=[['brief',/(?:请|希望你|以后)(?:回复|回答|说话)(?:尽量)?(?:简短|简洁|短一点)/,'希望回复简洁'],['detail',/(?:请|希望你|以后)(?:回复|回答|说话)(?:尽量)?(?:详细|具体)/,'希望回复详细'],['no_question',/(?:不要|别)(?:每次|总是|老是)(?:都)?(?:反问|追问|问问题)/,'不希望每次回复都追问'],['no_emoji',/(?:不要|别)(?:用|发|加)(?:表情|emoji)/i,'希望回复不加表情']];
   for(const [key,re,value]of styles)if(re.test(s))changes.push({key:key==='brief'||key==='detail'?'response_length':key,value});
+  const interactionStyles=[['mutual_teasing',/^我(?:喜欢|希望|习惯)(?:我们)?(?:互相|相互)(?:吐槽|开玩笑|打趣)/,'喜欢友善地互相吐槽和开玩笑'],['no_teasing',/^(?:以后)?(?:不要|别)(?:再)?(?:拿我开玩笑|调侃我|逗我|跟我开玩笑)/,'不希望被调侃或拿自己开玩笑']];
+  for(const [key,re,value] of interactionStyles)if(re.test(direct))changes.push({key:'interaction_style',value});
   const language=s.match(/(?:以后|请)(?:都)?(?:用|使用)(中文|英文|英语|日语|繁体中文|简体中文)(?:回复|回答|和我聊天)/);
   if(language)changes.push({key:'language',value:'希望使用'+language[1]+'回复'});
   // Keep only stable, innocuous interests; never copy arbitrary "remember" instructions.

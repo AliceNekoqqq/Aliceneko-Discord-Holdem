@@ -660,7 +660,7 @@ test("published knowledge document is generated from the Worker knowledge source
 
 test("AI command exposes member memory, channel memory and independently configurable host features", () => {
   const groups = aiCommand.options.map(group=>group.name);
-  assert.deepEqual(groups,["记忆","频道记忆","主持"]);
+  assert.deepEqual(groups,["记忆","关系","频道记忆","主持"]);
   assert.equal(groups.includes("管理员助手"),false);
   assert.equal(groups.includes("人格"),false);
   assert.deepEqual(aiCommand.options.find(group=>group.name==="频道记忆").options.map(option=>option.name),["查看","开启","关闭","清除"]);
