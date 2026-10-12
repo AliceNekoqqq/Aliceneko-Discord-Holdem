@@ -1,0 +1,894 @@
+{
+  "generatedAt": "2026-10-12T19:24:24.095Z",
+  "rules": [
+    "lantern-rules-v0.17",
+    "lantern-rules-v0.18"
+  ],
+  "scope": "8 professions × 2 paired seeds × difficulty 0 = 32 full runs total",
+  "method": "Two-action greedy legal battle lookahead; actual route rooms; no injected HP; reward defaults claimed; camp heal at HP <=24; seed string whole-${profession}-${index} identical across versions; 600-action test bound only.",
+  "limits": "Small deterministic policy sample; not human-play balance evidence. Every surfaced room/reward/shop card candidate and every deck snapshot was checked against profession access. Shop choices left untouched, so shop purchase behavior is source-checked rather than exercised.",
+  "cardPool": {
+    "total": 124,
+    "newCount": 28,
+    "newExclusive": 16,
+    "newCommon": 12,
+    "exclusiveTotal": 48,
+    "definitions": 124,
+    "newIds": [
+      "trail_exchange",
+      "trail_ambush",
+      "gate_reserve",
+      "gate_wedge",
+      "fire_cashout",
+      "fire_seal",
+      "mail_return",
+      "mail_redirect",
+      "clock_borrow",
+      "clock_tune",
+      "medic_triage",
+      "medic_shield_suture",
+      "pet_guard_swap",
+      "pet_recall_hunt",
+      "forge_emergency",
+      "forge_recast",
+      "shared_breath",
+      "shared_sprint",
+      "shared_break",
+      "shared_bank",
+      "shared_discount",
+      "shared_recover",
+      "shared_ultimatum",
+      "shared_fireline",
+      "shared_mirror",
+      "shared_ash_aid",
+      "shared_recall",
+      "shared_wrench"
+    ]
+  },
+  "summary": {
+    "v17": {
+      "runs": 16,
+      "clears": 16,
+      "defeats": 0,
+      "timeouts": 0,
+      "meanEndingHp": 14.5,
+      "meanStations": 15,
+      "newCardGains": 0,
+      "newCardUses": 0,
+      "campHeals": 13,
+      "combatHpLost": 500
+    },
+    "v18": {
+      "runs": 16,
+      "clears": 13,
+      "defeats": 3,
+      "timeouts": 0,
+      "meanEndingHp": 12.25,
+      "meanStations": 14.19,
+      "newCardGains": 19,
+      "newCardUses": 87,
+      "campHeals": 10,
+      "combatHpLost": 506
+    }
+  },
+  "byProfession": {
+    "traveler": {
+      "v17": {
+        "runs": 2,
+        "clears": 2,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 12.5,
+        "meanStations": 15,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "campHeals": 3,
+        "combatHpLost": 81
+      },
+      "v18": {
+        "runs": 2,
+        "clears": 1,
+        "defeats": 1,
+        "timeouts": 0,
+        "meanEndingHp": 7,
+        "meanStations": 14.5,
+        "newCardGains": 1,
+        "newCardUses": 2,
+        "campHeals": 1,
+        "combatHpLost": 81
+      }
+    },
+    "warden": {
+      "v17": {
+        "runs": 2,
+        "clears": 2,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 22.5,
+        "meanStations": 15,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "campHeals": 1,
+        "combatHpLost": 39
+      },
+      "v18": {
+        "runs": 2,
+        "clears": 2,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 20.5,
+        "meanStations": 15,
+        "newCardGains": 4,
+        "newCardUses": 26,
+        "campHeals": 1,
+        "combatHpLost": 50
+      }
+    },
+    "brewer": {
+      "v17": {
+        "runs": 2,
+        "clears": 2,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 10,
+        "meanStations": 15,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "campHeals": 3,
+        "combatHpLost": 90
+      },
+      "v18": {
+        "runs": 2,
+        "clears": 2,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 11.5,
+        "meanStations": 15,
+        "newCardGains": 1,
+        "newCardUses": 0,
+        "campHeals": 2,
+        "combatHpLost": 76
+      }
+    },
+    "messenger": {
+      "v17": {
+        "runs": 2,
+        "clears": 2,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 12.5,
+        "meanStations": 15,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "campHeals": 2,
+        "combatHpLost": 61
+      },
+      "v18": {
+        "runs": 2,
+        "clears": 2,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 13,
+        "meanStations": 15,
+        "newCardGains": 1,
+        "newCardUses": 19,
+        "campHeals": 2,
+        "combatHpLost": 61
+      }
+    },
+    "smith": {
+      "v17": {
+        "runs": 2,
+        "clears": 2,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 6,
+        "meanStations": 15,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "campHeals": 0,
+        "combatHpLost": 69
+      },
+      "v18": {
+        "runs": 2,
+        "clears": 2,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 8.5,
+        "meanStations": 15,
+        "newCardGains": 2,
+        "newCardUses": 9,
+        "campHeals": 0,
+        "combatHpLost": 53
+      }
+    },
+    "medic": {
+      "v17": {
+        "runs": 2,
+        "clears": 2,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 14.5,
+        "meanStations": 15,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "campHeals": 1,
+        "combatHpLost": 65
+      },
+      "v18": {
+        "runs": 2,
+        "clears": 0,
+        "defeats": 2,
+        "timeouts": 0,
+        "meanEndingHp": 0,
+        "meanStations": 9,
+        "newCardGains": 3,
+        "newCardUses": 13,
+        "campHeals": 0,
+        "combatHpLost": 78
+      }
+    },
+    "tamer": {
+      "v17": {
+        "runs": 2,
+        "clears": 2,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 28,
+        "meanStations": 15,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "campHeals": 0,
+        "combatHpLost": 19
+      },
+      "v18": {
+        "runs": 2,
+        "clears": 2,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 26.5,
+        "meanStations": 15,
+        "newCardGains": 4,
+        "newCardUses": 13,
+        "campHeals": 1,
+        "combatHpLost": 37
+      }
+    },
+    "forger": {
+      "v17": {
+        "runs": 2,
+        "clears": 2,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 10,
+        "meanStations": 15,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "campHeals": 3,
+        "combatHpLost": 76
+      },
+      "v18": {
+        "runs": 2,
+        "clears": 2,
+        "defeats": 0,
+        "timeouts": 0,
+        "meanEndingHp": 11,
+        "meanStations": 15,
+        "newCardGains": 3,
+        "newCardUses": 5,
+        "campHeals": 3,
+        "combatHpLost": 70
+      }
+    }
+  },
+  "runs": [
+    {
+      "professionId": "traveler",
+      "seedIndex": 1,
+      "v17": {
+        "professionId": "traveler",
+        "seedIndex": 1,
+        "seed": "whole-traveler-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 12,
+        "steps": 160,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 2,
+        "combatHpLost": 38
+      },
+      "v18": {
+        "professionId": "traveler",
+        "seedIndex": 1,
+        "seed": "whole-traveler-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 14,
+        "steps": 189,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 1,
+        "combatHpLost": 34
+      }
+    },
+    {
+      "professionId": "traveler",
+      "seedIndex": 2,
+      "v17": {
+        "professionId": "traveler",
+        "seedIndex": 2,
+        "seed": "whole-traveler-2",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 13,
+        "steps": 152,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 1,
+        "combatHpLost": 43
+      },
+      "v18": {
+        "professionId": "traveler",
+        "seedIndex": 2,
+        "seed": "whole-traveler-2",
+        "outcome": "DEFEAT",
+        "stationsCompleted": 14,
+        "endingHp": 0,
+        "steps": 159,
+        "newCardGains": 1,
+        "newCardUses": 2,
+        "gains": {
+          "shared_fireline": 1
+        },
+        "uses": {
+          "shared_fireline": 2
+        },
+        "campHeals": 0,
+        "combatHpLost": 47
+      }
+    },
+    {
+      "professionId": "warden",
+      "seedIndex": 1,
+      "v17": {
+        "professionId": "warden",
+        "seedIndex": 1,
+        "seed": "whole-warden-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 15,
+        "steps": 224,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 0,
+        "combatHpLost": 22
+      },
+      "v18": {
+        "professionId": "warden",
+        "seedIndex": 1,
+        "seed": "whole-warden-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 20,
+        "steps": 262,
+        "newCardGains": 2,
+        "newCardUses": 23,
+        "gains": {
+          "gate_reserve": 1,
+          "shared_wrench": 1
+        },
+        "uses": {
+          "gate_reserve": 20,
+          "shared_wrench": 3
+        },
+        "campHeals": 0,
+        "combatHpLost": 22
+      }
+    },
+    {
+      "professionId": "warden",
+      "seedIndex": 2,
+      "v17": {
+        "professionId": "warden",
+        "seedIndex": 2,
+        "seed": "whole-warden-2",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 30,
+        "steps": 218,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 1,
+        "combatHpLost": 17
+      },
+      "v18": {
+        "professionId": "warden",
+        "seedIndex": 2,
+        "seed": "whole-warden-2",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 21,
+        "steps": 204,
+        "newCardGains": 2,
+        "newCardUses": 3,
+        "gains": {
+          "shared_break": 1,
+          "shared_recover": 1
+        },
+        "uses": {
+          "shared_break": 2,
+          "shared_recover": 1
+        },
+        "campHeals": 1,
+        "combatHpLost": 28
+      }
+    },
+    {
+      "professionId": "brewer",
+      "seedIndex": 1,
+      "v17": {
+        "professionId": "brewer",
+        "seedIndex": 1,
+        "seed": "whole-brewer-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 6,
+        "steps": 138,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 1,
+        "combatHpLost": 47
+      },
+      "v18": {
+        "professionId": "brewer",
+        "seedIndex": 1,
+        "seed": "whole-brewer-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 8,
+        "steps": 146,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 1,
+        "combatHpLost": 44
+      }
+    },
+    {
+      "professionId": "brewer",
+      "seedIndex": 2,
+      "v17": {
+        "professionId": "brewer",
+        "seedIndex": 2,
+        "seed": "whole-brewer-2",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 14,
+        "steps": 175,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 2,
+        "combatHpLost": 43
+      },
+      "v18": {
+        "professionId": "brewer",
+        "seedIndex": 2,
+        "seed": "whole-brewer-2",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 15,
+        "steps": 182,
+        "newCardGains": 1,
+        "newCardUses": 0,
+        "gains": {
+          "fire_cashout": 1
+        },
+        "uses": {},
+        "campHeals": 1,
+        "combatHpLost": 32
+      }
+    },
+    {
+      "professionId": "messenger",
+      "seedIndex": 1,
+      "v17": {
+        "professionId": "messenger",
+        "seedIndex": 1,
+        "seed": "whole-messenger-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 13,
+        "steps": 171,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 1,
+        "combatHpLost": 32
+      },
+      "v18": {
+        "professionId": "messenger",
+        "seedIndex": 1,
+        "seed": "whole-messenger-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 8,
+        "steps": 128,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 1,
+        "combatHpLost": 39
+      }
+    },
+    {
+      "professionId": "messenger",
+      "seedIndex": 2,
+      "v17": {
+        "professionId": "messenger",
+        "seedIndex": 2,
+        "seed": "whole-messenger-2",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 12,
+        "steps": 194,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 1,
+        "combatHpLost": 29
+      },
+      "v18": {
+        "professionId": "messenger",
+        "seedIndex": 2,
+        "seed": "whole-messenger-2",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 18,
+        "steps": 198,
+        "newCardGains": 1,
+        "newCardUses": 19,
+        "gains": {
+          "shared_ultimatum": 1
+        },
+        "uses": {
+          "shared_ultimatum": 19
+        },
+        "campHeals": 1,
+        "combatHpLost": 22
+      }
+    },
+    {
+      "professionId": "smith",
+      "seedIndex": 1,
+      "v17": {
+        "professionId": "smith",
+        "seedIndex": 1,
+        "seed": "whole-smith-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 5,
+        "steps": 114,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 0,
+        "combatHpLost": 26
+      },
+      "v18": {
+        "professionId": "smith",
+        "seedIndex": 1,
+        "seed": "whole-smith-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 9,
+        "steps": 134,
+        "newCardGains": 1,
+        "newCardUses": 6,
+        "gains": {
+          "shared_ultimatum": 1
+        },
+        "uses": {
+          "shared_ultimatum": 6
+        },
+        "campHeals": 0,
+        "combatHpLost": 21
+      }
+    },
+    {
+      "professionId": "smith",
+      "seedIndex": 2,
+      "v17": {
+        "professionId": "smith",
+        "seedIndex": 2,
+        "seed": "whole-smith-2",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 7,
+        "steps": 159,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 0,
+        "combatHpLost": 43
+      },
+      "v18": {
+        "professionId": "smith",
+        "seedIndex": 2,
+        "seed": "whole-smith-2",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 8,
+        "steps": 121,
+        "newCardGains": 1,
+        "newCardUses": 3,
+        "gains": {
+          "shared_wrench": 1
+        },
+        "uses": {
+          "shared_wrench": 3
+        },
+        "campHeals": 0,
+        "combatHpLost": 32
+      }
+    },
+    {
+      "professionId": "medic",
+      "seedIndex": 1,
+      "v17": {
+        "professionId": "medic",
+        "seedIndex": 1,
+        "seed": "whole-medic-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 16,
+        "steps": 203,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 0,
+        "combatHpLost": 19
+      },
+      "v18": {
+        "professionId": "medic",
+        "seedIndex": 1,
+        "seed": "whole-medic-1",
+        "outcome": "DEFEAT",
+        "stationsCompleted": 9,
+        "endingHp": 0,
+        "steps": 78,
+        "newCardGains": 2,
+        "newCardUses": 7,
+        "gains": {
+          "shared_ultimatum": 1,
+          "medic_shield_suture": 1
+        },
+        "uses": {
+          "shared_ultimatum": 7
+        },
+        "campHeals": 0,
+        "combatHpLost": 39
+      }
+    },
+    {
+      "professionId": "medic",
+      "seedIndex": 2,
+      "v17": {
+        "professionId": "medic",
+        "seedIndex": 2,
+        "seed": "whole-medic-2",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 13,
+        "steps": 135,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 1,
+        "combatHpLost": 46
+      },
+      "v18": {
+        "professionId": "medic",
+        "seedIndex": 2,
+        "seed": "whole-medic-2",
+        "outcome": "DEFEAT",
+        "stationsCompleted": 9,
+        "endingHp": 0,
+        "steps": 91,
+        "newCardGains": 1,
+        "newCardUses": 6,
+        "gains": {
+          "shared_fireline": 1
+        },
+        "uses": {
+          "shared_fireline": 6
+        },
+        "campHeals": 0,
+        "combatHpLost": 39
+      }
+    },
+    {
+      "professionId": "tamer",
+      "seedIndex": 1,
+      "v17": {
+        "professionId": "tamer",
+        "seedIndex": 1,
+        "seed": "whole-tamer-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 29,
+        "steps": 218,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 0,
+        "combatHpLost": 9
+      },
+      "v18": {
+        "professionId": "tamer",
+        "seedIndex": 1,
+        "seed": "whole-tamer-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 25,
+        "steps": 233,
+        "newCardGains": 1,
+        "newCardUses": 0,
+        "gains": {
+          "shared_recall": 1
+        },
+        "uses": {},
+        "campHeals": 0,
+        "combatHpLost": 16
+      }
+    },
+    {
+      "professionId": "tamer",
+      "seedIndex": 2,
+      "v17": {
+        "professionId": "tamer",
+        "seedIndex": 2,
+        "seed": "whole-tamer-2",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 27,
+        "steps": 202,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 0,
+        "combatHpLost": 10
+      },
+      "v18": {
+        "professionId": "tamer",
+        "seedIndex": 2,
+        "seed": "whole-tamer-2",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 28,
+        "steps": 210,
+        "newCardGains": 3,
+        "newCardUses": 13,
+        "gains": {
+          "shared_mirror": 1,
+          "shared_recover": 1,
+          "shared_break": 1
+        },
+        "uses": {
+          "shared_break": 5,
+          "shared_recover": 3,
+          "shared_mirror": 5
+        },
+        "campHeals": 1,
+        "combatHpLost": 21
+      }
+    },
+    {
+      "professionId": "forger",
+      "seedIndex": 1,
+      "v17": {
+        "professionId": "forger",
+        "seedIndex": 1,
+        "seed": "whole-forger-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 18,
+        "steps": 188,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 1,
+        "combatHpLost": 26
+      },
+      "v18": {
+        "professionId": "forger",
+        "seedIndex": 1,
+        "seed": "whole-forger-1",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 15,
+        "steps": 177,
+        "newCardGains": 1,
+        "newCardUses": 0,
+        "gains": {
+          "forge_recast": 1
+        },
+        "uses": {},
+        "campHeals": 1,
+        "combatHpLost": 28
+      }
+    },
+    {
+      "professionId": "forger",
+      "seedIndex": 2,
+      "v17": {
+        "professionId": "forger",
+        "seedIndex": 2,
+        "seed": "whole-forger-2",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 2,
+        "steps": 131,
+        "newCardGains": 0,
+        "newCardUses": 0,
+        "gains": {},
+        "uses": {},
+        "campHeals": 2,
+        "combatHpLost": 50
+      },
+      "v18": {
+        "professionId": "forger",
+        "seedIndex": 2,
+        "seed": "whole-forger-2",
+        "outcome": "CLEAR",
+        "stationsCompleted": 15,
+        "endingHp": 7,
+        "steps": 159,
+        "newCardGains": 2,
+        "newCardUses": 5,
+        "gains": {
+          "shared_mirror": 2
+        },
+        "uses": {
+          "shared_mirror": 5
+        },
+        "campHeals": 2,
+        "combatHpLost": 42
+      }
+    }
+  ],
+  "integrationValidation": {
+    "testFile": "rogue-v18-ui.test.mjs",
+    "privateTargetSelection": true,
+    "temporaryUpgradeAndDiscount": true,
+    "textAndPngPlayLimitAgreement": true,
+    "all28CardsBaseAndUpgradeSmoke": true,
+    "actualBattlePngViewed": true,
+    "note": "统一 battle wrapper 按保存的 rulesVersion 分流。主 agent 已验证 v18 UI 的 NEW_TARGETS 过滤，不把无版本后缀的 wrapper 视为缺失集成。"
+  }
+}

@@ -1,5 +1,6 @@
 // Effect-driven v0.10 build guidance. Catalog is injected to avoid import cycles.
 const ROLE_BY_KIND = {
+  bank_shield:'跨轮护盾',guard_next_hit:'首段减伤',burn_cashout:'火层兑现',bank_burn:'封存火种',discount_target:'本轮改费',upgrade_target:'战内强化',recover_card:'弃牌回收',tune_echo:'回声强化',triage:'分流救治',shield_heal:'护盾治疗',pet_guard:'伙伴换盾',recall_pet:'伙伴归巢',forge_spend:'拆解锻值',forge_reset:'重铸返能',tempo:'额外行动',energy:'返还能量',shield_break:'破盾',cleanse_guard:'净火换盾',recall_cover:'撤回伙伴',
   damage: '直接输出', weapon_attack: '武器输出', pet_attack: '伙伴输出', burn: '持续伤害',
   block: '护盾', damage_from_shield: '护盾兑现', counter: '反击', heal: '治疗',
   draw: '抽牌', sift: '择弃循环', retain: '保留衔接', prepare: '备势衔接',
@@ -110,6 +111,7 @@ function linksFor(candidate, deckKinds, relics, catalog) {
   if ((k.has('sift') && hasAny(deckKinds, ['damage', 'block'])) || (deckKinds.has('sift') && hasAny(k, ['damage', 'block']))) links.push('sift-choice');
   if ((k.has('retain') && hasAny(deckKinds, ['damage', 'block'])) || (deckKinds.has('retain') && hasAny(k, ['damage', 'block']))) links.push('retain-choice');
   if (k.has('heal') && relics.some((id) => catalog.relics?.[id]?.trigger === 'heal_block')) links.push('heal-relic');
+  for(const [kind,source] of [['burn_cashout','burn'],['bank_burn','burn'],['bank_shield','block'],['shield_heal','block'],['pet_guard','summon'],['recall_pet','summon'],['recall_cover','summon'],['forge_spend','forge'],['forge_reset','forge'],['tune_echo','echo_next']])if(k.has(kind)&&deckKinds.has(source))links.push('resource-converter');
   return links;
 }
 
@@ -141,6 +143,7 @@ export function candidateFit(run, cardId, inputCatalog) {
   if (Number(candidate.cost) > 1) score -= 0.35;
   score = Math.round(Math.max(0, Math.min(10, score)) * 10) / 10;
   const explanation = [];
+  if (links.includes('resource-converter')) explanation.push('已有启动资源，可用于新牌的兑换或跨轮衔接');
   if (links.includes('forge-weapon')) explanation.push('锻值与武器攻击可供给/兑现');
   if (links.includes('summon-pet')) explanation.push('召唤资源与伙伴攻击相接');
   if (links.includes('shield-payoff')) explanation.push('护盾可供护盾转伤，或用于触发格挡反击');
