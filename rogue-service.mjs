@@ -1,4 +1,4 @@
-import {createRun,runAction,expireRun,RULE_VERSION,CURRENT_RULE_VERSION,V18_RULE_VERSION,V17_RULE_VERSION,V16_RULE_VERSION,V15_RULE_VERSION,SUPPORTED_RULE_VERSIONS} from './rogue-run.mjs';
+import {createRun,runAction,expireRun,RULE_VERSION,CURRENT_RULE_VERSION,V19_RULE_VERSION,V18_RULE_VERSION,V17_RULE_VERSION,V16_RULE_VERSION,V15_RULE_VERSION,SUPPORTED_RULE_VERSIONS} from './rogue-run.mjs';
 import {scoreRun,rewardAmount,dailySeedGroup,REWARDED_STARTS,ECONOMY_VERSION} from './rogue-economy.mjs';
 import {DAILY_REWARD_CAP,dayKey,validId} from './tavern-catalog.mjs';
 import {PROFESSIONS} from './rogue-content-v09.mjs';
@@ -6,9 +6,9 @@ import {MAX_DIFFICULTY} from './rogue-difficulty-v08.mjs';
 import {pruneObservation,recordObservation,summarizeObservation,summarizeObservationLines} from './rogue-observation.mjs';
 import {mergeRunMetrics} from './rogue-effect-metrics.mjs';
 const V14_RULE_VERSION='lantern-rules-v0.14';
-const OBSERVATION_RULES=['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13',V14_RULE_VERSION,V15_RULE_VERSION,V16_RULE_VERSION,V18_RULE_VERSION,V17_RULE_VERSION,CURRENT_RULE_VERSION];
-const METRIC_RULES=['lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13',V14_RULE_VERSION,V15_RULE_VERSION,V16_RULE_VERSION,V18_RULE_VERSION,V17_RULE_VERSION,CURRENT_RULE_VERSION];
-const EXPANDED_RULES=['lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13',V14_RULE_VERSION,V15_RULE_VERSION,V16_RULE_VERSION,V18_RULE_VERSION,V17_RULE_VERSION,CURRENT_RULE_VERSION];
+const OBSERVATION_RULES=['lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13',V14_RULE_VERSION,V15_RULE_VERSION,V16_RULE_VERSION,V19_RULE_VERSION,V18_RULE_VERSION,V17_RULE_VERSION,CURRENT_RULE_VERSION];
+const METRIC_RULES=['lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13',V14_RULE_VERSION,V15_RULE_VERSION,V16_RULE_VERSION,V19_RULE_VERSION,V18_RULE_VERSION,V17_RULE_VERSION,CURRENT_RULE_VERSION];
+const EXPANDED_RULES=['lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13',V14_RULE_VERSION,V15_RULE_VERSION,V16_RULE_VERSION,V19_RULE_VERSION,V18_RULE_VERSION,V17_RULE_VERSION,CURRENT_RULE_VERSION];
 const PROFESSION_IDS=Object.keys(PROFESSIONS);
 const hashSeed=seed=>{let h=2166136261;for(const c of String(seed)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)>>>0;}return h;};
 const professionForSeed=seed=>PROFESSION_IDS[hashSeed(seed)%PROFESSION_IDS.length]??'traveler';

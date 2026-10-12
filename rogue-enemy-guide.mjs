@@ -2,6 +2,8 @@
 export function enemyApproach(enemy) {
   if (!enemy) return '';
   const intents = [...(enemy.intents ?? []),...(enemy.role==='Boss' ? enemy.phaseIntents ?? [] : [])].flatMap(i=>i.kind==='conditional'?[i,i.onAttack,i.onOther]:[i]), cues = [];
+  if(enemy.pressure)cues.push('长战斗有上限增压');
+  if(intents.some(i=>i.shieldAfter))cues.push('攻击后架盾');
   if (intents.some(i=>i.kind==='tempo'))cues.push('第三张牌改变应对');
   if (intents.some(i => i.armor < 0)) cues.push('蓄力时护甲降低');
   if (intents.some(i => i.chargeBreak)) cues.push('蓄力可破势');
@@ -29,6 +31,7 @@ export function enemyDecisionCue(b) {
   if (i.kind === 'conditional') return b.firstCardKind == null
     ? '首张牌决定分支；未出牌走非直伤分支'
     : `分支已锁定：${b.firstCardKind === 'attack' ? '首牌含直伤' : '首牌不含直伤'}，后续牌不会改分支`;
+  if(i.kind==='attack'&&i.shieldAfter)return `攻击结算后获得${i.shieldAfter}护盾；不会抵挡你本轮提前造成的伤害`;
   if (i.kind === 'guard') return `本轮不攻击；行动后架盾${i.value}，现在可先输出`;
   if (i.kind === 'cleanse') return `行动时先清除自身${i.value}层灼烧，再结算余下灼烧`;
   if (i.kind === 'burn') return `施加${i.value}层灼烧，本轮末开始扣血；护盾无法抵挡`;
@@ -39,15 +42,21 @@ export function enemyDecisionCue(b) {
 
 // Keep the image's single tactical line short enough for a phone screen.
 export function enemyImageCue(b) {
-  if (!['lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18','lantern-rules-v0.19'].includes(b?.ruleVersion)) return '';
-  if(['lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18','lantern-rules-v0.19'].includes(b.ruleVersion) && b.phaseNextIntent && b.phaseStartTurn>b.turn)return `下轮阶段开场 ${compactIntent(b.phaseNextIntent)}`;
+ const cue=baseEnemyImageCue(b);
+ if(b?.pressurePlan)return `${b.enemyPressure?'攻压+'+b.enemyPressure:'第'+b.pressurePlan.startTurn+'轮增压'}${cue?' · '+cue:''}`;
+ return cue;
+}
+function baseEnemyImageCue(b) {
+  if (!['lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18','lantern-rules-v0.19','lantern-rules-v0.20'].includes(b?.ruleVersion)) return '';
+  if(['lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18','lantern-rules-v0.19','lantern-rules-v0.20'].includes(b.ruleVersion) && b.phaseNextIntent && b.phaseStartTurn>b.turn)return `下轮阶段开场 ${compactIntent(b.phaseNextIntent)}`;
   const i=b.intent;
+  if(i?.kind==='attack'&&i.shieldAfter)return `攻击后架盾${i.shieldAfter}`;
   if(i?.kind==='tempo')return `已出${b.plays??0}张 当前${(b.plays??0)<=i.playThreshold?'架盾':'攻击'}分支 第三张牌会改分支`;
   if (i?.kind === 'charge' && i.next?.kind && i.next.kind !== 'attack') return `换阶段覆盖重击${i.chargeBreak ? ' 本次破势不顺延' : ''}`;
   if (i?.chargeBreak) {
     return `${i.armor < 0 ? `本轮护甲${b.enemyArmor} ` : ''}破势 ${Math.min(b.chargeDamage??0,i.chargeBreak.threshold)}/${i.chargeBreak.threshold} 达标下轮每段减${i.chargeBreak.reduction}`;
   }
-  if (['lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18','lantern-rules-v0.19'].includes(b.ruleVersion) && i?.kind === 'conditional') return b.firstCardKind == null
+  if (['lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18','lantern-rules-v0.19','lantern-rules-v0.20'].includes(b.ruleVersion) && i?.kind === 'conditional') return b.firstCardKind == null
     ? '首牌决定分支 后续出牌不会改变'
     : `分支已锁定 ${b.firstCardKind === 'attack' ? '首牌含直伤' : '首牌不含直伤'}`;
   return '';

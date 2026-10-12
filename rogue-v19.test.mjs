@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { beginBattle,battleAction,legalCards } from './rogue-battle.mjs';
-import { createRun,runAction,CURRENT_RULE_VERSION,V18_RULE_VERSION } from './rogue-run.mjs';
+import { createRun,runAction,V19_RULE_VERSION as CURRENT_RULE_VERSION,V18_RULE_VERSION } from './rogue-run.mjs';
 import { getCatalog } from './rogue-content.mjs';
 import { supportPreview } from './rogue-card-effects-v19.mjs';
 import { candidateFit } from './rogue-build-system-v19.mjs';
