@@ -153,7 +153,7 @@ export class PokerTable extends DurableObject {
           const p=answer.packet;
           // Credits are already committed. A Discord edit failure cannot undo or repeat them.
           try{await fetch(`https://discord.com/api/v10/channels/${p.channel}/messages/${payload.interaction.message.id}`,{method:'PATCH',headers:{Authorization:`Bot ${this.env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({...packetCard(p),allowed_mentions:{parse:[]}}),signal:AbortSignal.timeout(8000)});}catch{}
-          return json({amount:answer.amount,repeated:answer.repeated});
+          return json({amount:answer.amount,repeated:answer.repeated,...(answer.publicNotice?{publicNotice:answer.publicNotice}:{})});
         }
         return json({error:'无效红包操作。'});
       }catch(e){return json({error:e.message});}}
@@ -181,7 +181,7 @@ export class PokerTable extends DurableObject {
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
       if(payload.op==='unoRank'){try{return json(await this.rankings.dispatch(payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.79',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
+      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.80',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
       if(payload.op==='register'){
         if(!this.env.BOT_TOKEN)return json({registered:false});
         if(await this.ctx.storage.get('commandVersion')===COMMAND_VERSION)return json({registered:true});
