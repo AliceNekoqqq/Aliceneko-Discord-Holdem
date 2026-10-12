@@ -21,4 +21,4 @@
 
 ## 发布
 
-待完成PR检查、合并、Cloudflare部署与线上health/配置核验。
+PR #25检查38294234723与main发布38294375261成功，运行提交63dd37752f8de4222a013485709717275a991403；CF部署5f9423a2-759d-4212-b99a-591d1830f4e1、版本9bd43c99-ca38-4aa5-aa32-e63fcd74fd08接收100%。13项bindings/Secret名类型/人设、DO命名空间/D1/ASSETS、兼容/观测设置比对保持，Cron仍每分钟。实读health确认beta.86/v0.17/ready:true，Gateway connected:true/ready:true，chatRuntime与expectedRuntime均chat84-exclusive-red-packet。最后成功：生产发布与健康/配置核验完成，本批无需重复发布。
