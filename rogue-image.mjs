@@ -1,3 +1,4 @@
+import { discountedDefinition, playLimitFor } from './rogue-card-effects-v18.mjs';
 import { Canvas, encodePNG } from './card-image.mjs';
 import { prepareNicknameFont } from './nickname-font.mjs';
 import { PROFESSIONS } from './rogue-content-v09.mjs';
@@ -48,7 +49,7 @@ export function describeRogueImage(run,view='auto'){
  if(mode==='battle'){
   const b=run?.battle||{},catalog=getCatalog(run?.catalogVersion||run?.ruleVersion),profession=catalog.professions?.[b.professionId||run?.professionId]||PROFESSIONS[b.professionId||run?.professionId],enemy=catalog.enemies[b.enemyId];
   const playable=new Set(Array.isArray(b?.hand)?legalCards(b).map(e=>e.uid):[]);
-  const playLimit=catalog.player?.playLimit,cards=(b?.hand||[]).map(e=>{const def=cardDefinition(e,catalog),groups=cardGroups(def),effects=cardEffectLines(def,{echoManual:['lantern-rules-v0.16','lantern-rules-v0.17'].includes(run?.ruleVersion)}),warnings=cardWarnings(e,def,b.hp);return {id:e.uid,name:catalog.cards[e.cardId]?.name||e.cardId,cost:def.cost??0,playable:playable.has(e.uid),categories:groups.map(g=>({label:g.label,color:[...g.color]})),effects,warnings,reason:unavailableReason(b,def,playLimit,playable,e.uid)};});
+  const playLimit=b?.ruleVersion==='lantern-rules-v0.18'?playLimitFor(b):catalog.player?.playLimit,cards=(b?.hand||[]).map(e=>{const def=cardDefinition(e,catalog,b),groups=cardGroups(def),effects=cardEffectLines(def,{echoManual:['lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18'].includes(run?.ruleVersion),compact:true}),warnings=cardWarnings(e,def,b.hp);return {id:e.uid,name:catalog.cards[e.cardId]?.name||e.cardId,cost:def.cost??0,playable:playable.has(e.uid),categories:[...(def.professionOnly?[{label:'专属',color:[209,166,108]}]:[]),...groups.map(g=>({label:g.label,color:[...g.color]}))],effects,warnings,reason:unavailableReason(b,def,playLimit,playable,e.uid)};});
   return {mode:'battle',act:run?.act??1,turn:b?.turn??0,playLimit,profession:profession?.name||'旅人',enemy:enemy?.name||b?.enemyId||'敌人',intent:b.intent,cards,hints:[...(enemyImageCue(b)?[enemyImageCue(b)]:[]),...battleHints(b,cards.map(e=>cardDefinition((b.hand||[]).find(h=>h.uid===e.id)||{},catalog)),playLimit)],enemyHp:b?.enemyHp??0,enemyMaxHp:b?.enemyMaxHp??0,playerHp:b?.hp??run?.hp??0,playerMaxHp:b?.maxHp??0};
  }
  const all=mode==='all'||mode==='overview';
@@ -98,7 +99,7 @@ async function mapImage(run,view,env){
 }
 function intentLabel(i){if(!i)return '等待行动';if(i.kind==='charge')return '蓄力 本轮不攻击';const name=i.label||({attack:'攻击',guard:'护盾',burn:'灼烧',cleanse:'净火',heal:'恢复',charge:'蓄力',thorns:'反伤',conditional:'条件反制'})[i.kind]||i.kind;const amount=i.kind==='attack'?` ${i.value??0}×${i.hits??1}`:i.kind!=='conditional'&&Number.isFinite(i.value)?` ${i.value}`:'';return short(name,12)+amount;}
 function intentDetail(i){if(!i)return '';if(i.kind==='tempo')return `至多${i.playThreshold}张: ${intentLabel(i.onCalm)} / 超过${i.playThreshold}张: ${intentLabel(i.onRush)}`;if(i.kind==='conditional')return `首张含直接伤害的牌: ${intentLabel(i.onAttack)} / 否则: ${intentLabel(i.onOther)}`;if(i.kind==='charge')return i.next && i.next.kind!=='attack'?`下轮：${intentLabel(i.next)}`:`下轮：${i.next?.value??i.value}×${i.next?.hits??i.hits??1} 攻击`;return '';}
-function cardDefinition(entity,catalog){const base=catalog.cards[entity.cardId]||{};return entity.upgraded?{...base,...base.upgrade}:base;}
+function cardDefinition(entity,catalog,b=null){const base=catalog.cards[entity.cardId]||{};return discountedDefinition(entity.upgraded?{...base,...base.upgrade}:base,entity,b);}
 function wrapLine(value,maxChars){const chars=[...String(value)];const lines=[];while(chars.length)lines.push(chars.splice(0,maxChars).join(''));return lines;}
 function prepGlyphs(names,env){const chars=[...new Set(names.flatMap(s=>[...rawImageText(s)]))];return prepareNicknameFont(chars,env);}
 function rgbaText(c,value,x,y,size,color,maxChars){wrapLine(value,maxChars).forEach((s,i)=>text(c,s,x,y+i*(size+2),size,color));}
@@ -170,7 +171,7 @@ async function battleImage(run,env){
  text(c,model.hints[0]||'先读意图，再选手牌。',51,500,F.meta,K.gold2);
  const count=hand.length,cardW=count?Math.min(164,Math.floor(852/count)):164,gap=count>5?6:8,total=count*cardW+Math.max(0,count-1)*gap,start=480-total/2;
  hand.forEach((e,i)=>{
-  const card=model.cards.find(q=>q.id===e.uid),def=cardDefinition(e,catalog),x=Math.round(start+i*(cardW+gap)),y=520,w=cardW,h=204,play=card?.playable===true;
+  const card=model.cards.find(q=>q.id===e.uid),def=cardDefinition(e,catalog,run.battle),x=Math.round(start+i*(cardW+gap)),y=520,w=cardW,h=204,play=card?.playable===true;
   const border=play?[145,108,58]:[72,88,102],face=play?[28,52,72]:[35,47,59];
   rect(c,x+3,y+5,w,h,[8,17,28],10);rect(c,x,y,w,h,face,10);rect(c,x+1,y+1,w-2,5,play?K.gold:K.gray,5);line(c,x+1,y+2,x+w-2,y+2,border,2);line(c,x+1,y+2,x+1,y+h-2,border,2);line(c,x+w-2,y+2,x+w-2,y+h-2,border,2);line(c,x+1,y+h-2,x+w-2,y+h-2,border,2);
   circle(c,x+22,y+24,17,play?K.gold:[91,108,120]);circle(c,x+22,y+24,13,play?K.gold2:[112,128,139]);text(c,card?.cost??0,x+22,y+14,F.body,K.ink,true);

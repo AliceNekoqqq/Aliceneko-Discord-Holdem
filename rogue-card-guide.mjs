@@ -1,21 +1,25 @@
 // Presentation only: legality and effects remain owned by the battle engine.
 export const DIRECT_EFFECTS = new Set(['damage','pet_attack','weapon_attack','sacrifice','damage_from_shield']);
-export const TARGET_EFFECTS = new Set(['sift','retain','exhaust_other']);
+import { newEffectLine, compactEffectLine } from './rogue-card-text-v18.mjs';
+import { supportUnavailable } from './rogue-card-effects-v18.mjs';
+import { getCatalog } from './rogue-content.mjs';
+export const TARGET_EFFECTS = new Set(['sift','retain','exhaust_other','discount_target','upgrade_target']);
 const GROUPS = [
  {label:'攻击',color:[205,112,96],kinds:[...DIRECT_EFFECTS]},
- {label:'守御',color:[106,169,207],kinds:['block','counter']},
- {label:'恢复',color:[130,188,131],kinds:['heal','cleanse_player']},
- {label:'火种',color:[229,158,84],kinds:['burn','delay_burn']},
- {label:'召唤',color:[219,178,104],kinds:['summon']},
- {label:'铸器',color:[173,179,192],kinds:['forge']},
- {label:'技巧',color:[179,151,210],kinds:['prepare','mark','draw','sift','retain','exhaust_other','echo_next','self_echo']},
+ {label:'守御',color:[106,169,207],kinds:['block','counter','bank_shield','guard_next_hit','cleanse_guard']},
+ {label:'恢复',color:[130,188,131],kinds:['heal','cleanse_player','triage','shield_heal']},
+ {label:'火种',color:[229,158,84],kinds:['burn','delay_burn','burn_cashout','bank_burn']},
+ {label:'召唤',color:[219,178,104],kinds:['summon','pet_guard','recall_pet','recall_cover']},
+ {label:'铸器',color:[173,179,192],kinds:['forge','forge_spend','forge_reset']},
+ {label:'技巧',color:[179,151,210],kinds:['prepare','mark','draw','sift','retain','exhaust_other','echo_next','self_echo','discount_target','upgrade_target','recover_card','tune_echo','tempo','energy','shield_break']},
 ];
 export function cardGroups(def) {
  const kinds=new Set((def?.effects||[]).map(e=>e.kind));
  return GROUPS.filter(g=>g.kinds.some(k=>kinds.has(k)));
 }
-export function cardEffectLines(def,{echoManual=false}={}) {
+export function cardEffectLines(def,{echoManual=false,compact=false}={}) {
  return (def?.effects||[]).map(e=>{
+  const extended = compact ? compactEffectLine(e) : newEffectLine(e); if (extended) return extended;
   if(echoManual&&e.kind==='echo_next')return `回声蓄能${e.value}：之后可选可回声牌安排到下轮`;
   if(echoManual&&e.kind==='self_echo')return `本牌下轮免费重放${e.value}次`;
   return ({
@@ -38,6 +42,7 @@ export function unavailableReason(b,def,playLimit,legal,uid) {
  if((b.plays??0)>=playLimit)return '本轮出牌次数已满';
  if(legal.has(uid))return '';
  if(def?.cost>(b.energy??0))return '能量不足';
+ if(b.ruleVersion==='lantern-rules-v0.18'){const why=supportUnavailable(b,{...def,uid},getCatalog(b.ruleVersion));if(why)return why;}
  const effects=def?.effects||[];
  if(effects.length&&effects.every(e=>e.kind==='heal')&&b.hp>=b.maxHp)return '生命已满，纯治疗牌不可用';
  if(effects.length&&effects.every(e=>e.kind==='pet_attack'||e.kind==='sacrifice')&&!(b.petHp>0))return '需要存活的伙伴';
@@ -58,7 +63,7 @@ export function battleHints(b,defs,playLimit) {
  if(b.echoReady)lines.push((b.echoEligibleUids?.length??0)>0?`回声已蓄能${b.echoCharges??1}次；按“使用回声”选择牌面带“可回声”的牌，下轮免费重放。`:'回声已蓄能；先打出一张“可回声”牌，再按“使用回声”选择它。');
  return lines.slice(0,4);
 }
-export function playGuide({draw=5,energy=3,playLimit=3,modern=true,echoManual=false,turnLimit=12}={}) {
+export function playGuide({draw=5,energy=3,playLimit=3,modern=true,echoManual=false,turnLimit=12,newCards=false}={}) {
  return [
   `【一轮怎么打】抽${draw}张，${energy}能量，最多打${playLimit}张。先看敌人意图，再安排防御与输出。打满次数或没有可用牌／道具时，系统会自动结束本轮。`,
   '【怎么认牌】费用圆圈是能量；彩色标签是效果类别，混合牌可有多个类别。#编号对应这一张实体牌，同名牌也各有编号。强化后的费用与效果以当前显示为准。',
@@ -66,6 +71,7 @@ export function playGuide({draw=5,energy=3,playLimit=3,modern=true,echoManual=fa
   '【伤害与风险】数字是基础效果；护甲、敌盾、遗物与状态会影响实际结算。自损不经过护盾，生命不足会倒下。消耗牌本战不再抽到，下一场恢复。',
   '【轮末】未打出的牌通常进弃牌堆；保留牌留到下轮。护盾挡敌人的攻击，敌人行动后清空；灼烧在轮末扣血并衰减，护盾挡不住。',
   ...(modern?['【组合】备势／标记会自动加到下一次直伤；锻造提高武器攻击；召唤后才能打伙伴攻击／牺牲牌；反击牌要等护盾实际挡住攻击后触发。这些效果不需要另按按钮。',echoManual?'【回声操作】打出有“蓄能”的牌后，再打出一张标有“可回声”的牌；按“使用回声”并选择它，下轮开始时免费重放。每次蓄能可安排1至2张，全战最多3次；治疗牌不能回声，自损会再次支付。“本牌回声”会自动排队。':'【回声】标有“可回声”的牌能在安排回声后于下轮重放，治疗牌不能回声，每战最多3次；自损也会再次支付。条件意图按本轮首张牌的类别分支。']:[]),
+  ...(newCards?['【新牌】职业专属牌只能由对应职业获得；公共召唤、锻造和回声组件仍可混搭。改费只限本轮，战内强化只到本战结束；都要选择另一张真实手牌。','【资源兑换】暂存护盾会立即移走，下一轮返还；灼烧、伙伴生命和锻值兑换会扣除原资源。抽牌受5张手牌上限约束；额外行动每轮只加一次，总上限4次，能量最多5。']:[]),
   `【节奏】${turnLimit==null?'战斗没有回合数上限':'每战最多'+turnLimit+'轮'}；道具本战最多用1件，不占出牌次数。玩法提示帮助理解规则，选择仍由你决定。`,
  ].join('\n\n');
 }

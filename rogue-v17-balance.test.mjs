@@ -5,7 +5,7 @@ import * as next from './rogue-battle-v17.mjs';
 import { CATALOG_V16 } from './rogue-content-v16.mjs';
 import { CATALOG_V17 } from './rogue-content-v17.mjs';
 import { getDifficultyRules } from './rogue-difficulty-v17.mjs';
-import { createRun, runAction, CURRENT_RULE_VERSION, V16_RULE_VERSION } from './rogue-run.mjs';
+import { createRun, runAction, V17_RULE_VERSION, V16_RULE_VERSION } from './rogue-run.mjs';
 import { beginBattle } from './rogue-battle.mjs';
 import { dailySeedGroup } from './rogue-economy.mjs';
 import { renderRogue, renderRogueReading, renderRogueSettings } from './rogue-ui.mjs';
@@ -71,21 +71,21 @@ test('healing is reduced, still exhausts, and camp recovery remains meaningful',
  }
  let b=controlled(['bandage','guard','guard','guard','guard']);b.hp=10;
  b=next.battleAction(b,{type:'PLAY',uid:0});assert.equal(b.hp,13);assert.ok(b.exhaust.some(e=>e.uid===0));
- const run=createRun({runId:'camp17',guild:'1',owner:'2',professionId:'traveler',ruleVersion:CURRENT_RULE_VERSION,mode:'normal',now:0});
+ const run=createRun({runId:'camp17',guild:'1',owner:'2',professionId:'traveler',ruleVersion:V17_RULE_VERSION,mode:'normal',now:0});
  Object.assign(run,{hp:10,phase:'ROOM',room:{type:'camp',healAmount:run.campHealAmount}});
  assert.equal(runAction(run,{type:'CAMP',choice:'heal'},1).hp,19);
  assert.equal(getDifficultyRules(4).campHealAmount,7);
 });
 
 test('version routing, daily grouping, guide and remaining relic counters recognize v17',()=>{
- assert.equal(CURRENT_RULE_VERSION,'lantern-rules-v0.17');
+ assert.equal(V17_RULE_VERSION,'lantern-rules-v0.17');
  const options={enemyId:'lantern_rat',deck:cards(['guard','guard','guard','guard','guard']),relics:[],hp:30,seed:'routing'};
- const current=beginBattle({...options,ruleVersion:CURRENT_RULE_VERSION});
+ const current=beginBattle({...options,ruleVersion:V17_RULE_VERSION});
  const legacy=beginBattle({...options,ruleVersion:V16_RULE_VERSION});
  assert.equal(current.enemyMaxHp,24);assert.equal(legacy.enemyMaxHp,22);
  assert.equal(current.intent.value,legacy.intent.value+1);
- assert.notEqual(dailySeedGroup('1','2026-10-13',CURRENT_RULE_VERSION,0),dailySeedGroup('1','2026-10-13',V16_RULE_VERSION,0));
- const run=createRun({runId:'ui17',guild:'1',owner:'2',professionId:'traveler',ruleVersion:CURRENT_RULE_VERSION,mode:'normal',now:0});
+ assert.notEqual(dailySeedGroup('1','2026-10-13',V17_RULE_VERSION,0),dailySeedGroup('1','2026-10-13',V16_RULE_VERSION,0));
+ const run=createRun({runId:'ui17',guild:'1',owner:'2',professionId:'traveler',ruleVersion:V17_RULE_VERSION,mode:'normal',now:0});
  Object.assign(run,{phase:'BATTLE',battle:controlled(['guard','guard','guard','guard','guard'],['cinder_scoop'])});
  assert.match(JSON.stringify(renderRogue(run)),/余烬小铲3次/);
  const guide=JSON.stringify(renderRogueReading('guide',undefined,{run}));

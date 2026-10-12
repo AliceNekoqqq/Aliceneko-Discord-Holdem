@@ -36,7 +36,7 @@ export function dispatchRogue(service,interaction,{onVisual}={}){
    if(parsed.ui==='details'){const reply=renderRogueDetails(run,parsed.kind,{update,page:parsed.page});if(parsed.kind==='map')onVisual?.(run,'map');return reply;}
    if(parsed.version!==run.version)return privateError(errors.STALE);
    if(parsed.ui==='echo'){
-    if(run.phase!=='BATTLE'||!['lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion))return privateError('当前规则或阶段不能使用回声。');
+    if(run.phase!=='BATTLE'||!['lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18'].includes(run.ruleVersion))return privateError('当前规则或阶段不能使用回声。');
     return renderRogueEchoMenu(run,{update,page:parsed.page});
    }
    if(parsed.ui==='uid-page'){
