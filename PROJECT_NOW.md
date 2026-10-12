@@ -2,7 +2,7 @@
 
 更新时间：2026-10-13（Asia/Shanghai）
 
-- beta.85 / 灯下迷城v0.16本地完成，待PR/CI/生产发布：压低1费高护盾（铁门闭合9→6）并提升低伤害1费攻击；回声蓄能改为可见按钮选牌、下轮免费重放，升级两次回声生效，最后出牌保留选择窗口，候选超过25张分页。自动联动说明和实战组合提示补齐；新局v16、旧v15及更早冻结，每日挑战分组隔离。灯下迷城49个测试文件与Worker4个测试文件通过；Luna查出候选截断已修复并补测。主线已同步至beta.84专属红包，聊天指纹保持chat84-exclusive-red-packet，现有好感度/引用点单/赠送保留；配置未改。真人平衡和趣味尚未验证。审计见docs/roguelike/V16_FEEDBACK_AUDIT.md。
+- beta.85 / 灯下迷城v0.16已上线：1费高盾下调（铁门闭合9→6）、低伤1费攻击补强；回声按钮主动选牌、下轮免费重放，双回声/最后出牌窗口/25项分页和自动联动说明补齐。新局v16，旧局冻结。接到最新beta.84主线，现有好感度与专属红包保留。灯下迷城308/308、Worker27/27，PR #24检查38289552308与main发布38289667202成功；运行提交1e2a21243e8ff564204d7e3edcc486740845573e。CF部署6f7d1908-321a-481d-9faf-a850fe350482、版本8625bc92-1839-4bc1-89e1-d0e66820fa8e接收100%。13项绑定/Secret名类型/人设/DO命名空间/D1/ASSETS、兼容设置、观测及Cron比对保持；实读health确认beta.85/v0.16/ready:true，Gateway connected:true/ready:true，chatRuntime与expectedRuntime均chat84-exclusive-red-packet。真人平衡与趣味待反馈，本批发布已完成，勿重复发布。审计见docs/roguelike/V16_FEEDBACK_AUDIT.md。
 
 - beta.84专属红包已上线：开发者真实@机器人及唯一其他真人，金额1～1,000,000酒馆币，一人全额；系统出钱/24小时/同人账号去重保持。SQLite安全补列兼容旧红包；指定人/金额证据/拒绝零钱包变动/模型失败兜底已测，红包23/23、聊天93/93、Worker27/27通过。PR #23检查38287283512及main发布38287450200成功，运行提交97fb44c5840a7add89767a2f74ce4f004ccdf34f。CF部署79da1454-2b94-4382-9961-6063f50570b7、版本357e9762-3fa3-4ecc-9ded-48dfd0c5e8ea接收100%；绑定/Secret名类型/人设变量、兼容/观测配置对比保持。部署后约6分钟Gateway完成切换，实读health beta.84/ready:true/gateway.connected:true/ready:true/chatRuntime与expectedRuntime均chat84-exclusive-red-packet。真人Discord专属红包待用户测试，未额外发测试红包。详见docs/red-packet/EXCLUSIVE.md。
 
