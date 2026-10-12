@@ -2,18 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { beginBattle, battleAction } from './rogue-battle-v16.mjs';
 import { renderRogue, renderRogueEchoMenu, renderRogueReading, parseRogueAction } from './rogue-ui.mjs';
-import { createRun, runAction, CURRENT_RULE_VERSION } from './rogue-run.mjs';
+import { createRun, runAction, V16_RULE_VERSION } from './rogue-run.mjs';
 import { dispatchRogue } from './rogue-interactions.mjs';
 
 function fixture(){
  const cards=['echoing_edge','slash','guard'];
  const deck=cards.map((cardId,uid)=>({uid,cardId,upgraded:false}));
- let battle=beginBattle({ruleVersion:CURRENT_RULE_VERSION,enemyId:'lantern_rat',deck,relics:[],hp:30,seed:'v16-ui'});
+ let battle=beginBattle({ruleVersion:V16_RULE_VERSION,enemyId:'lantern_rat',deck,relics:[],hp:30,seed:'v16-ui'});
  battle.enemyHp=200;battle.enemyMaxHp=200;battle.enemyArmor=0;battle.enemyShield=0;
  battle.hand=deck.map(e=>({...e}));battle.draw=[];battle.discard=[];battle.exhaust=[];battle.energy=3;battle.plays=0;battle.turn=1;battle.intent={kind:'guard',value:0};
  battle=battleAction(battle,{type:'PLAY',uid:0});
  battle=battleAction(battle,{type:'PLAY',uid:1});
- const run=createRun({runId:'echo-ui',owner:'2',guild:'1',mode:'normal',seed:'echo-ui',professionId:'traveler',ruleVersion:CURRENT_RULE_VERSION,now:0});
+ const run=createRun({runId:'echo-ui',owner:'2',guild:'1',mode:'normal',seed:'echo-ui',professionId:'traveler',ruleVersion:V16_RULE_VERSION,now:0});
  run.phase='BATTLE';run.room={type:'battle',enemyId:'lantern_rat'};run.battle=battle;run.version=4;
  return run;
 }

@@ -8,8 +8,8 @@ export function scoreRun(run){
  const type=run.result?.type;
  if(!outcomes.has(type))throw Error('冒险尚未结算。');
  if(!Number.isInteger(run.completedActs)||run.completedActs<0||run.completedActs>3||
-    !Number.isInteger(run.completed)||run.completed<0||run.completed>(['lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16'].includes(run.ruleVersion)?15:9)||
-    !Number.isInteger(run.eliteWins)||run.eliteWins<0||run.eliteWins>(['lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16'].includes(run.ruleVersion)?6:3))throw Error('冒险进度无效。');
+    !Number.isInteger(run.completed)||run.completed<0||run.completed>(['lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion)?15:9)||
+    !Number.isInteger(run.eliteWins)||run.eliteWins<0||run.eliteWins>(['lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17'].includes(run.ruleVersion)?6:3))throw Error('冒险进度无效。');
  if(type==='ABANDON'||type==='EXPIRED')return {score:0,baseCoins:0,ranked:false};
  const alive=type==='CLEAR'||type==='RETREAT';
  const health=alive?Math.max(0,Math.min(30,Math.floor(run.hp))):0;
@@ -22,6 +22,7 @@ export function rewardAmount(run,{totalEarned=0,rogueEarned=0,totalCap=150}={}){
 }
 export function dailySeedGroup(guild,day,ruleVersion,difficulty=0){
  if(ruleVersion==='lantern-rules-v0.15'){if(!Number.isInteger(difficulty)||difficulty<0||difficulty>10)throw Error('难度无效');return `lantern/${guild}/${day}/${ruleVersion}/difficulty-${difficulty}/15stations-3energy-5draw-v15-bosses`; }
+ if(ruleVersion==='lantern-rules-v0.17'){if(!Number.isInteger(difficulty)||difficulty<0||difficulty>10)throw Error('难度无效');return `lantern/${guild}/${day}/${ruleVersion}/difficulty-${difficulty}/15stations-3energy-5draw-v17-attrition-unlimited`; }
  if(ruleVersion==='lantern-rules-v0.16'){if(!Number.isInteger(difficulty)||difficulty<0||difficulty>10)throw Error('难度无效');return `lantern/${guild}/${day}/${ruleVersion}/difficulty-${difficulty}/15stations-3energy-5draw-v16-echo-choice`; }
  if(ruleVersion==='lantern-rules-v0.14'){if(!Number.isInteger(difficulty)||difficulty<0||difficulty>10)throw Error('难度无效');return `lantern/${guild}/${day}/${ruleVersion}/difficulty-${difficulty}/15stations-3energy-5draw-v14-elites`; }
  if(ruleVersion==='lantern-rules-v0.13'){if(!Number.isInteger(difficulty)||difficulty<0||difficulty>10)throw Error('难度无效');return `lantern/${guild}/${day}/${ruleVersion}/difficulty-${difficulty}/15stations-3energy-5draw-v13-enemies`; }
