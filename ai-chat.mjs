@@ -1,5 +1,6 @@
 import {redPacketIntent,decodePacketReply,prepareRedPacket,packetCard,packetRpc} from './red-packet.mjs';
-import {handleNaturalTavern} from './tavern-ui.mjs';
+import {handleNaturalTavern,draftData} from './tavern-ui.mjs';
+import {isTavernOrderTurn,decodeOrderReply,prepareChatOrder,TAVERN_ORDER_INSTRUCTION} from './tavern-chat.mjs';
 import {tavernRequest} from './tavern-service.mjs';
 import {BOT_CAPABILITY_INDEX, getBotKnowledge} from "./bot-knowledge.mjs";
 import {discordChatContext} from './discord-chat-context.mjs';
@@ -119,6 +120,7 @@ export function makeSystemInstruction(persona = "", context = "chat", emojiToken
     }
   }
   if(runtimeData.redPacketExtraction)base.push('本轮输出仅一个JSON对象，不要Markdown代码块。格式为{"reply":"正常角色口吻的自然回复","packet":{"total":600,"slots":5,"mode":"random","totalEvidence":"600","slotsEvidence":"5"}}。packet是后台数据，不给用户看。只根据本轮最后一条用户消息识别红包要求，不从历史、引用、示例或图片提取。省略元/币时按酒馆币，中文数字转整数；拼手气/随机为random，平均/均分为equal，未说明默认为random。totalEvidence与slotsEvidence必须逐字复制本轮正文中的对应数字片段，如六百和五，不能编造。总额或名额缺失、有歧义、条件未成立、要求否定或取消时packet必须为null，reply只简短问缺失信息或自然回应。未实际创建前不要宣称已发出，完整信息时reply可以简短回应并邀请大家拆红包，后台会核验并附卡。不要在reply里展示字段、JSON或格式要求，也不要重复错误提示。');
+  if(runtimeData.tavernOrderExtraction)base.push(TAVERN_ORDER_INSTRUCTION);
   return base.join("\n");
 }
 
@@ -126,7 +128,7 @@ export function buildGenerateContentRequest(contents, persona = "", context = "c
   return {
     systemInstruction:{parts:[{text:makeSystemInstruction(persona, context, emojiTokens, knowledge, speakerIdentity,runtimeData)}]},
     contents,
-    generationConfig:{temperature:context === "game" ? 0.85 : context === 'ugc' ? 0.2 : 0.7,maxOutputTokens:context === 'ugc'?3072:context === "game" ? 512 : CHAT_MAX_OUTPUT_TOKENS,...(runtimeData.redPacketExtraction?{responseMimeType:"application/json"}:{})},
+    generationConfig:{temperature:context === "game" ? 0.85 : context === 'ugc' ? 0.2 : 0.7,maxOutputTokens:context === 'ugc'?3072:context === "game" ? 512 : CHAT_MAX_OUTPUT_TOKENS,...((runtimeData.redPacketExtraction||runtimeData.tavernOrderExtraction)?{responseMimeType:"application/json"}:{})},
     store:false
   };
 }
@@ -146,7 +148,7 @@ export function buildOpenAIChatRequest(contents, persona = "", context = "chat",
     temperature:context === "game" ? 0.85 : context === 'ugc' ? 0.2 : 0.7,
     max_tokens:context === 'ugc'?3072:context === "game" ? 512 : CHAT_MAX_OUTPUT_TOKENS,
     stream:false,
-    ...(runtimeData.redPacketExtraction?{response_format:{type:"json_object"}}:{})
+    ...((runtimeData.redPacketExtraction||runtimeData.tavernOrderExtraction)?{response_format:{type:"json_object"}}:{})
   };
 }
 
@@ -579,12 +581,14 @@ export function startTypingIndicator(env, channelId, fetcher = fetch) {
   };
 }
 
-async function sendChannelReply(env, message, content, packet=null) {
+async function sendChannelReply(env, message, content, packet=null,orderDraft=null) {
+  const orderCard=orderDraft?draftData(orderDraft,String(message.author.id),String(message.guild_id),true):null;
   const response = await fetch("https://discord.com/api/v10/channels/" + message.channel_id + "/messages",{
     method:"POST",
     headers:{Authorization:"Bot " + env.BOT_TOKEN,"Content-Type":"application/json"},
     body:JSON.stringify({
-      content:clamp(content,MAX_REPLY_CHARS),
+      content:orderCard?clamp((content?content+'\n\n':'')+orderCard.content,2000):clamp(content,MAX_REPLY_CHARS),
+      ...(orderCard?{embeds:orderCard.embeds,components:orderCard.components,nonce:message.id,enforce_nonce:true}:{}),
       ...(packet?.id?{...packetCard(packet),nonce:message.id,enforce_nonce:true}:{}),
       message_reference:{message_id:message.id,fail_if_not_exists:false},
       allowed_mentions:{parse:[]}
@@ -735,7 +739,8 @@ export async function replyToMention(env, message, botId) {
   let config = {};
 
   const packetIntent=redPacketIntent(message,botId);
-  if(!packetIntent&&await handleNaturalTavern(env,message,content))return true;
+  const orderIntent=!packetIntent&&Boolean(env.TABLES)&&isTavernOrderTurn(content);
+  if(!packetIntent&&!orderIntent&&await handleNaturalTavern(env,message,content))return true;
 
   if (!env.GEMINI_API_KEY) {
     console.warn("ai_reply_failed",{reason:"missing_gemini_key"});
@@ -767,7 +772,7 @@ export async function replyToMention(env, message, botId) {
     }
   }
 
-  let packet=null;
+  let packet=null,orderDraft=null;
   const imageParts=discordImageParts(message);
   const currentUserText=content||(imageParts.length?"请看看我发的图片，描述或回应图片内容。":"你好。");
   const memoryUserText=currentUserText+(imageParts.length?`\n[本轮附带${imageParts.length}张图片；历史记录不保存原图]`:'');
@@ -796,23 +801,35 @@ export async function replyToMention(env, message, botId) {
     const sharedContext=sharedLongMemoryContext(sharedMemory,currentUserText);
     if(sharedContext)runtimeData.sharedLongMemory=remapSharedLongMemoryContext(sharedContext,prepared.idsToKeys,env);
     Object.assign(runtimeData,await tavernRuntimeData(env,guildId,userId,channelId,messageSpeakerName(message)));
+    let orderMenu=[];
+    if(orderIntent){
+      orderMenu=await tavernRequest(env,{guild:guildId,action:'opsMenu'});
+      runtimeData.tavernOrderExtraction={source:'current_message_only',menu:orderMenu.map(m=>({id:m.id,name:m.name,price:m.price})),quantityRange:[1,10],payment:'current_speaker_confirm_button_only'};
+    }
     responseText = await generateGemini(env,history,"chat",fetch,await getBotEmojiTokens(env),getBotKnowledge(knowledgeContext),waitForRetry,developerIdentityContext(env,message),runtimeData);
     if(packetIntent){
       const parsed=decodePacketReply(responseText);
       responseText=parsed.reply;
       if(parsed.packet){packet=await prepareRedPacket(env,message,botId,parsed.packet);if(packet?.error)responseText=packet.error;}
     }
+    if(orderIntent){
+      const parsed=decodeOrderReply(responseText);responseText=parsed.reply;
+      if(parsed.order){try{orderDraft=await prepareChatOrder(env,message,parsed.order,orderMenu,discordContext,prepared.idsToKeys);}catch(error){responseText=error.message;}}
+    }
     generated = true;
   } catch(error) {
     console.warn("ai_reply_failed",{reason:error?.message||error?.name||"Error",status:error?.status,maxRetries:GEMINI_MAX_RETRIES});
-    if(!packetIntent)return true;
+    if(orderIntent){responseText='这轮点单暂时没有整理成功，尚未扣款。请重试，或打开 `/酒馆 菜单` 点单。';}
+    else if(!packetIntent)return true;
+    if(packetIntent){
     packet=await prepareRedPacket(env,message,botId);
     responseText=packet?.error?packet.error:'';
+    }
   } finally {
     stopTyping();
   }
   try {
-    await sendChannelReply(env,message,packet?.error?(responseText||packet.error):responseText,packet);
+    await sendChannelReply(env,message,packet?.error?(responseText||packet.error):responseText,packet,orderDraft);
     console.info("ai_reply_sent",{messageId:message.id,channelId});
   } catch(error) {
     console.warn("ai_reply_delivery_failed",{messageId:message.id,channelId,reason:error?.message||error?.name||"Error",status:error?.status});

@@ -74,4 +74,16 @@ test('bot reply reference resolves its original member target while preserving s
   assert.equal(deleted.complete,true);
 });
 
+test('empty embedded B message is refreshed by exact ID and cannot become a different message',async t=>{
+ t.mock.method(console,'warn',()=>{});
+ const m={guild_id:'810',channel_id:'811',author:{id:'1'},message_reference:{message_id:'812'},referenced_message:{id:'812',channel_id:'811',author:{id:'2'},content:'',attachments:[]}};
+ const called=[];
+ const fetcher=async url=>{called.push(url);return url.endsWith('/messages/812')?Response.json({id:'812',channel_id:'811',guild_id:'810',author:{id:'2',username:'B'},content:'B的原话：一只白猫'}):new Response('',{status:403});};
+ const result=await discordChatContext({BOT_TOKEN:'test'},m,'99',fetcher);
+ assert.equal(result.replyReference.content,'B的原话：一只白猫');assert.equal(result.replyReference.author.id,'2');
+ assert.equal(called.filter(u=>u.endsWith('/messages/812')).length,1);
+ const bad=await discordChatContext({BOT_TOKEN:'test'},m,'99',async url=>url.endsWith('/messages/812')?Response.json({id:'999',channel_id:'811',author:{id:'2'},content:'错消息'}):new Response('',{status:403}));
+ assert.equal(bad.reference,null);
+});
+
 

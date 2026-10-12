@@ -41,7 +41,7 @@ export class TavernService {
   const member=this.member(id,name,now),daily=this.one('SELECT earned FROM tavern_daily WHERE user_id=? AND day=?',id,dayKey(now));
   const dailyGiftClaimed=!!this.one('SELECT id FROM tavern_ledger WHERE id=?',`dailyGift:${id}:${dayKey(now)}`);
   this.operations.visit(id,member.name,now);
-  return {member,menu:this.operations.menu(now),lockedMenu:this.operations.lockedMenu(),dailyGiftClaimed,dailyGiftAvailable:dailyGiftClaimed?0:Math.max(0,Math.min(DAILY_GIFT_COINS,DAILY_REWARD_CAP-(daily?.earned||0))),earned:daily?.earned||0,cap:DAILY_REWARD_CAP,orders:this.rows('SELECT * FROM tavern_orders WHERE user_id=? ORDER BY at DESC LIMIT 5',id).map(o=>({...o,details:JSON.parse(o.details)})),ledger:this.rows('SELECT amount,kind,note,at FROM tavern_ledger WHERE user_id=? ORDER BY at DESC LIMIT 6',id),frequent:this.one('SELECT item,COUNT(*) AS count FROM tavern_orders WHERE user_id=? AND price>0 GROUP BY item ORDER BY count DESC,MAX(at) DESC LIMIT 1',id),count:this.one('SELECT COUNT(*) AS n FROM tavern_orders WHERE user_id=?',id)?.n||0};
+  return {member,menu:this.operations.menu(now),lockedMenu:this.operations.lockedMenu(),dailyGiftClaimed,dailyGiftAvailable:dailyGiftClaimed?0:Math.max(0,Math.min(DAILY_GIFT_COINS,DAILY_REWARD_CAP-(daily?.earned||0))),earned:daily?.earned||0,cap:DAILY_REWARD_CAP,orders:this.rows('SELECT * FROM tavern_orders WHERE user_id=? OR json_extract(details,\'$.recipientId\')=? ORDER BY at DESC LIMIT 5',id,id).map(o=>({...o,details:JSON.parse(o.details)})),ledger:this.rows('SELECT amount,kind,note,at FROM tavern_ledger WHERE user_id=? ORDER BY at DESC LIMIT 6',id),frequent:this.one('SELECT item,COUNT(*) AS count FROM tavern_orders WHERE user_id=? AND price>0 AND json_extract(details,\'$.recipientId\') IS NULL GROUP BY item ORDER BY count DESC,MAX(at) DESC LIMIT 1',id),count:this.one('SELECT COUNT(*) AS n FROM tavern_orders WHERE user_id=? OR json_extract(details,\'$.recipientId\')=?',id,id)?.n||0};
  }
  claimDaily(id,name,now=Date.now()){
   if(!validId(id))throw Error('请打开自己的酒馆钱包。');
@@ -71,15 +71,31 @@ export class TavernService {
   if(!validId(p.channel)||typeof p.requestKey!=='string'||!/^[-a-zA-Z0-9_]{1,80}$/.test(p.requestKey))throw Error('点单窗口无效，请重新打开菜单。');
   const item=this.operations.item(p.item,now);if(!item){const locked=this.operations.lockedMenu().find(x=>x.id===p.item);throw Error(locked?`${locked.name}尚未解锁；${locked.lockReason}。`:'这款商品不在当前菜单。');}
   const member=this.member(p.id,p.name,now);
+  const quantity=p.quantity??1;
+  if(!Number.isSafeInteger(quantity)||quantity<1||quantity>10)throw Error('每单可点同一种商品1至10份。');
+  if(p.recipient&&(!validId(p.recipient.id)||p.recipient.bot))throw Error('请选择本服务器的一位真实成员。');
   let draft=this.one('SELECT * FROM tavern_drafts WHERE request_key=?',p.requestKey);
   if(draft){if(draft.user_id!==p.id||draft.channel!==p.channel)throw Error('点单窗口不属于你。');return {...draft,details:JSON.parse(draft.details),balance:member.balance};}
   if((this.one("SELECT COUNT(*) AS n FROM tavern_drafts WHERE user_id=? AND status='pending' AND expires>?",p.id,now)?.n||0)>=8)throw Error('还有几份点单预览没确认，先选一份吧。');
-  const details={...makeOrderDetails(item,member,p.options),emoji:item.emoji,serve:item.serve,...(item.source==='ugc'?{source:'ugc',dishId:item.id,recipeRevision:item.recipeRevision,assetKey:item.assetKey,author:item.author||item.author_name,description:item.description,appearance:item.appearance,method:item.method}: {})};
-  draft={id:crypto.randomUUID().replaceAll('-','').slice(0,24),request_key:p.requestKey,user_id:p.id,channel:p.channel,item:item.id,price:item.price,details,expires:now+ORDER_TTL,status:'pending'};
-  this.sql.exec('INSERT INTO tavern_drafts(id,request_key,user_id,channel,item,price,details,expires) VALUES(?,?,?,?,?,?,?,?)',draft.id,p.requestKey,p.id,p.channel,item.id,item.price,JSON.stringify(details),draft.expires);
+  const details={...makeOrderDetails(item,member,p.options),quantity,unitPrice:item.price,emoji:item.emoji,serve:item.serve,...(p.recipient&&p.recipient.id!==p.id?{recipientId:p.recipient.id,recipientName:cleanText(p.recipient.name,32)||'来客',payerName:member.name}:{}),...(item.source==='ugc'?{source:'ugc',dishId:item.id,recipeRevision:item.recipeRevision,assetKey:item.assetKey,author:item.author||item.author_name,description:item.description,appearance:item.appearance,method:item.method}: {})};
+  draft={id:crypto.randomUUID().replaceAll('-','').slice(0,24),request_key:p.requestKey,user_id:p.id,channel:p.channel,item:item.id,price:item.price*quantity,details,expires:now+ORDER_TTL,status:'pending'};
+  this.sql.exec('INSERT INTO tavern_drafts(id,request_key,user_id,channel,item,price,details,expires) VALUES(?,?,?,?,?,?,?,?)',draft.id,p.requestKey,p.id,p.channel,item.id,draft.price,JSON.stringify(details),draft.expires);
   return {...draft,balance:member.balance};
  }
- confirm(id,draftId,channel,now=Date.now()){
+ setRecipient(p,now=Date.now()){
+  let result;
+  this.storage.transactionSync(()=>{
+   const d=this.one('SELECT * FROM tavern_drafts WHERE id=?',p.draftId);
+   if(!d||d.user_id!==p.id||d.channel!==p.channel)throw Error('这不是你的点单窗口。');
+   if(d.status!=='pending'||d.expires<=now)throw Error('这份点单已完成或过期。');
+   if(!p.recipient||!validId(p.recipient.id)||p.recipient.bot)throw Error('请选择本服务器的一位真实成员。');
+   const details=JSON.parse(d.details);delete details.recipientId;delete details.recipientName;delete details.payerName;
+   if(p.recipient.id!==p.id)Object.assign(details,{recipientId:p.recipient.id,recipientName:cleanText(p.recipient.name,32)||'来客',payerName:this.member(p.id,'',now,true).name});
+   this.sql.exec('UPDATE tavern_drafts SET details=? WHERE id=?',JSON.stringify(details),d.id);
+   result={...d,details,balance:this.member(p.id,'',now,true).balance};
+  });return result;
+ }
+ confirm(id,draftId,channel,now=Date.now(),expectedRecipientId){
   // Schema creation and one-time legacy order backfill must happen outside this
   // order transaction; new consumption is added atomically with the order.
   const renovation=this.renovation,operations=this.operations;
@@ -90,7 +106,9 @@ export class TavernService {
    const prior=this.one('SELECT * FROM tavern_orders WHERE id=?',draftId);
    if(prior){answer={order:{...prior,details:JSON.parse(prior.details)},balance:this.member(id,'',now,true).balance,repeated:true};return;}
    if(d.status!=='pending'||d.expires<=now)throw Error('点单确认已过期，请重新选一杯。');
-   const item=operations.item(d.item,now);if(!item||d.price!==item.price)throw Error('菜单已更新，请重新点单。');
+   const details=JSON.parse(d.details),quantity=details.quantity??1;
+   if(expectedRecipientId!==undefined&&(details.recipientId||id)!==expectedRecipientId)throw Error('收礼人刚刚发生变化，请重新核对点单卡后确认。');
+   const item=operations.item(d.item,now);if(!item||!Number.isSafeInteger(quantity)||quantity<1||quantity>10||d.price!==item.price*quantity)throw Error('菜单已更新，请重新点单。');
    const member=this.member(id,'',now,true);
    if(member.balance<d.price)throw Error(`酒馆币不足，还差${d.price-member.balance}币。可以先点免费茶水。`);
    if(this.one('SELECT id FROM tavern_orders WHERE user_id=? AND at>? LIMIT 1',id,now-10000))throw Error('上一份刚刚上桌，10秒后再点下一份。');
@@ -99,7 +117,7 @@ export class TavernService {
    this.sql.exec('INSERT INTO tavern_orders(id,user_id,channel,item,price,details,at) VALUES(?,?,?,?,?,?,?)',d.id,id,channel,d.item,d.price,d.details,now);
    renovation.recordConsumption({id:d.id,user_id:id,details:d.details,price:d.price,at:now},true);
    operations.recordOrder({id:d.id,user_id:id,name:member.name,price:d.price,at:now},true);
-   this.sql.exec('INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)',`order:${d.id}`,id,-d.price,'order',JSON.parse(d.details).itemName,now);
+   this.sql.exec('INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)',`order:${d.id}`,id,-d.price,details.recipientId?'gift_order':'order',details.recipientId?`${details.itemName} ×${quantity} · 赠给${details.recipientName}`:details.itemName,now);
    this.sql.exec("UPDATE tavern_drafts SET status='confirmed' WHERE id=?",d.id);
    answer={order:{id:d.id,user_id:id,channel,item:d.item,price:d.price,details:JSON.parse(d.details),at:now},balance:member.balance-d.price,repeated:false};
   });return answer;
@@ -136,8 +154,8 @@ export class TavernService {
  }
  context(id,channel,now=Date.now()){
   const p=this.one('SELECT * FROM tavern_members WHERE id=?',id);if(!p)return null;
-  const latest=this.one('SELECT item,details,at FROM tavern_orders WHERE user_id=? AND channel=? AND at>? ORDER BY at DESC LIMIT 1',id,channel,now-7200000);
-  const frequent=this.one('SELECT item,COUNT(*) AS count FROM tavern_orders WHERE user_id=? AND price>0 GROUP BY item ORDER BY count DESC LIMIT 1',id);
+  const latest=this.one('SELECT item,details,at FROM tavern_orders WHERE (user_id=? AND json_extract(details,\'$.recipientId\') IS NULL OR json_extract(details,\'$.recipientId\')=?) AND channel=? AND at>? ORDER BY at DESC LIMIT 1',id,id,channel,now-7200000);
+  const frequent=this.one('SELECT item,COUNT(*) AS count FROM tavern_orders WHERE user_id=? AND price>0 AND json_extract(details,\'$.recipientId\') IS NULL GROUP BY item ORDER BY count DESC LIMIT 1',id);
   const frequentName=frequent?(menuItem(frequent.item)?.name||JSON.parse(this.one('SELECT details FROM tavern_orders WHERE user_id=? AND item=? ORDER BY at DESC LIMIT 1',id,frequent.item)?.details||'{}').itemName):null;
   return {source:'program_confirmed_tavern',owner:'currentSpeaker',balance:p.balance,preferences:{sweetness:SWEETNESS[p.sweetness],temperature:TEMPERATURE[p.temperature],seat:SEATS[p.seat],restrictions:p.restrictions||'未设置'},frequent:frequent?{item:frequentName,count:frequent.count}:null,currentOrder:latest?{...JSON.parse(latest.details),orderedAt:latest.at}:null};
  }
@@ -156,7 +174,8 @@ export class TavernService {
   if(p.action==='context')return this.context(p.id,p.channel);
   if(p.action==='draft'){const d=this.one('SELECT * FROM tavern_drafts WHERE id=?',p.draftId);if(!d||d.user_id!==p.id||d.channel!==p.channel)throw Error('这不是你的点单窗口。');return {...d,details:JSON.parse(d.details),balance:this.member(p.id,p.name).balance};}
   if(p.action==='prepare'){const draft=this.prepare(p);try{this.map.move({id:p.id,area:'bar'});}catch{}return draft;}
-  if(p.action==='confirm'){const answer=this.confirm(p.id,p.draftId,p.channel);if(!answer.repeated){try{this.map.touch({id:p.id,name:p.name,channel:p.channel,kind:'order'});this.map.move({id:p.id,area:'bar'});}catch{}}return answer;}
+  if(p.action==='giftRecipient')return this.setRecipient(p);
+  if(p.action==='confirm'){const answer=this.confirm(p.id,p.draftId,p.channel,Date.now(),p.expectedRecipientId);if(!answer.repeated){try{this.map.touch({id:p.id,name:p.name,channel:p.channel,kind:'order'});this.map.move({id:p.id,area:'bar'});}catch{}}return answer;}
   if(p.action==='claimDaily')return this.claimDaily(p.id,p.name);
   if(p.action==='profile'){
    const data=this.profile(p.id,p.name,p.key,p.value);

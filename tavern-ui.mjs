@@ -1,5 +1,6 @@
 import {MENU,WELCOME_COINS,DAILY_REWARD_CAP,ROSTER_DAILY_LIMIT,SWEETNESS,TEMPERATURE,SEATS,MOODS,REWARDS,menuItem,displayText,validId} from './tavern-catalog.mjs';
 import {tavernRequest} from './tavern-service.mjs';
+import {verifyGiftRecipient} from './tavern-gifts.mjs';
 import {renderMenu,renderDishDetails,MENU_CATEGORIES} from './tavern-menu-view.mjs';
 import {artEmbed} from './tavern-art.mjs';
 import {renoCommandOptions, tavernRenovationInteraction, immediateRenovationReply, answerRenovation, tavernDeferredReply as renovationDeferredReply} from './tavern-renovation-ui.mjs';
@@ -23,7 +24,8 @@ tavernCommand.options.push(...renoCommandOptions);
 tavernCommand.options.unshift(lobbyCommandOption);
 tavernCommand.options.push(...['研发','创作菜单','我的作品'].map((name,i)=>({type:1,name,description:['进入UGC研发工作台','打开总菜单并按菜品分类浏览玩家创作','查看和管理我的作品'][i]})));
 tavernCommand.options.push(petCommandOption);
-export const TAVERN_HELP=`🍵 **红豆粉的小酒馆**\n先用大厅按钮：吧台点单、钱包、常客卡、店内、共同装修、捐赠档案、贡献榜、小游戏、今日经营、季节菜单、共同活动和刷新。自然语言也可说“打开酒馆”或“走进酒馆”。\n快捷入口：\`/酒馆 大厅\`、\`/酒馆 菜单\`、\`/酒馆 点单\`、\`/酒馆 钱包\`、\`/酒馆 常客卡\`；装修也可用\`/酒馆 店内\`、\`/酒馆 装修\`、\`/酒馆 贡献榜\`、\`/酒馆 捐赠档案\`。\n每服务器独立共用一家店，跨频道共用装修。确认餐饮消费和主动出资按1币=1建设值，消费不再扣一次；装修先预览，3分钟内本人在原频道确认才扣款，余额流水仅本人可见。设备页购置咖啡机、烤箱、搅拌机与冰淇淋机，永久解锁本服务器公共菜单；新品从菜单分类里点单。\n新客欢迎金 **${WELCOME_COINS}币**，每服务器一次。${Object.values(REWARDS).map(r=>`${r.name} +${r.base}，胜者另 +${r.bonus}`).join('；')}。钱包内可手动领取每日到店礼20币，每天一次，北京时间零点刷新；与游戏奖励共用每日${DAILY_REWARD_CAP}币上限。至少两位真人实际行动才算合格；抽鬼牌/德州/UNO/骗子酒馆需分别达到15/30/45/60秒。同组每日前${ROSTER_DAILY_LIMIT}局跨游戏累计，奖励依次为全额、半额、四分之一（向下取整），之后为零。挂机、陪练局、取消局不发币，也没有按聊天条数发币。UNO按小局结算；德州筹码不兑换酒馆币。饮品分类含无酒精饮品和酒水；酒水商品会标注容量、酒精度。自然语言点单仍需按钮确认。`;
+tavernCommand.options.find(o=>o.name==='点单').options.push({type:6,name:'赠给',description:'由自己付款，送给本服务器的一位成员'},{type:4,name:'数量',description:'同一种商品1至10份',min_value:1,max_value:10});
+export const TAVERN_HELP=`🍵 **红豆粉的小酒馆**\n先用大厅按钮：吧台点单、钱包、常客卡、店内、共同装修、捐赠档案、贡献榜、小游戏、今日经营、季节菜单、共同活动和刷新。自然语言也可说“打开酒馆”或“走进酒馆”。\n快捷入口：\`/酒馆 大厅\`、\`/酒馆 菜单\`、\`/酒馆 点单\`、\`/酒馆 钱包\`、\`/酒馆 常客卡\`；装修也可用\`/酒馆 店内\`、\`/酒馆 装修\`、\`/酒馆 贡献榜\`、\`/酒馆 捐赠档案\`。\n每服务器独立共用一家店，跨频道共用装修。确认餐饮消费和主动出资按1币=1建设值，消费不再扣一次；装修先预览，3分钟内本人在原频道确认才扣款，余额流水仅本人可见。设备页购置咖啡机、烤箱、搅拌机与冰淇淋机，永久解锁本服务器公共菜单；新品从菜单分类里点单。\n新客欢迎金 **${WELCOME_COINS}币**，每服务器一次。${Object.values(REWARDS).map(r=>`${r.name} +${r.base}，胜者另 +${r.bonus}`).join('；')}。钱包内可手动领取每日到店礼20币，每天一次，北京时间零点刷新；与游戏奖励共用每日${DAILY_REWARD_CAP}币上限。至少两位真人实际行动才算合格；抽鬼牌/德州/UNO/骗子酒馆需分别达到15/30/45/60秒。同组每日前${ROSTER_DAILY_LIMIT}局跨游戏累计，奖励依次为全额、半额、四分之一（向下取整），之后为零。挂机、陪练局、取消局不发币，也没有按聊天条数发币。UNO按小局结算；德州筹码不兑换酒馆币。饮品分类含无酒精饮品和酒水；酒水商品会标注容量、酒精度。@我说“给我来一杯红豆牛奶”或“送给@某某一杯红豆牛奶”，会生成点单确认卡。点单预览中也可选择收礼人；赠送只扣付款人的酒馆币，确认后才上桌。`;
 const navigation=(g,id)=>row(button(g,id,'lobby','🏡 大厅'),button(g,id,'menu','🍵 菜单'),button(g,id,'wallet','🪙 钱包'),button(g,id,'card','🦋 常客卡'),button(g,id,'reno','🔧 装修'));
 export function menuData(data,id,guild,publicView=false,category='all',page=0){
  const view=renderMenu(data,id,guild,publicView,category,page);
@@ -44,12 +46,14 @@ export function cardData(data,id,guild,notice=''){
 }
 const orderTaste=detail=>detail.alcoholPercent?'':`${detail.category==='savory'?'按菜品原味':detail.category==='desserts'?'手作甜度':SWEETNESS[detail.sweetness]} · ${TEMPERATURE[detail.temperature]}`;
 const orderTasteLine=detail=>orderTaste(detail)?`\n${orderTaste(detail)}`:'';
+const giftLine=(detail,id)=>detail.recipientId?`\n🎁 付款：${displayText(detail.payerName)||'你'} · 收礼：${displayText(detail.recipientName)}（${detail.recipientId}）`:'\n自己享用';
+const quantityLine=detail=>(detail.quantity||1)>1?` ×${detail.quantity}份`:'';
 export function draftData(d,id,guild,publicView=false){
  const p=menuItem(d.item),detail=d.details,expired=d.expires<=Date.now()||d.status!=='pending';
- return {content:`${p?.emoji||d.details.emoji||'🍵'} **点单预览 · ${displayText(detail.itemName)}**\n${renderDishDetails({...detail,...p,name:detail.itemName}).split('\n').slice(1).join('\n')}${orderTasteLine(detail)}${d.item==='special'?` · 心情：${MOODS[detail.mood]}`:''}\n本单 **${d.price}币**${publicView?'':` · 当前余额 ${d.balance}币\n位置：${SEATS[detail.seat]}${detail.restrictions?`\n备注：${displayText(detail.restrictions)}`:''}`}\n${expired?'这张预览已经处理或过期，请重新打开菜单。':'尚未扣款；3分钟内由本人确认。确认后会在本频道显示上桌消息。'}`,
- embeds:artEmbed(d.item,d.details),components:expired?[navigation(guild,id)]:[row(button(guild,id,`${publicView?'review':'confirm'}~${d.id}`,publicView?'打开我的确认窗口':`确认点单 · ${d.price}币`,1)),...(!publicView?[navigation(guild,id)]:[])],allowed_mentions:mentions};
+ return {content:`${p?.emoji||d.details.emoji||'🍵'} **点单预览 · ${displayText(detail.itemName)}${quantityLine(detail)}**${giftLine(detail,id)}\n${renderDishDetails({...detail,...p,name:detail.itemName}).split('\n').slice(1).join('\n')}${orderTasteLine(detail)}${d.item==='special'?` · 心情：${MOODS[detail.mood]}`:''}\n本单 **${d.price}币**${publicView?'':` · 当前余额 ${d.balance}币\n位置：${SEATS[detail.seat]}${detail.restrictions?`\n备注：${displayText(detail.restrictions)}`:''}`}\n${expired?'这张预览已经处理或过期，请重新打开菜单。':'尚未扣款；3分钟内由本人确认。确认后会在本频道显示上桌消息。'}`,
+ embeds:artEmbed(d.item,d.details),components:expired?[navigation(guild,id)]:[row(button(guild,id,`${publicView?'review':'confirm'}~${d.id}${!publicView&&detail.recipientId?'~'+detail.recipientId:''}`,publicView?'打开我的确认窗口':`${detail.recipientId?'确认赠送':'确认点单'} · ${d.price}币`,1)),...(!publicView?[row({type:5,custom_id:key(guild,id,`gift~${d.id}`),placeholder:detail.recipientId?'更换收礼人':'赠送给谁？（可选）',min_values:1,max_values:1}),...(detail.recipientId?[row(button(guild,id,`self~${d.id}`,'改为自己享用'))]:[]),navigation(guild,id)]:[])],allowed_mentions:mentions};
 }
-export function receiptData(answer,id,guild,served=true){const o=answer.order,p=menuItem(o.item)||o.details;return {content:`${p?.emoji||'🍵'} **已上桌 · ${displayText(o.details.itemName)}**\n红豆粉${p?.serve||'把这一份送到你手边。'}${orderTasteLine(o.details)}\n本单 ${o.price}币 · 余额 **${answer.balance}币**${answer.repeated?'\n这份订单已经完成，没有再次扣款。':''}${!served?'\n订单已保存，频道上桌消息暂时未送达。':''}`,embeds:artEmbed(o.item,o.details),components:[navigation(guild,id)],allowed_mentions:mentions};}
+export function receiptData(answer,id,guild,served=true){const o=answer.order,p=menuItem(o.item)||o.details;return {content:`${p?.emoji||'🍵'} **已上桌 · ${displayText(o.details.itemName)}${quantityLine(o.details)}**${giftLine(o.details,id)}\n红豆粉${p?.serve||'把这一份送到你手边。'}${orderTasteLine(o.details)}\n本单 ${o.price}币 · 余额 **${answer.balance}币**${answer.repeated?'\n这份订单已经完成，没有再次扣款。':''}${!served?'\n订单已保存，频道上桌消息暂时未送达。':''}`,embeds:artEmbed(o.item,o.details),components:[navigation(guild,id)],allowed_mentions:mentions};}
 export function tavernInteraction(i){const action=String(i.data?.custom_id||'').split(':')[3]||'';return i.type===2&&i.data?.name==='酒馆'||[3,5].includes(i.type)&&i.data?.custom_id?.startsWith('t:')&&!action.startsWith('lobbyPlay~');}
 function interactionParts(i){
  const id=i.member?.user?.id,guild=i.guild_id;if(!validId(id)||!validId(guild)||!validId(i.channel_id))throw Error('请在服务器文字频道内使用。');
@@ -72,7 +76,7 @@ export function immediateTavernReply(i){
 async function sendServing(env,answer,name){
  if(answer.repeated)return true;
  const o=answer.order,p=menuItem(o.item)||o.details;try{
-  const r=await fetch(`https://discord.com/api/v10/channels/${o.channel}/messages`,{method:'POST',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({content:`${p?.emoji||'🍵'} **${displayText(name)||'来客'}的 ${displayText(o.details.itemName)}**\n红豆粉${p?.serve||'把这一份送上桌。'}`,embeds:artEmbed(o.item,o.details),allowed_mentions:mentions,nonce:o.id,enforce_nonce:true}),signal:AbortSignal.timeout(5000)});
+  const r=await fetch(`https://discord.com/api/v10/channels/${o.channel}/messages`,{method:'POST',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({content:`${p?.emoji||'🍵'} **${displayText(o.details.recipientName||name)||'来客'}的 ${displayText(o.details.itemName)}${quantityLine(o.details)}**${o.details.recipientId?`\n🎁 ${displayText(name)||'来客'}请${displayText(o.details.recipientName)}，已由赠送者付款。`:''}\n红豆粉${p?.serve||'把这一份送上桌。'}`,embeds:artEmbed(o.item,o.details),allowed_mentions:mentions,nonce:o.id,enforce_nonce:true}),signal:AbortSignal.timeout(5000)});
   return r.ok;
  }catch{return false;}
 }
@@ -108,14 +112,24 @@ export async function answerTavern(env,i){
  if(action==='点单'||action==='pick'){
   const options=i.data.options?.[0]?.options||[],item=action==='pick'?i.data.values?.[0]:options.find(o=>o.name==='商品')?.value;
   const details={};for(const [option,k]of [['甜度','sweetness'],['温度','temperature'],['心情','mood']]){const value=options.find(o=>o.name===option)?.value;if(value!==undefined)details[k]=value;}
-  return draftData(await tavernRequest(env,{...base,action:'prepare',item,options:details,requestKey:`i${i.id}`}),id,guild);
+  const recipientId=options.find(o=>o.name==='赠给')?.value,quantity=options.find(o=>o.name==='数量')?.value??1;
+  const recipient=recipientId?await verifyGiftRecipient(env,guild,recipientId,id):undefined;
+  return draftData(await tavernRequest(env,{...base,action:'prepare',item,options:details,recipient,quantity,requestKey:`i${i.id}`}),id,guild);
+ }
+ if(action.startsWith('gift~')||action.startsWith('self~')){
+  const recipient=await verifyGiftRecipient(env,guild,action.startsWith('self~')?id:i.data.values?.[0],id);
+  return draftData(await tavernRequest(env,{...base,action:'giftRecipient',draftId:action.slice(5),recipient}),id,guild);
  }
  if(action.startsWith('review~')){
   // Read an existing draft; never create a second purchase from a public preview.
   const draftId=action.slice(7),d=await tavernRequest(env,{...base,action:'draft',draftId});return draftData(d,id,guild);
  }
  if(action.startsWith('confirm~')){
-  const answer=await tavernRequest(env,{...base,action:'confirm',draftId:action.slice(8)}),served=await sendServing(env,answer,name);return receiptData(answer,id,guild,served);
+  const [,draftId,shownRecipientId]=action.split('~');
+  const draft=await tavernRequest(env,{...base,action:'draft',draftId});
+  if(draft.status==='pending'&&shownRecipientId&&(draft.details.recipientId||id)!==shownRecipientId)throw Error('收礼人已更换，请从最新点单卡确认。');
+  if(draft.status==='pending'&&draft.details.recipientId)await verifyGiftRecipient(env,guild,draft.details.recipientId,id);
+  const answer=await tavernRequest(env,{...base,action:'confirm',draftId,expectedRecipientId:draft.details.recipientId||id}),served=await sendServing(env,answer,name);return receiptData(answer,id,guild,served);
  }
  if(action.startsWith('pref~')||action==='reset'||action==='saveNotes'){
   const field=action.startsWith('pref~')?action.slice(5):action==='reset'?'reset':'restrictions',value=action==='saveNotes'?i.data.components?.flatMap(r=>r.components||[]).find(c=>c.custom_id==='restrictions')?.value||'':i.data.values?.[0];

@@ -1,8 +1,9 @@
 import { replyToMention } from "./ai-chat.mjs";
 
-export const CHAT_PIPELINE_RUNTIME = 'chat78-red-packet-json';
+export const CHAT_PIPELINE_RUNTIME = 'chat81-tavern-actions';
 const GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 const GATEWAY_INTENTS = (1 << 0) | (1 << 9); // GUILDS + GUILD_MESSAGES; message content is only used for direct bot mentions.
+export const gatewayIntentsForFlags = flags => GATEWAY_INTENTS | ((Number(flags)&((1<<18)|(1<<19))) ? 1<<15 : 0);
 
 export class DiscordGateway {
   constructor(host) {
@@ -25,6 +26,16 @@ export class DiscordGateway {
 
   async ensure() {
     if (!this.env.BOT_TOKEN) return {connected:false,reason:"missing_bot_token",chatRuntime:CHAT_PIPELINE_RUNTIME};
+    if(this.gatewayIntents===undefined){
+      const previous=await this.storage.get('gatewayIntents');
+      this.gatewayIntents=previous||GATEWAY_INTENTS;
+      try{
+        const r=await fetch('https://discord.com/api/v10/applications/@me',{headers:{Authorization:'Bot '+this.env.BOT_TOKEN},signal:AbortSignal.timeout(3000)});
+        if(r.ok)this.gatewayIntents=gatewayIntentsForFlags((await r.json()).flags);
+      }catch{}
+      if(previous!==this.gatewayIntents)await this.clearSession();
+      await this.storage.put('gatewayIntents',this.gatewayIntents);
+    }
     await this.storage.put("gatewayMode",true);
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
       return {connected:true,connecting:this.socket.readyState === WebSocket.CONNECTING,chatRuntime:CHAT_PIPELINE_RUNTIME};
@@ -41,7 +52,27 @@ export class DiscordGateway {
   status() {
     return {connected:this.socket?.readyState === WebSocket.OPEN,
       ready:this.socket?.readyState === WebSocket.OPEN && Boolean(this.botId),
+      messageContentEnabled:Boolean(this.gatewayIntents&(1<<15)),
       chatRuntime:CHAT_PIPELINE_RUNTIME};
+  }
+
+  async enableMessageContent(){
+    const url='https://discord.com/api/v10/applications/@me';
+    const headers={Authorization:'Bot '+this.env.BOT_TOKEN,'Content-Type':'application/json'};
+    const current=await fetch(url,{headers,signal:AbortSignal.timeout(4000)});
+    if(!current.ok)return {enabled:false,status:current.status};
+    const app=await current.json(),flags=Number(app.flags)||0;
+    if(flags&((1<<18)|(1<<19)))return {enabled:true,changed:false};
+    if(Number(app.approximate_guild_count)>=100)return {enabled:false,reason:'discord_approval_required'};
+    const mutable=(1<<13)|(1<<15)|(1<<19);
+    const r=await fetch(url,{method:'PATCH',headers,body:JSON.stringify({flags:(flags&mutable)|(1<<19)}),signal:AbortSignal.timeout(4000)});
+    if(!r.ok)return {enabled:false,status:r.status};
+    const updated=await r.json();
+    if(!(Number(updated.flags)&(1<<19)))return {enabled:false,reason:'discord_did_not_enable_intent'};
+    this.gatewayIntents=undefined;
+    await this.clearSession();
+    this.closeForReconnect();
+    return {enabled:true,changed:true};
   }
 
   connect() {
@@ -84,7 +115,7 @@ export class DiscordGateway {
       } else {
         this.send({op:2,d:{
           token:this.env.BOT_TOKEN,
-          intents:GATEWAY_INTENTS,
+          intents:this.gatewayIntents??GATEWAY_INTENTS,
           properties:{os:"linux",browser:"aliceneko-worker",device:"aliceneko-worker"}
         }});
       }
@@ -192,10 +223,16 @@ export class DiscordGateway {
     }
   }
 
-  onClose() {
+  onClose(event) {
     this.clearHeartbeats();
     this.awaitingAck = false;
     this.socket = null;
+    if(event?.code===4014&&(this.gatewayIntents&(1<<15))){
+      this.gatewayIntents=GATEWAY_INTENTS;
+      console.warn('discord_message_content_unavailable',{code:4014});
+      this.host.ctx.waitUntil(Promise.all([this.clearSession(),this.storage.put('gatewayIntents',GATEWAY_INTENTS)]).then(()=>this.scheduleReconnect()));
+      return;
+    }
     this.scheduleReconnect();
   }
 
