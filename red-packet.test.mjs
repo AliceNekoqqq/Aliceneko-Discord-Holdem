@@ -40,3 +40,32 @@ test('Gemini extraction is independently gated and must supply actual current-me
  assert.deepEqual(decodePacketReply('```json\n{"reply":"试试手气。","packet":null}\n```'),{reply:'试试手气。',packet:null});
  assert.throws(()=>decodePacketReply('自然回复 {"packet":{}}'));
 });
+
+test('linked accounts share each packet allowance in either order, including old claims and restarts',async()=>{
+ const {RED_PACKET_LINKED_ACCOUNTS:ids,RED_PACKET_REPEAT_LINES:lines}=await import('./red-packet.mjs');
+ for(const order of [ids,[...ids].reverse()]){
+  const {packets,tavern,store}=setup();packets.create(message(),'99',100);packets.bind('123','456');
+  const first=packets.claim(interaction(order[0]),200),balance=tavern.member(order[0]).balance;
+  const retry=new RedPackets(new TavernService(store)).claim(interaction(order[1]),300);
+  assert.equal(retry.repeated,true);assert.ok(lines.includes(retry.publicNotice));assert.equal(packets.view('123').claims.length,1);
+  assert.equal(tavern.one('SELECT COUNT(*) n FROM tavern_members WHERE id=?',order[1]).n,0);
+  assert.equal(tavern.member(order[0]).balance,balance);assert.equal(tavern.one("SELECT COUNT(*) n FROM tavern_ledger WHERE kind='system_red_packet'").n,1);
+  assert.ok(lines.includes(packets.claim(interaction(order[0]),400).publicNotice));
+  assert.equal(packets.claim(interaction('20'),500).repeated,false);
+  const second={...message(),id:'124'};packets.create(second,'99',600);
+  assert.equal(packets.claim({...interaction(order[1]),data:{custom_id:'rp:124'},message:{id:'457'}},700).repeated,false);
+  assert.equal(first.amount,retry.amount);
+ }
+ const {packets,tavern}=setup();packets.create(message(),'99',100);
+ tavern.sql.exec('INSERT INTO tavern_red_claims VALUES(?,?,?,?)','123',ids[1],42,150);
+ assert.equal(packets.claim(interaction(ids[0]),200).repeated,true);
+});
+
+test('linked duplicate sends a public followup while wallet acknowledgements stay private',async t=>{
+ const {finishRedPacket}=await import('./red-packet.mjs');const calls=[];
+ const env={DISCORD_APPLICATION_ID:'99',TABLES:{idFromName:x=>x,get:()=>({fetch:async()=>Response.json({repeated:true,amount:123,publicNotice:'文小弟领了一次还想领？贪心！'})})}};
+ t.mock.method(globalThis,'fetch',async(url,opts)=>{calls.push({url,method:opts.method,body:JSON.parse(opts.body)});return Response.json({});});
+ await finishRedPacket(env,{...interaction('1402174864827219978'),token:'token'});
+ assert.equal(calls.length,2);assert.equal(calls[0].method,'PATCH');assert.match(calls[0].body.content,/大小号/);assert.doesNotMatch(calls[0].body.content,/123/);
+ assert.equal(calls[1].method,'POST');assert.equal(calls[1].body.flags,0);assert.equal(calls[1].body.content,'文小弟领了一次还想领？贪心！');assert.deepEqual(calls[1].body.allowed_mentions,{parse:[]});
+});

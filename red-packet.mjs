@@ -1,6 +1,9 @@
 // Authority is an exact account ID, never a nickname or model decision.
 export const RED_PACKET_OWNER='993451176282574878';
 export const RED_PACKET_TTL=24*60*60*1000;
+export const RED_PACKET_LINKED_ACCOUNTS=Object.freeze(['1402174864827219978','1360154014146363446']);
+export const RED_PACKET_REPEAT_LINES=Object.freeze(["文小弟领了一次还想领？贪心！", "文小弟，换个小号就想再领？红包可认得你！", "文小弟，红包都进兜了，还想再伸一次手呀？", "文小弟，大小号轮流上场？一次就是一次哦！", "文小弟，刚领完就又来了？给别人留点手气嘛！", "文小弟，换件马甲也没用，这个红包你领过啦！"]);
+const packetPerson=id=>RED_PACKET_LINKED_ACCOUNTS.includes(id)?RED_PACKET_LINKED_ACCOUNTS[0]:id;
 const idOk=s=>/^\d{1,20}$/.test(String(s||''));
 // Accept everyday phrasing, but never let a model infer or authorize currency.
 const NUMBER='[+\\-−]?[0-9]+(?:[.][0-9]+)*|[零〇一二两三四五六七八九十百千万亿点]+';
@@ -80,7 +83,8 @@ export class RedPackets{
  if(i.type!==3||!idOk(user?.id)||user.bot)throw Error('红包只向服务器内的真人来客开放。');
  return this.host.storage.transactionSync(()=>{
  const p=this.view(id);if(i.guild_id!==p.guild||i.channel_id!==p.channel||p.message_id&&i.message?.id!==p.message_id)throw Error('请在红包原消息中领取。');
- const prior=p.claims.find(c=>c.user_id===user.id);if(prior)return {packet:p,amount:prior.amount,repeated:true};
+ const prior=p.claims.find(c=>packetPerson(c.user_id)===packetPerson(user.id));
+ if(prior)return {packet:p,amount:prior.amount,repeated:true,...(RED_PACKET_LINKED_ACCOUNTS.includes(user.id)?{publicNotice:RED_PACKET_REPEAT_LINES[crypto.getRandomValues(new Uint32Array(1))[0]%RED_PACKET_REPEAT_LINES.length]}:{})};
  if(now>=p.expires)throw Error('这个红包已过期。');if(p.claims.length>=p.slots)throw Error('这个红包已领完。');
  const amount=JSON.parse(p.parts)[p.claims.length];this.host.member(user.id,i.member.nick||user.global_name||user.username,now,true);
  this.sql.exec('INSERT INTO tavern_red_claims VALUES(?,?,?,?)',id,user.id,amount,now);
@@ -96,4 +100,13 @@ export function packetCard(p,now=Date.now()){
 }
 export async function packetRpc(env,guild,body){const stub=env.TABLES.get(env.TABLES.idFromName(`tavern:${guild}`));const response=await stub.fetch('https://internal',{method:'POST',body:JSON.stringify({op:'redPacket',...body})});if(!response.ok)throw Error('红包服务暂时不可用。');return response.json();}
 export async function prepareRedPacket(env,message,botId,extracted=null){const spec=extracted?validateExtractedPacket(message,botId,extracted):parseRedPacket(message,botId);if(!spec)return null;if(spec.error)return spec;try{return await packetRpc(env,message.guild_id,{action:'create',message,botId,extracted});}catch{return {error:'红包创建失败，请稍后重新 @ 我发送。'};}}
-export async function finishRedPacket(env,i){let content;try{const answer=await packetRpc(env,i.guild_id,{action:'claim',interaction:i});content=answer.error||`${answer.repeated?'你已经领过这个红包':'红包已拆开'}：**${answer.amount} 酒馆币**，已存入钱包。`;}catch{content='红包服务暂时繁忙，请重试。';}await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${i.token}/messages/@original`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,allowed_mentions:{parse:[]}}),signal:AbortSignal.timeout(8000)});}
+export async function finishRedPacket(env,i){
+ let content,publicNotice;
+ try{const answer=await packetRpc(env,i.guild_id,{action:'claim',interaction:i});
+ publicNotice=answer.publicNotice;
+ content=answer.error||(publicNotice?'这个红包你已经领过了，大小号共用一次领取机会。':`${answer.repeated?'你已经领过这个红包':'红包已拆开'}：**${answer.amount} 酒馆币**，已存入钱包。`);
+ }catch{content='红包服务暂时繁忙，请重试。';}
+ const webhook=`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${i.token}`;
+ await fetch(`${webhook}/messages/@original`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,allowed_mentions:{parse:[]}}),signal:AbortSignal.timeout(8000)});
+ if(publicNotice)await fetch(webhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:publicNotice,flags:0,allowed_mentions:{parse:[]}}),signal:AbortSignal.timeout(8000)});
+}
