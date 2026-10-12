@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {createRun,CURRENT_RULE_VERSION,SUPPORTED_RULE_VERSIONS,V14_RULE_VERSION} from './rogue-run.mjs';
+import {createRun,CURRENT_RULE_VERSION,V15_RULE_VERSION,SUPPORTED_RULE_VERSIONS,V14_RULE_VERSION} from './rogue-run.mjs';
 import {beginBattle} from './rogue-battle.mjs';
 import {CATALOG_V14,getCatalog as getCatalog14} from './rogue-content-v14.mjs';
 import {CATALOG_V15,getCatalog as getCatalog15} from './rogue-content-v15.mjs';
 import {RogueService} from './rogue-service.mjs';
 import {scoreRun,dailySeedGroup} from './rogue-economy.mjs';
 
-const V15='lantern-rules-v0.15';
-function fixture(rulesVersion=CURRENT_RULE_VERSION){
+const V15=V15_RULE_VERSION;
+function fixture(rulesVersion=V15){
  const db=new DatabaseSync(':memory:');let ids=0,now=Date.parse('2026-10-11T12:00:00Z');
  const sql={exec(q,...args){const stmt=db.prepare(q),rows=stmt.columns().length?stmt.all(...args):(stmt.run(...args),[]);return {toArray:()=>rows};}};
  const storage={sql,transactionSync(fn){db.exec('BEGIN');try{const result=fn();db.exec('COMMIT');return result;}catch(error){db.exec('ROLLBACK');throw error;}}};
@@ -22,9 +22,9 @@ function fixture(rulesVersion=CURRENT_RULE_VERSION){
  return {db,host,service,p,setVersion(version){return new RogueService(host,'1',{idFactory:()=>`run-${++ids}`,clock:()=>now,rulesVersion:version});}};
 }
 
-test('v15 dispatcher is current while v14 remains explicitly supported and frozen',()=>{
- assert.equal(CURRENT_RULE_VERSION,V15);assert.equal(V14_RULE_VERSION,'lantern-rules-v0.14');
- for(const version of ['lantern-rules-v0.4','lantern-rules-v0.6','lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13',V14_RULE_VERSION,V15])assert(SUPPORTED_RULE_VERSIONS.includes(version));
+test('v15 remains explicitly supported and frozen while v16 becomes current',()=>{
+ assert.equal(CURRENT_RULE_VERSION,'lantern-rules-v0.16');assert.equal(V15,'lantern-rules-v0.15');assert.equal(V14_RULE_VERSION,'lantern-rules-v0.14');
+ for(const version of ['lantern-rules-v0.4','lantern-rules-v0.6','lantern-rules-v0.7','lantern-rules-v0.8','lantern-rules-v0.9','lantern-rules-v0.10','lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13',V14_RULE_VERSION,V15,CURRENT_RULE_VERSION])assert(SUPPORTED_RULE_VERSIONS.includes(version));
  assert.equal(getCatalog14(V14_RULE_VERSION),CATALOG_V14);assert.equal(getCatalog15(V15),CATALOG_V15);
  assert.equal(CATALOG_V14.version,'0.14');assert.equal(CATALOG_V15.version,'0.15');assert.notEqual(CATALOG_V14,CATALOG_V15);
  const old=createRun({runId:'old',owner:'2',guild:'1',mode:'normal',seed:'same',startDay:'2026-10-11',rewardEligible:false,now:0,ruleVersion:V14_RULE_VERSION,professionId:'traveler',difficulty:0,inventory:[]});
@@ -33,7 +33,7 @@ test('v15 dispatcher is current while v14 remains explicitly supported and froze
  for(const run of [old,fresh])assert.equal(beginBattle({ruleVersion:run.ruleVersion,enemyId:'lantern_rat',deck:run.deck,relics:[],hp:run.hp,seed:'same',professionId:'traveler',difficulty:0,items:[]}).ruleVersion,run.ruleVersion);
 });
 
-test('service defaults to v15, loads v14 snapshots, and request retries do not repeat battle effects or settlement',()=>{
+test('service loads v14 and v15 snapshots, and request retries do not repeat battle effects or settlement',()=>{
  const f=fixture(V14_RULE_VERSION),old=f.service.start(f.p);assert.equal(old.ruleVersion,V14_RULE_VERSION);
  const current=f.setVersion(V15),saved=current.resume({...f.p,runId:old.runId,requestId:'resume-v14'});assert.equal(saved.ruleVersion,V14_RULE_VERSION);assert.equal(saved.catalogVersion,'0.14');
  const service=f.setVersion(V15),player={...f.p,id:'3',requestId:'v15-start'},run=service.start(player);assert.equal(run.ruleVersion,V15);assert.equal(run.catalogVersion,'0.15');assert.equal(service.start(player).runId,run.runId);

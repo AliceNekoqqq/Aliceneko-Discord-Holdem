@@ -1,7 +1,7 @@
-import {renderRogueReading,renderRogue,renderRogueHome,renderRogueSettings,renderRogueBoard,renderRogueConfirmation,renderRogueDetails,renderRogueUidPage,rogueUidEligible,parseRogueAction} from './rogue-ui.mjs';
+import {renderRogueReading,renderRogue,renderRogueHome,renderRogueSettings,renderRogueBoard,renderRogueConfirmation,renderRogueDetails,renderRogueUidPage,renderRogueEchoMenu,rogueUidEligible,parseRogueAction} from './rogue-ui.mjs';
 
 const privateError=content=>({type:4,data:{flags:64,content,allowed_mentions:{parse:[]}}});
-const errors={INSUFFICIENT_HP:'这项交易需要保留至少1点生命。',PACT_USED:'这项契约已生效，请选择免费离开。',INVENTORY_FULL:'道具槽已满，请明确选择要替换的槽位。',OWNER:'请打开属于自己的冒险。',GUILD:'这局属于另一个服务器。',STALE:'这个按钮已过期，请重新打开当前冒险。',STALE_VERSION:'这个按钮已过期，请重新打开当前冒险。',INSUFFICIENT_EMBERS:'余烬不足，可以免费离开这个房间。',FULL_HEALTH:'现在已经满血。',SERVICE_USED:'本次服务已使用。',SOLD_OUT:'这张牌已经售出。',MINIMUM_DECK:'牌组至少保留4张。',ILLEGAL_CARD:'这张牌当前无法打出。',RUN_FINISHED:'这局已经结束。'};
+const errors={INSUFFICIENT_HP:'这项交易需要保留至少1点生命。',PACT_USED:'这项契约已生效，请选择免费离开。',INVENTORY_FULL:'道具槽已满，请明确选择要替换的槽位。',OWNER:'请打开属于自己的冒险。',GUILD:'这局属于另一个服务器。',STALE:'这个按钮已过期，请重新打开当前冒险。',STALE_VERSION:'这个按钮已过期，请重新打开当前冒险。',INSUFFICIENT_EMBERS:'余烬不足，可以免费离开这个房间。',FULL_HEALTH:'现在已经满血。',SERVICE_USED:'本次服务已使用。',SOLD_OUT:'这张牌已经售出。',MINIMUM_DECK:'牌组至少保留4张。',ILLEGAL_CARD:'这张牌当前无法打出。',ILLEGAL_ECHO:'这张牌当前不能安排回声。',RUN_FINISHED:'这局已经结束。'};
 // Only call after the existing worker verifies Discord's request signature.
 // Identity comes from signed interaction fields, never from custom_id or body
 // overrides. Clock/seed/payment eligibility remain service-owned.
@@ -35,6 +35,10 @@ export function dispatchRogue(service,interaction,{onVisual}={}){
    if(parsed.ui==='refresh')return render(run,{update});
    if(parsed.ui==='details'){const reply=renderRogueDetails(run,parsed.kind,{update,page:parsed.page});if(parsed.kind==='map')onVisual?.(run,'map');return reply;}
    if(parsed.version!==run.version)return privateError(errors.STALE);
+   if(parsed.ui==='echo'){
+    if(run.phase!=='BATTLE'||run.ruleVersion!=='lantern-rules-v0.16')return privateError('当前规则或阶段不能使用回声。');
+    return renderRogueEchoMenu(run,{update,page:parsed.page});
+   }
    if(parsed.ui==='uid-page'){
     if(run.phase!=='ROOM'||run.room?.type!==parsed.source)return privateError('当前房间不能打开该牌组页面。');
     if(parsed.source==='shop'&&(!['upgrade','remove'].includes(parsed.kind)||(run.room.services?.[parsed.kind])||run.embers<(run.room.prices?.[parsed.kind]??0)))return privateError('当前商店服务不可用。');

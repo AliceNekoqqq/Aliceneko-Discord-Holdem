@@ -2,6 +2,8 @@
 
 更新时间：2026-10-13（Asia/Shanghai）
 
+- beta.85 / 灯下迷城v0.16本地完成，待PR/CI/生产发布：压低1费高护盾（铁门闭合9→6）并提升低伤害1费攻击；回声蓄能改为可见按钮选牌、下轮免费重放，升级两次回声生效，最后出牌保留选择窗口，候选超过25张分页。自动联动说明和实战组合提示补齐；新局v16、旧v15及更早冻结，每日挑战分组隔离。灯下迷城49个测试文件与Worker4个测试文件通过；Luna查出候选截断已修复并补测。主线已同步至beta.84专属红包，聊天指纹保持chat84-exclusive-red-packet，现有好感度/引用点单/赠送保留；配置未改。真人平衡和趣味尚未验证。审计见docs/roguelike/V16_FEEDBACK_AUDIT.md。
+
 - beta.84专属红包已上线：开发者真实@机器人及唯一其他真人，金额1～1,000,000酒馆币，一人全额；系统出钱/24小时/同人账号去重保持。SQLite安全补列兼容旧红包；指定人/金额证据/拒绝零钱包变动/模型失败兜底已测，红包23/23、聊天93/93、Worker27/27通过。PR #23检查38287283512及main发布38287450200成功，运行提交97fb44c5840a7add89767a2f74ce4f004ccdf34f。CF部署79da1454-2b94-4382-9961-6063f50570b7、版本357e9762-3fa3-4ecc-9ded-48dfd0c5e8ea接收100%；绑定/Secret名类型/人设变量、兼容/观测配置对比保持。部署后约6分钟Gateway完成切换，实读health beta.84/ready:true/gateway.connected:true/ready:true/chatRuntime与expectedRuntime均chat84-exclusive-red-packet。真人Discord专属红包待用户测试，未额外发测试红包。详见docs/red-packet/EXCLUSIVE.md。
 
 - beta.83已上线：全局功能索引及独立好感度/印象知识条目补齐，本人明确询问时读取relationship.scores的程序确认值，默认不播报、不公开他人关系数值；修正“以后就叫我”称呼提取。已依据现存本人最近30条对话/明确长期自述初始化10个其他账号、11份服务器档案、20条有来源的互动记录，熟悉度4～30/好感0～6；补回3项缺失明确称呼，既有较新记录保留；开发者两服100/100保留，数据库读回数量匹配。玩笑和角色扮演标明情景，不认作真实身份/事故/债务，初始化为事实提取，无独立Gemini创作文案调用；个人正文不进GitHub。关闭记忆或清除后的档案跳过，epoch保护在途结果。PR #22合并，运行提交ba4a0aa367ad70a8f5199323a3bcf78d2b3c1ebb；PR检查38266455489/main发布38266604818全部通过；本地聊天92/Worker27与最后称呼/关系补测20项通过。CF部署ca616f01-fd45-4161-9436-adb455195aaa、版本8fe77c1f-9d01-42d2-8ff6-18904aecd689接收100%；13项bindings/Secret名类型/人设变量、DO命名空间/v1/D1/ASSETS/Cron及2026-10-07兼容设置保持。实读health确认beta.83/ready:true/gateway.connected:true/ready:true/chatRuntime与expectedRuntime均chat83-relationship-knowledge/messageContentEnabled:true。DO聊天指纹经历数分钟切换延迟，已核验完成。真人询问印象/分数与初始化体验待用户反馈。详见docs/ai/RELATIONSHIPS.md。
