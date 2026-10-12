@@ -1,6 +1,6 @@
 {
   "name": "aliceneko-discord-holdem",
-  "version": "1.0.1-beta.87",
+  "version": "1.0.1-beta.86+ugc-recovery.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,4 +13,3 @@
     "test:assets": "node --import=./test-static-assets.mjs --test equipment-art.test.mjs tavern-art.test.mjs pet-art.test.mjs pet-walk-art.test.mjs rogue-image.test.mjs nickname-font.test.mjs tavern-map-image.test.mjs tavern-map-presentation.test.mjs tavern-map-scene.test.mjs uno-integration.test.mjs uno-profile.test.mjs uno-social.test.mjs uno-table-image.test.mjs uno-variants.test.mjs liar-live.test.mjs liar-private-owner.test.mjs ghost.test.mjs private-panels.test.mjs"
   }
 }
-
