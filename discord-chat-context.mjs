@@ -71,7 +71,13 @@ export async function discordChatContext(env,message,botId,fetcher=fetch) {
       const embedded=message.referenced_message;
       if(embedded?.id===ref.message_id&&(!embedded.channel_id||embedded.channel_id===message.channel_id))reference=embedded;
       else if(validId(ref.message_id))try{reference=await api(env,'/channels/'+message.channel_id+'/messages/'+ref.message_id,fetcher);}catch{referenceNotice='被回复消息不可读取，可能需要读取消息历史权限。';}
+      // A direct mention does not guarantee that the embedded ordinary message
+      // includes its text. Refresh that exact message instead of accepting a blank.
+      if(reference===embedded&&!reference.content&&!reference.attachments?.length&&!reference.embeds?.length&&validId(ref.message_id)){
+        try{reference=await api(env,'/channels/'+message.channel_id+'/messages/'+ref.message_id,fetcher);}catch{referenceNotice='原消息正文暂时无法读取；不要根据作者或后续回复猜测。';}
+      }
       if(reference&&(String(reference.id)!==String(ref.message_id)||reference.channel_id&&String(reference.channel_id)!==String(message.channel_id)))reference=null;
+      if(reference?.guild_id&&String(reference.guild_id)!==String(message.guild_id))reference=null;
       if(reference&&!reference.content&&!reference.attachments?.length)referenceNotice='被回复消息没有可读取的正文或图片；不要猜测内容，可能缺少Message Content Intent。';
     }
   }

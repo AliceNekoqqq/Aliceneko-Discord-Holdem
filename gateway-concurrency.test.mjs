@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHAT_PIPELINE_RUNTIME,DiscordGateway} from './discord-gateway.mjs';
+import {CHAT_PIPELINE_RUNTIME,DiscordGateway,gatewayIntentsForFlags} from './discord-gateway.mjs';
 
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 
 test('gateway readiness requires its real open socket and authenticated bot',t=>{
   t.mock.method(globalThis,'WebSocket',class {static OPEN=1;});
   const gateway=new DiscordGateway({env:{},ctx:{storage:{}}});
-  assert.deepEqual(gateway.status(),{connected:false,ready:false,chatRuntime:CHAT_PIPELINE_RUNTIME});
+  assert.deepEqual(gateway.status(),{connected:false,ready:false,messageContentEnabled:false,chatRuntime:CHAT_PIPELINE_RUNTIME});
   gateway.socket={readyState:1};
   assert.equal(gateway.status().ready,false);
   gateway.botId='bot';assert.equal(gateway.status().ready,true);
@@ -177,7 +177,8 @@ test('Discord delivery failures are logged and do not prevent a later reply',asy
 });
 
 test('ensure reports the chat pipeline runtime on every gateway state path',async t=>{
-  const storage={async put(){},async get(){return undefined;}};
+  t.mock.method(globalThis,'fetch',async()=>Response.json({flags:0}));
+  const storage={async put(){},async get(){return undefined;},async delete(){}};
   const host={env:{BOT_TOKEN:'test'},ctx:{storage,waitUntil(){}}};
   const gateway=new DiscordGateway(host);
   assert.deepEqual(await new DiscordGateway({env:{},ctx:{storage}}).ensure(),{
@@ -200,3 +201,18 @@ test('ensure reports the chat pipeline runtime on every gateway state path',asyn
   assert.deepEqual(await gateway.ensure(),{connected:true,connecting:true,chatRuntime:CHAT_PIPELINE_RUNTIME});
 });
 
+
+test('only explicitly permitted applications identify with Message Content intent',()=>{
+ assert.equal(gatewayIntentsForFlags(0)&(1<<15),0);
+ assert.equal(gatewayIntentsForFlags(1<<18)&(1<<15),1<<15);
+ assert.equal(gatewayIntentsForFlags(1<<19)&(1<<15),1<<15);
+});
+
+test('explicit message-content enable preserves other limited flags and clears the old session',async t=>{
+ const calls=[],removed=[];let closed=false;
+ t.mock.method(globalThis,'fetch',async(url,p)=>{calls.push(p);return Response.json({flags:p?.method==='PATCH'?(1<<13)|(1<<19):1<<13,approximate_guild_count:2});});
+ const g=new DiscordGateway({env:{BOT_TOKEN:'test'},ctx:{storage:{delete:async k=>removed.push(k)},waitUntil(){}}});
+ g.socket={close(){closed=true;}};
+ const r=await g.enableMessageContent();assert.equal(r.enabled,true);assert.equal(closed,true);
+ assert.equal(JSON.parse(calls[1].body).flags,(1<<13)|(1<<19));assert.ok(removed.includes('gatewaySession'));
+});

@@ -220,3 +220,44 @@ test('daily gift UI keeps privacy and ownership and rejects cross-guild dispatch
  await assert.rejects(()=>s.dispatch({...base,guild:'4',action:'claimDaily'}),/不匹配/);assert.equal(s.view('1').earned,0);
  const reply=await answerTavern(env,interaction('claimDaily'));assert.match(reply.content,/20/);assert.equal(s.view('1').earned,20);await answerTavern(env,interaction('claimDaily'));assert.equal(s.view('1').member.balance,80);
 });
+
+test('gift charges only payer atomically once and gives recipient an order without wallet changes',()=>{
+ const {store,service:s}=setup(),now=Date.now();s.member('2','Bob',now);
+ const d=prepare(s,'milk','gift1',now,{recipient:{id:'2',name:'Bob'},quantity:2});
+ assert.equal(d.price,30);assert.equal(s.view('1').member.balance,60);assert.equal(s.view('2').member.balance,60);
+ const a=s.confirm('1',d.id,'2',now);assert.equal(a.balance,30);assert.equal(s.view('2').member.balance,60);
+ assert.equal(s.context('2','2',now).currentOrder.itemName,'红豆牛奶');assert.equal(s.context('1','2',now).currentOrder,null);
+ assert.equal(s.view('2').orders[0].details.recipientId,'2');assert.equal(s.view('1').frequent,null);
+ const b=new TavernService(store).confirm('1',d.id,'2',now+999999);assert.equal(b.repeated,true);assert.equal(b.balance,30);
+ assert.equal(s.rows("SELECT * FROM tavern_ledger WHERE kind='gift_order'").length,1);
+ assert.throws(()=>s.setRecipient({...base,draftId:d.id,recipient:{id:'3',name:'Other'}},now),/完成或过期/);
+});
+test('recipient selection preserves draft and payer; foreign users cannot change or confirm it',()=>{
+ const {service:s}=setup(),now=Date.now(),d=prepare(s,'milk','gift2',now);
+ const gift=s.setRecipient({...base,draftId:d.id,recipient:{id:'2',name:'Bob'}},now);
+ assert.equal(gift.id,d.id);assert.equal(gift.details.recipientId,'2');assert.equal(gift.balance,60);
+ assert.throws(()=>s.setRecipient({...base,id:'2',draftId:d.id,recipient:{id:'3'}},now),/不是你的/);
+ assert.throws(()=>s.confirm('2',d.id,'2',now),/不是你的/);
+ const self=s.setRecipient({...base,draftId:d.id,recipient:{id:'1'}},now);assert.equal(self.details.recipientId,undefined);
+ assert.throws(()=>prepare(s,'milk','badquantity',now,{quantity:11}),/1至10/);
+ assert.throws(()=>prepare(s,'milk','botgift',now,{recipient:{id:'2',bot:true}}),/真实成员/);
+});
+test('gift SQL failure rolls back debit, ledger, order and consumption together',()=>{
+ const {service:s}=setup(),now=Date.now(),d=prepare(s,'milk','giftrollback',now,{recipient:{id:'2',name:'Bob'}});
+ // Initialize lazy schemas before deliberately failing the ledger write.
+ void s.renovation;void s.operations;
+ const exec=s.sql.exec;s.sql.exec=(q,...args)=>{if(q==='INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)'&&args[3]==='gift_order')throw Error('injected gift failure');return exec(q,...args);};
+ assert.throws(()=>s.confirm('1',d.id,'2',now),/injected/);s.sql.exec=exec;
+ assert.equal(s.member('1').balance,60);assert.equal(s.rows('SELECT * FROM tavern_orders').length,0);
+ assert.equal(s.one('SELECT status FROM tavern_drafts WHERE id=?',d.id).status,'pending');
+ assert.equal(s.rows('SELECT * FROM tavern_reno_consumption').length,0);
+});
+
+test('recipient changed while a confirmation was validating cannot be charged using stale identity',()=>{
+ const {service:s}=setup(),now=Date.now(),d=prepare(s,'milk','giftcas',now,{recipient:{id:'2',name:'Bob'}});
+ s.setRecipient({...base,draftId:d.id,recipient:{id:'3',name:'Carol'}},now);
+ assert.throws(()=>s.confirm('1',d.id,'2',now,'2'),/刚刚发生变化/);
+ assert.equal(s.member('1').balance,60);assert.equal(s.rows('SELECT * FROM tavern_orders').length,0);
+ const current=s.confirm('1',d.id,'2',now,'3');assert.equal(current.order.details.recipientId,'3');
+ const repeated=s.confirm('1',d.id,'2',now+999999,'2');assert.equal(repeated.repeated,true);
+});

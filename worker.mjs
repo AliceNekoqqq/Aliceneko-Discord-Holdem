@@ -24,6 +24,7 @@ import {GhostService,specialInteraction,finishSpecial} from './ghost-service.mjs
 import {command as ghostCommand} from './ghost-ui.mjs';
 import {aiCommand,handleAiCommand,commentOnGameTransition,generateGemini,prepareChatContext} from './ai-chat.mjs';
 import {CHAT_PIPELINE_RUNTIME,DiscordGateway} from './discord-gateway.mjs';
+import {decodeOrderReply} from './tavern-chat.mjs';
 import {AppEmojis} from './app-emojis.mjs';
 import { profileInteraction, finishProfile } from './uno-profile.mjs';
 import { UnoRankings, rankingInteraction, finishRanking } from './uno-rankings.mjs';
@@ -38,7 +39,7 @@ import { BoardSync } from './board-sync.mjs';
 import { PrivatePanels } from './private-panels.mjs';
 import { initializeLifecycle, nextLifecycleAlarm, automaticCloseReason, idleWarning, takeoverAt, canTakeover, touchOwner, effectiveHumanAction } from './lifecycle.mjs';
 import { board, quickRaises, confirmation, handPanel, management, panelAction, button, row } from './ui.mjs';
-const COMMAND_VERSION='games-v1.0.1-beta66-alcohol-menu';
+const COMMAND_VERSION='games-v1.0.1-beta81-order-gifts';
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。点「准备下一手」，所有参与真人准备后 5 秒自动发牌；人员变化会取消全部准备。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；连续 2 次超时会在本手结束后暂离，保留筹码；在牌桌管理恢复参与。全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码；游玩中可预约本手结束后离桌，并随时取消。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。\n未发牌空闲 5 分钟、结算后空闲 10 分钟自动关桌，提前 1 分钟提醒；刷新和查看手牌不延长计时。\n游玩中 10 分钟无人有效操作且仍可行动真人均已超时时，取消本手并退回下注。\n等待发牌或结算时，桌主 2 分钟未交互，其他已入座真人可接管。只供娱乐，无充值或兑换。';
@@ -132,9 +133,18 @@ export class PokerTable extends DurableObject {
       if(payload.op==='petHome'){try{return json(await dispatchPetHome(this.ctx.storage,payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='gatewayEnsure'){try{return json(await this.discordGateway.ensure());}catch{return json({connected:false,chatRuntime:CHAT_PIPELINE_RUNTIME});}}
       if(payload.op==='gatewayStatus')return json(this.discordGateway.status());
+      if(payload.op==='gatewayEnableMessageContent')return json(await this.discordGateway.enableMessageContent());
       if(payload.op==='aiProbe'){
         const started=Date.now();
         try{
+          if(['order-self','order-gift'].includes(payload.fixture)){
+            const gift=payload.fixture==='order-gift';
+            const text=gift?'请Bob喝两杯红豆牛奶，少糖。':'给我来一杯红豆牛奶，常温。';
+            const runtimeData={currentSpeaker:{key:'current_user',name:'A'},discord:{people:[{key:'current_user',username:'A'},{key:'member_1',nick:'Bob'}]},tavernOrderExtraction:{source:'current_message_only',menu:[{id:'milk',name:'红豆牛奶',price:15}],quantityRange:[1,10],payment:'current_speaker_confirm_button_only'}};
+            const raw=await generateGemini({...this.env,AI_REQUEST_LOG_ENABLED:'false',GEMINI_MAX_RETRIES:'0'},[{role:'user',parts:[{text}]}],'chat',fetch,[],'',undefined,'',runtimeData);
+            const parsed=decodeOrderReply(raw),o=parsed.order;
+            return json({ok:o?.itemId==='milk'&&o.quantity===(gift?2:1)&&o.recipientKey===(gift?'member_1':'current_user'),durationMs:Date.now()-started,fixture:payload.fixture,order:o,reply:parsed.reply});
+          }
           const greeting=payload.fixture==='greeting';
           const participants=['participants','participants-followup'].includes(payload.fixture);
           const prepared=participants?prepareChatContext([],[{user_id:'A',role:'user',speaker_name:'A',content:'我养的猫叫桃子。',created_at:1},{user_id:'A',role:'model',content:'记住了，你养的猫叫桃子。',created_at:2}],{author:{id:'B',username:'B'}}):null;
@@ -181,7 +191,7 @@ export class PokerTable extends DurableObject {
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
       if(payload.op==='unoRank'){try{return json(await this.rankings.dispatch(payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.80',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
+      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.81',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
       if(payload.op==='register'){
         if(!this.env.BOT_TOKEN)return json({registered:false});
         if(await this.ctx.storage.get('commandVersion')===COMMAND_VERSION)return json({registered:true});
@@ -350,7 +360,7 @@ async function handle(request,env,ctx){
     try{
       const response=await env.TABLES.get(env.TABLES.idFromName('system-discord-gateway')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayStatus'})});
       const actual=await response.json();
-      gateway={connected:actual.connected===true,ready:actual.ready===true,chatRuntime:typeof actual.chatRuntime==='string'?actual.chatRuntime:null};
+      gateway={connected:actual.connected===true,ready:actual.ready===true,chatRuntime:typeof actual.chatRuntime==='string'?actual.chatRuntime:null,...(typeof actual.messageContentEnabled==='boolean'?{messageContentEnabled:actual.messageContentEnabled}:{})};
     }catch{}
     const ready=data.ok===true&&gateway.ready&&gateway.chatRuntime===CHAT_PIPELINE_RUNTIME;
     return json({...data,ready,gateway:{...gateway,expectedRuntime:CHAT_PIPELINE_RUNTIME}});
