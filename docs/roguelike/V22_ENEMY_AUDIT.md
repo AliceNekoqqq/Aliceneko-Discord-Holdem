@@ -34,7 +34,7 @@ New enemy half-HP transitions are queued until their current cycle's rest. Alrea
 
 ## Full-route evidence and limits
 
-See V22_BALANCE_SIM.json and scripts/audit-lantern-v22.mjs.96 paired complete expeditions: difficulty0 four seeds × eight professions × two versions; difficulty3 two seeds × eight professions × two versions. Same policy and seeds as v21, JSON restoration after actions, acquisition/dispatch checks; no timeouts.
+See V22_BALANCE_SIM.json and scripts/audit-lantern-v22.mjs.96 full expeditions (48 paired comparisons): difficulty0 four seeds × eight professions × two versions; difficulty3 two seeds × eight professions × two versions. Same policy and seeds as v21, JSON restoration after actions, acquisition/dispatch checks; no timeouts.
 
 The initial more aggressive budget (elite0/2/4, boss1/3/6, heavy floor23) produced v22 clears13/32 at difficulty0 and0/16 at difficulty3. Final tuning lowers elite/boss progression and heavy floor as above. Final clears: v21→v22 difficulty0 27/32→15/32; difficulty3 8/16→1/16. Difficulty3 remains demanding for this fixed policy; this is not a calibrated human win-rate target.
 
