@@ -18,6 +18,12 @@ export const button=(t,action,text,style=2,disabled=false)=>({type:2,custom_id:k
 export const row=(...components)=>({type:1,components});
 const stamp=time=>`<t:${Math.floor(time/1000)}:R>`;
 const items=xs=>xs?.length?xs.map(k=>`${ITEM_DEFS[k].emoji}${ITEM_DEFS[k].name}`).join(' / '):'无道具';
+const penaltyRows=(t,id=null)=>{
+ const action=a=>id?`p~${id}~${a}`:a;
+ if(t.penalty.status==='renamePending')return [row(button(t,action('rename'),'填写 / 重填昵称',1))];
+ if(t.penalty.status!=='pending')return [];
+ return [row(button(t,action('mute'),'选择禁言',4),button(t,action('rename'),'指定昵称',1))];
+};
 export function board(t){
  const rows=[],fields=[];let description;
  if(t.phase==='lobby'){
@@ -28,13 +34,13 @@ export function board(t){
    description=`**第 ${t.round}/7 轮 · 先赢 2 轮**\n${stamp(t.deadline)} 本轮到期。点击私密面板出拳；出拳内容在双方完成前保密。`;
    for(const p of t.players)fields.push({name:label(p),value:`${t.scores[p.id]} 分 · ${t.choices[p.id]?'✅ 已出拳':'⌛ 待出拳'}`,inline:true});
   }else{
-   const s=DevilState.restore(t.state);description=`👉 **${label(t.players.find(p=>p.id===t.turn))}** 行动 · ${stamp(t.deadline)} 超时\n弹巢剩余 **${s.totalRemaining}** 发：${s.inverterObscured?'实弹/空弹数量暂时隐藏':`**${s.liveRemaining} 实弹 / ${s.blankRemaining} 空弹**`}${s.sawArmed?'\n🪚 下一发实弹伤害翻倍。':''}`;
+   const s=DevilState.restore(t.state);description=`👉 **${label(t.players.find(p=>p.id===t.turn))}** 行动 · ${stamp(t.deadline)} 超时\n弹巢剩余 **${s.totalRemaining}** 发：${s.inverterObscured?'实弹/空弹数量暂时隐藏':`**${s.liveRemaining} 实弹 / ${s.blankRemaining} 空弹**`}${s.sawArmed?'\n🪚 下一次开枪实弹伤害 2 点；空弹也消耗手锯。':''}`;
    for(const p of t.players)fields.push({name:label(p),value:`${s.hpText(p.id)}${s.handcuffed.has(p.id)?' · 🔗 被铐':''}\n${items(s.items[p.id])}`,inline:true});
   }
   rows.push(row(button(t,'panel',t.game==='duel'?'打开私密出拳面板':'我的操作 / 情报',1),button(t,'refresh','刷新'),button(t,'help','规则')));
  }else{
   description=t.winner?`🏆 **${label(t.players.find(p=>p.id===t.winner))}** 获胜。`:`${t.closeReason||'对局已结束。'}`;
-  if(t.phase==='settled'&&t.penalty){description+=`\n胜者可在 ${stamp(t.penalty.until)} 前选择禁言 ${t.penalty.muteMinutes} 分钟或改名 ${t.penalty.renameMinutes} 分钟。\n${t.penaltyNotice||'未选择将自动禁言。'}`;rows.push(row(button(t,'mute','选择禁言',4),button(t,'rename','指定昵称',1),button(t,'refresh','刷新')));}
+  if(t.phase==='settled'&&t.penalty){description+=t.penalty.status==='renamePending'?`\n已选择改名，请在 ${stamp(t.penalty.renameUntil)} 前填写昵称。`:`\n${t.penalty.status==='pending'?`胜者可在 ${stamp(t.penalty.until)} 前选择禁言 ${t.penalty.muteMinutes} 分钟或改名 ${t.penalty.renameMinutes} 分钟。`:'裁决已提交，正在执行。'}`;description+=`\n${t.penaltyNotice||'未选择将自动禁言。'}`;rows.push(...penaltyRows(t),row(button(t,'refresh','刷新')));}
   else if(t.penaltyNotice)description+=`\n${t.penaltyNotice}`;
  }
  if(t.log?.length)fields.push({name:'对局记录',value:t.log.join('\n').slice(-1024),inline:false});
@@ -45,21 +51,24 @@ export function panel(t,id,notice=''){
  const rows=[];let text;
  if(t.phase!=='active'){
   text=t.winner?`🏆 ${label(t.players.find(p=>p.id===t.winner))} 获胜。`:(t.closeReason||'本局已结束。');
+  if(t.phase==='closed'&&t.penaltyNotice)text+=`\n${t.penaltyNotice}`;
   if(t.phase==='settled'&&t.penalty){
-   text+=`\n${t.penaltyNotice||'胜者请选择败者惩罚。'}\n裁决期限 ${stamp(t.penalty.until)}。`;
-   if(t.winner===id)rows.push(row(button(t,`p~${id}~mute`,'选择禁言',4),button(t,`p~${id}~rename`,'指定昵称',1)));
+   text+=t.penalty.status==='renamePending'?`\n已选择改名，请在 ${stamp(t.penalty.renameUntil)} 前填写昵称。`:`\n${t.penaltyNotice||(t.penalty.status==='pending'?'胜者请选择败者惩罚。':'裁决已提交，正在执行。')}${t.penalty.status==='pending'?`\n裁决期限 ${stamp(t.penalty.until)}。`:''}`;
+   if(t.winner===id)rows.push(...penaltyRows(t,id));
   }
  }
  else if(t.game==='duel'){
   text=`第 ${t.round} 轮 · ${t.choices[id]?`已记录你的 ${CHOICES[t.choices[id]]}，不能修改。`:'选择一项出拳，其他人看不到你的选择。'}`;
   if(!t.choices[id])rows.push(row(...Object.entries(CHOICES).map(([choice,text])=>button(t,`p~${id}~choose~${t.round}~${choice}`,text,1))));
  }else{
-  const s=DevilState.restore(t.state),mine=s.currentPlayerId===id;text=`${mine?'轮到你。':'等待对手行动。'}\n生命 ${s.hp[id]}/${GAME_CONFIG.hp}\n**你的情报**：${s.privateIntelText(id)}\n**你的道具**：${items(s.items[id])}`;
+  const s=DevilState.restore(t.state),mine=s.currentPlayerId===id,opponent=t.players.find(p=>p.id!==id),owned=[...new Set(s.items[id])];
+  text=`${mine?'轮到你。':'等待对手行动。'} · ${stamp(t.deadline)} 超时自动向对手开枪\n你的生命 ${s.hp[id]}/${GAME_CONFIG.hp} · ${label(opponent)} ${s.hp[opponent.id]}/${GAME_CONFIG.hp}\n弹巢剩余 ${s.totalRemaining} 发 · ${s.inverterObscured?'实弹 / 空弹数量暂时隐藏':`${s.liveRemaining} 实弹 / ${s.blankRemaining} 空弹`}${s.sawArmed?'\n🪚 下一次开枪实弹伤害 2 点；空弹也消耗手锯。':''}${s.handcuffed.has(opponent.id)?'\n🔗 对手下一次行动将被跳过。':''}\n**你的情报**：${s.privateIntelText(id)}\n**你的道具**：${owned.length?owned.map(k=>`${ITEM_DEFS[k].emoji}${ITEM_DEFS[k].name} ×${s.items[id].filter(x=>x===k).length}：${ITEM_DEFS[k].description}${mine&&!s.canUseItem(id,k)?`（${k==='adrenaline'?'无当前可用偷取目标':s.itemUnavailableReason(id,k)}）`:''}`).join('\n'):'无道具'}`;
   if(mine){
-   rows.push(row(button(t,`p~${id}~shoot_opponent`,'向对手开枪',4),button(t,`p~${id}~shoot_self`,'向自己开枪',4)));
-   const usable=[...new Set(s.items[id])].filter(k=>k!=='adrenaline'&&s.canUseItem(id,k));
-   for(let n=0;n<usable.length;n+=5)rows.push(row(...usable.slice(n,n+5).map(k=>button(t,`p~${id}~${k}`,`${ITEM_DEFS[k].emoji} ${ITEM_DEFS[k].name}`,['cigarette','medicine'].includes(k)?3:2))));
+   rows.push(row(button(t,`p~${id}~shoot_opponent`,'向对手开枪',4),button(t,`p~${id}~shoot_self`,'向自己开枪（空弹可续行动）',2)));
+   const usable=owned.filter(k=>k!=='adrenaline');
+   for(let n=0;n<usable.length;n+=5)rows.push(row(...usable.slice(n,n+5).map(k=>button(t,`p~${id}~${k}`,`${ITEM_DEFS[k].emoji} ${ITEM_DEFS[k].name}${s.items[id].filter(x=>x===k).length>1?' ×'+s.items[id].filter(x=>x===k).length:''}`,['cigarette','medicine'].includes(k)?3:2,!s.canUseItem(id,k)))));
    if(s.canUseItem(id,'adrenaline'))rows.push(row({type:3,custom_id:key(t,`p~${id}~adrenaline`),placeholder:'肾上腺素：偷取并立即使用',min_values:1,max_values:1,options:s._stealableItems(id).map(k=>({label:ITEM_DEFS[k].name,value:k,description:ITEM_DEFS[k].description.slice(0,100)}))}));
+   else if(owned.includes('adrenaline'))rows.push(row(button(t,`p~${id}~adrenaline`,'💉 肾上腺素（无可用目标）',2,true)));
   }
   if(s.hp[id]>2)rows.push(row(button(t,`p~${id}~surrender`,'认输',4),button(t,`p~${id}~panel`,'刷新我的面板')));
   else rows.push(row(button(t,`p~${id}~panel`,'刷新我的面板')));

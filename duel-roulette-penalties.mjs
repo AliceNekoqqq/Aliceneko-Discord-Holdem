@@ -49,7 +49,9 @@ export class DuelRoulettePenalties {
      await this.save(records,guild); // Recovery intent commits before changing Discord.
      await this.api(guild,p.loser,'PATCH',{nick:p.nickname});p.status='activeRename';p.notice=`临时昵称已生效，${p.renameMinutes} 分钟后自动恢复。`;
     }else if(p.status==='applyingRename'&&p.restoreAt>Date.now()){
-     const member=await this.api(guild,p.loser);if(member.nick!==p.nickname)await this.api(guild,p.loser,'PATCH',{nick:p.nickname});p.status='activeRename';p.notice=`临时昵称已生效，${p.renameMinutes} 分钟后自动恢复。`;
+     const member=await this.api(guild,p.loser);
+     if(member.nick!==p.nickname&&(member.nick??null)!==p.original){p.status='externallyChanged';p.notice='昵称已被另外修改，保留当前昵称，不再覆盖。';}
+     else {if(member.nick!==p.nickname)await this.api(guild,p.loser,'PATCH',{nick:p.nickname});p.status='activeRename';p.notice=`临时昵称已生效，${p.renameMinutes} 分钟后自动恢复。`;}
     }else{
      p.status='restoringRename';p.retryAt=Date.now()+1;await this.save(records,guild);
      const member=await this.api(guild,p.loser);if(member.nick===p.nickname)await this.api(guild,p.loser,'PATCH',{nick:p.original});p.status=member.nick===p.nickname?'restored':'externallyChanged';p.notice=member.nick===p.nickname?'临时昵称已自动恢复。':'昵称已被另外修改，保留当前昵称。';

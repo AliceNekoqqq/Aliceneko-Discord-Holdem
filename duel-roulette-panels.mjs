@@ -10,6 +10,7 @@ export class DuelPanels {
   if(!i.token||!this.env.BOT_TOKEN||!id||!t.players.some(p=>p.id===id)||reply.type===9||i.type===5)return false;
   const records=await this.parent.read();let s=records[id];
   if(!s||s.epoch!==t.epoch)s=records[id]={epoch:t.epoch,retire:s?.panel?[s.panel]:[]};
+  if(!s.panel||s.panel.expires<=Date.now()){delete s.panel;delete s.delivered;delete s.attempted;}
   s.send={token:i.token,expires:Date.now()+TTL,owner:id,private:true};
   const own=String(i.data?.custom_id||'').split(':')[3]?.startsWith(`p~${id}~`);
   const privateReply=reply.type===4&&(reply.data?.flags&64)||reply.type===7&&(Number(i.message?.flags)&64);
@@ -62,15 +63,23 @@ export class DuelPanels {
      if(s.panel)s.retire.push(s.panel);
      s.panel={...s.send,ref:sent.id,id:sent.id,version:t.version};s.delivered=key;s.failures=0;
     }
-   }else if(s.delivered===key&&s.panel?.expires>Date.now()&&s.panel.version!==t.version){
+   }else if(s.delivered===key&&s.panel?.expires>Date.now()&&s.panel.version!==t.version&&(s.failedVersion!==t.version||s.failures<3)){
+    if(s.failedVersion!==t.version)s.failures=0;
     const data=panel(t,id,notice);delete data.flags;
-    if(await this.parent.api(s.panel,'PATCH',data,s.panel.ref)){s.panel.version=t.version;s.failures=0;}else {s.failures=(s.failures||0)+1;if(s.failures<3)retry=true;}
+    if(await this.parent.api(s.panel,'PATCH',data,s.panel.ref)){s.panel.version=t.version;s.failures=0;delete s.failedVersion;}else {s.failedVersion=t.version;s.failures=(s.failures||0)+1;if(s.failures<3)retry=true;}
    }
    const pending=[];
-   for(const old of s.retire||[]){if(old.expires>Date.now()&&!await this.parent.api(old,'PATCH',{content:t.game==='duel'?'本轮已结束，请使用最新出拳面板。':'操作面板已更新，请使用最新面板。',embeds:[],components:[],attachments:[],allowed_mentions:{parse:[]}},old.ref))pending.push(old);}
+   for(const old of s.retire||[]){if(old.expires>Date.now()&&!await this.parent.api(old,'PATCH',{content:t.game==='duel'?'本轮已结束，请使用最新出拳面板。':'操作面板已更新，请使用最新面板。',embeds:[],components:[],attachments:[],allowed_mentions:{parse:[]}},old.ref)){old.failures=(old.failures||0)+1;if(old.failures<3)pending.push(old);}}
    s.retire=pending.slice(-5);if(pending.length)retry=true;
   }
   await this.parent.write(records);return retry;
  }
- async prune(t){await this.parent.write(await this.parent.read());}
+ async prune(t){
+  const records=await this.parent.read();let reconnect=false;
+  for(const s of Object.values(records))if(s.panel?.expires<=Date.now()){
+   delete s.panel;delete s.delivered;delete s.attempted;
+   if(s.epoch===t.epoch&&s.send?.expires>Date.now())reconnect=true;
+  }
+  await this.parent.write(records);if(reconnect)await this.storage.put('privateSyncAt',Date.now()+1);
+ }
 }
