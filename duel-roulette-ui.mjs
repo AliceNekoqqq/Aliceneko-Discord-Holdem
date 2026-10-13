@@ -63,7 +63,7 @@ export function panel(t,id,notice='',details=false){
  }else{
   const s=DevilState.restore(t.state),mine=s.currentPlayerId===id,opponent=t.players.find(p=>p.id!==id),owned=[...new Set(s.items[id])];
   const unavailable=k=>mine&&!s.canUseItem(id,k)?(k==='adrenaline'?'无当前可用偷取目标':s.itemUnavailableReason(id,k)):'';
-  text=details?'🧰 **道具详情**':`${mine?'🔫 **轮到你**':`⏳ **等待 ${label(opponent)}**`} · ${stamp(t.deadline)}`;
+  text=details?`🧰 **道具详情** · ${stamp(t.deadline)}`:`${mine?'🔫 **轮到你**':`⏳ **等待 ${label(opponent)}**`} · ${stamp(t.deadline)}`;
   const fields=details?owned.map(k=>({name:`${ITEM_DEFS[k].emoji} ${ITEM_DEFS[k].name} ×${s.items[id].filter(x=>x===k).length}`,value:ITEM_DEFS[k].description+(unavailable(k)?`\n暂不可用：${unavailable(k)}`:''),inline:false})):[
    {name:'你的生命',value:`${'❤️'.repeat(s.hp[id])}${'🖤'.repeat(GAME_CONFIG.hp-s.hp[id])} **${s.hp[id]}/${GAME_CONFIG.hp}**`,inline:true},
    {name:label(opponent),value:`${'❤️'.repeat(s.hp[opponent.id])}${'🖤'.repeat(GAME_CONFIG.hp-s.hp[opponent.id])} **${s.hp[opponent.id]}/${GAME_CONFIG.hp}**`,inline:true},
