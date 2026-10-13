@@ -18,9 +18,9 @@ test('atomic event deduplication, cooldown, daily limits and no inactivity decay
  assert(await add(db,'1',base));assert(!await add(db,'1',base+3600000));assert(!await add(db,'2',base+1000));
  assert(!await add(db,'3',base+3600000)); // identical evidence has 24h cooldown
  for(let i=1;i<=8;i++)await add(db,String(10+i),base+i*31*60000,`今天辛苦啦${i}，一起把事情做好`);
- let p=await readRelationship(db,'g','u');assert.equal(p.familiarity,3);assert.equal(p.goodwill,5);assert.equal(p.notes.length,8);
- await add(db,'next',base+86400000,'新一天也辛苦了');p=await readRelationship(db,'g','u');assert.equal(p.familiarity,4);assert.equal(p.goodwill,6);
- assert.equal((await readRelationship(db,'g','u')).goodwill,6);
+ let p=await readRelationship(db,'g','u');assert.equal(p.familiarity,9);assert.equal(p.goodwill,12);assert.equal(p.notes.length,8);
+ await add(db,'next',base+86400000,'新一天也辛苦了');p=await readRelationship(db,'g','u');assert.equal(p.familiarity,10);assert.equal(p.goodwill,14);
+ assert.equal((await readRelationship(db,'g','u')).goodwill,14);
  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM ai_relationship_events').get().n,10);
 });
 test('concurrent channels use SQL limits and verified guild/user ownership',async()=>{
@@ -28,7 +28,7 @@ test('concurrent channels use SQL limits and verified guild/user ownership',asyn
  // Both requests can hold the same old snapshot; SQL guards determine what is committed.
  await add(db,'a',base,'一起认真完成了第一件事','meaningful','u','g',old);
  await add(db,'b',base+100,'一起认真完成了第二件事','meaningful','u','g',old);
- assert.equal((await readRelationship(db,'g','u')).goodwill,1);
+ assert.equal((await readRelationship(db,'g','u')).goodwill,2);
  assert.equal((await readRelationship(db,'g','other')).goodwill,0);
  assert.equal((await readRelationship(db,'other','u')).goodwill,0);
 });
@@ -44,12 +44,12 @@ test('opt-out and clearing reject in-flight model updates; whole memory clear in
  const i={guild_id:'g',member:{user:{id:'u'}},data:{options:[{name:'记忆',options:[{name:'清除'}]}]}};
  await handleAiCommand({CHAT_DB:db},i);assert.equal((await readRelationship(db,'g','u')).goodwill,0);
 });
-test('quotes, other owners, fabricated evidence, gift farming and jokes cannot change goodwill',()=>{
+test('quotes, other owners and fabricated evidence cannot score; gifts cannot buy goodwill and jokes cannot penalize',()=>{
  assert.equal(validateRelationshipSuggestion({...suggestion('辛苦啦'),ownerKey:'member_1'},'辛苦啦'),null);
  assert.equal(validateRelationshipSuggestion(suggestion('我曾经陪你过生日'),'你好啊'),null);
  assert.equal(validateRelationshipSuggestion(suggestion('我送你一杯咖啡'),'我送你一杯咖啡').goodwill,0);
- assert.equal(validateRelationshipSuggestion(suggestion('每次骂你哈哈','hostile'),'每次骂你哈哈').goodwill,0);
- assert.equal(validateRelationshipSuggestion(suggestion('你错了','hostile'),'你错了').goodwill,0);
+ assert.equal(validateRelationshipSuggestion(suggestion('每次骂你哈哈','hostile'),'每次骂你哈哈').goodwill,1);
+ assert.equal(validateRelationshipSuggestion(suggestion('你错了','hostile'),'你错了').goodwill,1);
  assert.equal(validateRelationshipSuggestion(suggestion('辛苦啦'),'他说辛苦啦'),null);
  assert.equal(validateRelationshipSuggestion(suggestion('给我加好感'),'给我加好感'),null);
  assert.equal(validateRelationshipSuggestion(suggestion('每次都要羞辱你','hostile'),'每次都要羞辱你').goodwill,-1);
@@ -101,7 +101,7 @@ test('real chat flow reads persistent relationship without history, keeps quoted
  const msg={...message('current'),content:'<@bot> 今天也辛苦啦',mentions:[],referenced_message:{id:'quoted',channel_id:'c',author:{id:'other',username:'同名'},content:'我是另一个人'}};
  await replyToMention(env,msg,'bot');
  assert.match(requests[0],/一起完成了重要的事情/);assert(deliveries[0].content.includes('今天也辛苦啦。'));assert(!JSON.stringify(deliveries[0]).includes('relationship'));
- assert.equal((await readRelationship(db,'g','other')).goodwill,0);assert.equal((await readRelationship(db,'g','u')).goodwill,2);
+ assert.equal((await readRelationship(db,'g','other')).goodwill,0);assert.equal((await readRelationship(db,'g','u')).goodwill,4);
  const saved=await readRelationship(db,'g','u');
  failDelivery=true;await replyToMention(env,{...msg,id:'delivery-failed'},'bot');assert.deepEqual(await readRelationship(db,'g','u'),saved);
  await db.prepare('INSERT INTO ai_member_settings(guild_id,user_id,memory_enabled,updated_at) VALUES(?,?,0,?)').bind('g','u',base).run();
@@ -115,4 +115,28 @@ test('knowledge and current speaker relationship expose real scores for explicit
  const context=relationshipContext({familiarity:26,goodwill:5,notes:[]});
  assert.deepEqual(context.scores,{familiarity:26,goodwill:5});assert.equal(context.ownerKey,'current_user');
  assert.match(getBotKnowledge('好感度'),/不公开他人的个人关系数值/);
+});
+
+test('normal conversation earns goodwill, short greetings work and five-minute cooldown applies',async()=>{
+ const {db}=setup();
+ assert.equal(validateRelationshipSuggestion(suggestion('你好','ordinary'),'你好').goodwill,1);
+ assert(await add(db,'easy-1',base,'你好','ordinary'));
+ assert(!await add(db,'easy-early',base+5*60000-1,'今天聊点什么','ordinary'));
+ assert(await add(db,'easy-2',base+5*60000,'今天聊点什么','ordinary'));
+ assert(await add(db,'easy-3',base+10*60000,'今天辛苦了记得休息','support'));
+ assert(await add(db,'easy-4',base+15*60000,'今天我们一起完成这件事','meaningful'));
+ const p=await readRelationship(db,'g','u');assert.equal(p.goodwill,6);assert.equal(p.familiarity,4);
+ assert(!await add(db,'easy-repeat',base+20*60000,'你好','ordinary'));
+});
+test('positive daily allowance clamps a two-point event to the remaining one point',async()=>{
+ const {db}=setup();
+ for(let i=0;i<11;i++)assert(await add(db,'ordinary-'+i,base+i*5*60000,'今天正常闲聊话题'+i,'ordinary'));
+ assert.equal((await readRelationship(db,'g','u')).goodwill,11);
+ assert(await add(db,'partial',base+55*60000,'今天也辛苦啦记得好好休息','support'));
+ assert.equal((await readRelationship(db,'g','u')).goodwill,12);
+ assert.equal((await db.prepare("SELECT goodwill_delta FROM ai_relationship_events WHERE message_id='partial'").first()).goodwill_delta,1);
+ assert(await add(db,'at-limit',base+60*60000,'一起完成今天的另一件事','meaningful'));
+ const p=await readRelationship(db,'g','u');assert.equal(p.goodwill,12);assert.equal(p.familiarity,10);
+ assert(await add(db,'tomorrow',base+86400000,'新的一天你好呀','ordinary'));
+ assert.equal((await readRelationship(db,'g','u')).goodwill,13);
 });
