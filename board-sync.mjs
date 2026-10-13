@@ -1,3 +1,5 @@
+import {board as duelRouletteBoard} from './duel-roulette-ui.mjs';
+import {isDuelRoulette} from './duel-roulette-model.mjs';
 import {board as liarBoard} from './liar-ui.mjs';
 import {LiarLive} from './liar-live.mjs';
 import {boardImageMessage as liarImage} from './liar-image.mjs';
@@ -6,7 +8,7 @@ import {boardImageMessage as ghostImage} from './ghost-image.mjs';
 import { board as pokerBoard } from './ui.mjs';
 import { board as unoBoard } from './uno-ui.mjs';
 import { boardImageMessage } from './uno-image.mjs';
-const board=t=>(t.game==='liar'?liarBoard:t.game==='ghost'?ghostBoard:t.game==='uno'?unoBoard:pokerBoard)(t);
+const board=t=>(isDuelRoulette(t)?duelRouletteBoard:t.game==='liar'?liarBoard:t.game==='ghost'?ghostBoard:t.game==='uno'?unoBoard:pokerBoard)(t);
 
 // This queue is the sole writer of existing public table messages. Interactions
 // acknowledge without editing the board; the alarm publishes under the table lock.
@@ -63,3 +65,4 @@ export class BoardSync {
     await this.storage.put('boardJobs',jobs);await this.schedule(jobs);return true;
   }
 }
+

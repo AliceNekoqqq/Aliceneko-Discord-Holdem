@@ -51,6 +51,8 @@ export class PrivatePanels {
     await this.write(records);
   }
   async remember(t,i,reply){
+    // These games render owner-bound private actions directly and retain no webhook credentials.
+    if(['duel','devil_roulette'].includes(t.game))return false;
     if(t.game==='ghost'&&(reply.type===9||i.type===5||reply.data?.content?.includes('确认认输')))return false;
     const action=i.data?.custom_id?.split(':')[3]||'';
     if(t.game==='liar'&&(reply.type===9||action==='social'||action==='manage'||/^[mcs]~/.test(action)))return false;
@@ -146,3 +148,4 @@ export class PrivatePanels {
     await this.write(records);return retry;
   }
 }
+

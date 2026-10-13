@@ -1,3 +1,7 @@
+import {DuelRouletteController,matches as duelRouletteInteraction} from './duel-roulette-controller.mjs';
+import {DuelRoulettePenalties} from './duel-roulette-penalties.mjs';
+import {isDuelRoulette} from './duel-roulette-model.mjs';
+import {duelCommand,devilCommand} from './duel-roulette-ui.mjs';
 import {runWritingJob} from './gemini-writing-jobs.mjs';
 import {flowerInteraction,finishFlower} from './flower-ui.mjs';
 import {registerCommands,commandInventory} from './command-registration.mjs';
@@ -45,7 +49,7 @@ import { BoardSync } from './board-sync.mjs';
 import { PrivatePanels } from './private-panels.mjs';
 import { initializeLifecycle, nextLifecycleAlarm, automaticCloseReason, idleWarning, takeoverAt, canTakeover, touchOwner, effectiveHumanAction } from './lifecycle.mjs';
 import { board, quickRaises, confirmation, handPanel, management, panelAction, button, row } from './ui.mjs';
-const COMMAND_VERSION='games-city2-flower-panel-registration';
+const COMMAND_VERSION='games-city2-flower-panel-duel-roulette-v1';
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。点「准备下一手」，所有参与真人准备后 5 秒自动发牌；人员变化会取消全部准备。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；连续 2 次超时会在本手结束后暂离，保留筹码；在牌桌管理恢复参与。全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码；游玩中可预约本手结束后离桌，并随时取消。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。\n未发牌空闲 5 分钟、结算后空闲 10 分钟自动关桌，提前 1 分钟提醒；刷新和查看手牌不延长计时。\n游玩中 10 分钟无人有效操作且仍可行动真人均已超时时，取消本手并退回下注。\n等待发牌或结算时，桌主 2 分钟未交互，其他已入座真人可接管。只供娱乐，无充值或兑换。';
@@ -73,6 +77,8 @@ export class PokerTable extends DurableObject {
   get liar(){return this.liarController??=new LiarController(this);}
   get liarRankings(){return this.liarGuildRankings??=new LiarRankings(this.ctx.storage,this.env);}
   get liarBridge(){return this.liarRankBridge??=new LiarRankBridge(this);}
+  get duelRoulette(){return this.duelRouletteController??=new DuelRouletteController(this);}
+  get duelRoulettePenalties(){return this.duelRoulettePenaltyService??=new DuelRoulettePenalties(this);}
   get ghost(){return this.ghostController??=new GhostController(this);}
   get discordGateway(){return this.discordGatewayController??=new DiscordGateway(this);}
   get ghostService(){return this.ghostGuildService??=new GhostService(this);}
@@ -82,11 +88,12 @@ export class PokerTable extends DurableObject {
   get uno(){return this.unoController??=new UnoController(this);}
   get panels(){return this.privatePanels??=new PrivatePanels(this.ctx.storage,this.env);}
   async armAlarm(t){
-    const dates=[await this.ctx.storage.get('tavernMapSyncAt'),await this.ctx.storage.get('tavernSyncAt'),await this.ctx.storage.get('liarSyncAt'),t?.game==='liar'?t.stageDue:null,t?.game==='liar'?t.endAt:null,t?.game==='liar'?t.idleDeadline:null,await this.ctx.storage.get('ghostSyncAt'),t?.game==='ghost'?t.waitUntil:null,t?.game==='ghost'?t.endAt:null,t?.game==='ghost'?t.closeAt:null,await this.ctx.storage.get('unoRankSyncAt'),t?.social?.until,t?.computerDue,t?.computerJumpDue,t?.jumpWindow?.until,t?.deadline,t?.readyDue,await this.ctx.storage.get('boardSyncAt'),t?.game==='uno'?t.idleDeadline:['ghost','liar'].includes(t?.game)?null:t?nextLifecycleAlarm(t):null,await this.ctx.storage.get('privateSyncAt'),await this.ctx.storage.get('privateExpiry')].filter(n=>Number.isFinite(n)&&n>0);
+    const dates=[isDuelRoulette(t)?t.waitUntil:null,isDuelRoulette(t)?t.penaltyDue:null,await this.ctx.storage.get('tavernMapSyncAt'),await this.ctx.storage.get('tavernSyncAt'),await this.ctx.storage.get('liarSyncAt'),t?.game==='liar'?t.stageDue:null,t?.game==='liar'?t.endAt:null,t?.game==='liar'?t.idleDeadline:null,await this.ctx.storage.get('ghostSyncAt'),t?.game==='ghost'?t.waitUntil:null,t?.game==='ghost'?t.endAt:null,t?.game==='ghost'?t.closeAt:null,await this.ctx.storage.get('unoRankSyncAt'),t?.social?.until,t?.computerDue,t?.computerJumpDue,t?.jumpWindow?.until,t?.deadline,t?.readyDue,await this.ctx.storage.get('boardSyncAt'),t?.game==='uno'?t.idleDeadline:['ghost','liar','duel','devil_roulette'].includes(t?.game)?null:t?nextLifecycleAlarm(t):null,await this.ctx.storage.get('privateSyncAt'),await this.ctx.storage.get('privateExpiry')].filter(n=>Number.isFinite(n)&&n>0);
     if(dates.length)await this.ctx.storage.setAlarm(Math.max(Date.now()+1,Math.min(...dates)));else await this.ctx.storage.deleteAlarm();
   }
   async queuePanels(t){if(!await this.ctx.storage.get('privatePanels'))return;await this.ctx.storage.put('privateSyncAt',Date.now()+350);await this.armAlarm(t);}
   async save(t){
+    if(isDuelRoulette(t))return this.duelRoulette.save(t);
     if(t.game==='liar')return this.liar.save(t);
     if(t.game==='ghost')return this.ghost.save(t);
     const before=await this.ctx.storage.get('table');
@@ -100,6 +107,7 @@ export class PokerTable extends DurableObject {
   queueAICommentary(before,after){this.ctx.waitUntil(commentOnGameTransition(this.env,this.ctx.storage,before,after).catch(()=>false));}
   async syncBoard(t){await this.boards.queue(t);await this.armAlarm(t);return true;}
   async expireTable(t,now=Date.now()){
+    if(isDuelRoulette(t))return this.duelRoulette.progress(t,now);
     if(t.game==='liar')return this.liar.progress(t,now);
     if(t.game==='ghost')return this.ghost.expire(t);
     const normalized=initializeLifecycle(t,now),reason=automaticCloseReason(t,now);
@@ -151,6 +159,7 @@ export class PokerTable extends DurableObject {
     });
   }
   async dispatch(payload){
+      if(payload.op==='duelRoulettePenalty'){try{return json(await this.duelRoulettePenalties.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='rogueInteraction'){
         try{return await rogueVisualResponse(this.rogueService(payload.guild),payload.interaction,{env:this.env});}
         catch(e){return json(privateReply(e.message||'远征暂时无法打开，请稍后重试。'));}
@@ -216,10 +225,10 @@ export class PokerTable extends DurableObject {
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
       if(payload.op==='unoRank'){try{return json(await this.rankings.dispatch(payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.92+city.2.panel.2',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
+      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.1',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
       if(payload.op==='registrationDiagnostics')return json(await this.ctx.storage.get('commandDiagnostics')||{registered:false,unchecked:true});
       if(payload.op==='register'){
-        try{return json(await registerCommands(this.env,this.ctx.storage,[command,unoCommand,ghostCommand,liarCommand,aiCommand,tavernCommand,rogueCommand,cityCommand],COMMAND_VERSION));}catch{return json({registered:false});}
+        try{return json(await registerCommands(this.env,this.ctx.storage,[command,unoCommand,ghostCommand,liarCommand,duelCommand,devilCommand,aiCommand,tavernCommand,rogueCommand,cityCommand],COMMAND_VERSION));}catch{return json({registered:false});}
       }
       let t=await this.ctx.storage.get('table');
       if(payload.op==='channelMessage'){
@@ -231,6 +240,7 @@ export class PokerTable extends DurableObject {
       const i=payload.interaction,id=i.member?.user?.id;
       if(!id||!i.guild_id)return json(privateReply('请在服务器文字频道内使用。'));
       if(t&&(t.channel!==i.channel_id||t.guild!==i.guild_id))return json(privateReply('频道不匹配。'));
+      if(duelRouletteInteraction(i)||(isDuelRoulette(t)&&t.phase!=='closed')){if(t&&!isDuelRoulette(t))await this.expireTable(t);return this.duelRoulette.dispatch(payload,t);}
       if(i.data?.name==='骗子酒馆'||i.data?.custom_id?.startsWith('l:')||(t?.game==='liar'&&t.phase!=='closed')){if(t&&t.game!=='liar')await this.expireTable(t);return this.liar.dispatch(payload,t);}
       if(i.data?.name==='抽鬼牌'||i.data?.custom_id?.startsWith('g:')||(t?.game==='ghost'&&t.phase!=='closed'))return this.ghost.dispatch(payload,t);
       if(i.data?.name==='uno'||i.data?.custom_id?.startsWith('u:')||(t?.game==='uno'&&t.phase!=='closed')){if(t&&t.game!=='uno')await this.expireTable(t);return this.uno.dispatch(payload,t);}
@@ -325,10 +335,12 @@ export class PokerTable extends DurableObject {
     await this.ctx.blockConcurrencyWhile(async()=>{
       if(await this.ctx.storage.get('gatewayMode')){await this.discordGateway.ensure();return;}
       const liarGuild=await this.ctx.storage.get('liarRankGuild');if(liarGuild){await this.liarRankings.reconcile(liarGuild);return;}
+      const penaltyGuild=await this.ctx.storage.get('duelRoulettePenaltyGuild');if(penaltyGuild){await this.duelRoulettePenalties.alarm(penaltyGuild);return;}
       const ghostGuild=await this.ctx.storage.get('ghostGuild');if(ghostGuild){await this.ghostService.alarm(ghostGuild);return;}
       const guild=await this.ctx.storage.get('rankGuild');if(guild){await this.rankings.reconcile(guild);return;}
       const t=await this.ctx.storage.get('table');if(t)await this.tavernBridge.capture(t);await this.tavernBridge.flush();await this.ghost.flush();await this.rankBridge.flush(t);await this.liarBridge.flush(t);if(!t){await this.armAlarm(null);return;}
       const now=Date.now();
+      if(isDuelRoulette(t)){await this.duelRoulette.alarm(t);return;}
       if(t.game==='liar'){const privateWork=await this.liar.alarm(t);if(!privateWork)await this.boards.flush(t,now);await this.armAlarm(t);return;}
       if(t.game==='ghost'){const privateWork=await this.ghost.alarm(t);if(!privateWork)await this.boards.flush(t,now);await this.armAlarm(t);return;}
       if(t.game==='uno'){const privateWork=await this.uno.alarm(t);if(!privateWork)await this.boards.flush(t,now);await this.armAlarm(t);return;}
@@ -429,6 +441,7 @@ export default {
   },
   async scheduled(event,env,ctx){ctx.waitUntil(runWritingJob(env).catch(e=>console.warn('writing_job_failed',{reason:e.name})));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-emojis')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'appEmojis'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-registration-city1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'register'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-discord-gateway')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayEnsure'})}));}
 };
+
 
 
 
