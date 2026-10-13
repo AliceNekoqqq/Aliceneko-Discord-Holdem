@@ -37,3 +37,8 @@
 `/health`版本为`1.0.1-beta.92+city.1`，Gateway指纹为`chat-city1-location-context`。无D1迁移、DO迁移、新binding、secret或Cron改动。灯下迷城beta.92保持。
 
 本地城市9项、聊天回归93项、Worker28项通过；正式CI使用现有真实字体和完整资源构建再验收。Discord手机界面和多人真人试用需上线后验证。
+
+
+## 发布回执（2026-10-13）
+
+PR #39、检查38378701406、main生产发布38378907060成功。运行提交ea766a0fa57426b619be5e27a73e689eb253cab4；CF版本1d9fa524-e488-47ec-9616-525efa462081接收100%流量。13个bindings及人设/Secret名称类型、兼容设置、迁移标签、observability比对不变；Cron每分钟不变。实际health返回+city.1、ready:true，Gateway connected/ready:true，聊天指纹与预期均chat-city1-location-context。部署后短暂旧聊天指纹已恢复；用户允许的临时Tail会话已创建并删除，没有导出日志正文。真人服务器尚未绑定城市地点，需按前述步骤启用。
