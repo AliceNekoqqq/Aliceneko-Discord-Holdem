@@ -27,4 +27,4 @@
 
 ## 发布
 
-待PR/CI、生产部署与健康/配置核验。版本beta.90；保留主线UGC图片、恢复修复、Secret/绑定/数据库及聊天指纹。
+PR #36检查38326544298与main发布38326690361成功；运行提交b814f7d0091af56823fc1916f76069ffe63a4e9d。CF部署42bb01ef-8216-498c-a9be-9f964e008af7、版本05cdff1b-5a5f-44ef-9d9e-9d61512a1e44接收100%。13项bindings（含Secret名称类型/人设）、原DO命名空间/D1/ASSETS、兼容日期2026-10-07/flags/observability比对保持，Cron仍每分钟。实读health beta.90/rulesv0.21/cards124/ready:true，Gateway connected:true/ready:true，chatRuntime与expectedRuntime均chat84-exclusive-red-packet，线上健康正常。 保留主线UGC图片与研发恢复修复；真人六牌组合与职业差距待反馈。本批不重复发布。
