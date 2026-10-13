@@ -34,6 +34,16 @@ for(const act of CATALOG_V22.acts)for(const id of [...act.normalPool,...act.elit
  e.actAttackBudget=({普通:[0,1,2],精英:[0,2,3],Boss:[1,2,4]}[e.role])[act.index-1];
  if(!e.pressure&&e.role!=='普通')e.pressure={startTurn:7,step:4,max:e.role==='Boss'?2:1};
 }
+// beta92 relief applies to the already-live v22 rules, including active saves.
+CATALOG_V22.balanceRevision=1;
+for(const id of [...CATALOG_V22.acts[2].normalPool,...CATALOG_V22.acts[2].elitePool,...CATALOG_V22.acts[2].bossPool]){
+ const e=CATALOG_V22.enemies[id];delete e.pressure;
+ if(e.role!=='普通')e.actAttackBudget=2;
+}
+Object.assign(CATALOG_V22.enemies.a3_unlit_bellmaster,{hp:62});
+Object.assign(CATALOG_V22.enemies.bell_colossus,{hp:72});
+Object.assign(CATALOG_V22.enemies.a3_molten_colossus,{hp:72,
+ intents:furnaceCycle(6,8,8,5,2,2),phaseIntents:furnaceCycle(8,10,10,6,2,2)});
 export const PROFESSIONS=CATALOG_V22.professions;
 export const ITEMS=CATALOG_V22.items;
 export const EVENTS=CATALOG_V22.events;

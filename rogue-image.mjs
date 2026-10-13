@@ -1,3 +1,4 @@
+import {normalizeRun} from './rogue-run.mjs';
 import { discountedDefinition, playLimitFor } from './rogue-card-effects-v18.mjs';
 import { Canvas, encodePNG } from './card-image.mjs';
 import { prepareNicknameFont } from './nickname-font.mjs';
@@ -45,6 +46,7 @@ function routeModel(run,act,catalog){
  return {act,name:catalog.acts?.[act-1]?.name||`第 ${act} 幕`,known:true,columns,boss,connected,edges:connected?plan.edges.map(e=>({...e})):[],anchor,supplies:connected?routeSupplyLines(run,plan):[]};
 }
 export function describeRogueImage(run,view='auto'){
+ run=normalizeRun(run);
  const mode=view==='auto'?(run?.phase==='BATTLE'&&run?.battle?'battle':'map'):view;
  if(mode==='battle'){
   const b=run?.battle||{},catalog=getCatalog(run?.catalogVersion||run?.ruleVersion),profession=catalog.professions?.[b.professionId||run?.professionId]||PROFESSIONS[b.professionId||run?.professionId],enemy=catalog.enemies[b.enemyId];
@@ -192,4 +194,4 @@ async function battleImage(run,env){
  text(c,'完整效果见下方说明',480,728,F.small,K.gold2,true);
  return encodePNG(c);
 }
-export async function renderRogueImage(run,{view='auto',env}={}){const mode=view==='auto'?(run?.phase==='BATTLE'&&run?.battle?'battle':'map'):view;return mode==='battle'?battleImage(run,env):mapImage(run,mode,env);}
+export async function renderRogueImage(run,{view='auto',env}={}){run=normalizeRun(run);const mode=view==='auto'?(run?.phase==='BATTLE'&&run?.battle?'battle':'map'):view;return mode==='battle'?battleImage(run,env):mapImage(run,mode,env);}

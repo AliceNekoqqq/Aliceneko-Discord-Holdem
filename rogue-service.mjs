@@ -1,4 +1,4 @@
-import {createRun,runAction,expireRun,RULE_VERSION,CURRENT_RULE_VERSION,V21_RULE_VERSION,V20_RULE_VERSION,V19_RULE_VERSION,V18_RULE_VERSION,V17_RULE_VERSION,V16_RULE_VERSION,V15_RULE_VERSION,SUPPORTED_RULE_VERSIONS} from './rogue-run.mjs';
+import {normalizeRun,createRun,runAction,expireRun,RULE_VERSION,CURRENT_RULE_VERSION,V21_RULE_VERSION,V20_RULE_VERSION,V19_RULE_VERSION,V18_RULE_VERSION,V17_RULE_VERSION,V16_RULE_VERSION,V15_RULE_VERSION,SUPPORTED_RULE_VERSIONS} from './rogue-run.mjs';
 import {scoreRun,rewardAmount,dailySeedGroup,REWARDED_STARTS,ECONOMY_VERSION} from './rogue-economy.mjs';
 import {DAILY_REWARD_CAP,dayKey,validId} from './tavern-catalog.mjs';
 import {PROFESSIONS} from './rogue-content-v09.mjs';
@@ -49,8 +49,10 @@ export class RogueService{
   this.guard(p);
   const row=this.one('SELECT * FROM rogue_runs WHERE id=?',p.runId);
   if(!row||row.guild!==this.guild||row.owner!==p.id)fail('OWNER','不能操作这局冒险。');
-  const run=JSON.parse(row.snapshot);
+  const storedRun=JSON.parse(row.snapshot);
+  const run=normalizeRun(storedRun);
   if(run.guild!==this.guild||run.owner!==p.id||run.runId!==row.id)fail('SNAPSHOT','冒险记录不匹配。');
+  if(run!==storedRun)this.sql.exec('UPDATE rogue_runs SET snapshot=? WHERE id=? AND guild=? AND owner=?',JSON.stringify(run),row.id,this.guild,p.id);
   if(OBSERVATION_RULES.includes(run.ruleVersion)){
    const stored=run.observation,clean=pruneObservation(stored,this.clock());run.observation=clean;
    if(JSON.stringify(stored??null)!==JSON.stringify(clean))this.sql.exec('UPDATE rogue_runs SET snapshot=? WHERE id=? AND guild=? AND owner=?',JSON.stringify(run),row.id,this.guild,p.id);
