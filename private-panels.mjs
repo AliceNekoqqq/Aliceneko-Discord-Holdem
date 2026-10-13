@@ -43,7 +43,7 @@ export class PrivatePanels {
     await this.storage.put('privateExpiry',Math.min(...expires));
   }
   async prune(t){
-    if(t?.game==='duel')return this.duel.prune(t);
+    if(['duel','devil_roulette'].includes(t?.game))return this.duel.prune(t);
     const records=await this.read();
     await Promise.all(Object.entries(records).map(async([id,s])=>{
       if(s.panel&&s.panel.expires<=Date.now()&&Date.now()-s.panel.expires<45000){
@@ -54,9 +54,7 @@ export class PrivatePanels {
     await this.write(records);
   }
   async remember(t,i,reply){
-    // These games render owner-bound private actions directly and retain no webhook credentials.
-    if(t.game==='duel')return this.duel.remember(t,i,reply);
-    if(t.game==='devil_roulette')return false;
+    if(['duel','devil_roulette'].includes(t.game))return this.duel.remember(t,i,reply);
     if(t.game==='ghost'&&(reply.type===9||i.type===5||reply.data?.content?.includes('确认认输')))return false;
     const action=i.data?.custom_id?.split(':')[3]||'';
     if(t.game==='liar'&&(reply.type===9||action==='social'||action==='manage'||/^[mcs]~/.test(action)))return false;
@@ -96,7 +94,7 @@ export class PrivatePanels {
       if(!r.ok)return null;return r.status===204?{}:await r.json();}catch{return null;}
   }
   async sync(t){
-    if(t.game==='duel')return this.duel.sync(t);
+    if(['duel','devil_roulette'].includes(t.game))return this.duel.sync(t);
     const records=await this.read();let retry=false;
     await Promise.all(Object.entries(records).map(async([id,s])=>{
       if(t.game==='liar'){

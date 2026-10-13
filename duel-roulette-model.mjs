@@ -17,7 +17,7 @@ export function accept(t,id,name,now=Date.now(),rng=null){
  if(t.target&&id!==t.target)throw Error('这是给指定玩家的挑战。');
  t.players.push({id,name,bot:false});t.phase='active';t.waitUntil=null;t.handNo=1;
  if(t.game==='duel'){t.scores=Object.fromEntries(t.players.map(p=>[p.id,0]));t.choices={};t.round=1;push(t,'死斗开始，双方私密出拳。');}
- else {const state=new DevilState(t.players.map(p=>p.id),{rng,alternateFirstTurn:true});t.state=state.serialize();t.turn=state.currentPlayerId;push(t,'已装填弹巢，双方获得道具。');}
+ else {const state=new DevilState(t.players.map(p=>p.id),{rng,alternateFirstTurn:true});t.state=state.serialize();t.turn=state.currentPlayerId;t.panelTurn=0;push(t,'已装填弹巢，双方获得道具。');}
  t.deadline=now+settings(t.game).turn;
 }
 export const resolveChoices=(a,b)=>a===b?0:({rock:'scissors',scissors:'paper',paper:'rock'}[a]===b?1:-1);
@@ -50,6 +50,7 @@ export function shootOrItem(t,id,action,stealKey=null,now=Date.now(),timeout=fal
  const s=DevilState.restore(t.state);
  if(action==='adrenaline'&&(!stealKey||!s._stealableItems(id).includes(stealKey)))throw Error('请选择对手当前持有的可偷取道具。');
  const result=s.apply(action,id,{expectedToken:t.state.turnToken,stealKey});
+ if(s.currentPlayerId!==t.turn||result.reloaded)t.panelTurn=(t.panelTurn||0)+1;
  t.state=s.serialize();t.turn=s.currentPlayerId;t.deadline=now+62000;
  const who=label(t.players.find(p=>p.id===id));
  let line;
