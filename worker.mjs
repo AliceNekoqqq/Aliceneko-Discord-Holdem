@@ -212,7 +212,8 @@ export class PokerTable extends DurableObject {
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
       if(payload.op==='unoRank'){try{return json(await this.rankings.dispatch(payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.92+city.1.register.1',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
+      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.92+city.1.register.2',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
+      if(payload.op==='registrationDiagnostics')return json(await this.ctx.storage.get('commandDiagnostics')||{registered:false,unchecked:true});
       if(payload.op==='register'){
         try{return json(await registerCommands(this.env,this.ctx.storage,[command,unoCommand,ghostCommand,liarCommand,aiCommand,tavernCommand,rogueCommand,cityCommand],COMMAND_VERSION));}catch{return json({registered:false});}
       }
@@ -383,7 +384,7 @@ async function handle(request,env,ctx){
     }catch{}
     const ready=data.ok===true&&gateway.ready&&gateway.chatRuntime===CHAT_PIPELINE_RUNTIME;
     let commands;
-    if(new URL(request.url).searchParams.get('commands')==='1')try{const inventory=await commandInventory(env);commands={...inventory,cityPresent:inventory.names.includes('城市')};}catch{commands={ok:false,cityPresent:false};}
+    if(new URL(request.url).searchParams.get('commands')==='1')try{const inventory=await commandInventory(env);const probe=await env.TABLES.get(env.TABLES.idFromName('system-registration-city1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'registrationDiagnostics'})});const registration=probe.ok?await probe.json():{unavailable:true};commands={...inventory,cityPresent:inventory.names.includes('城市'),registration};}catch{commands={ok:false,cityPresent:false};}
     return json({...data,ready,gateway:{...gateway,expectedRuntime:CHAT_PIPELINE_RUNTIME},...(commands?{commands}:{})});
   }
   if(path!=='/interactions')return new Response('Not found',{status:404});
@@ -420,7 +421,7 @@ export default {
     const headers=new Headers(response.headers);for(const [key,value]of Object.entries({'Cache-Control':asset?response.headers.get('Cache-Control'):'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow'}))headers.set(key,value);
     return new Response(response.body,{status:response.status,headers});
   },
-  async scheduled(event,env,ctx){ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-emojis')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'appEmojis'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-registration')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'register'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-discord-gateway')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayEnsure'})}));}
+  async scheduled(event,env,ctx){ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-emojis')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'appEmojis'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-registration-city1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'register'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-discord-gateway')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayEnsure'})}));}
 };
 
 
