@@ -45,7 +45,7 @@ export function unavailableReason(b,def,playLimit,legal,uid) {
  if((b.plays??0)>=playLimit)return '本轮出牌次数已满';
  if(legal.has(uid))return '';
  if(def?.cost>(b.energy??0))return '能量不足';
- if(b.ruleVersion==='lantern-rules-v0.21'){const why=supportUnavailable21(b,{...def,uid},getCatalog(b.ruleVersion));if(why)return why;}
+ if(['lantern-rules-v0.21','lantern-rules-v0.22'].includes(b.ruleVersion)){const why=supportUnavailable21(b,{...def,uid},getCatalog(b.ruleVersion));if(why)return why;}
  if(b.ruleVersion==='lantern-rules-v0.20'){const why=supportUnavailable20(b,{...def,uid},getCatalog(b.ruleVersion));if(why)return why;}
  if(b.ruleVersion==='lantern-rules-v0.19'){const why=supportUnavailable19(b,{...def,uid},getCatalog(b.ruleVersion));if(why)return why;}
  if(b.ruleVersion==='lantern-rules-v0.18'){const why=supportUnavailable(b,{...def,uid},getCatalog(b.ruleVersion));if(why)return why;}

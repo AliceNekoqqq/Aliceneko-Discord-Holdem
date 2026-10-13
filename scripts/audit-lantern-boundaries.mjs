@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import {beginBattle,battleAction,legalCards,legalEchoes} from '../rogue-battle.mjs';
 import {getCatalog} from '../rogue-content.mjs';
-const version=Number(process.argv.find(x=>x.startsWith('--version='))?.slice(10)??20);assert.ok([20,21].includes(version));const C=getCatalog('0.'+version);
-const {NEW_TARGETS,supportTargetAllowed}=await import(`../rogue-card-effects-v${version}.mjs`);
+const version=Number(process.argv.find(x=>x.startsWith('--version='))?.slice(10)??20);assert.ok([20,21,22].includes(version));const C=getCatalog('0.'+version);
+const {NEW_TARGETS,supportTargetAllowed}=await import(`../rogue-card-effects-v${Math.min(version,21)}.mjs`);
 import {renderRogue} from '../rogue-ui.mjs';
 import {describeRogueImage} from '../rogue-image.mjs';
 const report={plays:0,echoes:0,panels:0,issues:[]};
