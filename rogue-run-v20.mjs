@@ -1,3 +1,4 @@
+import { hasUsefulUpgrade } from './rogue-upgrade-validity.mjs';
 import { cardAllowed } from './rogue-card-access-v18.mjs';
 import { RunActionError } from './rogue-run-v04.mjs';
 export { RunActionError };
@@ -79,7 +80,7 @@ function addCard(run,id){if(!cardAllowed(CATALOG,id,run.professionId))fail('PROF
 function addItem(run,id,replaceIndex){if(!ITEMS[id])fail('UNKNOWN_ITEM','Unknown item');if(run.inventory.length<2)run.inventory.push(id);else if(!Number.isInteger(replaceIndex)||replaceIndex<0||replaceIndex>=2)fail('INVENTORY_FULL','Choose an inventory slot to replace');else run.inventory[replaceIndex]=id;}
 function relicValue(run,trigger){return run.relics.reduce((sum,id)=>sum+(CATALOG.relics[id]?.trigger===trigger?CATALOG.relics[id].value:0),0);}
 function findCard(run,uid){return run.deck.find(x=>x.uid===uid);}
-function assertUpgrade(run,uid){const e=findCard(run,uid);if(!e)fail('UNKNOWN_ENTITY',`Unknown card entity ${uid}`);if(e.upgraded)fail('ALREADY_UPGRADED',`Card entity ${uid} is already upgraded`);if(!CATALOG.cards[e.cardId]?.upgrade)fail('NO_UPGRADE',`Card ${e.cardId} has no upgrade`);return e;}
+function assertUpgrade(run,uid){const e=findCard(run,uid);if(!e)fail('UNKNOWN_ENTITY',`Unknown card entity ${uid}`);if(e.upgraded)fail('ALREADY_UPGRADED',`Card entity ${uid} is already upgraded`);if(!hasUsefulUpgrade(CATALOG.cards[e.cardId]))fail('NO_UPGRADE',`Card ${e.cardId} has no upgrade`);return e;}
 function completeStation(run){const expected=(run.act-1)*5+(run.slot-1);if(run.completed!==expected)fail('INVALID_PROGRESS','Completed station count does not match current station');run.completed++;run.room=null;run.battle=null;run.reward=null;
  if(run.slot<4){makeRoute(run,run.slot+1);return;}
  if(run.slot===4){run.path.push({act:run.act,slot:5,nodeId:`a${run.act}s5boss`,type:'boss',enemyId:run.bosses[run.act-1],eventId:null,dangerous:false});run.slot=5;startBattle(run,run.bosses[run.act-1],'boss');return;}

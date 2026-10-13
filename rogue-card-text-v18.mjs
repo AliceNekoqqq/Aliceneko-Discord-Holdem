@@ -8,7 +8,7 @@ export function newEffectLine(e){
   bank_shield:`暂存当前护盾≤${v}，下轮到账`,guard_next_hit:`本轮下一次攻击首段减伤${v}（不叠加）`,
   burn_cashout:`消耗敌人灼烧≤${v}，每层换${e.multiplier??2}盾`,bank_burn:`封存敌人灼烧≤${v}，下轮返还实际层数+1`,
   discount_target:`目标手牌本轮减${v}费（最低0）`,upgrade_target:'强化目标手牌至战斗结束',
-  recover_card:`${e.discount?'回收后本轮减'+e.discount+'费；':''}回收最近一张${e.filter==='guard'?'含护盾效果':'≤1费'}弃牌（不含本牌；手牌上限5）`,tune_echo:'强化首个未强化的待重放回声，仅限本次重放',
+  recover_card:`${e.discount?'回收后本轮减'+e.discount+'费；':''}回收最近一张${e.filter==='guard'?'含护盾效果':'≤1费'}弃牌（不含本牌；手牌上限5）`,tune_echo:'强化队首待重放回声（需未强化），仅限本次重放',
   triage:`生命≤一半时治疗${v}，否则护盾${e.block??5}`,shield_heal:`消耗已有护盾≤${v}，每2盾治疗1${e.evenOnly?"（仅消耗治疗所需的偶数护盾）":""}`,
   pet_guard:`消耗伙伴生命≤${v}，每点换2盾`,recall_pet:`撤回伙伴，备势=min(${v},伙伴生命÷2取整)，抽${e.draw??1}张`,
   forge_spend:`消耗锻值≤${v}，每点换2盾`,forge_reset:`清空锻值，每3点返还1能量（最多${e.energy??2}），护盾${e.block??3}`,

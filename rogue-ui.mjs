@@ -1,3 +1,6 @@
+import { hasUsefulUpgrade } from './rogue-upgrade-validity.mjs';
+import { supportTargetAllowed as supportTargetAllowed20 } from './rogue-card-effects-v20.mjs';
+const supportTargetAllowed=(s,...args)=>s?.ruleVersion==='lantern-rules-v0.20'?supportTargetAllowed20(s,...args):supportTargetAllowedLegacy(s,...args);
 import { supportPreview } from './rogue-card-effects-v20.mjs';
 import { WORLD_INTRO, WORLD_STORY, PROFESSION_STORIES } from './rogue-lore.mjs';
 import { cardGroups, cardEffectLines, cardWarnings, unavailableReason, playGuide } from './rogue-card-guide.mjs';
@@ -5,7 +8,7 @@ import { CATALOG } from './rogue-catalog.mjs';
 import { legalCards, legalItems, legalEchoes } from './rogue-battle.mjs';
 import { ITEMS, DIFFICULTIES, EVENTS } from './rogue-content-v07.mjs';
 import { PROFESSIONS, CATALOG_V08, ITEMS as ITEMS_V08, EVENTS as EVENTS_V08, DIFFICULTIES as DIFFICULTIES_V08 } from './rogue-content-v08.mjs';
-import { discountedDefinition, playLimitFor, supportTargetAllowed, NEW_TARGETS, hasHealing } from './rogue-card-effects-v18.mjs';
+import { discountedDefinition, playLimitFor, supportTargetAllowed as supportTargetAllowedLegacy, NEW_TARGETS, hasHealing } from './rogue-card-effects-v18.mjs';
 import { getCatalog } from './rogue-content.mjs';
 import { DIFFICULTIES as DIFFICULTIES_V17 } from './rogue-difficulty-v17.mjs';
 import { analyzeRogueBuild, explainRogueCandidate, previewRogueDeckChange } from './rogue-build-guide.mjs';
@@ -78,7 +81,7 @@ const uidEligible = (run, source, kind) => {
   const deck = run.deck ?? [];
   if (kind === 'upgrade') {
     const eligible = source === 'event' && Array.isArray(run.room?.upgradeCandidates) ? new Set(run.room.upgradeCandidates) : null;
-    return deck.filter((e) => !e.upgraded && cardOf(e.cardId)?.upgrade && (!eligible || eligible.has(e.uid)));
+    return deck.filter((e) => !e.upgraded && cardOf(e.cardId)?.upgrade && (run.ruleVersion!=='lantern-rules-v0.20'||hasUsefulUpgrade(cardOf(e.cardId))) && (!eligible || eligible.has(e.uid)));
   }
   if (source === 'event' && Array.isArray(run.room?.removeCandidates)) {
     const eligible = new Set(run.room.removeCandidates);

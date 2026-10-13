@@ -1,3 +1,4 @@
+import { hasUsefulUpgrade } from './rogue-upgrade-validity.mjs';
 // Bounded card operations; the frozen battle engine owns timing and damage.
 export const NEW_TARGETS = new Set(['discount_target','upgrade_target']);
 export const HEAL_KINDS = new Set(['heal','triage','shield_heal']);
@@ -16,7 +17,7 @@ export function conditionMet(name,before,s){
 }
 export function supportTargetAllowed(s,def,entity,catalog){
  const needsUpgrade=def.effects.some(e=>e.kind==='upgrade_target');
- if(needsUpgrade&&(entity.upgraded||!catalog.cards[entity.cardId]?.upgrade))return false;
+ if(needsUpgrade&&(entity.upgraded||!hasUsefulUpgrade(catalog.cards[entity.cardId])))return false;
  if(!needsUpgrade&&def.effects.some(e=>e.kind==='discount_target')){
   const base=catalog.cards[entity.cardId];
   const target=entity.upgraded?{...base,...base.upgrade}:base;
@@ -28,7 +29,7 @@ export function supportUnavailable(s,def,catalog){
  const kinds=def.effects.map(e=>e.kind);
  if(kinds.some(k=>NEW_TARGETS.has(k))&&!s.hand.some(e=>e.uid!==def.uid&&supportTargetAllowed(s,def,e,catalog)))return '没有符合条件的手牌目标';
  if(kinds.includes('bank_burn')&&(s.delayed?.length??0)>=2)return '延迟火种槽已满';
- if(kinds.includes('tune_echo')&&(!s.pendingEchoes?.length||s.pendingEchoes[0].definition.upgraded))return '先安排一个尚未强化的回声';
+ if(kinds.includes('tune_echo')&&(!s.pendingEchoes?.length||s.pendingEchoes[0].definition.upgraded||!hasUsefulUpgrade(catalog.cards[s.pendingEchoes[0].cardId])))return '先安排一个尚未强化的回声';
  if(kinds.some(k=>['pet_guard','recall_pet','recall_cover'].includes(k))&&s.petHp<=0)return '需要存活的伙伴';
  if(kinds.some(k=>['forge_spend','forge_reset'].includes(k))&&s.forge<=0)return '需要已有锻值';
  if(kinds.includes('shield_heal')&&(s.hp>=s.maxHp||s.shield<2))return '需要缺血且至少2点护盾';
@@ -51,9 +52,9 @@ export function applyNewEffect(ctx){
   case 'burn_cashout':{const n=consume('enemyBurn',v);shield(s,n*(e.multiplier??2));log(s,`兑现灼烧${n}层，换取护盾`);break;}
   case 'bank_burn':{if(s.delayed.length>=2)throw new RangeError('延迟火种槽已满');const n=consume('enemyBurn',v);if(n){s.delayed.push({kind:'burn',value:n+1});log(s,`封存火种${n}：下轮施加${n+1}层`);}break;}
   case 'discount_target':{if(targetUid==null)throw new RangeError('请选择手牌目标');const t=s.hand.find(x=>x.uid===targetUid);if(!t)throw new RangeError('目标手牌已不可用');s.cardDiscounts??={};s.cardDiscounts[targetUid]=Math.min(3,(s.cardDiscounts[targetUid]??0)+v);log(s,`#${targetUid}本轮费用降低${v}`);break;}
-  case 'upgrade_target':{const t=s.hand.find(x=>x.uid===targetUid);if(!t||t.upgraded||!catalog.cards[t.cardId]?.upgrade)throw new RangeError('请选择未强化手牌');s.temporaryUpgrades??={};s.temporaryUpgrades[targetUid]=false;for(const pile of ['deck','hand','draw','discard','exhaust'])for(const entity of s[pile])if(entity.uid===targetUid)entity.upgraded=true;log(s,`#${targetUid}战内强化，不写入远征牌组`);break;}
+  case 'upgrade_target':{const t=s.hand.find(x=>x.uid===targetUid);if(!t||t.upgraded||!hasUsefulUpgrade(catalog.cards[t.cardId]))throw new RangeError('请选择未强化手牌');s.temporaryUpgrades??={};s.temporaryUpgrades[targetUid]=false;for(const pile of ['deck','hand','draw','discard','exhaust'])for(const entity of s[pile])if(entity.uid===targetUid)entity.upgraded=true;log(s,`#${targetUid}战内强化，不写入远征牌组`);break;}
   case 'recover_card':{if(s.hand.length>=5){log(s,'手牌已满，无法回收');break;}const index=recoveryIndex(s,definition,e,catalog);if(index>=0){const [t]=s.discard.splice(index,1);s.hand.push(t);if(e.discount){s.cardDiscounts??={};s.cardDiscounts[t.uid]=Math.min(3,(s.cardDiscounts[t.uid]??0)+e.discount);}log(s,`回收${catalog.cards[t.cardId].name}${e.discount?'，本轮减'+e.discount+'费':''}`);}else log(s,'没有符合条件的弃牌');break;}
-  case 'tune_echo':{const queued=s.pendingEchoes[0];if(!queued||queued.definition.upgraded)throw new RangeError('没有可校准的回声');const base=catalog.cards[queued.cardId];queued.definition={...queued.definition,...base.upgrade,upgraded:true};log(s,'首个待重放回声临时强化');break;}
+  case 'tune_echo':{const queued=s.pendingEchoes[0];if(!queued||queued.definition.upgraded||!hasUsefulUpgrade(catalog.cards[queued.cardId]))throw new RangeError('没有可校准的回声');const base=catalog.cards[queued.cardId];queued.definition={...queued.definition,...base.upgrade,upgraded:true};log(s,'首个待重放回声临时强化');break;}
   case 'triage':if(s.hp<=s.maxHp/2)heal(v);else shield(s,e.block??5);break;
   case 'shield_heal':{const n=Math.min(Math.floor(Math.min(s.shield,v)/2),s.maxHp-s.hp);s.shield-=n*2;heal(n);break;}
   case 'pet_guard':{const n=consume('petHp',v);shield(s,n*2);log(s,`伙伴让出${n}生命，换取护盾`);break;}
