@@ -71,7 +71,7 @@ export class DuelRouletteController {
    else if(action==='giveup'&&bound){game.surrender(t,id);notice='已认输。';}
    else if(simultaneous){const [,round,choice]=action.split('~');game.choose(t,id,choice,Number(round));notice='出拳已记录，选择不能修改。';}
    else if(bound&&i.type===3&&['shoot_self','shoot_opponent',...Object.keys(ITEM_DEFS)].includes(action)){
-    const result=game.shootOrItem(t,id,action,action==='adrenaline'?i.data.values?.[0]:null);notice=result.reveal||'操作已完成；结果见公开面板。';
+    const result=game.shootOrItem(t,id,action,action==='adrenaline'?i.data.values?.[0]:null);notice=result.notice||result.reveal||'操作已完成。';
    }else if(['mute','rename','rename_submit'].includes(action)){
     if(t.phase!=='settled'||t.winner!==id)throw Error('只有本局胜者可以裁决。');
     if(!t.penaltyCreated){await penaltyRequest(this.env,t.guild,'create',{penalty:t.penalty});t.penaltyCreated=true;}

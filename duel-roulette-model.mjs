@@ -59,6 +59,7 @@ export function shootOrItem(t,id,action,stealKey=null,now=Date.now(),timeout=fal
  // Private shell intelligence must never enter the public log.
  push(t,line);if(result.reloaded)push(t,'空仓重新装填，补发道具并交替先手。');
  if(result.gameEnded)settle(t,result.gameWinnerId,'对手生命归零',now);
+ result.notice=[line,result.reveal,result.reloaded?'弹巢已重新装填，补发道具并交替先手。':null].filter(Boolean).join('\n');
  return result;
 }
 export function surrender(t,id,now=Date.now()){

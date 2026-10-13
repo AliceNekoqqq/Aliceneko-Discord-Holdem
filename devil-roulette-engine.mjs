@@ -2,7 +2,7 @@
  * Adapted 2026-10-13 from ESSEX-CV9/ManageBot, devilRouletteEngine.js.
  * Upstream source: https://github.com/ESSEX-CV9/ManageBot
  * SPDX-License-Identifier: AGPL-3.0-only
- * Changes: ESM exports and Web Crypto RNG for Cloudflare Workers.
+ * Changes: ESM/Web Crypto, shared useful-item guards and stolen-item filtering.
  */
 /**
  * 恶魔轮盘纯状态机（CommonJS，零依赖，可注入 rng 复现）。
@@ -23,7 +23,7 @@ const ITEM_DEFS = Object.freeze({
     magnifier: { key: 'magnifier', emoji: '🔍', name: '放大镜', description: '查看当前枪膛这一发是实弹还是空弹。' },
     cigarette: { key: 'cigarette', emoji: '🚬', name: '香烟', description: '回复 1 点生命。' },
     beer: { key: 'beer', emoji: '🍺', name: '啤酒', description: '弹出当前膛内子弹（仅剩最后一发时结束回合）。' },
-    saw: { key: 'saw', emoji: '🪚', name: '手锯', description: '下一发实弹伤害翻倍（2 点）。' },
+    saw: { key: 'saw', emoji: '🪚', name: '手锯', description: '下一次开枪若为实弹，伤害 2 点；空弹也会消耗效果。' },
     handcuffs: { key: 'handcuffs', emoji: '🔗', name: '手铐', description: '让对手下一回合无法行动。' },
     phone: { key: 'phone', emoji: '📱', name: '手机', description: '预知往后某一发是什么弹（相对当前弹位）。' },
     inverter: { key: 'inverter', emoji: '🔄', name: '逆转器', description: '把当前膛内子弹翻转为相反类型。' },
@@ -385,19 +385,30 @@ class DevilState {
     canUseItem(userId, itemKey) {
         if (this.phase !== 'playing' || userId !== this.turnPlayerId) return false;
         if (!this.items[userId].includes(itemKey)) return false;
-        if (itemKey === 'phone' && this.totalRemaining <= 1) return false; // 没有未来弹位可探
-        if (itemKey === 'handcuffs') {
-            if (this.totalRemaining <= 1) return false; // 马上重洗：锁不住有意义的下一回合
-            if (this.handcuffed.has(this.other(userId))) return false; // 对手已被铐住
-        }
         if (itemKey === 'adrenaline') return this._stealableItems(userId).length > 0;
-        return true;
+        return !this.itemUnavailableReason(userId, itemKey);
+    }
+
+    // Shared by owned items, stolen items and the UI; possession is checked separately.
+    itemUnavailableReason(userId, itemKey) {
+        if (itemKey === 'phone') {
+            if (this.totalRemaining <= 1) return '没有未来弹位可探';
+            if (this.shells.slice(this.pointer + 1).every((_, n) => this.pointer + 1 + n in (this.knownShells[userId] || {}))) return '未来弹位已全部探明';
+        }
+        if (itemKey === 'magnifier' && this.pointer in (this.knownShells[userId] || {})) return '当前弹位已探明';
+        if (['cigarette', 'medicine'].includes(itemKey) && this.hp[userId] >= GAME_CONFIG.hp) return '生命已满';
+        if (itemKey === 'saw' && this.sawArmed) return '手锯效果已生效';
+        if (itemKey === 'handcuffs') {
+            if (this.totalRemaining <= 1) return '最后一发后会重装，手铐无法生效';
+            if (this.handcuffed.has(this.other(userId))) return '对手已被铐住';
+        }
+        return '';
     }
 
     _stealableItems(userId) {
         const opponent = this.other(userId);
         // 去重：对手持有重复道具时，肾上腺素选择菜单的 option value 必须唯一（否则 Discord 400）。
-        return [...new Set(this.items[opponent].filter(item => item !== 'adrenaline'))];
+        return [...new Set(this.items[opponent].filter(item => item !== 'adrenaline' && !this.itemUnavailableReason(userId, item)))];
     }
 
     _smartStealChoice(userId, stealable) {
@@ -504,11 +515,11 @@ class DevilState {
     }
 
     _useAdrenaline(actorId, stealKey) {
-        assert(this.items[actorId].includes('adrenaline'), '你不能使用这个道具。');
-        this.items[actorId] = this._removeOneItem(this.items[actorId], 'adrenaline');
+        assert(this.canUseItem(actorId, 'adrenaline'), '对手没有当前可有效使用的道具。');
         const opponent = this.other(actorId);
         const stealable = this._stealableItems(actorId);
         assert(stealable.length > 0, '对手没有可以偷取的道具。');
+        this.items[actorId] = this._removeOneItem(this.items[actorId], 'adrenaline');
         // 指定偷取（真人走选择菜单）；未指定时按偏好偷。
         let stolen;
         if (stealKey == null || !stealable.includes(stealKey)) stolen = this._smartStealChoice(actorId, stealable);
