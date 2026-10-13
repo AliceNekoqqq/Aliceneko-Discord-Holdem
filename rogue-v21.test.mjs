@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {CATALOG_V21 as C} from './rogue-content-v21.mjs';
 import {CATALOG_V20 as OLD} from './rogue-content-v20.mjs';
 import {beginBattle,battleAction,legalCards} from './rogue-battle.mjs';
-import {createRun,runAction,CURRENT_RULE_VERSION,V20_RULE_VERSION} from './rogue-run.mjs';
+import {createRun,runAction,V21_RULE_VERSION as CURRENT_RULE_VERSION,V20_RULE_VERSION} from './rogue-run.mjs';
 import {hasUsefulUpgrade} from './rogue-upgrade-validity.mjs';
 import {renderRogue,rogueUidEligible} from './rogue-ui.mjs';
 import {describeRogueImage,renderRogueImage} from './rogue-image.mjs';
