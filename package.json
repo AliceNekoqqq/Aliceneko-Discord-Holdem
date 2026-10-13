@@ -1,6 +1,6 @@
 {
   "name": "aliceneko-discord-holdem",
-  "version": "1.0.1-beta.92+city.1",
+  "version": "1.0.1-beta.92+city.1.register.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "test:chat": "node --import=./test-static-assets.mjs --test ai-chat.test.mjs chat-enrichment.test.mjs discord-chat-context.test.mjs gateway-concurrency.test.mjs runtime-context.test.mjs relationship-memory.test.mjs city*.test.mjs",
     "test:lantern": "node --import=./test-static-assets.mjs --test rogue-*.test.mjs",
     "test:tavern": "node --import=./test-static-assets.mjs --test tavern*.test.mjs red-packet*.test.mjs",
-    "test:worker": "node --import=./test-static-assets.mjs --test worker.test.mjs lifecycle.test.mjs private-panels.test.mjs board-sync.test.mjs",
+    "test:worker": "node --import=./test-static-assets.mjs --test worker.test.mjs lifecycle.test.mjs private-panels.test.mjs board-sync.test.mjs command-registration.test.mjs",
     "test:assets": "node --import=./test-static-assets.mjs --test equipment-art.test.mjs tavern-art.test.mjs pet-art.test.mjs pet-walk-art.test.mjs rogue-image.test.mjs nickname-font.test.mjs tavern-map-image.test.mjs tavern-map-presentation.test.mjs tavern-map-scene.test.mjs uno-integration.test.mjs uno-profile.test.mjs uno-social.test.mjs uno-table-image.test.mjs uno-variants.test.mjs liar-live.test.mjs liar-private-owner.test.mjs ghost.test.mjs private-panels.test.mjs",
     "test:city": "node --import=./test-static-assets.mjs --test city*.test.mjs"
   }
