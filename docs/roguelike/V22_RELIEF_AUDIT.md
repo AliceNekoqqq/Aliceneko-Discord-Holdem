@@ -44,4 +44,4 @@ The fixed policy reaches both new bosses but avoids all three new elites; scoped
 
 ## Release
 
-Implementation/local checks complete. GitHub review, main deployment, configuration and public health verification pending.
+PR38 merged, runtime commitc92c9237ed55480a805f5588946a979ae3768710. PR check38375237608 and main release38375369003 succeeded. Cloudflare deploymentfd59bfa7-6a90-45b1-9463-36d40cdc669c, versiond8d5760f-be27-4441-b6b5-3373f089dd46 receives100%. All13 bindings, compatibility, observability and Cron match the pre-release configuration. Public health confirms beta.92/v0.22/35 enemies; ready/Gateway connected/ready=true, chat84-exclusive-red-packet fingerprint retained.
