@@ -1,8 +1,10 @@
 export function newEffectLine(e){
  const v=e.value??0;
  if(e.kind==='weapon_attack'&&e.forgePierceThreshold!=null)return `武器伤害${v}+当前锻值；锻值≥${e.forgePierceThreshold}时无视护甲`;
- const bonus={marked:'打出前有标记',burning:'打出前敌人灼烧≥4',last_play:'本轮最后一个出牌名额'};
- if(e.kind==='damage'&&e.bonus)return `伤害${v}；${bonus[e.bonus.condition]}时额外${e.bonus.value}`;
+ const bonus={marked:'打出前有标记',burning:'打出前敌人灼烧≥4',last_play:'本轮最后一个出牌名额',prepared:'打出前备势≥2'};
+ if(e.kind==='damage_from_shield'&&e.multiplier>1)return `耗盾≤${e.maxSpend}；伤害${v}+实际耗盾×${e.multiplier}`;
+ if(e.kind==='discount_retained')return `目标保留到下轮时减${v}费（最低0，不叠加，仅下轮）`;
+ if(e.kind==='damage'&&e.bonus)return `${e.ignoreArmor?'穿甲':''}伤害${v}；${bonus[e.bonus.condition]}时额外${e.bonus.value}`;
  if(e.kind==='draw'&&e.condition)return `${e.condition==='marked'?'打出前有标记':'本牌拆解锻值≥2'}时抽${v}张`;
  return ({
   bank_shield:`暂存当前护盾≤${v}，下轮到账`,guard_next_hit:`本轮下一次攻击首段减伤${v}（不叠加）`,
@@ -21,7 +23,9 @@ export function newEffectLine(e){
 export function compactEffectLine(e){
  const v=e.value??0;
  if(e.kind==='weapon_attack'&&e.forgePierceThreshold!=null)return `武器${v}+锻，锻${e.forgePierceThreshold}穿甲`;
- if(e.kind==='damage'&&e.bonus)return `伤${v}/${{marked:'标记',burning:'火4+',last_play:'末牌'}[e.bonus.condition]}+${e.bonus.value}`;
+ if(e.kind==='discount_retained')return `保留目标下轮-${v}费`;
+ if(e.kind==='damage_from_shield'&&e.multiplier>1)return `耗盾≤${e.maxSpend}伤${v}+盾×${e.multiplier}`;
+ if(e.kind==='damage'&&e.bonus)return `${e.ignoreArmor?'穿甲':''}伤${v}/${{marked:'标记',burning:'火4+',last_play:'末牌',prepared:'备势2起'}[e.bonus.condition]}+${e.bonus.value}`;
  if(e.kind==='draw'&&e.condition)return `${e.condition==='marked'?'有标记':'拆锻≥2'}抽${v}`;
  return ({bank_shield:`存盾≤${v}下轮`,guard_next_hit:`首段减伤${v}`,burn_cashout:`耗火≤${v}换盾`,bank_burn:`存火≤${v}返+1`,discount_target:`目标本轮-${v}费`,upgrade_target:'目标战内强化',recover_card:e.filter==='guard'?'回收护盾弃牌':'回收≤1费弃牌',tune_echo:'强化首个回声',triage:`半血治${v}/盾${e.block??5}`,shield_heal:`耗盾≤${v}治一半`,pet_guard:`耗宠≤${v}换双盾`,recall_pet:`撤宠备势≤${v}`,forge_spend:`拆锻≤${v}换双盾`,forge_reset:`锻清零返能≤${e.energy??2}`,tempo:'额外出牌1次',energy:`能量+${v}`,shield_break:`破盾≤${v}`,cleanse_guard:`净火≤${v}换双盾`,recall_cover:`撤宠换盾抽${e.draw??2}`}[e.kind]??null);
 }

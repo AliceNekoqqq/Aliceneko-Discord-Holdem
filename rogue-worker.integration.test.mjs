@@ -22,7 +22,7 @@ async function loadWorker() {
   return import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 }
 
-test('signed lobby launch opens a private panel; chosen profession starts a v0.20 run in the guild tavern DO', async t => {
+test('signed lobby launch opens a private panel; chosen profession starts a v0.21 run in the guild tavern DO', async t => {
   const { default: worker, PokerTable } = await loadWorker();
   const keys = await crypto.subtle.generateKey('Ed25519', true, ['sign', 'verify']);
   const env = { BOT_TOKEN: 'test-only', DISCORD_APPLICATION_ID: '123', DISCORD_PUBLIC_KEY: Buffer.from(await crypto.subtle.exportKey('raw', keys.publicKey)).toString('hex') };
@@ -52,7 +52,7 @@ test('signed lobby launch opens a private panel; chosen profession starts a v0.2
   await Promise.all(actionWaits);
   const db = instances.get('tavern:3').ctx.storage.sql;
   const run = JSON.parse(db.exec('SELECT snapshot FROM rogue_runs WHERE owner=?', '42').toArray()[0].snapshot);
-  assert.equal(run.ruleVersion, 'lantern-rules-v0.20');
+  assert.equal(run.ruleVersion, 'lantern-rules-v0.21');
   assert.equal(run.professionId, 'warden');
   assert.equal(run.difficulty,0);assert.equal(run.room.type,'blessing');
   assert.equal(run.phase, 'ROOM');

@@ -1,7 +1,7 @@
 import {isConnectedPlan,nextNodeIds,reachableNodeIds} from './rogue-route-graph.mjs';
 const marks=['①','②','③'];
 export function connectedPlanFor(run,act=run?.act){
- if(!['lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18','lantern-rules-v0.19','lantern-rules-v0.20'].includes(run?.ruleVersion))return null;
+ if(!['lantern-rules-v0.11','lantern-rules-v0.12','lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18','lantern-rules-v0.19','lantern-rules-v0.20','lantern-rules-v0.21'].includes(run?.ruleVersion))return null;
  const plan=run.mapPlan?.find(p=>p.act===act);
  return isConnectedPlan(plan)?plan:null;
 }
