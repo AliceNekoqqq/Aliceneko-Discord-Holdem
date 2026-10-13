@@ -1,3 +1,4 @@
+import { hasUsefulUpgrade } from './rogue-upgrade-validity.mjs';
 import { getCatalog } from './rogue-content.mjs';
 import { cardEffectLines } from './rogue-card-guide.mjs';
 
@@ -110,7 +111,7 @@ export function previewRogueDeckChange({ ruleVersion, deck = [], uid, cardId, ac
   if (!entity || !card) return { supported: true, available: false, reason: '指定牌实体不在当前牌组或不在目录中。' };
   if (action === 'upgrade') {
     if (entity.upgraded) return { supported: true, available: false, reason: '指定牌实体已经升级。', uid: entity.uid, cardId: selectedId };
-    if (!card.upgrade) return { supported: true, available: false, reason: '指定牌没有升级数据。', uid: entity.uid, cardId: selectedId };
+    if (!card.upgrade || catalog.version==='0.20'&&!hasUsefulUpgrade(card)) return { supported: true, available: false, reason: '指定牌没有升级数据。', uid: entity.uid, cardId: selectedId };
     return { supported: true, available: true, uid: entity.uid, cardId: selectedId, upgrade: upgradePreview(selectedId, entity.upgraded ? { ...card, ...card.upgrade } : card) };
   }
   if (action !== 'remove') return { supported: true, available: false, reason: 'action须为upgrade或remove。' };
