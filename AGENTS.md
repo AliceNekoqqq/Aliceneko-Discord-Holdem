@@ -38,3 +38,5 @@
 - 调用工具已实现并完成真实起草/返修/批准导出演练：`docs/ai/tools/gemini-writer.mjs`，用法见同目录 README。默认现有 `/v1/chat/completions` 与 `gemini-3.8-flash`。主 agent 阅读结果后填写审核反馈，未通过不能导出；不可调用时如实说明，不悄悄改成主 agent 起草。
 - 新环境从受保护环境/secret 注入 `GEMINI_WRITER_API_KEY`；当前会话私密本地凭据不保证跨环境存在。不要索取、打印或从公开仓库恢复密钥；任务记录存私密位置， only approved 正文才进入产品。
 - 密钥只通过受保护 secret/环境变量使用，不写入仓库、提示词或日志。开发创作流程不默认增加线上每条聊天审核，不自动替换人设，不因纯文档改动部署 Worker。
+
+- 跨会话创作优先使用服务器Secret及D1写作队列，见 `docs/ai/CLOUDFLARE_WRITING_JOBS.md`。用户已授权向该服务发送必要项目资料；不要再次索取已保存密钥，草稿仍须审查后采用。

@@ -1,5 +1,5 @@
 // City state is isolated from game/table and tavern wallet objects.
-export const CITY_VERSION='city.1';
+export const CITY_VERSION='city.2';
 export const validId=v=>/^\d{1,20}$/.test(String(v||''));
 export const clean=(v,n=80)=>String(v||'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/[@<>`*_\[\]]/g,'').trim().slice(0,n);
 export class CityService {
@@ -10,8 +10,8 @@ export class CityService {
   return this.storage.transaction(async tx=>{
    const c=await tx.get('city:config')||{version:CITY_VERSION,places:{}};
    if(!c.places[place.channelId]&&Object.keys(c.places).length>=200)throw Error('当前城市最多登记200个地点。');
-   if(!['public','tavern','shop','home'].includes(place.kind||'public'))throw Error('不支持的地点类型。');
-   c.places[place.channelId]={channelId:place.channelId,name:clean(place.name),street:clean(place.street),kind:place.kind||'public',description:clean(place.description,600),updatedAt:Date.now()};
+   if(!['public','tavern','shop','home','flower'].includes(place.kind||'public'))throw Error('不支持的地点类型。');
+   c.places[place.channelId]={channelId:place.channelId,name:clean(place.name),street:clean(place.street),kind:place.kind||'public',open:typeof place.open==='boolean'?place.open:(c.places[place.channelId]?.open??true),description:clean(place.description,600),updatedAt:Date.now()};
    await tx.put('city:config',c);return c.places[place.channelId];
   });
  }
@@ -48,9 +48,9 @@ export class CityService {
    return {version:CITY_VERSION,place,scene:{thread:sceneId!==place.channelId},position,recent};
   });
  }
- async recordReply({channel,placeId,messageId,user,content,now=Date.now()}){
+ async recordReply({channel,placeId,messageId,user,name,content,now=Date.now()}){
   if(!validId(placeId)||!validId(channel)||!validId(messageId)||!content)return;
-  return this.storage.transaction(async tx=>{const key=`scene:${placeId}:${channel}`,rows=(await tx.get(key)||[]).filter(r=>r.at>now-24*60*60*1000);const id=`bot:${messageId}`;if(rows.some(r=>r.id===id))return;rows.push({id,speakerId:'bot',replyTo:String(user),name:'红豆粉',content:String(content).slice(0,1000),at:now});await tx.put(key,rows.slice(-16));});
+  return this.storage.transaction(async tx=>{const key=`scene:${placeId}:${channel}`,rows=(await tx.get(key)||[]).filter(r=>r.at>now-24*60*60*1000);const id=`bot:${messageId}`;if(rows.some(r=>r.id===id))return;rows.push({id,speakerId:'bot',replyTo:String(user),name:clean(name||'红豆粉',32),content:String(content).slice(0,1000),at:now});await tx.put(key,rows.slice(-16));});
  }
 }
 export async function cityRequest(env,guild,payload){

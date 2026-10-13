@@ -1,8 +1,11 @@
+import {tavernRequest} from './tavern-service.mjs';
+import {FLOWER_OPTIONS as flowerOptions} from './flower-shop.mjs';
 import {cityRequest,validId,CITY_VERSION} from './city-service.mjs';
-const kinds={public:'公共地点',tavern:'小酒馆',shop:'店铺',home:'住宅'};
+const kinds={public:'公共地点',tavern:'小酒馆',shop:'店铺',home:'住宅',flower:'花店'};
 const sub=(name,description,options)=>({type:1,name,description,...(options?{options}:{})});
 export const cityCommand={name:'城市',description:'街道、地点与角色扮演地图',type:1,integration_types:[0],contexts:[0],options:[
  sub('地图','查看你可以访问的已登记地点',[{type:4,name:'页码',description:'地图页码，每页20个地点',min_value:1,max_value:10}]),sub('地点','查看当前频道的地点与场景'),sub('位置','查看自己的角色位置'),sub('进入','进入当前地点，或指定一个已登记频道',[{type:7,name:'频道',description:'要进入的地点频道',channel_types:[0,5]}]),sub('离开','结束当前角色场景'),
+ sub('花店','查看花店菜单、购买或赠送花束',flowerOptions),sub('礼物','查看并领取收到的花束礼物'),sub('营业','管理员：调整花店营业状态',[{type:5,name:'营业中',description:'是为营业，否为休息',required:true}]),
  sub('绑定','管理员：将当前频道登记为城市地点',[
  {type:3,name:'名称',description:'地点名称',required:true,max_length:80},{type:3,name:'街道',description:'所属街道名称',required:true,max_length:80},
  {type:3,name:'类型',description:'地点类型',choices:Object.entries(kinds).map(([value,name])=>({name,value}))},{type:3,name:'描述',description:'地点外观、用途等背景资料',max_length:600}]),
@@ -41,10 +44,13 @@ export async function cityData(env,i){
  const guild=String(i.guild_id||''),user=String(i.member?.user?.id||''),channel=String(i.channel_id||'');
  if(!validId(guild)||!validId(user)||!validId(channel)||i.member.user.bot)throw Error('请在服务器内使用城市功能。');
  const s=i.data.options?.[0],action=s?.name,opts=Object.fromEntries((s?.options||[]).map(o=>[o.name,o.value]));
- if(['绑定','解绑'].includes(action)&&!canManage(i.member))throw Error('登记地点需要「管理服务器」权限。');
+ if(['绑定','解绑','营业'].includes(action)&&!canManage(i.member))throw Error('登记地点需要「管理服务器」权限。');
+ if(action==='营业'){const c=await cityRequest(env,guild,{action:'config'}),p=c.places[channel];if(p?.kind!=='flower')throw Error('请在花店主频道调整营业状态。');await cityRequest(env,guild,{action:'bind',place:{...p,open:opts['营业中']===true}});return answer(opts['营业中']===true?'花店已开始营业。':'花店已休息，暂停新的购买和付款；礼物仍可领取。');}
  if(action==='绑定'){
   const resolved=await resolveCityChannel(env,guild,channel);if(resolved.thread)throw Error('请在主文字频道登记地点；子区会继承该地点并拥有独立场景。');
+  const before=await cityRequest(env,guild,{action:'config'});
   const p=await cityRequest(env,guild,{action:'bind',place:{channelId:channel,name:opts['名称'],street:opts['街道'],kind:opts['类型']||'public',description:opts['描述']}});
+  if(before.places[channel]&&before.places[channel].kind!==p.kind)await cityRequest(env,guild,{action:'clear',placeId:channel});
   return answer(`已登记：**${p.street} · ${p.name}**\n类型：${kinds[p.kind]}\n${p.description||'可以再次使用绑定命令补充地点描述。'}\n玩家可用 /城市 地点 或 /城市 进入 开始场景。`);
  }
  if(action==='解绑'){if(opts['确认']!==true)throw Error('未移除，请将确认选项设为是。');await cityRequest(env,guild,{action:'unbind',channel});await cityRequest(env,guild,{action:'clear',placeId:channel});return answer('已移除当前频道的地点登记。');}
@@ -67,8 +73,9 @@ export async function cityData(env,i){
  if(!['进入','地点'].includes(action))throw Error('请使用城市命令的一个子功能。');
  const target=String(opts['频道']||channel);if(target!==channel){const p=config.places[target];if(!p||!(await visiblePlaces(env,i,[p])).length)throw Error('目标地点未登记或你无权访问。');}
  const resolved=await resolveCityChannel(env,guild,target),place=config.places[resolved.channel]||config.places[resolved.parent];if(!place)return answer('这个频道尚未登记为城市地点。管理员可以使用 /城市 绑定。');
- if(action==='进入')await cityRequest(env,guild,{action:'context',...resolved,user});
- return answer(`**${place.street} · ${place.name}**\n${place.description||'此地点暂未填写场景描述。'}\n${resolved.thread?'当前子区是该地点内的独立场景。\n':''}${action==='进入'?'已更新你的角色位置。\n':''}地点：<#${place.channelId}>\n在这里 @红豆粉时，会使用当前地点的背景；店铺类型登记暂不自动开通新商品或店员。`);
+ let giftHint='';
+ if(action==='进入'){await cityRequest(env,guild,{action:'context',...resolved,user});try{const gifts=await tavernRequest(env,{guild,id:user,action:'flowerInbox'});if(gifts?.waiting?.length)giftHint='\n你有待领的花束礼物，使用 /城市 礼物 查看。';}catch{}}
+ return answer(`**${place.street} · ${place.name}**\n${place.description||'此地点暂未填写场景描述。'}\n${resolved.thread?'当前子区是该地点内的独立场景。\n':''}${action==='进入'?'已更新你的角色位置。\n':''}${giftHint}地点：<#${place.channelId}>\n在这里 @红豆粉时，会使用当前地点的背景；花店类型已支持花束与店员；其他店铺类型暂未开通商品。`);
 }
 export async function finishCity(env,i){
  let data;try{data=await cityData(env,i);}catch(e){data=answer(e.message||'城市功能暂时不可用，请重试。');}

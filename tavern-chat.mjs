@@ -16,9 +16,9 @@ export function decodeOrderReply(raw){
 }
 const normalized=value=>String(value||'').normalize('NFKC').replace(/[\s（()）]/g,'').replace(/玩家创作/g,'');
 const countValues={'一':1,'两':2,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10};
-export async function prepareChatOrder(env,message,order,menu,context,keys,fetcher=fetch){
+export async function prepareChatOrder(env,message,order,menu,context,keys,fetcher=fetch,mode='tavern'){
  const text=String(message.content||''),id=String(message.author.id);
- if(!isTavernOrderTurn(text)||/不要了|取消|算了|不要(?:给|点|来)|别(?:给|点)|如果|假如|比如|多少钱|介绍|[“”「」"]/.test(text))throw Error('这轮没有明确的点单要求，尚未创建订单。');
+ if(!(mode==='flower'?/买|要|来|送|赠/.test(text)&&menu.some(m=>text.includes(m.name.replace('花束',''))):isTavernOrderTurn(text))||/不要了|取消|算了|不要(?:给|点|来)|别(?:给|点)|如果|假如|比如|多少钱|介绍/.test(text)||(mode!=='flower'&&/[“”「」"]/.test(text)))throw Error('这轮没有明确的点单要求，尚未创建订单。');
  const matches=menu.filter(m=>normalized(m.name).includes(normalized(order.itemEvidence)));
  if(typeof order.itemEvidence!=='string'||order.itemEvidence.trim().length<2||!text.includes(order.itemEvidence)||matches.length!==1||matches[0].id!==order.itemId)throw Error('商品名称还不明确，请用菜单上的名称告诉我。');
  const quantity=order.quantity??1;
@@ -34,10 +34,11 @@ export async function prepareChatOrder(env,message,order,menu,context,keys,fetch
   const ids=[...new Set(candidates.map(p=>String(p.id)))];
   if(ids.length!==1||keys.get(ids[0])!==order.recipientKey||ids[0]===context.botId)throw Error('收礼人不明确或有重名，请直接@那位成员。');
   recipient=await verifyGiftRecipient(env,String(message.guild_id),ids[0],id,fetcher);
- }else if(/赠|送给|赠给|请.{0,30}(喝|吃)|给\s*<@!?\d+>/.test(text.replace(new RegExp(`<@!?${context.botId}>`,'g'),'')))throw Error('请明确@要赠送的成员。');
+ }else if((mode==='flower'?/送|赠|给\s*<@!?\d+>/:/赠|送给|赠给|请.{0,30}(喝|吃)|给\s*<@!?\d+>/).test(text.replace(new RegExp(`<@!?${context.botId}>`,'g'),'')))throw Error('请明确@要赠送的成员。');
+ if(mode==='flower'&&order.note&&(typeof order.note!=='string'||order.note.length>160||!text.includes(order.note)))throw Error('赠言请使用本轮消息中的原话。');
  const options={};
  for(const [field,choices] of Object.entries({sweetness:Object.keys(SWEETNESS),temperature:Object.keys(TEMPERATURE),mood:Object.keys(MOODS)})){
   const value=order.options?.[field];if(value!==undefined){if(!choices.includes(value))throw Error('口味选项无效，请从点单卡中确认。');options[field]=value;}
  }
- return tavernRequest(env,{guild:String(message.guild_id),channel:String(message.channel_id),id,name:message.member?.nick||message.author.global_name||message.author.username||'来客',action:'prepare',item:matches[0].id,options,quantity,recipient,requestKey:`ai${message.id}`});
+ return tavernRequest(env,{guild:String(message.guild_id),channel:String(message.channel_id),id,name:message.member?.nick||message.author.global_name||message.author.username||'来客',action:mode==='flower'?'flowerPrepare':'prepare',...(mode==='flower'?{note:order.note||''}:{}),item:matches[0].id,options,quantity,recipient,requestKey:`ai${message.id}`});
 }
