@@ -10,7 +10,7 @@ export const matches=i=>!!typeForName(i.data?.name)||String(i.data?.custom_id||'
 const human=i=>!!i.member?.user?.id&&!i.member.user.bot&&!(Date.parse(i.member.communication_disabled_until||'')>Date.now());
 export class DuelRouletteController {
  constructor(host){this.host=host;this.storage=host.ctx.storage;this.env=host.env;}
- async save(t,seen=null){await this.storage.put(seen?{table:t,recentInteractions:seen}:{table:t});await this.host.boards.queue(t);await this.host.armAlarm(t);}
+ async save(t,seen=null){await this.storage.put(seen?{table:t,recentInteractions:seen}:{table:t});await this.host.boards.queue(t);if(t.game==='duel')await this.storage.put('privateSyncAt',Date.now()+350);await this.host.armAlarm(t);}
  async penaltySync(t,now=Date.now()){
   if(t.phase!=='settled'||!t.penalty)return false;
   try{
@@ -64,7 +64,7 @@ export class DuelRouletteController {
   if(Number(parts[2])!==t.version&&!simultaneous&&!modal)return json(seated&&bound&&i.type===3?panelReply('对局已更新，刚才的操作未执行。'):priv('对局已更新，请使用最新按钮。'));
   let notice='操作已记录。',response=null;
   try{
-   if(action==='join'&&!bound){game.accept(t,id,display);notice='已应战。打开公开面板上的私密操作入口开始行动。';}
+   if(action==='join'&&!bound){game.accept(t,id,display);notice=t.game==='duel'?'已应战，双方会自动收到私密出拳面板。':'已应战。打开公开面板上的私密操作入口开始行动。';}
    else if(action==='decline'&&!bound){if(t.phase!=='lobby'||t.target!==id)throw Error('只有被邀请的玩家可以拒绝。');game.close(t,'对方拒绝了挑战。');}
    else if(action==='cancel'&&!bound){const admin=(BigInt(i.member.permissions||'0')&40n)!==0n;if(t.phase!=='lobby'||id!==t.owner&&!admin)throw Error('只有邀请发起者或管理员可以取消等待。');game.close(t,'邀请已取消。');}
    else if(action==='surrender'&&bound){if(!seated||t.phase!=='active'||t.game!=='devil_roulette')throw Error('现在不能认输。');return json({type:7,data:{content:'确认认输？对手将获胜，并可选择禁言 3 分钟或改名 7 分钟。',embeds:[],components:[row(button(t,`p~${id}~giveup`,'确认认输',4),button(t,`p~${id}~panel`,'返回游戏'))],allowed_mentions:{parse:[]}}});}
@@ -93,5 +93,13 @@ export class DuelRouletteController {
   if(bound)return json(panelReply(notice));
   return json(action==='join'?priv(notice):{type:6});
  }
- async alarm(t){await this.progress(t);await this.host.boards.flush(t,Date.now());await this.host.armAlarm(t);}
+ async alarm(t){
+  await this.progress(t);const now=Date.now();
+  if(t.game==='duel'){
+   if((await this.storage.get('privateExpiry'))<=now)await this.host.panels.prune(t);
+   const due=await this.storage.get('privateSyncAt');
+   if(due&&due<=now){await this.storage.delete('privateSyncAt');if(await this.host.panels.sync(t))await this.storage.put('privateSyncAt',Date.now()+3000);}
+  }
+  await this.host.boards.flush(t,Date.now());await this.host.armAlarm(t);
+ }
 }

@@ -6,6 +6,7 @@ export const label=p=>String(p?.name||'玩家').replace(/[\x00-\x1f\\`*_~>|\[\]]
 export const CHOICES={rock:'✊ 石头',scissors:'✌️ 剪刀',paper:'✋ 布'};
 export const settings=type=>type==='duel'?{wait:60000,turn:30000,decision:30000,mute:3,rename:5}:{wait:120000,turn:62000,decision:60000,mute:5,rename:10};
 const push=(t,text)=>{t.log=[...(t.log||[]),text].slice(-7);};
+const roundResult=(t,summary)=>{t.lastRound={round:t.round,summary};t.roundResults=[...(t.roundResults||[]),t.lastRound].slice(-7);};
 export function create(type,owner,channel,guild,name,target=null,now=Date.now()){
  if(!TYPES.includes(type))throw Error('无效游戏。');
  return {game:type,epoch:crypto.randomUUID().replaceAll('-','').slice(0,16),version:0,owner,channel,guild,target,phase:'lobby',players:[{id:owner,name,bot:false}],waitUntil:now+settings(type).wait,deadline:null,turn:null,handNo:0,log:[],createdAt:now,penaltyDue:null};
@@ -28,10 +29,11 @@ export function settle(t,winner,reason,now=Date.now(),surrender=false){
 }
 export function resolveRound(t,now=Date.now()){
  const picked=t.players.filter(p=>t.choices[p.id]);
- if(!picked.length){close(t,'双方均未出拳，本场取消，无惩罚。');return;}
+ if(!picked.length){roundResult(t,'双方均未出拳，本场取消，无惩罚。');close(t,t.lastRound.summary);return;}
  let winner=null;
  if(picked.length===1){winner=picked[0].id;push(t,`第 ${t.round} 轮：对方超时，${label(picked[0])} 得 1 分。`);}
  else {const [a,b]=t.players,result=resolveChoices(t.choices[a.id],t.choices[b.id]);winner=result===0?null:result===1?a.id:b.id;push(t,`第 ${t.round} 轮：${label(a)} ${CHOICES[t.choices[a.id]]} / ${label(b)} ${CHOICES[t.choices[b.id]]} · ${winner?`${label(t.players.find(p=>p.id===winner))} 得分`:'平局'}`);}
+ roundResult(t,t.log.at(-1));
  if(winner)t.scores[winner]++;
  if(winner&&t.scores[winner]>=2){settle(t,winner,'先赢两轮',now);return;}
  if(t.round>=7){close(t,'七轮后仍未分出胜负，本场取消，无惩罚。');return;}

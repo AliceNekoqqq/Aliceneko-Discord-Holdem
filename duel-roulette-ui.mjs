@@ -43,7 +43,13 @@ export function board(t){
 export function panel(t,id,notice=''){
  const p=t.players.find(p=>p.id===id);if(!p)return {content:'你没有参加这场对局。',components:[],embeds:[],allowed_mentions:mentions};
  const rows=[];let text;
- if(t.phase!=='active')text='本局已结束，请查看公开结算。';
+ if(t.phase!=='active'){
+  text=t.winner?`🏆 ${label(t.players.find(p=>p.id===t.winner))} 获胜。`:(t.closeReason||'本局已结束。');
+  if(t.phase==='settled'&&t.penalty){
+   text+=`\n${t.penaltyNotice||'胜者请选择败者惩罚。'}\n裁决期限 ${stamp(t.penalty.until)}。`;
+   if(t.winner===id)rows.push(row(button(t,`p~${id}~mute`,'选择禁言',4),button(t,`p~${id}~rename`,'指定昵称',1)));
+  }
+ }
  else if(t.game==='duel'){
   text=`第 ${t.round} 轮 · ${t.choices[id]?`已记录你的 ${CHOICES[t.choices[id]]}，不能修改。`:'选择一项出拳，其他人看不到你的选择。'}`;
   if(!t.choices[id])rows.push(row(...Object.entries(CHOICES).map(([choice,text])=>button(t,`p~${id}~choose~${t.round}~${choice}`,text,1))));
