@@ -15,3 +15,5 @@ SELECT status,draft,error FROM ai_writing_jobs WHERE id=?;
 主agent审查事实、锁定设定和质量后才将通过稿导出到产品/仓库，并标记approved。返修用新任务id，带必要的原稿和具体反馈；保留已通过内容。队列不会自动发布文案、修改NPC或向Discord发送消息。没有公开HTTP任务接口。
 
 跨对话复用依赖后续会话能访问本仓库和已连接Cloudflare；Secret持久保存不代表任意聊天都能直接读取凭据。
+
+2026-10-13实际验收：city2-writing-secret-probe-20261013由Cron领取，但状态unknown/error network_result_unknown_may_be_billed，正文为空。Secret已保存及任务处理已验证；服务生成成功尚未验证。不得将此任务盲目重发；下一次先补充安全的错误类别/阶段诊断，避免记录凭据或原始响应。
