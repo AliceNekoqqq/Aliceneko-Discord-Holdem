@@ -30,3 +30,10 @@ test('public menu belongs to a channel and opens private data for the clicker on
  await assert.rejects(flowerData(env,{...i,channel_id:'20',data:{custom_id:'fp:3:20:menu'}}),/花店/);
  await assert.rejects(cityData(env,{...i,type:2,member:{user:{id:'1'},permissions:'0'},data:{options:[{name:'面板'}]}}),/管理服务器/);
 });
+
+test('default publisher fetch retains the global receiver required by Workers runtime',async()=>{
+ const {storage,service}=fixture();await service.bind(p);const previous=globalThis.fetch;let calls=0;
+ globalThis.fetch=async function(url,options){assert.equal(this,globalThis,'native fetch must not receive CityPanel as this');calls++;return Response.json({id:'70'});};
+ try{const panel=new CityPanel(storage,service,{BOT_TOKEN:'test'});await panel.publish({guild:'3',channel:'10'});await panel.publish({guild:'3',channel:'10'});assert.equal(calls,2);}
+ finally{globalThis.fetch=previous;}
+});

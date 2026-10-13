@@ -3,7 +3,7 @@ const asset='https://discord-holdem.aliceneko.workers.dev/art/flowers/shop-backg
 export function flowerPublicPanel(guild,p){return {content:'',allowed_mentions:{parse:[]},embeds:[{title:`🌷 ${p.street} · ${p.name}`,description:`${p.description||FLOWER_PLACE_DESCRIPTION}\n\n**沈清禾**\n${FLOWER_COPY.npc.welcome}\n\n${p.open===false?'休息中 · 暂停购买':'营业中 · 点击下方查看花束'}`,color:0x849b79,image:{url:asset}}],components:[{type:1,components:[{type:2,custom_id:`fp:${guild}:${p.channelId}:menu`,label:'查看花束',style:1,disabled:p.open===false},{type:2,custom_id:`fp:${guild}:${p.channelId}:gifts`,label:'我的礼物',style:2}]}]};}
 // One publisher per city object serializes concurrent refreshes; nonce covers uncertain POSTs.
 export class CityPanel {
- constructor(storage,service,env,fetcher=fetch){this.storage=storage;this.service=service;this.env=env;this.fetcher=fetcher;this.pending=Promise.resolve();}
+ constructor(storage,service,env,fetcher=fetch){this.storage=storage;this.service=service;this.env=env;this.fetcher=fetcher.bind(globalThis);this.pending=Promise.resolve();}
  publish(q){const task=this.pending.then(()=>this.upsert(q));this.pending=task.catch(()=>{});return task;}
  async request(path,method,body){return this.fetcher(`https://discord.com/api/v10${path}`,{method,headers:{Authorization:`Bot ${this.env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(8000)});}
  async upsert({guild,channel,create=true}){
