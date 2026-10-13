@@ -10,4 +10,4 @@ test('scene animation is deterministic, compact GIF with four fully decodable fr
 test('scene can opt out of animation',async()=>{const r=await renderTavernScene(snapshot,{animated:false});assert.equal(r.filename,'tavern-scene.png');assert.equal(r.mime,'image/png');assert.deepEqual([...r.bytes.slice(0,8)],[137,80,78,71,13,10,26,10]);});
 test('canonical floorplan fixes orientation, entrance and all renovation anchors',()=>{assert.equal(TAVERN_BUILDING.footprint.width,850);assert.equal(TAVERN_BUILDING.footprint.depth,470);assert.deepEqual(TAVERN_BUILDING.anchors.entrance,{x:185,y:470});assert.equal(TAVERN_BUILDING.anchors.tables.length,4);assert.equal(Object.keys(TAVERN_BUILDING.fixtures).length,28);assert.equal(TAVERN_BUILDING.reserved.northDeck.y,-42);});
 
-test('scene renderer exposes a cache-busting art version',()=>{assert.equal(TAVERN_SCENE_VERSION,'riverside-equipment-v3');});
+test('scene renderer exposes a cache-busting art version',()=>{assert.equal(TAVERN_SCENE_VERSION,'riverside-depth-v4');});

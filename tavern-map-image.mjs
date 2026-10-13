@@ -2,7 +2,7 @@ import {Canvas,encodePNG} from './card-image.mjs';
 import {prepareNicknameFont} from './nickname-font.mjs';
 import {TAVERN_BUILDING} from './tavern-building.mjs';
 
-export const TAVERN_SCENE_VERSION='riverside-equipment-v3';
+export const TAVERN_SCENE_VERSION='riverside-depth-v4';
 const W=1000,H=760;
 const C={ink:[73,48,48],muted:[127,87,78],cream:[249,229,202],cream2:[239,211,179],walnut:[116,70,55],walnut2:[158,100,69],wood2:[185,132,91],wood3:[211,164,119],woodLine:[125,76,57],brick:[94,61,62],brickLight:[135,86,78],berry:[218,133,158],river:[124,190,198],riverDeep:[65,117,137],green:[84,130,92],gold:[240,185,94],white:[255,247,231],shade:[55,38,45],blue:[114,151,168]};
 const label=(c,s,x,y,n=13,color=C.ink,center=true)=>c.text(s,x,y,n,color,center);
@@ -19,7 +19,16 @@ const quad=(c,points,color)=>polygon(c,points.map(([x,y,z=0])=>project(x,y,z)),c
 function cuboid(c,x,y,w,d,h,top=C.wood2,side=C.walnut){const p=[[x,y,0],[x+w,y,0],[x+w,y+d,0],[x,y+d,0]],t=p.map(([a,b])=>project(a,b,h));quad(c,[p[1],p[2],p[2].map((v,i)=>i===2?h:v),[p[1][0],p[1][1],h]],side);quad(c,[p[2],p[3],[p[3][0],p[3][1],h],[p[2][0],p[2][1],h]],C.brickLight);polygon(c,t,top);}
 function dot(c,x,y,r,color){c.rect(Math.round(x-r),Math.round(y-r),r*2,r*2,color,r);}
 function line(c,a,b,color,width=2){const dx=b[0]-a[0],dy=b[1]-a[1],n=Math.max(Math.abs(dx),Math.abs(dy));for(let i=0;i<=n;i++){const x=a[0]+dx*i/n,y=a[1]+dy*i/n;c.rect(Math.round(x-width/2),Math.round(y-width/2),width,width,color);}}
-function drawRoom(c,hour){
+// Split only visible top and east faces; internal section faces must never show.
+function queueBar(c,scene,x,y,w,d,h,top,side){
+ for(let yy=y;yy<y+d;yy+=5){const end=Math.min(yy+5,y+d);scene.push({depth:x+w/2+end,draw:()=>{
+  quad(c,[[x+w,yy],[x+w,end],[x+w,end,h],[x+w,yy,h]],side);
+  quad(c,[[x,yy,h],[x+w,yy,h],[x+w,end,h],[x,end,h]],top);
+ }});}
+ scene.push({depth:x+w/2+y+d,draw:()=>quad(c,[[x,y+d],[x+w,y+d],[x+w,y+d,h],[x,y+d,h]],C.brickLight)});
+}
+function drawRoom(c,hour,scene,groundAssets){
+ const add=(x,y,draw)=>scene.push({depth:x+y,draw});
  c.rect(0,0,W,H,[82,55,59]);c.rect(12,12,W-24,H-24,[125,82,75],22);c.rect(21,21,W-42,H-42,[240,217,188],16);
  // North river beyond the cutaway wall.
  const river=[project(0,-148),project(BUILDING_W,-148),project(BUILDING_W,-24),project(0,-24)];polygon(c,river,hour<6||hour>=20?C.riverDeep:C.river);
@@ -30,22 +39,22 @@ function drawRoom(c,hour){
  // Honey-colored plank lines and subtle room zones.
  for(let y=22;y<BUILDING_D;y+=24){line(c,project(0,y),project(BUILDING_W,y),[235,205,172],1);const offset=((y/24|0)%2)*38;for(let x=offset;x<BUILDING_W;x+=88)line(c,project(x,y),project(x,Math.min(BUILDING_D,y+24)),[242,219,191],1);}
  quad(c,[[15,120],[335,120],[335,415],[15,415]],[246,225,199]);quad(c,[[365,120],[827,120],[827,442],[365,442]],[248,230,207]);
+ for(const a of groundAssets)drawFixture(c,a);
  // Long north windows with visible timber mullions, deep frames, and warm interior sills.
- for(let x=38;x<BUILDING_W-25;x+=98){const a=project(x,4,57),b=project(Math.min(x+74,BUILDING_W-8),4,57),d=project(Math.min(x+74,BUILDING_W-8),4,14),e=project(x,4,14);polygon(c,[a,b,d,e],hour<6||hour>=20?[48,75,105]:[129,194,199]);line(c,a,b,C.walnut2,7);line(c,e,d,[223,190,150],5);line(c,a,e,[231,203,169],4);line(c,b,d,[231,203,169],4);line(c,project(x+37,4,57),project(x+37,4,14),[245,218,179],2);}
+ for(let x=38;x<BUILDING_W-25;x+=98){add(x+37,4,()=>{const a=project(x,4,57),b=project(Math.min(x+74,BUILDING_W-8),4,57),d=project(Math.min(x+74,BUILDING_W-8),4,14),e=project(x,4,14);polygon(c,[a,b,d,e],hour<6||hour>=20?[48,75,105]:[129,194,199]);line(c,a,b,C.walnut2,7);line(c,e,d,[223,190,150],5);line(c,a,e,[231,203,169],4);line(c,b,d,[231,203,169],4);line(c,project(x+37,4,57),project(x+37,4,14),[245,218,179],2);});}
  // River side sill and old street-facing entrance cut into the front wall.
  line(c,project(8,0,4),project(BUILDING_W-8,0,4),C.walnut2,9);
  // A proper curved arch, cut through the south-facing street wall.
  const arch=(cx,r,base,zspring,peak)=>{const pts=[project(cx-r,BUILDING_D,-2),project(cx+r,BUILDING_D,-2),project(cx+r,BUILDING_D,zspring)];for(let i=0;i<=16;i++){const a=i*Math.PI/16;pts.push(project(cx+r*Math.cos(a),BUILDING_D,zspring+(peak-zspring)*Math.sin(a)));}return pts;};
- polygon(c,arch(185,54,0,52,91),C.walnut);polygon(c,arch(185,42,0,43,73),[186,123,81]);dot(c,...project(214,BUILDING_D,26),3,C.gold);
+ add(185,BUILDING_D,()=>{polygon(c,arch(185,54,0,52,91),C.walnut);polygon(c,arch(185,42,0,43,73),[186,123,81]);dot(c,...project(214,BUILDING_D,26),3,C.gold);});
  // East service wall and small separate back-kitchen counter.
- cuboid(c,715,28,120,82,24,[232,204,171],C.brick);label(c,'后厨',...project(775,50,27),20,C.ink);
- cuboid(c,746,135,88,205,35,C.walnut2,C.walnut);quad(c,[[748,138],[831,138],[831,340],[748,340]],C.cream2);cuboid(c,760,178,58,120,48,[177,113,78],C.walnut);label(c,'吧台',...project(789,160,52),21,C.white);
- // West commons built-in benches and north window seat are simple base furnishings.
- cuboid(c,42,216,160,24,25,C.walnut2,C.walnut);cuboid(c,42,216,18,88,23,C.walnut,C.walnut);cuboid(c,184,216,18,88,23,C.walnut,C.walnut);cuboid(c,112,320,118,27,20,C.walnut2,C.walnut);
- cuboid(c,245,38,225,28,22,[183,129,111],C.walnut);
- // Warm wall torches plus a pink butterfly mark on an inner timber beam.
- for(const [x,y] of [[370,110],[585,112],[612,392],[307,399]]){const p=project(x,y,42);c.rect(p[0]-2,p[1],4,22,C.walnut,2);dot(c,p[0],p[1],7,C.gold);}
- const beam1=project(270,110,43),beam2=project(675,110,43);line(c,beam1,beam2,C.walnut,6);dot(c,...project(462,110,46),5,C.berry);dot(c,...project(469,110,46),5,C.berry);dot(c,...project(465,110,48),3,C.cream);
+ add(775,69,()=>cuboid(c,715,28,120,82,24,[232,204,171],C.brick));
+ // Split the long bar into strips so nearby chairs and equipment can interleave.
+ queueBar(c,scene,746,135,88,205,35,C.cream2,C.walnut);
+ queueBar(c,scene,760,178,58,120,48,[177,113,78],C.walnut);
+ for(const [x,y,w,d,h,top,side] of [[42,216,160,24,25,C.walnut2,C.walnut],[42,216,18,88,23,C.walnut,C.walnut],[184,216,18,88,23,C.walnut,C.walnut],[112,320,118,27,20,C.walnut2,C.walnut],[245,38,225,28,22,[183,129,111],C.walnut]])add(x+w/2,y+d/2,()=>cuboid(c,x,y,w,d,h,top,side));
+ for(const [x,y] of [[370,110],[585,112],[612,392],[307,399]])add(x,y,()=>{const p=project(x,y,42);c.rect(p[0]-2,p[1],4,22,C.walnut,2);dot(c,p[0],p[1],7,C.gold);});
+ add(472,110,()=>{const beam1=project(270,110,43),beam2=project(675,110,43);line(c,beam1,beam2,C.walnut,6);dot(c,...project(462,110,46),5,C.berry);dot(c,...project(469,110,46),5,C.berry);dot(c,...project(465,110,48),3,C.cream);});
 }
 function drawPlant(c,x,y,level=1){const p=project(x,y,24);cuboid(c,x-10,y-8,20,17,16,[175,114,83],C.walnut);for(const [dx,dy,col] of [[-8,-17,[80,133,87]],[3,-27,[108,151,91]],[12,-15,[72,119,81]],...(level>1?[[18,-26,[84,130,92]]]:[])])dot(c,p[0]+dx,p[1]+dy,7,col);}
 function drawFurnitureTop(c,x,y,w,d,z,color=C.wood2){quad(c,[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z]],color);line(c,project(x+5,y+8,z+1),project(x+w-5,y+8,z+1),C.wood3,2);line(c,project(x+10,y+d/2,z+1),project(x+w-8,y+d/2,z+1),C.woodLine,1);}
@@ -78,7 +87,12 @@ function drawFixture(c,a){const id=a.id,def=TAVERN_BUILDING.fixtures[id];if(!def
  // A compact brass inlay marks the upgrade tier without adding another label to the map.
  const pips=Math.min(level,5);for(let i=0;i<pips;i++)dot(c,p[0]+(i-(pips-1)/2)*5,p[1]+13,2,C.gold);
 }
-function drawTable(c,table,x,y,used){const p=project(x,y,0);for(const [xx,yy] of [[-42,-25],[35,-25],[-42,18],[35,18]])cuboid(c,x+xx,y+yy,7,7,22,C.walnut,C.walnut);drawFurnitureTop(c,x-48,y-30,96,60,24,C.wood2);for(let i=0;i<3;i++)line(c,project(x-38,y-20+i*20,25),project(x+38,y-20+i*20,25),i===1?C.woodLine:C.wood3,1);const seats=[[x,y-45],[x+54,y-24],[x+57,y+18],[x,y+43],[x-56,y+18],[x-55,y-22],[x+24,y-48],[x-25,y+48]],avatarOffsets=[[-65,-64],[-22,-80],[22,-80],[65,-64],[72,12],[34,62],[-34,62],[-72,12]];seats.forEach(([sx,sy],i)=>drawStool(c,sx,sy,i%2?C.wood3:C.berry));const allPlayers=Array.isArray(table?.players)?table.players:[],players=allPlayers.slice(0,8),game=table?(gameName[table.game]||'牌桌'):'空桌',phase=table?(phaseName[table.phase]||'等待中'):'',gameWidth=[...game].length*22,phaseWidth=[...phase].length*18,w=Math.max(66,gameWidth,phaseWidth)+20,h=table?56:34,tagY=p[1]-32;c.rect(p[0]-w/2,tagY-h/2,w,h,table?[255,247,231]:[255,229,237],10);label(c,game,p[0],tagY-(table?23:17),22,C.ink);if(table)label(c,phase,p[0],tagY+5,18,C.ink);players.forEach((person,i)=>{const q=[p[0]+avatarOffsets[i][0],p[1]+avatarOffsets[i][1]],r=14;dot(c,q[0],q[1],r,person.bot?[173,148,180]:C.berry);dot(c,q[0],q[1]-1,r-5,C.white);label(c,marker(person.name),q[0],q[1]-10,18,C.ink);});allPlayers.forEach((person,index)=>used.add(String(person?.id??`anon-${table?.channel||'table'}-${index}`)));}
+const TABLE_SEATS=[[0,-45],[54,-24],[57,18],[0,43],[-56,18],[-55,-22],[24,-48],[-25,48]];
+function queueTable(c,scene,x,y){
+ scene.push({depth:x+y,draw:()=>{for(const [xx,yy] of [[-42,-25],[35,-25],[-42,18],[35,18]])cuboid(c,x+xx,y+yy,7,7,22,C.walnut,C.walnut);drawFurnitureTop(c,x-48,y-30,96,60,24,C.wood2);for(let i=0;i<3;i++)line(c,project(x-38,y-20+i*20,25),project(x+38,y-20+i*20,25),i===1?C.woodLine:C.wood3,1);}});
+ TABLE_SEATS.forEach(([dx,dy],i)=>scene.push({depth:x+dx+y+dy,draw:()=>drawStool(c,x+dx,y+dy,i%2?C.wood3:C.berry)}));
+}
+function drawTable(c,table,x,y,used){const p=project(x,y,0),avatarOffsets=[[-65,-64],[-22,-80],[22,-80],[65,-64],[72,12],[34,62],[-34,62],[-72,12]];const allPlayers=Array.isArray(table?.players)?table.players:[],players=allPlayers.slice(0,8),game=table?(gameName[table.game]||'牌桌'):'空桌',phase=table?(phaseName[table.phase]||'等待中'):'',gameWidth=[...game].length*22,phaseWidth=[...phase].length*18,w=Math.max(66,gameWidth,phaseWidth)+20,h=table?56:34,tagY=p[1]-32;c.rect(p[0]-w/2,tagY-h/2,w,h,table?[255,247,231]:[255,229,237],10);label(c,game,p[0],tagY-(table?23:17),22,C.ink);if(table)label(c,phase,p[0],tagY+5,18,C.ink);players.forEach((person,i)=>{const q=[p[0]+avatarOffsets[i][0],p[1]+avatarOffsets[i][1]],r=14;dot(c,q[0],q[1],r,person.bot?[173,148,180]:C.berry);dot(c,q[0],q[1]-1,r-5,C.white);label(c,marker(person.name),q[0],q[1]-10,18,C.ink);});allPlayers.forEach((person,index)=>used.add(String(person?.id??`anon-${table?.channel||'table'}-${index}`)));}
 function timeText(at){const d=new Date(at);if(!Number.isFinite(d.getTime()))return '时间未知';const p=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hour12:false}).format(d).replace(':','时');return `${p}分 北京时间`;}
 async function renderTavernCanvas(snapshot={},env){
  const s=snapshot&&typeof snapshot==='object'?snapshot:{},allTables=Array.isArray(s.tables)?s.tables:[],visitors=Array.isArray(s.visitors)?s.visitors:[],assets=Array.isArray(s.room?.assets)?s.room.assets:[],used=new Set(),tables=Array(4).fill(null);
@@ -90,11 +104,18 @@ async function renderTavernCanvas(snapshot={},env){
  const tableCount=Math.max(0,Number(s.tableCount)||0),gameOverflow=allTables.filter((t,i)=>{const raw=t?.displaySlot,n=raw===undefined?i:(raw===null?-1:Number(raw));return !Number.isInteger(n)||n<0||n>3;}).reduce((n,t)=>n+(Array.isArray(t?.players)?t.players.filter(p=>!p?.bot).length:0),0);
  const areaNames={bar:'吧台',window:'窗边',quiet:'静谧角',commons:'客厅'};
  const texts=[safe(s.room?.name||'红豆粉的小酒馆',18),timeText(s.at),ambient,'客厅','窗边','静谧角','吧台','后厨','空桌','德州','UNO','抽鬼牌','骗子酒馆','等待中','游戏中','已结束','今日店长',`近30分钟来客 ${visitorCount}  ·  游戏桌 ${tableCount}`,manager,`游戏区另有 ${gameOverflow} 位玩家`,...visitors.slice(0,40).map(p=>marker(p.name)),...allTables.flatMap(t=>(Array.isArray(t?.players)?t.players:[]).slice(0,8).map(p=>marker(p.name)))];await prepareNicknameFont(texts,env);
- const c=new Canvas(W,H);drawRoom(c,hour);
- // Fixed tables; live table snapshots occupy their canonical anchors, empty anchors stay explicitly empty.
+ const normalizedAssets=assets.map(a=>({...a,id:typeof a.item==='string'?a.item:a.id||a.item?.id}));
+ const c=new Canvas(W,H),scene=[];drawRoom(c,hour,scene,normalizedAssets.filter(a=>TAVERN_BUILDING.fixtures[a.id]?.shape==='deck'));
+ TAVERN_BUILDING.anchors.tables.forEach(a=>queueTable(c,scene,a.x,a.y));
+ for(const a of assets){const id=typeof a.item==='string'?a.item:a.id||a.item?.id,def=TAVERN_BUILDING.fixtures[id];if(!def||def.shape==='deck')continue;
+  // Equipment rests on its support surface; sorting uses floor position, not sprite height.
+  const z=def.z||0,dy=Math.round(z*scaleZ),surface=dy?{width:c.width,height:c.height,pixel:(x,y,...rest)=>c.pixel(x,y-dy,...rest),rect:(x,y,...rest)=>c.rect(x,y-dy,...rest),text:(v,x,y,...rest)=>c.text(v,x,y-dy,...rest)}:c;
+  scene.push({depth:def.x+def.y+(z?50:0),key:id,draw:()=>drawFixture(surface,{...a,id,name:a.name||a.item_name,founder:a.founder})});
+ }
+ scene.sort((a,b)=>a.depth-b.depth||String(a.key||'').localeCompare(String(b.key||''),'en')).forEach(item=>item.draw());
+ // Labels and player markers are UI overlays, always above physical furniture.
  TAVERN_BUILDING.anchors.tables.forEach((a,i)=>drawTable(c,tables[i],a.x,a.y,used));
- // Installed fixtures only; IDs, levels and donor labels come directly from public room assets.
- for(const a of assets){const id=typeof a.item==='string'?a.item:a.id||a.item?.id;drawFixture(c,{...a,id,name:a.name||a.item_name,founder:a.founder});}
+ label(c,'后厨',...project(775,50,27),20,C.ink);label(c,'吧台',...project(789,160,52),21,C.ink);
  const areaTag=(text,x,y,width)=>{c.rect(x-width/2,y-4,width,34,[255,244,226],12);label(c,text,x,y+2,24,C.ink);};
  areaTag('客厅',283,330,86);areaTag('窗边',440,215,86);areaTag('静谧角',333,518,130);
  const visitorIds=new Set(),byArea={bar:[],window:[],quiet:[],commons:[]};const hiddenGameIds=new Set(allTables.filter(t=>!tables.includes(t)).flatMap(t=>(Array.isArray(t?.players)?t.players:[]).filter(p=>!p?.bot).map(p=>String(p.id))));for(const v of visitors.slice(0,40)){const id=String(v?.id??'');if(!id||occupiedPlayers.has(id)||visitorIds.has(id))continue;visitorIds.add(id);const area=v?.location?.area;if(area==='game'){hiddenGameIds.add(id);continue;}const key=Object.hasOwn(byArea,area)?area:'commons';byArea[key].push(v);if(visitorIds.size>=40)break;}

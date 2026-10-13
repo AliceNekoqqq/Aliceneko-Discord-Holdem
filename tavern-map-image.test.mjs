@@ -53,7 +53,7 @@ test('all eight table players remain visible and never duplicate into visitor se
 });
 
 test('real area changes alter the map; legacy visitors default to commons and input order does not reshuffle seats',async()=>{
- assert.equal(TAVERN_SCENE_VERSION,'riverside-equipment-v3');
+ assert.equal(TAVERN_SCENE_VERSION,'riverside-depth-v4');
  const base={at:safeAt(),visitorCount:2,tableCount:0,tables:[],room:{name:'小酒馆',assets:[]}},visitors=[{id:'u2',name:'乙',location:{area:'window',changedAt:1}},{id:'u1',name:'甲',location:{area:'bar',changedAt:2}}];
  const a=await bytes({...base,visitors}),b=await bytes({...base,visitors:[...visitors].reverse()});assert.deepEqual(a,b);
  const moved=await bytes({...base,visitors:[{...visitors[0],location:{area:'quiet',changedAt:3}},visitors[1]]});assert.notDeepEqual(a,moved);
@@ -88,4 +88,19 @@ test('game labels stay with their own table instead of drifting over the lounge 
  finally{Canvas.prototype.text=original;}
  const p=TAVERN_BUILDING.projection;
  names.forEach((name,index)=>{const a=TAVERN_BUILDING.anchors.tables[index],x=p.originX+(a.x-a.y)*p.scaleX,y=p.baseY+(a.x+a.y)*p.scaleY,label=drawn.find(v=>v.text.includes(name));assert(label,`${name} table has a label`);assert(Math.abs(label.x-x)<=60&&Math.abs(label.y-y)<=65,`${name} label belongs to its table`);assert(label.size>=20,'table identity remains readable');});
+});
+
+
+test('physical layer order is independent of asset purchase order',async()=>{
+ const assets=Object.keys(TAVERN_BUILDING.fixtures).map(id=>({id,level:2}));
+ const s={at:safeAt(),room:{name:'小酒馆',assets}};
+ assert.deepEqual(await bytes(s),await bytes({...s,room:{...s.room,assets:[...assets].reverse()}}));
+});
+test('table top occludes the rear stool legs before UI tags are drawn',async()=>{
+ const hits=[],original=Canvas.prototype.pixel;
+ try{Canvas.prototype.pixel=function(x,y,color,...rest){if(x===573&&y===362)hits.push([...color]);return original.call(this,x,y,color,...rest);};await bytes({at:safeAt()});}
+ finally{Canvas.prototype.pixel=original;}
+ // This overlap previously ended in the stool side color because every chair drew last.
+ const tag=hits.findIndex(c=>c.join(',')==='255,229,237');assert(tag>0);
+ assert.deepEqual(hits[tag-1],[185,132,91]);
 });
