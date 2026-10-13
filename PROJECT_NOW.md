@@ -2,7 +2,7 @@
 
 更新时间：2026-10-13（Asia/Shanghai）
 
-- city.2.panel.1本地完成待发布：花店默认地点描述、背景图、/城市 面板管理入口，公开常驻消息按频道保存ID并串行更新，重复操作不多发；营业/绑定更新已有面板，删除可重建，HTTP权限错误不盲目重发。按钮验证服务器和所属频道，打开点击者私密菜单；花店消费地点检查保持，个人礼物跨地点，小酒馆规则保持。新定向28项通过。下一步GitHub完整CI与线上健康、注册、背景资产核验；用户在花店主频道绑定后执行 /城市 面板 并可手动置顶。
+- city.2.panel.1已发布，运行提交6143dea06015ccfa5e39fe8bc54b492638e8a6bf，完整CI/部署38393833543成功。CF部署0544ec5d-e0c6-4458-ad8d-9bae6fdd6fc2、版本15f53a53-8241-4d1f-92c4-6c2e0d928a58接收100%；15项bindings/Secret名称类型/原人设、兼容与observability精确比对保持。health ready:true，Gateway当前/期望均chat-city2-flower-npc且connected/ready/messageContentEnabled:true；实际Discord定义registered:true/version games-city2-flower-panel-registration，pending/failures空。背景JPEG实读HTTP200/277587字节/SHA一致。花店默认地点描述、宽幅背景图、/城市 面板管理入口已接入，公开常驻消息按频道保存ID并串行更新；营业/绑定刷新已有面板，权限错误不盲目重发。按钮验证服务器和所属频道，打开点击者私密菜单；花店菜单/购买限制登记地点及继承子区，个人礼物跨地点，小酒馆规则保持。新定向28/聊天108项本地通过，完整CI通过，无DO迁移/钱包变更。最后成功：注册、生产健康及背景核验；下一步用户在花店主频道重新绑定并执行 /城市 面板 发布消息，可手动置顶。实际频道中的新常驻消息和真人点击尚未验证，本批发布已完成勿重复部署。
 
 - city.2花店已发布，构建1.0.1-beta.92+city.2，运行提交17e4321202e9b5d99c178057956fea8315878dbf。GitHub完整CI/部署38391254428成功，CF部署2c1198d0-b8c2-4b05-a65a-6dbf5cae4920、版本97a425c5-a595-43e8-83f7-7c33941f3f1d接收100%。四款花束JPEG实读HTTP200/字节及SHA一致；Discord8项含城市，city2完整定义已注册，registered:true、pending/failures空。15项绑定/Secret名称类型/原人设、兼容及observability与发布前精确一致。原钱包和DO保持，无新命名空间迁移。Gateway已完成切换，实读health overall ready:true、connected/ready:true、messageContentEnabled:true，chatRuntime与expected均chat-city2-flower-npc；本批发布已完成，勿重复部署。聊天105/Worker36及定向21项本地通过，完整CI通过。写作URL及密钥已存生产Secret；D1验收任务city2-writing-secret-probe-20261013由Cron领取后unknown（network_result_unknown_may_be_billed），未取得正文，不盲目重发、不声称服务连通。以后通过受保护D1队列复用，先补充安全错误诊断再处理失败；已有NPC/花束文案由本地Gemini真实起草/返修/批准。用户下一步按docs/city/FLOWER_SHOP.md在花店主频道绑定类型花店。真人Discord呈现未验证。
 
