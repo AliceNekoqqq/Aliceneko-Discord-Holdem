@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "scan_at": "2026-10-13T16:10:21+08:00",
-  "completed_at": "2026-10-13T16:13:15+08:00",
+  "scan_at": "2026-10-13T21:29:03+08:00",
+  "completed_at": "2026-10-13T21:31:21+08:00",
   "namespace_id": "4b8575058fe745bd8abbb9eed752bf91",
   "scan_complete": true,
   "enumeration_pages": 2,
-  "objects_listed": 31,
-  "stored_objects_checked": 22,
+  "objects_listed": 34,
+  "stored_objects_checked": 23,
   "ugc_objects": 2,
   "active_dishes": 2,
   "initial_missing": 0,
@@ -16,10 +16,10 @@
       "dish_id": "ugc_25451bb14a77495f96e7",
       "recipe_revision": 1,
       "recipe_hash": "b5dfad58",
-      "stage": "ready_verified",
-      "asset_key": "art/ugc/ugc_25451bb14a77495f96e7-r1-b5dfad58.jpg",
-      "binding_readback": "ready",
       "art_recipe_hash": "b5dfad58",
+      "asset_key": "art/ugc/ugc_25451bb14a77495f96e7-r1-b5dfad58.jpg",
+      "stage": "ready_verified",
+      "binding_readback": "ready",
       "public_image": {
         "method": "cloud_browser_render_and_download",
         "loaded": true,
@@ -35,10 +35,10 @@
       "dish_id": "ugc_edf5fe7e7ef740f7ba85",
       "recipe_revision": 1,
       "recipe_hash": "8a988a6d",
-      "stage": "ready_verified",
-      "asset_key": "art/ugc/ugc_edf5fe7e7ef740f7ba85-r1-8a988a6d.jpg",
-      "binding_readback": "ready",
       "art_recipe_hash": "8a988a6d",
+      "asset_key": "art/ugc/ugc_edf5fe7e7ef740f7ba85-r1-8a988a6d.jpg",
+      "stage": "ready_verified",
+      "binding_readback": "ready",
       "public_image": {
         "method": "cloud_browser_render_and_download",
         "loaded": true,
@@ -53,10 +53,6 @@
   ],
   "remaining_missing": 0,
   "errors": [],
-  "verification_notes": [
-    "Terminal image access returned HTTP 403; authorized cloud browser loaded both public JPEGs at 512x512 and downloaded bytes matching source SHA256.",
-    "Final database query confirms active current revision and matching ready art for both dishes."
-  ],
   "deployment": {
     "performed": false,
     "reason": "No missing images; receipt-only commit"
