@@ -1,6 +1,6 @@
 import { replyToMention } from "./ai-chat.mjs";
 
-export const CHAT_PIPELINE_RUNTIME = 'chat84-exclusive-red-packet';
+export const CHAT_PIPELINE_RUNTIME = 'chat-city1-location-context';
 const GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 const GATEWAY_INTENTS = (1 << 0) | (1 << 9); // GUILDS + GUILD_MESSAGES; message content is only used for direct bot mentions.
 export const gatewayIntentsForFlags = flags => GATEWAY_INTENTS | ((Number(flags)&((1<<18)|(1<<19))) ? 1<<15 : 0);
