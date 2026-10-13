@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {beginBattle,battleAction} from './rogue-battle.mjs';
-import {createRun,runAction,CURRENT_RULE_VERSION,V19_RULE_VERSION} from './rogue-run.mjs';
+import {createRun,runAction,V20_RULE_VERSION as CURRENT_RULE_VERSION,V19_RULE_VERSION} from './rogue-run.mjs';
 import {getCatalog} from './rogue-content.mjs';
 import {enemyPressureFor} from './rogue-enemy-pressure-v20.mjs';
 import {renderRogue} from './rogue-ui.mjs';

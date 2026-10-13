@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {CATALOG_V20 as C} from './rogue-content-v20.mjs';
 import {hasUsefulUpgrade} from './rogue-upgrade-validity.mjs';
-import {createRun,runAction,CURRENT_RULE_VERSION} from './rogue-run.mjs';
+import {createRun,runAction,V20_RULE_VERSION as CURRENT_RULE_VERSION} from './rogue-run.mjs';
 import {beginBattle,battleAction,legalCards} from './rogue-battle.mjs';
 import {supportTargetAllowed} from './rogue-card-effects-v20.mjs';
 import {renderRogue,rogueUidEligible} from './rogue-ui.mjs';

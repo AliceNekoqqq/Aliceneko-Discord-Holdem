@@ -47,8 +47,8 @@ export function enemyImageCue(b) {
  return cue;
 }
 function baseEnemyImageCue(b) {
-  if (!['lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18','lantern-rules-v0.19','lantern-rules-v0.20'].includes(b?.ruleVersion)) return '';
-  if(['lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18','lantern-rules-v0.19','lantern-rules-v0.20'].includes(b.ruleVersion) && b.phaseNextIntent && b.phaseStartTurn>b.turn)return `下轮阶段开场 ${compactIntent(b.phaseNextIntent)}`;
+  if (!['lantern-rules-v0.13','lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18','lantern-rules-v0.19','lantern-rules-v0.20','lantern-rules-v0.21'].includes(b?.ruleVersion)) return '';
+  if(['lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18','lantern-rules-v0.19','lantern-rules-v0.20','lantern-rules-v0.21'].includes(b.ruleVersion) && b.phaseNextIntent && b.phaseStartTurn>b.turn)return `下轮阶段开场 ${compactIntent(b.phaseNextIntent)}`;
   const i=b.intent;
   if(i?.kind==='attack'&&i.shieldAfter)return `攻击后架盾${i.shieldAfter}`;
   if(i?.kind==='tempo')return `已出${b.plays??0}张 当前${(b.plays??0)<=i.playThreshold?'架盾':'攻击'}分支 第三张牌会改分支`;
@@ -56,7 +56,7 @@ function baseEnemyImageCue(b) {
   if (i?.chargeBreak) {
     return `${i.armor < 0 ? `本轮护甲${b.enemyArmor} ` : ''}破势 ${Math.min(b.chargeDamage??0,i.chargeBreak.threshold)}/${i.chargeBreak.threshold} 达标下轮每段减${i.chargeBreak.reduction}`;
   }
-  if (['lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18','lantern-rules-v0.19','lantern-rules-v0.20'].includes(b.ruleVersion) && i?.kind === 'conditional') return b.firstCardKind == null
+  if (['lantern-rules-v0.14','lantern-rules-v0.15','lantern-rules-v0.16','lantern-rules-v0.17','lantern-rules-v0.18','lantern-rules-v0.19','lantern-rules-v0.20','lantern-rules-v0.21'].includes(b.ruleVersion) && i?.kind === 'conditional') return b.firstCardKind == null
     ? '首牌决定分支 后续出牌不会改变'
     : `分支已锁定 ${b.firstCardKind === 'attack' ? '首牌含直伤' : '首牌不含直伤'}`;
   return '';
