@@ -6,6 +6,22 @@ const source=(await readFile(new URL('./worker.mjs',import.meta.url),'utf8')).re
 const preparedSource=source.replaceAll("'./uno-engine.mjs'",JSON.stringify(new URL('./uno-engine.mjs',import.meta.url).href)).replaceAll("'./board-sync.mjs'",JSON.stringify(new URL('./board-sync.mjs',import.meta.url).href)).replaceAll("'./uno-controller.mjs'",JSON.stringify(new URL('./uno-controller.mjs',import.meta.url).href)).replaceAll("'./uno-ui.mjs'",JSON.stringify(new URL('./uno-ui.mjs',import.meta.url).href));
 const {default:worker,PokerTable}=await import('data:text/javascript;base64,'+Buffer.from(preparedSource.replace(/from '(\.\/[^']+)'/g,(_,p)=>`from ${JSON.stringify(new URL(p,import.meta.url).href)}`)).toString('base64'));
 const pokerState=t=>{const copy=structuredClone(t);delete copy.ownerSeenAt;delete copy.takeoverNoticeFor;return copy;};
+function duelRouletteContext(){const ctx=context();ctx.storage.put=async(k,v)=>{if(k&&typeof k==='object'){for(const [key,value] of Object.entries(k))ctx.map.set(key,structuredClone(value));}else ctx.map.set(k,structuredClone(v));};ctx.storage.delete=async k=>{for(const key of Array.isArray(k)?k:[k])ctx.map.delete(key);};return ctx;}
+test('independent duel command routes, binds, accepts and restores inside PokerTable',async()=>{
+ const ctx=duelRouletteContext(),env={BOT_TOKEN:'test'},host=new PokerTable(ctx,env);let counter=0;
+ const call=async(type,data,user='1',flags=0)=>(await host.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:{id:String(++counter),type,guild_id:'3',channel_id:'2',member:{user:{id:user,username:user},permissions:'0'},message:{id:'101',flags},data}})}))).json();
+ const create=await call(2,{name:'死斗',options:[{name:'等待对手'}]});assert.equal(create.type,4);let t=ctx.map.get('table');assert.equal(t.game,'duel');
+ await host.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'bind',epoch:t.epoch,messageId:'101'})}));t=ctx.map.get('table');assert.equal(t.messageId,'101');
+ await call(3,{custom_id:`dr:${t.epoch}:${t.version}:join`},'4');t=ctx.map.get('table');assert.equal(t.phase,'active');assert.equal(t.round,1);
+ const fresh=new PokerTable(ctx,env);const reply=await fresh.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:{id:'restore',type:3,guild_id:'3',channel_id:'2',member:{user:{id:'1'}},message:{id:'101'},data:{custom_id:`dr:${t.epoch}:${t.version}:panel`}}})}));const panel=await reply.json();assert.equal(panel.data.flags,64);assert(panel.data.components[0].components.every(b=>b.custom_id.includes('p~1~choose~1~')));assert(!ctx.map.get('privatePanels'));
+});
+test('roulette alarms operate the imported engine rather than poker lifecycle',async(tst)=>{
+ const ctx=duelRouletteContext(),host=new PokerTable(ctx,{BOT_TOKEN:'test'}),oldFetch=globalThis.fetch;globalThis.fetch=async()=>Response.json({id:'101'});tst.after(()=>{globalThis.fetch=oldFetch;});
+ const call=async(type,data,id='1')=>(await host.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:{id:crypto.randomUUID(),type,guild_id:'3',channel_id:'2',member:{user:{id}},message:{id:'101'},data}})}))).json();
+ await call(2,{name:'恶魔轮盘',options:[{name:'等待对手'}]});let t=ctx.map.get('table');await call(3,{custom_id:`dr:${t.epoch}:${t.version}:join`},'4');t=ctx.map.get('table');
+ t.state.shells=[false,true];t.state.pointer=0;t.state.turnPlayerId='1';t.turn='1';t.deadline=Date.now()-60000;await ctx.storage.put('table',t);const token=t.state.turnToken;
+ await host.alarm();const after=ctx.map.get('table');assert.equal(after.game,'devil_roulette');assert.equal(after.state.turnToken,token+1);assert.equal(after.state.pointer,1);assert.equal(after.turn,'4');assert(after.deadline>Date.now());assert(!after.computerDue);assert(!after.lastActive);
+});
 test('health rejects a connected gateway running the previous chat pipeline',async()=>{
   let actual={connected:true,ready:true,chatRuntime:'chat50-channel-order-speaker-map',token:'must-not-leak'};
   const env={TABLES:{idFromName:n=>n,get:n=>({fetch:async()=>Response.json(n==='system-health'?{ok:true,version:'test'}:actual)})}};
@@ -25,7 +41,7 @@ test('signed Discord flow, private cards, stale click, duplicate, modal, timeout
  const call=async(data)=>{const i={application_id:'123',guild_id:'3',channel_id:'2',id:String(++counter),token:'transient-secret',member:{user:{id:'1'},permissions:'0'},...data};const body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');const ctx=context();const r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);await Promise.all(ctx.tasks);return {reply:await r.json(),i};};
  const unsigned=await worker.fetch(new Request('https://test/interactions',{method:'POST',body:'{}'}),env,context());assert.equal(unsigned.status,401);
  const hidden=await worker.fetch(new Request('https://test/.env'),env,context());assert.equal(hidden.status,404);
- const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
+ const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.1',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
  assert.deepEqual((await call({type:1})).reply,{type:1});
  const create={type:2,data:{name:'德州',options:[{name:'创建'}]}};
  let {reply:b}=await call(create);assert.equal(b.type,4);assert(!JSON.stringify(b).includes(env.BOT_TOKEN));
@@ -275,3 +291,4 @@ test('signed city commands acknowledge privately and use a separate city object 
  try{const ctx=context();const r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);assert.deepEqual(await r.json(),{type:5,data:{flags:64}});await Promise.all(ctx.tasks);assert(objects.has('city:3'));assert(!objects.has('table:3:2'));assert.equal(deliveries[0].flags,64);assert.deepEqual(deliveries[0].allowed_mentions,{parse:[]});}
  finally{globalThis.fetch=old;}
 });
+

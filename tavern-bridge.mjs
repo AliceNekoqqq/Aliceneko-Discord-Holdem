@@ -19,3 +19,4 @@ export class TavernBridge {
   }catch{const retries=(await this.storage.get('tavernRetries')||0)+1;await this.storage.put('tavernRetries',retries);await this.storage.put('tavernSyncAt',Date.now()+Math.min(900000,5000*2**Math.min(retries-1,8)));}
  }
 }
+

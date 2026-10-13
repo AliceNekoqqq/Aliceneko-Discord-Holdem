@@ -2,6 +2,8 @@
 
 更新时间：2026-10-13（Asia/Shanghai）
 
+- 恶魔轮盘 / 死斗 PR #41：用户已确认AGPL许可方案，继续合并发布。14项定向与Worker52/52本地通过。扩大本地回归986项981通过：3项因验收副本缺少最新知识库文档/花店JPEG，2项旧命令注册测试失配；原main Worker对照确认同样2项失败（30项28通过），并非新游戏引入。PR已转待合并，基于最新main 1cd46cf解决PROJECT_NOW冲突，运行代码保持。GitHub尚未产生PR CI记录，生产未更新。下一步核对CI、合并与生产部署，保留Secret/15bindings/DO v1/D1/Cron/人设。
+
 - city.2.panel.2面板Illegal invocation修复已上线：CityPanel原先将原生fetch存为成员方法，调用时this错误；现fetcher.bind(globalThis)，增加默认发送路径要求global receiver的回归测试。定向17项及完整CI/部署38395284700成功，运行提交e4f4e65f2d5deb0615dd9b4cc4cfb697bb8158ba。CF部署b793c8e9-e186-4330-aa49-cb5685a75e81/版本8cd8e780-9838-4475-9fd4-44b1b233de80接收100%；21:26实读health版本city.2.panel.2/ready:true，Gateway connected/ready/messageContentEnabled:true、运行指纹匹配。上一阶段CF部署读回因额度审批服务失败暂未执行，此次已恢复并完成。最后成功：生产版本与部署核验；用户在已绑定的花店频道直接重新执行 /城市 面板，不用重绑。真人面板发送尚需重试反馈，本批勿重复部署。
 
 - city.2.panel.1已发布，运行提交6143dea06015ccfa5e39fe8bc54b492638e8a6bf，完整CI/部署38393833543成功。CF部署0544ec5d-e0c6-4458-ad8d-9bae6fdd6fc2、版本15f53a53-8241-4d1f-92c4-6c2e0d928a58接收100%；15项bindings/Secret名称类型/原人设、兼容与observability精确比对保持。health ready:true，Gateway当前/期望均chat-city2-flower-npc且connected/ready/messageContentEnabled:true；实际Discord定义registered:true/version games-city2-flower-panel-registration，pending/failures空。背景JPEG实读HTTP200/277587字节/SHA一致。花店默认地点描述、宽幅背景图、/城市 面板管理入口已接入，公开常驻消息按频道保存ID并串行更新；营业/绑定刷新已有面板，权限错误不盲目重发。按钮验证服务器和所属频道，打开点击者私密菜单；花店菜单/购买限制登记地点及继承子区，个人礼物跨地点，小酒馆规则保持。新定向28/聊天108项本地通过，完整CI通过，无DO迁移/钱包变更。最后成功：注册、生产健康及背景核验；下一步用户在花店主频道重新绑定并执行 /城市 面板 发布消息，可手动置顶。实际频道中的新常驻消息和真人点击尚未验证，本批发布已完成勿重复部署。
