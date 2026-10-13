@@ -2,7 +2,7 @@
 
 更新时间：2026-10-13（Asia/Shanghai）
 
-- 恶魔轮盘 / 死斗 PR #41：用户已确认AGPL许可方案，继续合并发布。14项定向与Worker52/52本地通过。扩大本地回归986项981通过：3项因验收副本缺少最新知识库文档/花店JPEG，2项旧命令注册测试失配；原main Worker对照确认同样2项失败（30项28通过），并非新游戏引入。PR已转待合并，基于最新main 1cd46cf解决PROJECT_NOW冲突，运行代码保持。GitHub尚未产生PR CI记录，生产未更新。下一步核对CI、合并与生产部署，保留Secret/15bindings/DO v1/D1/Cron/人设。
+- 恶魔轮盘 / 死斗已上线（2026-10-13）：构建1.0.1-beta.92+city.2.panel.2.games.1，PR #41合并，运行提交7f71e6e1753cd6519c6000d6beaef36e4dbc99b2。用户确认AGPL许可方案；独立命令沿用等待对手/发起挑战/牌桌/帮助。轮盘4HP/九道具/私密情报/62秒超时；死斗先赢2轮/最多7轮/30秒超时；频道DO保存状态、Alarm推进、持久惩罚及条件改名恢复。本地定向14/Worker52通过，最终PR CI38406294946和main发布38406466080全部成功。CF部署53788f26-2df8-469d-be8d-2d39d1a61af6、版本c05b75b4-63e0-424b-b6b7-6d3d950e5ea7接收100%；15bindings/Secret名类型/原人设/兼容/observability/迁移标签精确比对一致，Cron每分钟保持。生产源代码读回包含新控制器/惩罚/命令指纹及版本。health HTTP200/ready:true，Gateway connected/ready/messageContentEnabled:true，运行指纹匹配；Discord10项含死斗/恶魔轮盘，registered:true、missing/pending/failures空。扩大本地回归986项981通过：3项本地副本缺文档/图片，2项旧注册测试原main对照也失败，未误报全量通过。真人游玩和服务器实际处罚权限待用户测试。最后成功：线上健康/注册/配置/代码读回验收；本批发布完成，勿重复部署。
 
 - city.2.panel.2面板Illegal invocation修复已上线：CityPanel原先将原生fetch存为成员方法，调用时this错误；现fetcher.bind(globalThis)，增加默认发送路径要求global receiver的回归测试。定向17项及完整CI/部署38395284700成功，运行提交e4f4e65f2d5deb0615dd9b4cc4cfb697bb8158ba。CF部署b793c8e9-e186-4330-aa49-cb5685a75e81/版本8cd8e780-9838-4475-9fd4-44b1b233de80接收100%；21:26实读health版本city.2.panel.2/ready:true，Gateway connected/ready/messageContentEnabled:true、运行指纹匹配。上一阶段CF部署读回因额度审批服务失败暂未执行，此次已恢复并完成。最后成功：生产版本与部署核验；用户在已绑定的花店频道直接重新执行 /城市 面板，不用重绑。真人面板发送尚需重试反馈，本批勿重复部署。
 

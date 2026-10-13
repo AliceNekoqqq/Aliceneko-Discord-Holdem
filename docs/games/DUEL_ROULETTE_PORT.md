@@ -31,6 +31,13 @@
 ## 验证状态
 
 - 本地14项定向检查通过：规则、隐私、旧按钮、归属、同时出拳、超时、重启快照、惩罚幂等与恢复。
-- 两项实际PokerTable集成检查已通过；补齐与固定main匹配的本地副本后，`npm run test:worker` 52/52通过。PR #41已创建，GitHub尚无CI运行记录，未声称CI已通过。
-- 许可方案见 `THIRD_PARTY_NOTICES.md`；PR #41许可方案已获用户确认，继续检查并合并上线。
+- 两项实际PokerTable集成检查已通过；补齐与固定main匹配的本地副本后，`npm run test:worker` 52/52通过。PR #41已合并，最终PR CI 38406294946 / main发布 38406466080成功。
+- 许可方案见 `THIRD_PARTY_NOTICES.md`；PR #41许可方案已获用户确认并已合并上线。
 - 真人Discord呈现、服务器实际权限和在线恢复尚未验收。
+
+## 2026-10-13 发布回执
+
+- 运行提交 `7f71e6e1753cd6519c6000d6beaef36e4dbc99b2`，构建 `1.0.1-beta.92+city.2.panel.2.games.1`。
+- Cloudflare版本 `c05b75b4-63e0-424b-b6b7-6d3d950e5ea7` / 部署 `53788f26-2df8-469d-be8d-2d39d1a61af6`，100%流量。15项绑定/Secret名称类型/人设/兼容/观测/迁移比对一致，Cron仍每分钟。
+- 生产代码读回确认版本、控制器、惩罚及注册指纹；health HTTP200/ready:true/Gateway就绪，Discord10项包含两新游戏，注册成功，无pending/failures。
+- 真人界面、对局和实际服务器惩罚权限待用户测试。
