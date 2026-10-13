@@ -2,6 +2,8 @@
 
 更新时间：2026-10-13（Asia/Shanghai）
 
+- city.2.panel.1本地完成待发布：花店默认地点描述、背景图、/城市 面板管理入口，公开常驻消息按频道保存ID并串行更新，重复操作不多发；营业/绑定更新已有面板，删除可重建，HTTP权限错误不盲目重发。按钮验证服务器和所属频道，打开点击者私密菜单；花店消费地点检查保持，个人礼物跨地点，小酒馆规则保持。新定向28项通过。下一步GitHub完整CI与线上健康、注册、背景资产核验；用户在花店主频道绑定后执行 /城市 面板 并可手动置顶。
+
 - city.2花店已发布，构建1.0.1-beta.92+city.2，运行提交17e4321202e9b5d99c178057956fea8315878dbf。GitHub完整CI/部署38391254428成功，CF部署2c1198d0-b8c2-4b05-a65a-6dbf5cae4920、版本97a425c5-a595-43e8-83f7-7c33941f3f1d接收100%。四款花束JPEG实读HTTP200/字节及SHA一致；Discord8项含城市，city2完整定义已注册，registered:true、pending/failures空。15项绑定/Secret名称类型/原人设、兼容及observability与发布前精确一致。原钱包和DO保持，无新命名空间迁移。Gateway已完成切换，实读health overall ready:true、connected/ready:true、messageContentEnabled:true，chatRuntime与expected均chat-city2-flower-npc；本批发布已完成，勿重复部署。聊天105/Worker36及定向21项本地通过，完整CI通过。写作URL及密钥已存生产Secret；D1验收任务city2-writing-secret-probe-20261013由Cron领取后unknown（network_result_unknown_may_be_billed），未取得正文，不盲目重发、不声称服务连通。以后通过受保护D1队列复用，先补充安全错误诊断再处理失败；已有NPC/花束文案由本地Gemini真实起草/返修/批准。用户下一步按docs/city/FLOWER_SHOP.md在花店主频道绑定类型花店。真人Discord呈现未验证。
 
 - 城市命令入口补修已上线，构建 `1.0.1-beta.92+city.1.register.3`。实际Discord清单先只有7项，注册诊断捕获城市/ai/灯下迷城HTTP429；不是命令总数量超限。原重试重复并发提交全部命令，现先读定义并跳过不变项，每轮最多2项、城市优先，429按retry_after且至少60秒退避并停止当前批次；完整清单/定义匹配后才缓存版本。注册状态独立DO名称，无迁移/钱包/游戏变更。`/health?commands=1`为只读清单与诊断入口。Worker/注册器33项通过，PR40 CI38381595511、生产38381802304、后续生产38382449190/38383157495成功。最终运行提交20e7b0eab4b2289d630e113a48e0833ea9faf30e；CF部署6dba27df-5473-4c32-8230-72f4a3e5d172、版本efcc741a-7c3b-42f7-966a-c09b234550d1接收100%，13绑定/Secret类型/人设/迁移标签/兼容/observability比对保持。实读health ready:true、Gateway当前city1指纹匹配；Discord GET200，8项包含城市，registered:true、missing/pending/failures均空。授权临时Tail已删除；执行环境实时连接未成功，无日志正文导出。最后成功：实际命令清单验收，下一步客户端刷新后绑定地点，手机真人呈现未验证；勿重复部署。

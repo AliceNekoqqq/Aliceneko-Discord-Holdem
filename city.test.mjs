@@ -69,7 +69,7 @@ test('scene context resolves thread parent, updates position but does not save c
 });
 test('city changes scene instruction without replacing persona or pretending shops are implemented',()=>{
  const s=makeSystemInstruction('原有人设','chat',[],'','',{city:{place:{name:'花店'}}});assert(s.includes('程序提供的city.place'));assert(s.includes('原有人设'));assert(s.includes('未实现的新店业务'));assert(!s.includes('默认模拟发生在小酒馆'));
- assert.equal(cityCommand.options.length,10);
+ assert.equal(cityCommand.options.length,11);
 });
 
 test('actual city chat excludes global personal history, stays local and honors memory off',async()=>{

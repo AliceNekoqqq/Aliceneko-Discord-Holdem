@@ -7,12 +7,18 @@ const key=(i,a)=>`f:${i.guild_id}:${i.member.user.id}:${a}`;
 const button=(i,a,label,style=2)=>({type:2,custom_id:key(i,a),label,style});
 const data=content=>({content,flags:64,allowed_mentions:{parse:[]}});
 const rpc=(env,i,p)=>tavernRequest(env,{guild:i.guild_id,id:i.member.user.id,name:i.member.nick||i.member.user.global_name||i.member.user.username,channel:i.channel_id,...p});
-export const flowerInteraction=i=>i.type===3&&i.data?.custom_id?.startsWith('f:');
+export const flowerInteraction=i=>i.type===3&&/^f(?:p)?:/.test(i.data?.custom_id||'');
 
 async function place(env,i,purchase=false){const c=await cityChatContext(env,{guild_id:i.guild_id,channel_id:i.channel_id,author:i.member.user});if(c?.place.kind!=='flower')throw Error('请到登记为花店的频道使用 /城市 花店。');if(purchase&&c.place.open===false)throw Error('花店正在休息，暂时不能购买。');return c.place;}
 function draftData(i,d){const item=FLOWERS.find(x=>x.id===d.item);return {...data(`🌷 **花束订单 · 待确认**\n${item.name} ×${d.quantity} · **${d.price}币**\n收礼人：${d.recipient_name}\n${d.note?`赠言：${d.note}\n`:''}余额：${d.balance}币\n确认前不会扣款，订单3分钟内有效。`),embeds:[{image:{url:`https://discord-holdem.aliceneko.workers.dev/art/flowers/${d.item}.jpg`}}],components:[row(button(i,`confirm~${d.id}~${d.recipient}`,'确认付款',1),button(i,`cancel~${d.id}`,'取消'))]};}
 export async function flowerData(env,i){
- const s=i.data.options?.[0],opts=Object.fromEntries((s?.options||[]).map(o=>[o.name,o.value]));
+ let s=i.data.options?.[0];const opts=Object.fromEntries((s?.options||[]).map(o=>[o.name,o.value]));
+ if(i.type===3&&i.data.custom_id.startsWith('fp:')){
+  const parts=i.data.custom_id.split(':');
+  if(parts.length!==4||parts[1]!==i.guild_id||parts[2]!==i.channel_id||!['menu','gifts'].includes(parts[3]))throw Error('请到这张面板所属的花店频道使用。');
+  const p=await place(env,i);if(p.channelId!==i.channel_id)throw Error('请在花店主频道使用常驻面板。');
+  s={name:parts[3]==='gifts'?'礼物':'花店'};i={...i,type:2};
+ }
  if(i.type===3){const parts=i.data.custom_id.split(':');if(parts.length!==4||parts[1]!==i.guild_id||parts[2]!==i.member.user.id||(!(Number(i.message?.flags)&64)&&!parts[3].startsWith('review~')))throw Error('请打开自己的花店或礼物面板。');
   const [a,id,recipient]=parts[3].split('~');
   if(a==='review'){await place(env,i);return draftData(i,await rpc(env,i,{action:'flowerDraft',draftId:id}));}

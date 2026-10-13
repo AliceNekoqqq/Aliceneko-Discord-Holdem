@@ -25,3 +25,6 @@ export const FLOWER_COPY={
     }
   ]
 };
+
+// Factual location summary assembled from the approved character and canonical menu.
+export const FLOWER_PLACE_DESCRIPTION="沈清禾在河西街经营多年的小花店。玫瑰、向日葵、满天星与混合花束可供挑选。";

@@ -1,3 +1,4 @@
+import {FLOWER_PLACE_DESCRIPTION} from './flower-copy.mjs';
 import {tavernRequest} from './tavern-service.mjs';
 import {FLOWER_OPTIONS as flowerOptions} from './flower-shop.mjs';
 import {cityRequest,validId,CITY_VERSION} from './city-service.mjs';
@@ -5,7 +6,7 @@ const kinds={public:'公共地点',tavern:'小酒馆',shop:'店铺',home:'住宅
 const sub=(name,description,options)=>({type:1,name,description,...(options?{options}:{})});
 export const cityCommand={name:'城市',description:'街道、地点与角色扮演地图',type:1,integration_types:[0],contexts:[0],options:[
  sub('地图','查看你可以访问的已登记地点',[{type:4,name:'页码',description:'地图页码，每页20个地点',min_value:1,max_value:10}]),sub('地点','查看当前频道的地点与场景'),sub('位置','查看自己的角色位置'),sub('进入','进入当前地点，或指定一个已登记频道',[{type:7,name:'频道',description:'要进入的地点频道',channel_types:[0,5]}]),sub('离开','结束当前角色场景'),
- sub('花店','查看花店菜单、购买或赠送花束',flowerOptions),sub('礼物','查看并领取收到的花束礼物'),sub('营业','管理员：调整花店营业状态',[{type:5,name:'营业中',description:'是为营业，否为休息',required:true}]),
+ sub('面板','管理员：发布或更新当前花店的常驻面板'),sub('花店','查看花店菜单、购买或赠送花束',flowerOptions),sub('礼物','查看并领取收到的花束礼物'),sub('营业','管理员：调整花店营业状态',[{type:5,name:'营业中',description:'是为营业，否为休息',required:true}]),
  sub('绑定','管理员：将当前频道登记为城市地点',[
  {type:3,name:'名称',description:'地点名称',required:true,max_length:80},{type:3,name:'街道',description:'所属街道名称',required:true,max_length:80},
  {type:3,name:'类型',description:'地点类型',choices:Object.entries(kinds).map(([value,name])=>({name,value}))},{type:3,name:'描述',description:'地点外观、用途等背景资料',max_length:600}]),
@@ -44,14 +45,16 @@ export async function cityData(env,i){
  const guild=String(i.guild_id||''),user=String(i.member?.user?.id||''),channel=String(i.channel_id||'');
  if(!validId(guild)||!validId(user)||!validId(channel)||i.member.user.bot)throw Error('请在服务器内使用城市功能。');
  const s=i.data.options?.[0],action=s?.name,opts=Object.fromEntries((s?.options||[]).map(o=>[o.name,o.value]));
- if(['绑定','解绑','营业'].includes(action)&&!canManage(i.member))throw Error('登记地点需要「管理服务器」权限。');
- if(action==='营业'){const c=await cityRequest(env,guild,{action:'config'}),p=c.places[channel];if(p?.kind!=='flower')throw Error('请在花店主频道调整营业状态。');await cityRequest(env,guild,{action:'bind',place:{...p,open:opts['营业中']===true}});return answer(opts['营业中']===true?'花店已开始营业。':'花店已休息，暂停新的购买和付款；礼物仍可领取。');}
+ if(['绑定','解绑','营业','面板'].includes(action)&&!canManage(i.member))throw Error('登记地点需要「管理服务器」权限。');
+ if(action==='面板'){const resolved=await resolveCityChannel(env,guild,channel);if(resolved.thread)throw Error('请在花店主文字频道发布常驻面板。');const r=await cityRequest(env,guild,{action:'panel',guild,channel});return answer(`花店常驻面板已${r.updated?'更新':'发布'}：https://discord.com/channels/${guild}/${channel}/${r.messageId}\n如需一直显示在频道顶部，可将这条消息置顶。`);}
+ if(action==='营业'){const c=await cityRequest(env,guild,{action:'config'}),p=c.places[channel];if(p?.kind!=='flower')throw Error('请在花店主频道调整营业状态。');await cityRequest(env,guild,{action:'bind',place:{...p,open:opts['营业中']===true}});let warning='';try{await cityRequest(env,guild,{action:'panel',guild,channel,create:false});}catch{warning='\n常驻面板更新失败，请检查权限后使用 /城市 面板。';}return answer((opts['营业中']===true?'花店已开始营业。':'花店已休息，暂停新的购买和付款；礼物仍可领取。')+warning);}
  if(action==='绑定'){
   const resolved=await resolveCityChannel(env,guild,channel);if(resolved.thread)throw Error('请在主文字频道登记地点；子区会继承该地点并拥有独立场景。');
   const before=await cityRequest(env,guild,{action:'config'});
-  const p=await cityRequest(env,guild,{action:'bind',place:{channelId:channel,name:opts['名称'],street:opts['街道'],kind:opts['类型']||'public',description:opts['描述']}});
+  const p=await cityRequest(env,guild,{action:'bind',place:{channelId:channel,name:opts['名称'],street:opts['街道'],kind:opts['类型']||'public',description:opts['描述']??(opts['类型']==='flower'?FLOWER_PLACE_DESCRIPTION:undefined)}});
   if(before.places[channel]&&before.places[channel].kind!==p.kind)await cityRequest(env,guild,{action:'clear',placeId:channel});
-  return answer(`已登记：**${p.street} · ${p.name}**\n类型：${kinds[p.kind]}\n${p.description||'可以再次使用绑定命令补充地点描述。'}\n玩家可用 /城市 地点 或 /城市 进入 开始场景。`);
+  let panelWarning='';try{await cityRequest(env,guild,{action:'panel',guild,channel,create:false});}catch{panelWarning='\n原常驻面板未更新，请检查权限后使用 /城市 面板。';}
+  return answer(`已登记：**${p.street} · ${p.name}**\n类型：${kinds[p.kind]}\n${p.description||'可以再次使用绑定命令补充地点描述。'}\n玩家可用 /城市 地点 或 /城市 进入 开始场景。${p.kind==='flower'?'\n使用 /城市 面板 发布花店常驻面板。':''}${panelWarning}`);
  }
  if(action==='解绑'){if(opts['确认']!==true)throw Error('未移除，请将确认选项设为是。');await cityRequest(env,guild,{action:'unbind',channel});await cityRequest(env,guild,{action:'clear',placeId:channel});return answer('已移除当前频道的地点登记。');}
  if(action==='离开'){await cityRequest(env,guild,{action:'leave',user});return answer('你已离开当前角色场景。再次在已登记地点 @红豆粉或使用 /城市 进入，可以继续。');}
