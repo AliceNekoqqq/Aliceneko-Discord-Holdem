@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "scan_at": "2026-10-13T21:29:03+08:00",
-  "completed_at": "2026-10-13T21:31:21+08:00",
+  "scan_at": "2026-10-14T04:09:17+08:00",
+  "completed_at": "2026-10-14T04:11:01+08:00",
   "namespace_id": "4b8575058fe745bd8abbb9eed752bf91",
   "scan_complete": true,
   "enumeration_pages": 2,
-  "objects_listed": 34,
-  "stored_objects_checked": 23,
+  "objects_listed": 37,
+  "stored_objects_checked": 25,
   "ugc_objects": 2,
   "active_dishes": 2,
   "initial_missing": 0,
@@ -26,7 +26,7 @@
         "width": 512,
         "height": 512,
         "jpeg": true,
-        "matches_source": true,
+        "matches_verified_source": true,
         "bytes": 98862,
         "sha256": "b48ff9d41944cec4d9984c0c7d3a3b58f651171d010de4c7b1a47d919cb7d53d"
       }
@@ -45,7 +45,7 @@
         "width": 512,
         "height": 512,
         "jpeg": true,
-        "matches_source": true,
+        "matches_verified_source": true,
         "bytes": 83175,
         "sha256": "e0169775f1308370cb98c62dfeb54c87e7638bd95575c8d678011dc4c95572b2"
       }
