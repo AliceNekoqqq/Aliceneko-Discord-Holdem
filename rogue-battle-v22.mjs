@@ -1,4 +1,4 @@
-import { threatValue } from './rogue-enemy-threat-v22.mjs';
+import { threatValue, limitThreatValue, limitEnemyHp } from './rogue-enemy-threat-v22.mjs';
 import { enemyPressureFor } from './rogue-enemy-pressure-v20.mjs';
 import {CATALOG_V22 as CATALOG, ITEMS} from './rogue-content-v22.mjs';
 import {getDifficultyRules} from './rogue-difficulty-v17.mjs';
@@ -179,7 +179,7 @@ function reactionKey(s,intent){return intent.recordMode==='first'?(s.firstCardKi
 function enhanced(s,raw,atTurn){
  const enemy=CATALOG.enemies[s.enemyId],phase2=s.enemyPhase===2&&atTurn>=s.phaseStartTurn,i=clone(raw);
  const enhance=p=>{
-  if(p.kind==='attack'||p.kind==='charge')p.value=threatValue(enemy,p)+enemyPressureFor(enemy,atTurn)+s.attackBonus+(phase2&&enemy.role==='Boss'?s.bossPhaseAttackBonus:0);
+  if(p.kind==='attack'||p.kind==='charge'){p.value=threatValue(enemy,p)+enemyPressureFor(enemy,atTurn)+s.attackBonus+(phase2&&enemy.role==='Boss'?s.bossPhaseAttackBonus:0);p.value=limitThreatValue(enemy,p,s.difficulty);}
   if(p.kind==='conditional'){enhance(p.onAttack);enhance(p.onOther);}
   if(p.kind==='tempo'){enhance(p.onCalm);enhance(p.onRush);}
   if(p.kind==='charge'&&p.next)enhance(p.next);
@@ -311,13 +311,33 @@ export function beginBattle({enemyId,deck,relics,hp,seed=0,professionId='travele
  if(!Array.isArray(deck)||!deck.length||new Set(deck.map(e=>e.uid)).size!==deck.length||deck.some(e=>!Number.isInteger(e.uid)||!cardAllowed(CATALOG,e.cardId,professionId)||typeof e.upgraded!=='boolean'))throw new TypeError('牌组无效');
  if(!Array.isArray(relics)||new Set(relics).size!==relics.length||relics.some(id=>!CATALOG.relics[id]))throw new TypeError('遗物无效');
  if(!Number.isInteger(hp)||hp<0||hp>rules.maxHp||items.length>2||items.some(id=>!ITEMS[id]))throw new TypeError('生命或道具无效');
- const enemyHp=Math.ceil(e.hp*(e.role==='普通'?rules.normalHpMultiplier:e.role==='精英'?rules.eliteHpMultiplier:rules.bossHpMultiplier)*rules.allHpMultiplier*(dangerous?1.1:1)*(e.role==='Boss'?bossHpMultiplier:1));
- const s={ruleVersion:'lantern-rules-v0.22',professionId,difficulty,dangerous,enemyId,hp,maxHp:rules.maxHp,enemyMaxHp:enemyHp,enemyPhase:1,phaseStartTurn:0,enemyPhasePending:null,actIndex:e.actIndex,furnaceArmed:false,furnaceBroken:false,furnaceWeak:false,furnaceOutcomeLocked:false,furnaceShieldMax:0,recordedResponse:null,responseOptions:null,responsePreview:null,phaseThreshold:e.role==='Boss'?rules.bossPhaseThreshold:.5,phaseShield:rules.phaseShield,phaseNextIntent:null,attackBonus:rules.attackBonus+(dangerous?1:0)+extraAttackBonus,extraAttackBonus,bossHpMultiplier,bossPhaseAttackBonus:rules.bossPhaseAttackBonus,result:hp<=0?'DEFEAT':null,turn:0,hand:[],draw:clone(deck),discard:[],exhaust:[],deck:clone(deck),relics:[...relics],relicTriggerCounts:{},pressurePlan:clone(e.pressure??null),enemyPressure:0,bankedShield:0,hitReduction:0,extraPlays:0,pendingRetainDiscounts:{},cardDiscounts:{},forgeSpentThisCard:0,items:[...items],itemUsed:false,itemsUsed:0,itemAttackBonus:0,energy:0,plays:0,picked:[],intent:null,enemyHp,enemyArmor:e.armor,enemyShield:e.role==='精英'?rules.eliteOpeningShield:0,enemyBurn:0,shield:0,burn:0,chargeDamage:0,chargeBreakReady:false,chargeBreakPending:null,prepare:0,prepareUntil:0,mark:0,markUntil:0,petHp:0,forge:0,pierceReady:0,echo:null,pendingEchoes:[],echoCount:0,echoReady:false,echoCharges:0,echoEligibleUids:[],echoQueuedThisAction:false,delayed:[],retainedUid:null,counter:0,firstCardKind:null,battleFlags:[],turnFlags:[],heals:0,selfLoss:0,attacksTaken:0,rngState:hash(seed),log:[],effectMetrics:{healing:0,overheal:0,shieldAbsorbed:0,prepareConsumed:0,markConsumed:0,drawSucceeded:0,retainSucceeded:0,upgradedCardsPlayed:0,echoReplays:0}};
+ const enemyHp=limitEnemyHp(e,Math.ceil(e.hp*(e.role==='普通'?rules.normalHpMultiplier:e.role==='精英'?rules.eliteHpMultiplier:rules.bossHpMultiplier)*rules.allHpMultiplier*(dangerous?1.1:1)*(e.role==='Boss'?bossHpMultiplier:1)),difficulty);
+ const s={ruleVersion:'lantern-rules-v0.22',balanceRevision:1,professionId,difficulty,dangerous,enemyId,hp,maxHp:rules.maxHp,enemyMaxHp:enemyHp,enemyPhase:1,phaseStartTurn:0,enemyPhasePending:null,actIndex:e.actIndex,furnaceArmed:false,furnaceBroken:false,furnaceWeak:false,furnaceOutcomeLocked:false,furnaceShieldMax:0,recordedResponse:null,responseOptions:null,responsePreview:null,phaseThreshold:e.role==='Boss'?rules.bossPhaseThreshold:.5,phaseShield:rules.phaseShield,phaseNextIntent:null,attackBonus:rules.attackBonus+(dangerous?1:0)+extraAttackBonus,extraAttackBonus,bossHpMultiplier,bossPhaseAttackBonus:rules.bossPhaseAttackBonus,result:hp<=0?'DEFEAT':null,turn:0,hand:[],draw:clone(deck),discard:[],exhaust:[],deck:clone(deck),relics:[...relics],relicTriggerCounts:{},pressurePlan:clone(e.pressure??null),enemyPressure:0,bankedShield:0,hitReduction:0,extraPlays:0,pendingRetainDiscounts:{},cardDiscounts:{},forgeSpentThisCard:0,items:[...items],itemUsed:false,itemsUsed:0,itemAttackBonus:0,energy:0,plays:0,picked:[],intent:null,enemyHp,enemyArmor:e.armor,enemyShield:e.role==='精英'?rules.eliteOpeningShield:0,enemyBurn:0,shield:0,burn:0,chargeDamage:0,chargeBreakReady:false,chargeBreakPending:null,prepare:0,prepareUntil:0,mark:0,markUntil:0,petHp:0,forge:0,pierceReady:0,echo:null,pendingEchoes:[],echoCount:0,echoReady:false,echoCharges:0,echoEligibleUids:[],echoQueuedThisAction:false,delayed:[],retainedUid:null,counter:0,firstCardKind:null,battleFlags:[],turnFlags:[],heals:0,selfLoss:0,attacksTaken:0,rngState:hash(seed),log:[],effectMetrics:{healing:0,overheal:0,shieldAbsorbed:0,prepareConsumed:0,markConsumed:0,drawSucceeded:0,retainSucceeded:0,upgradedCardsPlayed:0,echoReplays:0}};
  if(!s.result){shuffle(s,s.draw);startTurn(s);advance(s);}syncResponsePreview(s);invariant(s);return s;
+}
+// One-time, pure relief for active v22 saves; never restores lost player HP.
+export function normalizeBattle(battle){
+ const e=CATALOG.enemies[battle?.enemyId];
+ if(battle?.ruleVersion!=='lantern-rules-v0.22'||battle.result||e?.actIndex!==3||battle.balanceRevision===1)return battle;
+ const s=clone(battle),rules=getDifficultyRules(s.difficulty??0),previousPlan=s.pressurePlan;
+ const prune=(packet,pressure=0)=>{if(!packet)return;
+  if(packet.kind==='attack'||packet.kind==='charge'){packet.value=Math.max(1,packet.value-pressure);packet.value=limitThreatValue(e,packet,s.difficulty);}
+  if(packet.kind==='conditional'){prune(packet.onAttack,pressure);prune(packet.onOther,pressure);}
+  if(packet.kind==='tempo'){prune(packet.onCalm,pressure);prune(packet.onRush,pressure);}
+  if(packet.next)prune(packet.next,enemyPressureFor({pressure:previousPlan},s.turn+1));
+ };
+ prune(s.intent,s.enemyPressure??0);
+ s.pressurePlan=null;s.enemyPressure=0;s.balanceRevision=1;
+ const maxHp=limitEnemyHp(e,Math.ceil(e.hp*(e.role==='普通'?rules.normalHpMultiplier:e.role==='精英'?rules.eliteHpMultiplier:rules.bossHpMultiplier)*rules.allHpMultiplier*(s.dangerous?1.1:1)*(e.role==='Boss'?(s.bossHpMultiplier??1):1)),s.difficulty??0);
+ if(maxHp<s.enemyMaxHp){s.enemyHp=Math.min(s.enemyHp,Math.ceil(s.enemyHp*maxHp/s.enemyMaxHp));s.enemyMaxHp=maxHp;}
+ if(s.intent?.kind==='charge')syncChargeNext(s);
+ if(s.phaseNextIntent&&s.phaseStartTurn>s.turn)s.phaseNextIntent=intentAt(s,s.turn+1);
+ log(s,'第三幕平衡修正：取消长战增压，降低首领血量与单轮爆发');
+ return s;
 }
 export function battleAction(battle,action){
  if(!battle||battle.result)throw new RangeError('战斗已经结束');
- const s=clone(battle);s.echoQueuedThisAction=false;
+ const s=clone(normalizeBattle(battle));s.echoQueuedThisAction=false;
  if(action.type==='PLAY'){
   const index=s.hand.findIndex(e=>e.uid===action.uid);if(index<0||!legalCards(s).some(e=>e.uid===action.uid))throw new RangeError('手牌当前不可用');
   const entity=s.hand[index],d=cardDef(entity,s);

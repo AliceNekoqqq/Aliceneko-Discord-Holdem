@@ -1,3 +1,4 @@
+import {normalizeRun} from './rogue-run.mjs';
 import { supportTargetAllowed as supportTargetAllowed21 } from './rogue-card-effects-v21.mjs';
 import { hasUsefulUpgrade } from './rogue-upgrade-validity.mjs';
 import { supportTargetAllowed as supportTargetAllowed20 } from './rogue-card-effects-v20.mjs';
@@ -214,6 +215,7 @@ export function renderRogueBoard(board = {}, { update = false } = {}) {
 }
 
 export function renderRogueDetails(run, kind = 'deck', { update = false, page = 0 } = {}) {
+  run=normalizeRun(run);
   useRunCatalog(run);
   let entries = [];
   let title = '远征详情';
@@ -687,6 +689,7 @@ function renderResult(run, update) {
 }
 
 export function renderRogue(run, { update = false } = {}) {
+  run=normalizeRun(run);
   useRunCatalog(run);
   if (!run) return renderRogueHome();
   if (run.phase === 'BATTLE' && run.battle) return renderBattle(run, update);

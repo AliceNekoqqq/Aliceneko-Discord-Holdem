@@ -1,3 +1,4 @@
+import {normalizeBattle as v22Normalize} from './rogue-battle-v22.mjs';
 import * as legacy from './rogue-run-v04.mjs';
 import * as expanded from './rogue-run-v06.mjs';
 import * as previous from './rogue-run-v07.mjs';
@@ -38,5 +39,10 @@ export const SUPPORTED_RULE_VERSIONS = [RULE_VERSION, V06_RULE_VERSION, V07_RULE
 export const RunActionError = legacy.RunActionError;
 const current = run => run?.ruleVersion === CURRENT_RULE_VERSION ? v22 : run?.ruleVersion === V21_RULE_VERSION ? v21 : run?.ruleVersion === V20_RULE_VERSION ? v20 : run?.ruleVersion === V19_RULE_VERSION ? v19 : run?.ruleVersion === V18_RULE_VERSION ? v18 : run?.ruleVersion === V17_RULE_VERSION ? v17 : run?.ruleVersion === V16_RULE_VERSION ? v16 : run?.ruleVersion === V15_RULE_VERSION ? v15 : run?.ruleVersion === V14_RULE_VERSION ? v14 : run?.ruleVersion === V13_RULE_VERSION ? v13 : run?.ruleVersion === V12_RULE_VERSION ? latest : run?.ruleVersion === V11_RULE_VERSION ? v11 : run?.ruleVersion === V10_RULE_VERSION ? v10 : run?.ruleVersion === V09_RULE_VERSION ? v09 : run?.ruleVersion === V08_RULE_VERSION ? v08 : run?.ruleVersion === V07_RULE_VERSION ? previous : run?.ruleVersion === V06_RULE_VERSION ? expanded : legacy;
 export const createRun = options => current(options).createRun(options);
-export const runAction = (run, action, now) => current(run).runAction(run, action, now);
+export const runAction = (run, action, now) => current(run).runAction(normalizeRun(run), action, now);
 export const expireRun = (run, now) => current(run).expireRun(run, now);
+
+export function normalizeRun(run){
+ if(run?.ruleVersion!==CURRENT_RULE_VERSION||run.phase!=='BATTLE'||!run.battle)return run;
+ const battle=v22Normalize(run.battle);return battle===run.battle?run:{...run,battle};
+}
