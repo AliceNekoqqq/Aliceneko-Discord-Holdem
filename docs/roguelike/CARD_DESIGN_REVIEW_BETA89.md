@@ -26,3 +26,7 @@ The new pool adds 28 cards relative to v17: 25 enter act 1 and 3 enter act 2; no
 ## Review disposition
 
 The actionable issue is the no-op `gatebreak` upgrade. The Wound target and identical card pairs are smaller content-quality concerns. No additional resource-conversion, draw-cap, or action-cap correctness defect was found in this review.
+
+## Applied audit hotfix
+
+The runtime hotfix beta.89+audit.1 now blocks no-op upgrades in current v20 camp/shop/event, temporary upgrade menus, server validation and echo calibration. Existing card numbers remain unchanged; gatebreak still needs design work. Technical and production verification is recorded in BUG_CARD_AUDIT_BETA89.md.

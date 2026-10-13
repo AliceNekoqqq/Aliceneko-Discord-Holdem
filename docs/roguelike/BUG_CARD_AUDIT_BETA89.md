@@ -31,4 +31,4 @@
 
 ## 发布
 
-待PR/CI、生产健康及配置核验。代码与检查脚本/报告均存本仓库，保留现有UGC与Cloudflare配置。
+PR #35检查38325224483及main发布38325325813成功；运行提交19b8cb0eca0bdff101be2ba9e4aebe1e83a3eef3。CF部署49b46aee-2946-4596-9b6f-58066b7cceb3、版本f9eecd8e-b63a-4b68-a1fb-8392beb7ada9接收100%。bindings/Secret名称类型/人设、DO/D1/ASSETS、兼容/observability配置比对保持，Cron不变。实读health beta.89+audit.1/rulesv0.20/cards124/ready:true，Gateway connected:true/ready:true，chatRuntime与expectedRuntime均chat84-exclusive-red-packet；线上健康正常。 代码、脚本、审核报告已同步；平衡重做尚未执行。
