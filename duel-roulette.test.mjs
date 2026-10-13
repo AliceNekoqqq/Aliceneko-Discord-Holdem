@@ -24,7 +24,7 @@ test('duel seven ties cancel and one-sided timeout scores without exposing futur
 });
 test('roulette snapshots preserve a blank self-shot, private intel, and cylinder first-turn alternation',()=>{
  const t=started('devil_roulette'),s=DevilState.restore(t.state);s.turnPlayerId='1';s.loadFirstPlayer='1';s.shells=[false,true];s.pointer=0;s.items['1']=['magnifier'];s.items['4']=[];t.state=s.serialize();t.turn='1';
- const info=model.shootOrItem(t,'1','magnifier');assert.match(info.reveal,/空弹/);assert(!JSON.stringify(board(t)).includes(info.reveal));assert.match(panel(t,'1').content,/当前这一发是空弹/);
+ const info=model.shootOrItem(t,'1','magnifier');assert.match(info.reveal,/空弹/);assert(!JSON.stringify(board(t)).includes(info.reveal));assert.match(JSON.stringify(panel(t,'1')),/当前这一发是空弹/);
  model.shootOrItem(t,'1','shoot_self');assert.equal(t.turn,'1');assert.deepEqual(t.state.knownShells['1'],{});
  model.shootOrItem(t,'1','shoot_opponent');assert.equal(t.state.hp['4'],3);assert.equal(t.turn,'4');assert.equal(t.state.loadFirstPlayer,'4');
 });

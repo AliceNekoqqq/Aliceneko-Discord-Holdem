@@ -1,10 +1,12 @@
 // Automatic duel/roulette delivery. Credentials use PrivatePanels' encrypted store.
 // SPDX-License-Identifier: AGPL-3.0-only
 import {panel} from './duel-roulette-ui.mjs';
+import {RouletteShotMessages} from './roulette-shot-messages.mjs';
 const TTL=14*60*1000;
 const roundKey=(t,id,s)=>t.phase!=='active'?`end:${t.lastRound?.round||t.round||0}`:t.game==='duel'?`round:${t.round}`:id===t.turn?`turn:${t.panelTurn||0}`:s?.panel&&s.delivered?s.delivered:'watch';
 export class DuelPanels {
  constructor(parent){this.parent=parent;this.storage=parent.storage;this.env=parent.env;}
+ get shots(){return this.shotMessages??=new RouletteShotMessages(this.storage,this.env);}
  async remember(t,i,reply){
   const id=i.member?.user?.id;
   if(!i.token||!this.env.BOT_TOKEN||!id||!t.players.some(p=>p.id===id)||reply.type===9||i.type===5)return false;
@@ -13,6 +15,8 @@ export class DuelPanels {
   if(!s.panel||s.panel.expires<=Date.now()){delete s.panel;delete s.delivered;delete s.attempted;}
   s.send={token:i.token,expires:Date.now()+TTL,owner:id,private:true};
   const own=String(i.data?.custom_id||'').split(':')[3]?.startsWith(`p~${id}~`);
+  const action=String(i.data?.custom_id||'').split(':')[3]?.split('~').slice(2).join('~');
+  if(own&&action==='details')s.view='details';else if(own)s.view='panel';
   const privateReply=reply.type===4&&(reply.data?.flags&64)||reply.type===7&&(Number(i.message?.flags)&64);
   const controls=reply.data?.components?.flatMap(r=>r.components||[])||[];
   if(privateReply&&(own||controls.some(c=>c.custom_id?.includes(`:p~${id}~`)))){
@@ -50,12 +54,13 @@ export class DuelPanels {
   await this.storage.put('duelRoundNotices',Object.fromEntries(Object.entries(records).slice(-14)));return !job.sent&&job.attempts<3;
  }
  async sync(t){
-  let retry=await this.publicResult(t);const records=await this.parent.read();
+  let retry=await this.publicResult(t);retry=await this.shots.sync(t)||retry;const records=await this.parent.read();
   for(const [id,s] of Object.entries(records)){
    if(s.epoch!==t.epoch||!t.players.some(p=>p.id===id))continue;
    if(t.phase==='lobby')continue;
    const key=roundKey(t,id,s),notice=t.game==='duel'&&t.lastRound?`上一轮结果：${t.lastRound.summary}`:'';
    if(s.delivered!==key&&s.send?.expires>Date.now()&&s.attempted!==key){
+    s.view='panel';
     // POST timeouts are ambiguous: record before sending and never duplicate that round.
     s.attempted=key;await this.parent.write(records);
     const sent=await this.parent.api(s.send,'POST',panel(t,id,notice));
@@ -65,7 +70,7 @@ export class DuelPanels {
     }
    }else if(s.delivered===key&&s.panel?.expires>Date.now()&&s.panel.version!==t.version&&(s.failedVersion!==t.version||s.failures<3)){
     if(s.failedVersion!==t.version)s.failures=0;
-    const data=panel(t,id,notice);delete data.flags;
+    const data=panel(t,id,notice,s.view==='details');delete data.flags;
     if(await this.parent.api(s.panel,'PATCH',data,s.panel.ref)){s.panel.version=t.version;s.failures=0;delete s.failedVersion;}else {s.failedVersion=t.version;s.failures=(s.failures||0)+1;if(s.failures<3)retry=true;}
    }
    const pending=[];

@@ -19,7 +19,7 @@ for(const [item,setup,reason] of [
  const t=started(),s=DevilState.restore(t.state);s.items['1']=[item];setup(s);t.state=s.serialize();const before=structuredClone(t);
  assert(!s.canUseItem('1',item));assert(s.itemUnavailableReason('1',item).includes(reason));
  assert.throws(()=>game.shootOrItem(t,'1',item));assert.deepEqual(t,before);
- const p=panel(t,'1'),b=p.components.flatMap(r=>r.components).find(c=>c.custom_id.endsWith('~'+item));assert(b.disabled);assert(p.content.includes(reason));
+ const p=panel(t,'1'),b=p.components.flatMap(r=>r.components).find(c=>c.custom_id.endsWith('~'+item));assert(b.disabled);assert(JSON.stringify(p).includes(reason));
 });
 test('adrenaline targets obey the same useful-item guards and rejection never consumes either inventory',()=>{
  const t=started(),s=DevilState.restore(t.state);s.items['1']=['adrenaline'];s.items['4']=['cigarette','phone','handcuffs','saw'];s.pointer=s.shells.length-1;s.sawArmed=true;t.state=s.serialize();
@@ -29,16 +29,16 @@ test('adrenaline targets obey the same useful-item guards and rejection never co
 });
 test('private roulette dashboard is complete, bounded and conceals inverter counts without leaking opponent intel',()=>{
  const t=started();t.state.knownShells['4']={3:true};t.state.items['1']=['beer','beer','phone','adrenaline'];t.state.items['4']=['medicine'];t.state.inverterObscured=true;
- const p=panel(t,'1');assert(p.content.includes('甲')||p.content.includes('你的生命'));assert(p.content.includes('乙 4/4'));assert(p.content.includes('超时'));assert(p.content.includes('数量暂时隐藏'));assert(p.content.includes('啤酒 ×2'));assert(!p.content.includes('往后第 3 发'));assert(!p.content.includes('2 实弹'));assert(p.content.length<=2000);assert(p.components.length<=5);
- assert(p.components.flatMap(r=>r.components).some(c=>c.label.includes('空弹可续行动')));
+ const p=panel(t,'1');assert(JSON.stringify(p).includes('甲')||JSON.stringify(p).includes('你的生命'));assert(p.embeds[0].fields.find(f=>f.name==='乙').value.includes('4/4'));assert(JSON.stringify(p).includes('超时'));assert(JSON.stringify(p).includes('数量暂时隐藏'));assert(JSON.stringify(p).includes('啤酒 ×2'));assert(!JSON.stringify(p).includes('往后第 3 发'));assert(!JSON.stringify(p).includes('2 实弹'));assert(p.content.length<=2000);assert(p.components.length<=5);
+ assert(p.components.flatMap(r=>r.components).some(c=>c.label.includes('空弹续行动')));
 });
 test('saw on a blank shot is spent and its explanation matches the actual rule; shots return immediate outcome',()=>{
- const t=started();t.state.sawArmed=true;const p=panel(t,'1');assert(p.content.includes('空弹也消耗手锯'));
+ const t=started();t.state.sawArmed=true;const p=panel(t,'1');assert(JSON.stringify(p).includes('空弹也消耗手锯'));
  const r=game.shootOrItem(t,'1','shoot_self');assert(!t.state.sawArmed);assert(r.notice.includes('向自己'));assert(r.notice.includes('空弹'));assert.equal(t.turn,'1');
 });
 test('rename pending shows its actual deadline and only valid actions; applied and failed penalties show execution results',()=>{
  const t=started();game.settle(t,'1','胜利');t.penalty.status='renamePending';t.penalty.renameUntil=Date.now()+60000;
- const stamp=`<t:${Math.floor(t.penalty.renameUntil/1000)}:R>`;const p=panel(t,'1'),b=board(t);assert(p.content.includes(stamp));assert(b.embeds[0].description.includes(stamp));assert(!p.components.flatMap(r=>r.components).some(c=>c.custom_id.endsWith('~mute')));assert(p.components[0].components[0].label.includes('重填'));
+ const stamp=`<t:${Math.floor(t.penalty.renameUntil/1000)}:R>`;const p=panel(t,'1'),b=board(t);assert(JSON.stringify(p).includes(stamp));assert(b.embeds[0].description.includes(stamp));assert(!p.components.flatMap(r=>r.components).some(c=>c.custom_id.endsWith('~mute')));assert(p.components[0].components[0].label.includes('重填'));
  t.penalty.status='prepareRename';assert.equal(panel(t,'1').components.length,0);assert(!board(t).components.flatMap(r=>r.components).some(c=>c.custom_id.endsWith(':rename')));
  t.phase='closed';t.penaltyNotice='机器人权限不足，惩罚未执行。';assert(panel(t,'1').content.includes('权限不足'));assert(panel(t,'4').content.includes('未执行'));
 });

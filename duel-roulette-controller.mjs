@@ -58,6 +58,7 @@ export class DuelRouletteController {
   if(action==='help')return json(priv(help(t.game)));
   if(action==='refresh'){await this.host.syncBoard(t);return json({type:6});}
   if(action==='panel'){if(!seated)return json(priv('你没有参加这场对局。'));return json(panelReply());}
+  if(action==='details'){if(!seated||t.game!=='devil_roulette')return json(priv('请使用自己的恶魔轮盘面板。'));return json({type:privateMessage?7:4,data:{...panel(t,id,'',true),...(privateMessage?{flags:undefined}:{flags:64})}});}
   const seen=await this.storage.get('recentInteractions')||[];if(seen.includes(i.id))return json(priv('本次操作已处理。'));
   const simultaneous=bound&&/^choose~\d+~(rock|paper|scissors)$/.test(action)&&t.game==='duel';
   const modal=i.type===5&&bound&&action==='rename_submit';
@@ -71,7 +72,7 @@ export class DuelRouletteController {
    else if(action==='giveup'&&bound){game.surrender(t,id);notice='已认输。';}
    else if(simultaneous){const [,round,choice]=action.split('~');game.choose(t,id,choice,Number(round));notice='出拳已记录，选择不能修改。';}
    else if(bound&&i.type===3&&['shoot_self','shoot_opponent',...Object.keys(ITEM_DEFS)].includes(action)){
-    const result=game.shootOrItem(t,id,action,action==='adrenaline'?i.data.values?.[0]:null);notice=result.notice||result.reveal||'操作已完成。';
+    const result=game.shootOrItem(t,id,action,action==='adrenaline'?i.data.values?.[0]:null);notice=action.startsWith('shoot_')?'':result.notice||result.reveal||'操作已完成。';
    }else if(['mute','rename','rename_submit'].includes(action)){
     if(t.phase!=='settled'||t.winner!==id)throw Error('只有本局胜者可以裁决。');
     if(!t.penaltyCreated){await penaltyRequest(this.env,t.guild,'create',{penalty:t.penalty});t.penaltyCreated=true;}

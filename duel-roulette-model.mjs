@@ -60,6 +60,7 @@ export function shootOrItem(t,id,action,stealKey=null,now=Date.now(),timeout=fal
  push(t,line);if(result.reloaded)push(t,'空仓重新装填，补发道具并交替先手。');
  if(result.gameEnded)settle(t,result.gameWinnerId,'对手生命归零',now);
  result.notice=[line,result.reveal,result.reloaded?'弹巢已重新装填，补发道具并交替先手。':null].filter(Boolean).join('\n');
+ if(action.startsWith('shoot_'))t.shotEvents=[...(t.shotEvents||[]),{id:t.state.turnToken,turn:t.panelTurn||0,actor:id,target:result.targetId,hit:result.hit,damage:result.damage,hp:t.state.hp[result.targetId],automatic:timeout,reloaded:result.reloaded}].slice(-32);
  return result;
 }
 export function surrender(t,id,now=Date.now()){
