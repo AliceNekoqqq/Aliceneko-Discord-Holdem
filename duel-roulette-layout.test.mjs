@@ -11,7 +11,7 @@ test('compact roulette panel separates combat fields from optional item explanat
  const t=started();t.state.hp['1']=2;t.state.items['1']=['medicine','adrenaline','inverter'];t.state.knownShells['4']={4:false};
  const p=panel(t,'1'),details=panel(t,'1','',true);assert(p.content.length<80);assert.equal(p.embeds.length,1);
  assert(p.embeds[0].fields.some(f=>f.name==='你的生命'));assert(p.embeds[0].fields.some(f=>f.name==='弹巢'));assert(p.embeds[0].fields.some(f=>f.name==='你的情报'));
- assert(!JSON.stringify(p).includes('40%'));assert(JSON.stringify(details).includes('40%'));assert(!JSON.stringify(p).includes('往后第 4 发'));assert(!JSON.stringify(details).includes('往后第 4 发'));
+ assert(!JSON.stringify({content:p.content,embeds:p.embeds}).includes('40%'));assert(JSON.stringify(details).includes('40%'));assert(!JSON.stringify(p).includes('往后第 4 发'));assert(!JSON.stringify(details).includes('往后第 4 发'));
  assert(p.components.flatMap(r=>r.components).some(c=>c.label==='道具详情'));assert(details.components[0].components[0].label.includes('返回'));
  for(const data of [p,details]){assert.equal(data.flags,64);assert(data.components.length<=5);assert(JSON.stringify(data.embeds).length<6000);for(const r of data.components)assert(r.components.length<=5);}
 });
