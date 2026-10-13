@@ -7,6 +7,19 @@ const preparedSource=source.replaceAll("'./uno-engine.mjs'",JSON.stringify(new U
 const {default:worker,PokerTable}=await import('data:text/javascript;base64,'+Buffer.from(preparedSource.replace(/from '(\.\/[^']+)'/g,(_,p)=>`from ${JSON.stringify(new URL(p,import.meta.url).href)}`)).toString('base64'));
 const pokerState=t=>{const copy=structuredClone(t);delete copy.ownerSeenAt;delete copy.takeoverNoticeFor;return copy;};
 function duelRouletteContext(){const ctx=context();ctx.storage.put=async(k,v)=>{if(k&&typeof k==='object'){for(const [key,value] of Object.entries(k))ctx.map.set(key,structuredClone(value));}else ctx.map.set(k,structuredClone(v));};ctx.storage.delete=async k=>{for(const key of Array.isArray(k)?k:[k])ctx.map.delete(key);};return ctx;}
+test('duel PokerTable alarms automatically send both private round panels and publish round results',async tst=>{
+ const ctx=duelRouletteContext(),env={BOT_TOKEN:'test',DISCORD_APPLICATION_ID:'123'},host=new PokerTable(ctx,env),requests=[];let seq=100;
+ const old=globalThis.fetch;tst.after(()=>globalThis.fetch=old);globalThis.fetch=async(url,o={})=>{requests.push({url,method:o.method,body:o.body?JSON.parse(o.body):null});return Response.json({id:String(++seq),flags:64});};
+ const call=async(type,data,user='1',flags=0)=>(await host.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:{id:crypto.randomUUID(),token:`auto-secret-${user}`,type,guild_id:'3',channel_id:'2',member:{user:{id:user,username:user},permissions:'0'},message:{id:'101',flags},data}})}))).json();
+ await call(2,{name:'死斗',options:[{name:'等待对手'}]});let t=ctx.map.get('table');
+ await host.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'bind',epoch:t.epoch,messageId:'101'})}));t=ctx.map.get('table');await call(3,{custom_id:`dr:${t.epoch}:${t.version}:join`},'4');
+ await ctx.storage.put('privateSyncAt',Date.now()-1);await host.alarm();assert.equal(requests.filter(r=>r.method==='POST'&&r.url.includes('/webhooks/')).length,2);
+ t=ctx.map.get('table');const a=`dr:${t.epoch}:${t.version}:p~1~choose~1~rock`,b=`dr:${t.epoch}:${t.version}:p~4~choose~1~scissors`;
+ await call(3,{custom_id:a},'1',64);await call(3,{custom_id:b},'4',64);
+ await ctx.storage.put('privateSyncAt',Date.now()-1);await new PokerTable(ctx,env).alarm();
+ assert.equal(requests.filter(r=>r.method==='POST'&&r.url.includes('/webhooks/')).length,4);assert.equal(requests.filter(r=>r.method==='POST'&&r.url.includes('/channels/')).length,1);
+ assert.equal(ctx.map.get('table').round,2);assert(!JSON.stringify([...ctx.map]).includes('auto-secret-'));
+});
 test('independent duel command routes, binds, accepts and restores inside PokerTable',async()=>{
  const ctx=duelRouletteContext(),env={BOT_TOKEN:'test'},host=new PokerTable(ctx,env);let counter=0;
  const call=async(type,data,user='1',flags=0)=>(await host.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:{id:String(++counter),type,guild_id:'3',channel_id:'2',member:{user:{id:user,username:user},permissions:'0'},message:{id:'101',flags},data}})}))).json();
@@ -41,7 +54,7 @@ test('signed Discord flow, private cards, stale click, duplicate, modal, timeout
  const call=async(data)=>{const i={application_id:'123',guild_id:'3',channel_id:'2',id:String(++counter),token:'transient-secret',member:{user:{id:'1'},permissions:'0'},...data};const body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');const ctx=context();const r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);await Promise.all(ctx.tasks);return {reply:await r.json(),i};};
  const unsigned=await worker.fetch(new Request('https://test/interactions',{method:'POST',body:'{}'}),env,context());assert.equal(unsigned.status,401);
  const hidden=await worker.fetch(new Request('https://test/.env'),env,context());assert.equal(hidden.status,404);
- const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.1',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
+ const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.2',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
  assert.deepEqual((await call({type:1})).reply,{type:1});
  const create={type:2,data:{name:'德州',options:[{name:'创建'}]}};
  let {reply:b}=await call(create);assert.equal(b.type,4);assert(!JSON.stringify(b).includes(env.BOT_TOKEN));

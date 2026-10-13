@@ -1,3 +1,4 @@
+import {DuelPanels} from './duel-roulette-panels.mjs';
 import {handPanel as liarHand,button as liarButton} from './liar-ui.mjs';
 import {imageMessage as liarImage} from './liar-image.mjs';
 import {handPanel as ghostHand,button as ghostButton} from './ghost-ui.mjs';
@@ -20,6 +21,7 @@ const retired=()=>({content:'这张手牌卡已结束，请查看下方最新一
 // 15-minute expiry. They never enter table state, UI, source or logs.
 export class PrivatePanels {
   constructor(storage,env){this.storage=storage;this.env=env;}
+  get duel(){return this.duelPanels??=new DuelPanels(this);}
   async key(){return this.cryptoKey??=await crypto.subtle.importKey('raw',await crypto.subtle.digest('SHA-256',encode(`holdem/private-panels/v1/${this.env.BOT_TOKEN}`)),'AES-GCM',false,['encrypt','decrypt']);}
   async read(){
     const saved=await this.storage.get('privatePanels');if(!saved)return {};
@@ -41,6 +43,7 @@ export class PrivatePanels {
     await this.storage.put('privateExpiry',Math.min(...expires));
   }
   async prune(t){
+    if(t?.game==='duel')return this.duel.prune(t);
     const records=await this.read();
     await Promise.all(Object.entries(records).map(async([id,s])=>{
       if(s.panel&&s.panel.expires<=Date.now()&&Date.now()-s.panel.expires<45000){
@@ -52,7 +55,8 @@ export class PrivatePanels {
   }
   async remember(t,i,reply){
     // These games render owner-bound private actions directly and retain no webhook credentials.
-    if(['duel','devil_roulette'].includes(t.game))return false;
+    if(t.game==='duel')return this.duel.remember(t,i,reply);
+    if(t.game==='devil_roulette')return false;
     if(t.game==='ghost'&&(reply.type===9||i.type===5||reply.data?.content?.includes('确认认输')))return false;
     const action=i.data?.custom_id?.split(':')[3]||'';
     if(t.game==='liar'&&(reply.type===9||action==='social'||action==='manage'||/^[mcs]~/.test(action)))return false;
@@ -92,6 +96,7 @@ export class PrivatePanels {
       if(!r.ok)return null;return r.status===204?{}:await r.json();}catch{return null;}
   }
   async sync(t){
+    if(t.game==='duel')return this.duel.sync(t);
     const records=await this.read();let retry=false;
     await Promise.all(Object.entries(records).map(async([id,s])=>{
       if(t.game==='liar'){
