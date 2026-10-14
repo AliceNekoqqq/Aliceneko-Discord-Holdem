@@ -23,6 +23,7 @@ export class TavernOperationsLive {
   return data;
  }
  async arm(state,now=Date.now()){
+  // One alarm retains both draft expiration and funded-packet refund deadlines.
   const ugcDue=Math.min(this.host.tavern?.ugc?.nextExpiry?.(now)||Infinity,await this.storage.get('redPacketRefundDue')||Infinity);
   if(!state?.boards?.length){if(Number.isFinite(ugcDue))await this.storage.setAlarm(Math.max(now+1,ugcDue));else await this.storage.deleteAlarm();return;}
   const due=Math.min(tomorrow(now),nextAmbience(now),state.due||Infinity,state.expiryDue||Infinity,ugcDue);

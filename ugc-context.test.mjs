@@ -15,7 +15,11 @@ test('UGC uses isolated structured generation without chat memory instructions o
 
 test('UGC expiration shares lobby alarm and survives absence of tracked public boards',async()=>{
  let alarm=null,deleted=0;const due=Date.now()+1000;
- const live=new TavernOperationsLive({ctx:{storage:{setAlarm:async t=>alarm=t,deleteAlarm:async()=>{alarm=null;deleted++;}}},tavern:{ugc:{nextExpiry:()=>due}}});
+ const live=new TavernOperationsLive({ctx:{storage:{get:async()=>null,setAlarm:async t=>alarm=t,deleteAlarm:async()=>{alarm=null;deleted++;}}},tavern:{ugc:{nextExpiry:()=>due}}});
  await live.arm(null,due-500);assert.equal(alarm,due);assert.equal(deleted,0);
  await live.arm({boards:[{}],due:due+1000},due-500);assert.equal(alarm,due);
+});
+
+test('refund due participates in UGC/lobby alarm without public boards',async()=>{
+ let alarm=null,refund=1500;const live=new TavernOperationsLive({ctx:{storage:{get:async key=>key==='redPacketRefundDue'?refund:null,setAlarm:async t=>alarm=t,deleteAlarm:async()=>alarm=null}},tavern:{ugc:{nextExpiry:()=>2000}}});await live.arm(null,1000);assert.equal(alarm,1500);refund=null;await live.arm(null,1000);assert.equal(alarm,2000);
 });
