@@ -25,3 +25,8 @@ test('exclusive mention emits hidden one-person spec and target card, Gemini fai
 });
 
 test('ordinary player mention can request own-funded poop packet through Gemini extraction',async t=>{const f=fixture(t);await replyToMention(f.env,{...message,author:{id:'55',username:'玩家'},content:'<@99> 发600元掺💩红包，5个名额'},'99');assert.equal(f.calls.filter(p=>p.action==='create').length,1);assert.match(f.runtime,/普通玩家可以用自己的余额/);assert.equal(f.posts.length,1);});
+
+test('even a spoiler in Gemini reply is hidden from the initial surprise packet message',async t=>{
+ const f=fixture(t);const old=globalThis.fetch;const originalGet=f.env.TABLES.get;f.env.TABLES.get=(...args)=>{const stub=originalGet(...args);return {fetch:async(...a)=>{const r=await stub.fetch(...a),v=await r.json();if(v.id)v.parts='[100,100,0,200,200]';return Response.json(v);}}};
+ t.mock.method(globalThis,'fetch',async(url,opts)=>{if(String(url).includes('generativelanguage'))return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({reply:'大家来拆掺💩红包吧，会被改名10分钟。',packet:{total:600,slots:5,mode:'random',totalEvidence:'600',slotsEvidence:'5'}})}]}}]});return old(url,opts);});await replyToMention(f.env,{...message,content:'<@99> 发600元掺💩红包，5个名额'},'99');assert.equal(f.posts.length,1);assert.doesNotMatch(JSON.stringify(f.posts[0]),/💩|掺|改名|10分钟/);
+});

@@ -130,7 +130,7 @@ test('zero claim is permanent, replay safe, awards no balance or welcome money a
  const parts=JSON.parse(p.parts),zero=parts.indexOf(0);let sum=0;
  for(let n=0;n<3;n++){const uid=String(n+10),a=packets.claim(interaction(uid),200+n);sum+=a.amount;if(n===zero){assert.equal(a.amount,0);assert.equal(tavern.one('SELECT * FROM tavern_members WHERE id=?',uid),null);assert.equal(new RedPackets(new TavernService(store)).claim(interaction(uid),300).repeated,true);}}
  assert.equal(sum,600);assert.equal(tavern.one("SELECT COUNT(*) n FROM tavern_ledger WHERE kind='system_red_packet'").n,2);assert.equal(packets.view('123').claims.length,3);
- const card=packetCard(packets.view('123'),300);assert.match(card.embeds[0].title,/掺💩/);assert.match(card.embeds[0].fields[0].value,/💩 \*\*0\*\* 币/);assert.throws(()=>packets.claim(interaction('40'),400),/领完/);
+ const card=packetCard(packets.view('123'),300);assert.match(card.embeds[0].title,/拼手气红包/);assert.doesNotMatch(card.embeds[0].description,/💩|固定混入/);assert.match(card.embeds[0].fields[0].value,/💩 \*\*0\*\* 币/);assert.throws(()=>packets.claim(interaction('40'),400),/领完/);
 });
 test('poop result posts a Gemini line only for a first successful rename, never claims cash credited',async t=>{
  const {finishRedPacket}=await import('./red-packet.mjs');const {POOP_PACKET_LINES}=await import('./red-packet-copy.mjs');assert.equal(POOP_PACKET_LINES.length,10);assert.equal(new Set(POOP_PACKET_LINES).size,10);
@@ -158,4 +158,9 @@ test('expired player packet returns only unused cash once; explicit delivery fai
 test('developer keeps system mode unless explicitly paying from own balance',()=>{
  const {packets,tavern}=setup();const p=packets.create(message('<@99> 发600元掺💩红包，3份'),'99',100);assert.equal(p.payer_user_id,null);assert.equal(tavern.one('SELECT * FROM tavern_members WHERE id=?',RED_PACKET_OWNER),null);
  const m={...message('<@99> 用自己的余额发50元掺💩红包，3份'),id:'124'};assert.match(packets.create(m,'99',200).error,/余额不足/);tavern.member(RED_PACKET_OWNER,'姐姐',200);assert.equal(packets.create(m,'99',300).payer_user_id,RED_PACKET_OWNER);assert.equal(tavern.member(RED_PACKET_OWNER).balance,10);
+});
+
+test('unopened poop packet matches the ordinary packet appearance and reveals only actual drawn records',()=>{
+ const base={id:'123',guild:'1',channel:'2',total:600,slots:3,mode:'random',created:100,expires:100+RED_PACKET_TTL,claims:[]};
+ for(const mode of ['equal','random']){const surprise={...base,mode,parts:'[300,0,300]'},ordinary={...base,mode,parts:'[200,200,200]'};assert.deepEqual(packetCard(surprise,200),packetCard(ordinary,200));assert.doesNotMatch(JSON.stringify(packetCard(surprise,200)),/💩|掺|0币|10分钟|固定混入/);assert.match(packetCard({...surprise,claims:[{user_id:'10',amount:0,at:250}]},300).embeds[0].fields[0].value,/💩/);}
 });
