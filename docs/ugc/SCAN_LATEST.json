@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "scan_at": "2026-10-14T21:49:20+08:00",
+  "scan_at": "2026-10-15T03:48:42+08:00",
   "scan_complete": true,
   "namespace_id": "4b8575058fe745bd8abbb9eed752bf91",
   "objects_listed": 37,
@@ -13,9 +13,8 @@
   "remaining_missing": 0,
   "errors": [],
   "verification_notes": [
-    "Container public requests returned HTTP403; authorized cloud browser loaded and downloaded all three JPEGs successfully. Downloaded SHA256 matches recorded published source hashes.",
-    "Final SQL readback confirms active current revision/hash and ready asset binding.",
-    "No generation, resource upload, CI or Worker deployment required."
+    "All public JPEGs freshly loaded and downloaded using authorized cloud browser; JPEG signature, 512x512 dimensions, byte counts and SHA256 match recorded source.",
+    "Final SQL readback confirms active current revisions/hashes and ready asset bindings. No generation, upload or deployment needed."
   ],
   "items": [
     {
