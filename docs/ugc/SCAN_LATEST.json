@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "scan_at": "2026-10-14T04:09:17+08:00",
-  "completed_at": "2026-10-14T04:11:01+08:00",
+  "scan_at": "2026-10-14T09:22:18+08:00",
+  "completed_at": "2026-10-14T09:23:43+08:00",
   "namespace_id": "4b8575058fe745bd8abbb9eed752bf91",
   "scan_complete": true,
   "enumeration_pages": 2,
@@ -53,6 +53,9 @@
   ],
   "remaining_missing": 0,
   "errors": [],
+  "verification_notes": [
+    "Terminal access returned HTTP 403; both public JPEGs successfully rendered and downloaded through authorized cloud browser."
+  ],
   "deployment": {
     "performed": false,
     "reason": "No missing images; receipt-only commit"
