@@ -15,10 +15,9 @@
       "recipe_revision": 1,
       "recipe_hash": "8c5ea789",
       "name": "蜜菠和牛流心炊饭",
-      "stage": "github_uploaded_pending_ci",
-      "asset_key": "art/ugc/ugc_031a04d99fcd445e980d-r1-8c5ea789.jpg",
-      "sha256": "ef1d1352a86e420b216ea2717cf61f538fcd1c829854462f81779c959984a30f",
-      "bytes": 114087
+      "stage": "ci_building_assets",
+      "github_commit": "55f4ab3ebead9bc10ca2d8785af927345e1b1809",
+      "workflow_run": 38505262289
     }
   ],
   "remaining_missing": 1,
