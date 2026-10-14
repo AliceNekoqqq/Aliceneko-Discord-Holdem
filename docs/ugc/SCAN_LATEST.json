@@ -1,63 +1,23 @@
 {
   "schema_version": 1,
-  "scan_at": "2026-10-14T09:22:18+08:00",
-  "completed_at": "2026-10-14T09:23:43+08:00",
-  "namespace_id": "4b8575058fe745bd8abbb9eed752bf91",
+  "scan_at": "2026-10-14T11:12:12+08:00",
   "scan_complete": true,
-  "enumeration_pages": 2,
+  "namespace_id": "4b8575058fe745bd8abbb9eed752bf91",
   "objects_listed": 37,
   "stored_objects_checked": 25,
+  "enumeration_pages": 2,
   "ugc_objects": 2,
-  "active_dishes": 2,
-  "initial_missing": 0,
-  "pending_items": [],
-  "items": [
+  "active_dishes": 3,
+  "initial_missing": 1,
+  "pending_items": [
     {
-      "dish_id": "ugc_25451bb14a77495f96e7",
+      "dish_id": "ugc_031a04d99fcd445e980d",
       "recipe_revision": 1,
-      "recipe_hash": "b5dfad58",
-      "art_recipe_hash": "b5dfad58",
-      "asset_key": "art/ugc/ugc_25451bb14a77495f96e7-r1-b5dfad58.jpg",
-      "stage": "ready_verified",
-      "binding_readback": "ready",
-      "public_image": {
-        "method": "cloud_browser_render_and_download",
-        "loaded": true,
-        "width": 512,
-        "height": 512,
-        "jpeg": true,
-        "matches_verified_source": true,
-        "bytes": 98862,
-        "sha256": "b48ff9d41944cec4d9984c0c7d3a3b58f651171d010de4c7b1a47d919cb7d53d"
-      }
-    },
-    {
-      "dish_id": "ugc_edf5fe7e7ef740f7ba85",
-      "recipe_revision": 1,
-      "recipe_hash": "8a988a6d",
-      "art_recipe_hash": "8a988a6d",
-      "asset_key": "art/ugc/ugc_edf5fe7e7ef740f7ba85-r1-8a988a6d.jpg",
-      "stage": "ready_verified",
-      "binding_readback": "ready",
-      "public_image": {
-        "method": "cloud_browser_render_and_download",
-        "loaded": true,
-        "width": 512,
-        "height": 512,
-        "jpeg": true,
-        "matches_verified_source": true,
-        "bytes": 83175,
-        "sha256": "e0169775f1308370cb98c62dfeb54c87e7638bd95575c8d678011dc4c95572b2"
-      }
+      "recipe_hash": "8c5ea789",
+      "name": "蜜菠和牛流心炊饭",
+      "stage": "recipe_read_pending_generation"
     }
   ],
-  "remaining_missing": 0,
-  "errors": [],
-  "verification_notes": [
-    "Terminal access returned HTTP 403; both public JPEGs successfully rendered and downloaded through authorized cloud browser."
-  ],
-  "deployment": {
-    "performed": false,
-    "reason": "No missing images; receipt-only commit"
-  }
+  "remaining_missing": 1,
+  "errors": []
 }
