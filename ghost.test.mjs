@@ -87,3 +87,20 @@ test('signed special routes acknowledge immediately, isolate leaderboard from oc
 test('outbox survives lost guild response and replacement by a different game; results are counted exactly once',async t=>{const s=setup(t);await s.create();await s.click('join','4');const state=s.ctx.map.get('table');game.finish(state,'1','认输');await s.table.save(state);const original=s.env.TABLES.get;let lost=true;s.env.TABLES.get=n=>{const stub=original(n);return {fetch:async(...args)=>{const r=await stub.fetch(...args);if(n==='ghost-rank:3'&&lost){lost=false;throw Error('lost response');}return r;}};};await s.ctx.storage.put('ghostSyncAt',1);await s.table.ghost.flush();assert.equal((await s.ctx.storage.get('ghostJobs')).length,1);state.phase='closed';await s.ctx.storage.put('table',state);await s.call(2,{name:'uno',options:[{name:'创建'}]});assert.equal(s.ctx.map.get('table').game,'uno');await s.ctx.storage.put('ghostSyncAt',1);await s.table.alarm();assert.equal((await s.ctx.storage.get('ghostJobs')).length,0);assert.equal((await s.instances.get('ghost-rank:3').table.ghostService.rank.view('1')).mine.wins,1);
 });
 
+
+
+test('Worker zero claim invokes durable nickname service once and replay preserves the deadline',async t=>{
+ const s=setup(t),at=Date.now(),packet={id:'123',guild:'3',channel:'2',total:600,slots:3,mode:'random',parts:'[0,300,300]',created:at,expires:at+86400000,claims:[{user_id:'4',amount:0,at}]};let repeated=false;
+ s.table.redPackets={claim:()=>({packet,amount:0,repeated})};const interaction={type:3,guild_id:'3',channel_id:'2',member:{user:{id:'4'}},message:{id:'456'},data:{custom_id:'rp:123'}};
+ const a=await (await s.table.dispatch({op:'redPacket',action:'claim',interaction})).json();assert.equal(a.poop,true);assert.equal(a.penalty.status,'active');
+ const penalty=s.instances.get('ghost-rank:3'),p=(await penalty.ctx.storage.get('ghostPenalties'))['poop:123:4'];assert.equal(p.restoreAt-at,600000);assert.equal(p.nickname,'💩玩家');
+ repeated=true;const b=await (await s.table.dispatch({op:'redPacket',action:'claim',interaction})).json();assert.equal(b.repeated,true);assert.equal((await penalty.ctx.storage.get('ghostPenalties'))[p.id].restoreAt,p.restoreAt);assert.equal(s.requests.filter(r=>r.url.endsWith('/members/4')&&r.method==='PATCH').length,1);
+ p.restoreAt=1;await penalty.ctx.storage.put('ghostPenalties',{[p.id]:p});await penalty.table.alarm();assert.equal((await penalty.ctx.storage.get('ghostPenalties'))[p.id].status,'restored');
+});
+
+test('Worker self-funded packet schedules a refund even without a tracked lobby and refunds on restart alarm',async t=>{
+ const {RED_PACKET_OWNER,RED_PACKET_TTL}=await import('./red-packet.mjs');const s=setup(t),raw=s.ctx.storage.transactionSync.bind(s.ctx.storage);s.ctx.storage.transactionSync=fn=>{let out;raw(()=>out=fn());return out;};
+ s.table.tavern.member('4','玩家');const before=s.table.tavern.member('4').balance;const m={id:'789',guild_id:'3',channel_id:'2',author:{id:'4'},mentions:[{id:'123'}],content:'<@123> 发50元掺💩红包，3份'};
+ const p=await (await s.table.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'redPacket',action:'create',message:m,botId:'123'})}))).json();assert.equal(p.payer_user_id,'4');assert.equal(s.table.tavern.member('4').balance,before-50);assert.equal(await s.ctx.storage.get('redPacketRefundDue'),p.expires);assert.equal(s.ctx.map.get('alarm'),p.expires);
+ s.table.tavern.sql.exec('UPDATE tavern_red_packets SET expires=1 WHERE id=?','789');const restarted=new PokerTable(s.ctx,s.env);await restarted.alarm();assert.equal(restarted.tavern.member('4').balance,before);assert.equal(await s.ctx.storage.get('redPacketRefundDue'),null);assert.equal(s.ctx.map.get('alarm'),undefined);await restarted.alarm();assert.equal(restarted.tavern.member('4').balance,before);
+});

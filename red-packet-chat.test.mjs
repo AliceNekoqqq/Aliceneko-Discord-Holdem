@@ -23,3 +23,5 @@ test('exclusive mention emits hidden one-person spec and target card, Gemini fai
  t.mock.restoreAll();
  }
 });
+
+test('ordinary player mention can request own-funded poop packet through Gemini extraction',async t=>{const f=fixture(t);await replyToMention(f.env,{...message,author:{id:'55',username:'玩家'},content:'<@99> 发600元掺💩红包，5个名额'},'99');assert.equal(f.calls.filter(p=>p.action==='create').length,1);assert.match(f.runtime,/普通玩家可以用自己的余额/);assert.equal(f.posts.length,1);});

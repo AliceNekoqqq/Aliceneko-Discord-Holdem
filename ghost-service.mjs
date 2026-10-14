@@ -4,7 +4,7 @@ const validId=s=>/^\d+$/.test(s||'');
 const clean=s=>String(s||'玩家').replace(/[\x00-\x1f\\`*_~>|\[\]]/g,'').slice(0,24);
 export class GhostService {
  constructor(host){this.host=host;this.storage=host.ctx.storage;this.env=host.env;this.rank=new UnoRankings(this.storage,this.env,{roleKey:'ghostRole',roleName:'👻鬼王',roleColor:0xa58bff});}
- async api(path,method='GET',body){const r=await fetch(`https://discord.com/api/v10${path}`,{method,headers:{Authorization:`Bot ${this.env.BOT_TOKEN}`,'Content-Type':'application/json','X-Audit-Log-Reason':encodeURIComponent('抽鬼牌临时昵称惩罚 / 自动恢复')},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(3500)});if(!r.ok){const e=Error(r.status===403?'机器人无法修改这位玩家的昵称：请检查管理昵称权限及身份组层级。':r.status===404?'这位玩家已离开服务器。':'Discord 暂时繁忙，请稍后重试。');e.status=r.status;throw e;}return r.status===204?null:r.json();}
+ async api(path,method='GET',body){const r=await fetch(`https://discord.com/api/v10${path}`,{method,headers:{Authorization:`Bot ${this.env.BOT_TOKEN}`,'Content-Type':'application/json','X-Audit-Log-Reason':encodeURIComponent('小游戏与掺💩红包临时昵称 / 自动恢复')},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(3500)});if(!r.ok){const e=Error(r.status===403?'机器人无法修改这位玩家的昵称：请检查管理昵称权限及身份组层级。':r.status===404?'这位玩家已离开服务器。':'Discord 暂时繁忙，请稍后重试。');e.status=r.status;throw e;}return r.status===204?null:r.json();}
  async record(guild,result){if(!rankedRound(result)||result.guild!==guild||result.players?.length!==2||result.players.filter(p=>p.won).length!==1||!/^[-a-zA-Z0-9]+:1$/.test(result.id||'')||!Number.isSafeInteger(result.at))throw Error('无效结果。');const recorded=await this.rank.record(guild,result);for(const p of result.players)this.rank.sql.exec("UPDATE uno_stats SET choice='role' WHERE id=?",p.id);
  const records=await this.storage.get('ghostPenalties')||{};
  if(!records[result.id]&&result.at+DECIDE_MS>Date.now()){records[result.id]={id:result.id,winner:result.players.find(p=>p.won).id,loser:result.players.find(p=>!p.won).id,until:result.at+DECIDE_MS,status:'pending'};await this.storage.put('ghostPenalties',records);}
@@ -17,7 +17,7 @@ export class GhostService {
  if(force){await this.storage.put('ghostRoleForce',true);await this.storage.put('ghostRoleDue',Date.now());}
  else if(!await this.storage.get('ghostRoleDue'))await this.storage.put('ghostRoleDue',Date.now());
  }
- async arm(){const records=await this.storage.get('ghostPenalties')||{},dates=[];for(const p of Object.values(records)){if(p.status==='pending')dates.push(p.until);if(['applying','active','restoring'].includes(p.status))dates.push(p.retryAt||p.restoreAt);}
+ async arm(){const records=await this.storage.get('ghostPenalties')||{},dates=[];for(const p of Object.values(records)){if(p.status==='pending')dates.push(p.until);if(['preparing','applying','active','restoring'].includes(p.status))dates.push(p.retryAt||p.restoreAt);}
  const roleDue=await this.storage.get('ghostRoleDue');if(roleDue)dates.push(roleDue);if(dates.length)await this.storage.setAlarm(Math.max(Date.now()+1,Math.min(...dates)));else await this.storage.deleteAlarm();}
  async submit(guild,id,resultId,nickname){const records=await this.storage.get('ghostPenalties')||{},p=records[resultId];
  if(!p||p.winner!==id)throw Error('只有本局胜者可以给本局输家指定昵称。');if(p.status!=='pending')throw Error(p.status==='expired'?'惩罚已过期。':'本局改名已提交，不能重复使用。');if(p.until<=Date.now()){p.status='expired';await this.storage.put('ghostPenalties',records);await this.arm();throw Error('3 分钟思考时间已到，惩罚过期。');}
@@ -30,17 +30,43 @@ export class GhostService {
  try{await this.api(`/guilds/${guild}/members/${p.loser}`,'PATCH',{nick});p.status='active';delete p.retryAt;await this.storage.put('ghostPenalties',records);await this.arm();return `🎭 已为输家设置昵称「${nick}」，5 分钟后自动恢复。`;}
  catch(e){p.error=e.message;if(e.status===403||e.status===404||e.status===400){p.status='failed';delete p.retryAt;}await this.storage.put('ghostPenalties',records);await this.arm();throw e;}
  }
- async alarm(guild){const now=Date.now(),records=await this.storage.get('ghostPenalties')||{},before=JSON.stringify(records);for(const p of Object.values(records)){
+ async poop(guild,packet,user,claimedAt){
+ if(!validId(guild)||!validId(packet)||!validId(user)||!Number.isSafeInteger(claimedAt))throw Error('无效红包惩罚。');
+ const key=`poop:${packet}:${user}`,records=await this.storage.get('ghostPenalties')||{};
+ if(records[key]&&records[key].status!=='preparing'){await this.arm();return {status:records[key].status,error:records[key].error};}
+ if(Date.now()>=claimedAt+600000){if(records[key]){records[key].status='expired';delete records[key].retryAt;await this.storage.put('ghostPenalties',records);await this.arm();}return {status:'expired'};}
+ records[key]??={id:key,loser:user,status:'preparing',until:claimedAt+600000,startedAt:claimedAt,restoreAt:claimedAt+600000,retryAt:Date.now()+3000};
+ await this.storage.put('ghostPenalties',records);await this.storage.put('ghostGuild',guild);await this.arm();
+ let member;try{member=await this.api(`/guilds/${guild}/members/${user}`);}catch(e){const p=records[key];p.error=e.message;if([400,403,404].includes(e.status)){p.status='failed';delete p.retryAt;}else p.retryAt=Date.now()+60000;await this.storage.put('ghostPenalties',records);await this.arm();return {status:p.status,error:p.error};}
+ if(Date.now()>=claimedAt+600000){records[key].status='expired';delete records[key].retryAt;await this.storage.put('ghostPenalties',records);await this.arm();return {status:'expired'};}
+
+ const live=Object.values(records).find(p=>p.loser===user&&['applying','active','restoring'].includes(p.status));
+ const original=live&&member.nick===live.nickname?live.original:member.nick??null;
+ const base=String(member.nick??member.user?.global_name??member.user?.username??'玩家').replace(/^💩+/u,'');
+ // Discord permits 32 UTF-16 units; retain the full original for restoration.
+ let tail=base.slice(0,30);if(/[\uD800-\uDBFF]$/.test(tail))tail=tail.slice(0,-1);
+ const p={id:key,loser:user,original,beforeNickname:member.nick??null,nickname:'💩'+tail,status:'applying',until:claimedAt+600000,startedAt:claimedAt,restoreAt:claimedAt+600000,retryAt:Date.now()+3000};
+ const liveStatus=live?.status,liveRetryAt=live?.retryAt;
+ if(live){live.status='superseded';delete live.retryAt;}
+ records[key]=p;await this.storage.put('ghostPenalties',records);await this.storage.put('ghostGuild',guild);await this.arm();
+ try{await this.api(`/guilds/${guild}/members/${user}`,'PATCH',{nick:p.nickname});p.status='active';delete p.retryAt;}
+ catch(e){p.error=e.message;if([400,403,404].includes(e.status)){p.status='failed';delete p.retryAt;if(live){live.status=liveStatus;if(liveRetryAt)live.retryAt=liveRetryAt;}}}
+ await this.storage.put('ghostPenalties',records);await this.arm();return {status:p.status,error:p.error};
+ }
+ async alarm(guild){const now=Date.now();
+ const queued=await this.storage.get('ghostPenalties')||{};for(const p of Object.values(queued))if(p.status==='preparing'&&(p.retryAt||0)<=now)await this.poop(guild,p.id.split(':')[1],p.loser,p.startedAt);
+ const records=await this.storage.get('ghostPenalties')||{},before=JSON.stringify(records);for(const p of Object.values(records)){
  if(p.status==='pending'&&p.until<=now){p.status='expired';continue;}
  if(!['applying','active','restoring'].includes(p.status)||(p.retryAt||p.restoreAt)>now)continue;
  try{const member=await this.api(`/guilds/${guild}/members/${p.loser}`);
+ if(p.id.startsWith('poop:')&&p.status==='applying'&&member.nick!==p.nickname&&member.nick!==p.beforeNickname){p.status='externally_changed';delete p.retryAt;continue;}
  if(p.status==='applying'&&p.restoreAt>now){if(member.nick!==p.nickname)await this.api(`/guilds/${guild}/members/${p.loser}`,'PATCH',{nick:p.nickname});p.status='active';delete p.retryAt;}
  else {p.status='restoring';await this.storage.put('ghostPenalties',records);if(member.nick===p.nickname)await this.api(`/guilds/${guild}/members/${p.loser}`,'PATCH',{nick:p.original});p.status=member.nick===p.nickname?'restored':'externally_changed';delete p.retryAt;}
  delete p.error;delete p.retries;
  }catch(e){p.error=e.message;if(e.status===404){p.status='left';delete p.retryAt;}else {p.retries=(p.retries||0)+1;p.retryAt=Date.now()+Math.min(900000,Math.max([401,403].includes(e.status)?300000:60000,60000*2**Math.min(p.retries-1,4)));}}
  }
  // Retain live recovery tasks; retired decisions need no private nickname history.
- for(const [id,p]of Object.entries(records))if(!['pending','applying','active','restoring'].includes(p.status)&&p.until<now-3600000)delete records[id];
+ for(const [id,p]of Object.entries(records))if(!['pending','preparing','applying','active','restoring'].includes(p.status)&&p.until<now-3600000)delete records[id];
  if(JSON.stringify(records)!==before)await this.storage.put('ghostPenalties',records);
  const roleDue=await this.storage.get('ghostRoleDue');
  if(roleDue&&roleDue<=Date.now()){
@@ -50,7 +76,7 @@ export class GhostService {
  }
  await this.arm();
  }
- async dispatch(p){if(!validId(p.guild))throw Error('无效服务器。');if(await this.storage.get('ghostGuild')!==p.guild)await this.storage.put('ghostGuild',p.guild);if(p.action==='record')return this.record(p.guild,p.result);if(p.action==='submit')return {content:await this.submit(p.guild,p.id,p.resultId,p.nickname)};await this.queueRole(true);await this.arm();return this.rank.view(p.id);}
+ async dispatch(p){if(!validId(p.guild))throw Error('无效服务器。');if(await this.storage.get('ghostGuild')!==p.guild)await this.storage.put('ghostGuild',p.guild);if(p.action==='poop')return this.poop(p.guild,p.packet,p.user,p.claimedAt);if(p.action==='record')return this.record(p.guild,p.result);if(p.action==='submit')return {content:await this.submit(p.guild,p.id,p.resultId,p.nickname)};await this.queueRole(true);await this.arm();return this.rank.view(p.id);}
 }
 export const serviceStub=(env,guild)=>env.TABLES.get(env.TABLES.idFromName(`ghost-rank:${guild}`));
 export function specialInteraction(i){return i.type===2&&i.data?.name==='抽鬼牌'&&i.data.options?.[0]?.name==='排行榜'||i.type===5&&i.data?.custom_id?.startsWith('gp:');}

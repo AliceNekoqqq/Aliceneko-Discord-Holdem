@@ -112,3 +112,50 @@ test('exclusive amount evidence supports suffix and prefix numbers and rejects i
  for(const value of ['-600','1.5','1000001'])assert.ok(parseRedPacket(m(`<@99> 给 <@22> 发${value}元专属红包`),'99').error);
  assert.ok(parseRedPacket(m('<@99> 给 <@22> 发600元和700元专属红包'),'99').error);
 });
+
+
+test('poop mode keeps exactly one randomly positioned zero and conserves all cash for 2..100 slots',async()=>{
+ const {splitPoopPacket,validateExtractedPacket}=await import('./red-packet.mjs');
+ for(let n=2;n<=100;n++)for(const rng of [()=>0,x=>x-1])for(const mode of ['equal','random']){const parts=splitPoopPacket(600,n,mode,rng);assert.equal(parts.length,n);assert.equal(parts.filter(x=>x===0).length,1);assert.equal(parts.reduce((a,b)=>a+b,0),600);assert(parts.every(x=>Number.isInteger(x)&&x>=0));assert.equal(parts[rng(n)],0);}
+ assert.deepEqual(parseRedPacket(message('<@99> 发一个600的掺💩红包，3个名额'),'99'),{total:600,slots:3,mode:'random',kind:'poop'});
+ assert.deepEqual(parseRedPacket(message('<@99> 发1元掺💩红包，2个名额'),'99'),{total:1,slots:2,mode:'random',kind:'poop'});
+ assert.ok(parseRedPacket(message('<@99> 发600元掺💩红包，1个名额'),'99').error);
+ assert.ok(parseRedPacket(message('<@99> 发1元红包，2个名额'),'99').error);
+ const m=message('<@99> 发600元掺💩红包，3个名额');assert.equal(validateExtractedPacket(m,'99',{total:600,slots:3,mode:'random',totalEvidence:'600',slotsEvidence:'3'}).kind,'poop');
+ assert.ok(parseRedPacket(message('<@99> 发600元专属掺💩红包'),'99').error);
+ assert.equal(validateExtractedPacket(message(),'99',{kind:'poop',total:600,slots:5,mode:'random',totalEvidence:'600',slotsEvidence:'5'}).kind,undefined);
+});
+test('zero claim is permanent, replay safe, awards no balance or welcome money and renders clearly',()=>{
+ const {packets,tavern,store}=setup();const p=packets.create(message('<@99> 发600元掺💩红包，3个名额'),'99',100);packets.bind('123','456');
+ const parts=JSON.parse(p.parts),zero=parts.indexOf(0);let sum=0;
+ for(let n=0;n<3;n++){const uid=String(n+10),a=packets.claim(interaction(uid),200+n);sum+=a.amount;if(n===zero){assert.equal(a.amount,0);assert.equal(tavern.one('SELECT * FROM tavern_members WHERE id=?',uid),null);assert.equal(new RedPackets(new TavernService(store)).claim(interaction(uid),300).repeated,true);}}
+ assert.equal(sum,600);assert.equal(tavern.one("SELECT COUNT(*) n FROM tavern_ledger WHERE kind='system_red_packet'").n,2);assert.equal(packets.view('123').claims.length,3);
+ const card=packetCard(packets.view('123'),300);assert.match(card.embeds[0].title,/掺💩/);assert.match(card.embeds[0].fields[0].value,/💩 \*\*0\*\* 币/);assert.throws(()=>packets.claim(interaction('40'),400),/领完/);
+});
+test('poop result posts a Gemini line only for a first successful rename, never claims cash credited',async t=>{
+ const {finishRedPacket}=await import('./red-packet.mjs');const {POOP_PACKET_LINES}=await import('./red-packet-copy.mjs');assert.equal(POOP_PACKET_LINES.length,10);assert.equal(new Set(POOP_PACKET_LINES).size,10);
+ const calls=[];const env={DISCORD_APPLICATION_ID:'99',TABLES:{idFromName:x=>x,get:()=>({fetch:async()=>Response.json({amount:0,poop:true,repeated:false,penalty:{status:'active'}})})}};
+ t.mock.method(globalThis,'fetch',async(url,opts)=>{calls.push(JSON.parse(opts.body));return Response.json({});});await finishRedPacket(env,{...interaction(),token:'token'});assert.equal(calls.length,2);assert.match(calls[0].content,/0酒馆币/);assert.doesNotMatch(calls[0].content,/存入钱包/);assert(POOP_PACKET_LINES.some(x=>x.replace('{name}','<@10>')===calls[1].content));assert.deepEqual(calls[1].allowed_mentions,{parse:[]});
+});
+
+
+test('players pay from their own guild wallet, replay and insufficient balance never debit twice',()=>{
+ const {packets,tavern}=setup(),m={...message('<@99> 发50元掺💩红包，3个名额'),author:{id:'25',username:'玩家'}};
+ assert.equal(parseRedPacket(m,'99').kind,'poop');assert.equal(parseRedPacket({...m,content:'<@99> 发50元普通红包，3个名额'},'99'),null);
+ assert.match(packets.create(m,'99',100).error,/余额不足/);assert.equal(tavern.one('SELECT * FROM tavern_members WHERE id=?','25'),null);
+ tavern.member('25','玩家',100);const before=tavern.member('25').balance;const p=packets.create(m,'99',200);assert.equal(p.payer_user_id,'25');assert.equal(tavern.member('25').balance,before-50);
+ assert.equal(packets.create(m,'99',300).id,p.id);assert.equal(tavern.member('25').balance,before-50);assert.equal(tavern.one("SELECT COUNT(*) n FROM tavern_ledger WHERE kind='red_packet_send'").n,1);
+ assert.match(packetCard(p,300).embeds[0].description,/自费发放/);const other=setup();assert.match(other.packets.create({...m,id:'999'},'99',200).error,/余额不足/);
+});
+test('player debit and packet creation roll back together on ledger/storage failure',()=>{
+ const {packets,tavern,db}=setup();tavern.member('25','玩家',100);const before=tavern.member('25').balance;db.exec("CREATE TRIGGER fail_send BEFORE INSERT ON tavern_red_packets BEGIN SELECT RAISE(ABORT,'fail'); END");
+ const m={...message('<@99> 发50元掺💩红包，3份'),author:{id:'25'}};assert.throws(()=>packets.create(m,'99',200));assert.equal(tavern.member('25').balance,before);assert.equal(tavern.one("SELECT COUNT(*) n FROM tavern_ledger WHERE kind='red_packet_send'").n,0);
+});
+test('expired player packet returns only unused cash once; explicit delivery failure refunds fully',()=>{
+ const {packets,tavern}=setup();tavern.member('25','玩家',100);const m={...message('<@99> 发50元掺💩红包，3份'),author:{id:'25'}};const before=tavern.member('25').balance,p=packets.create(m,'99',200);packets.bind('123','456');const a=packets.claim(interaction('26'),300);packets.settleExpired(200+RED_PACKET_TTL-1);assert.equal(tavern.member('25').balance,before-50);packets.settleExpired(200+RED_PACKET_TTL);assert.equal(tavern.member('25').balance,before-a.amount);packets.settleExpired(200+RED_PACKET_TTL+1);assert.equal(tavern.member('25').balance,before-a.amount);assert.equal(packets.nextExpiry(),null);
+ const m2={...m,id:'124',content:'<@99> 发1元掺💩红包，2份'};const b=tavern.member('25').balance;packets.create(m2,'99',200+RED_PACKET_TTL+2);assert.equal(tavern.member('25').balance,b-1);assert.equal(packets.cancelDelivery('124',200+RED_PACKET_TTL+3),true);assert.equal(tavern.member('25').balance,b);packets.cancelDelivery('124',200+RED_PACKET_TTL+4);assert.equal(tavern.member('25').balance,b);
+});
+test('developer keeps system mode unless explicitly paying from own balance',()=>{
+ const {packets,tavern}=setup();const p=packets.create(message('<@99> 发600元掺💩红包，3份'),'99',100);assert.equal(p.payer_user_id,null);assert.equal(tavern.one('SELECT * FROM tavern_members WHERE id=?',RED_PACKET_OWNER),null);
+ const m={...message('<@99> 用自己的余额发50元掺💩红包，3份'),id:'124'};assert.match(packets.create(m,'99',200).error,/余额不足/);tavern.member(RED_PACKET_OWNER,'姐姐',200);assert.equal(packets.create(m,'99',300).payer_user_id,RED_PACKET_OWNER);assert.equal(tavern.member(RED_PACKET_OWNER).balance,10);
+});

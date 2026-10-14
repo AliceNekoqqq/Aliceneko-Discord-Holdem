@@ -30,7 +30,7 @@ import {dispatchPetHome,petHomeRequest} from './pet-registry.mjs';
 import {LiarRankings,LiarRankBridge,rankingInteraction as liarRankingInteraction,finishRanking as finishLiarRanking} from './liar-rankings.mjs';
 import {command as liarCommand} from './liar-ui.mjs';
 import {GhostController} from './ghost-controller.mjs';
-import {GhostService,specialInteraction,finishSpecial} from './ghost-service.mjs';
+import {GhostService,specialInteraction,finishSpecial,serviceStub} from './ghost-service.mjs';
 import {command as ghostCommand} from './ghost-ui.mjs';
 import {aiCommand,handleAiCommand,commentOnGameTransition,generateGemini,prepareChatContext} from './ai-chat.mjs';
 import {CHAT_PIPELINE_RUNTIME,DiscordGateway} from './discord-gateway.mjs';
@@ -190,14 +190,19 @@ export class PokerTable extends DurableObject {
       }
       if(payload.op==='redPacket'){try{
         const packets=this.redPackets??=new RedPackets(this.tavern);
-        if(payload.action==='create')return json(packets.create(payload.message,payload.botId,Date.now(),payload.extracted));
+        if(payload.action==='create'){const p=packets.create(payload.message,payload.botId,Date.now(),payload.extracted);if(p?.id){await this.ctx.storage.put('tavernGuild',p.guild);await this.ctx.storage.put('redPacketRefundDue',packets.nextExpiry());await this.tavernLive.arm(await this.ctx.storage.get('tavernLobbyLive'));}return json(p);}
+        if(payload.action==='cancelDelivery'){const cancelled=packets.cancelDelivery(payload.id);await this.ctx.storage.put('redPacketRefundDue',packets.nextExpiry());await this.tavernLive.arm(await this.ctx.storage.get('tavernLobbyLive'));return json({cancelled});}
         if(payload.action==='bind')return json(packets.bind(payload.id,payload.messageId));
         if(payload.action==='claim'){
           const answer=packets.claim(payload.interaction);
           const p=answer.packet;
+          if(p.payer_user_id){await this.ctx.storage.put('redPacketRefundDue',packets.nextExpiry());await this.tavernLive.arm(await this.ctx.storage.get('tavernLobbyLive'));}
+          let penalty;
+          if(answer.amount===0){const claim=p.claims.find(c=>c.amount===0);try{const r=await serviceStub(this.env,p.guild).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'ghostService',action:'poop',guild:p.guild,packet:p.id,user:claim.user_id,claimedAt:claim.at})});penalty=await r.json();}catch{penalty={status:'pending',error:'昵称处理暂时繁忙，可再次点击红包重试；不会延长时间。'};}}
+
           // Credits are already committed. A Discord edit failure cannot undo or repeat them.
           try{await fetch(`https://discord.com/api/v10/channels/${p.channel}/messages/${payload.interaction.message.id}`,{method:'PATCH',headers:{Authorization:`Bot ${this.env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({...packetCard(p),allowed_mentions:{parse:[]}}),signal:AbortSignal.timeout(8000)});}catch{}
-          return json({amount:answer.amount,repeated:answer.repeated,...(answer.publicNotice?{publicNotice:answer.publicNotice}:{})});
+          return json({amount:answer.amount,poop:answer.amount===0,penalty,repeated:answer.repeated,...(answer.publicNotice?{publicNotice:answer.publicNotice}:{})});
         }
         return json({error:'无效红包操作。'});
       }catch(e){return json({error:e.message});}}
@@ -225,7 +230,7 @@ export class PokerTable extends DurableObject {
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
       if(payload.op==='unoRank'){try{return json(await this.rankings.dispatch(payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
+      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.1',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
       if(payload.op==='registrationDiagnostics')return json(await this.ctx.storage.get('commandDiagnostics')||{registered:false,unchecked:true});
       if(payload.op==='register'){
         try{return json(await registerCommands(this.env,this.ctx.storage,[command,unoCommand,ghostCommand,liarCommand,duelCommand,devilCommand,aiCommand,tavernCommand,rogueCommand,cityCommand],COMMAND_VERSION));}catch{return json({registered:false});}
@@ -330,7 +335,7 @@ export class PokerTable extends DurableObject {
       await this.syncBoard(t);return json({type:6});
   }
   async alarm(){
-    if(await this.ctx.storage.get('tavernGuild')){this.tavern.ugc.cleanup();await this.tavernLive.flush();return;}
+    if(await this.ctx.storage.get('tavernGuild')){const packets=this.redPackets??=new RedPackets(this.tavern);packets.settleExpired();await this.ctx.storage.put('redPacketRefundDue',packets.nextExpiry());this.tavern.ugc.cleanup();await this.tavernLive.flush();return;}
     await this.tavernMapBridge.flush();
     await this.ctx.blockConcurrencyWhile(async()=>{
       if(await this.ctx.storage.get('gatewayMode')){await this.discordGateway.ensure();return;}

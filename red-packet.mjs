@@ -1,8 +1,10 @@
+import {POOP_PACKET_LINES} from './red-packet-copy.mjs';
 // Authority is an exact account ID, never a nickname or model decision.
 export const RED_PACKET_OWNER='993451176282574878';
 export const RED_PACKET_TTL=24*60*60*1000;
 export const RED_PACKET_LINKED_ACCOUNTS=Object.freeze(['1402174864827219978','1360154014146363446']);
 function exclusiveTarget(message,botId){const body=String(message.content||'').replace(/```[\s\S]*?```/g,'').split('\n').filter(l=>!/^[ \t]*>/.test(l)).join(' ');const mentioned=new Set([...body.matchAll(/<@!?(\d+)>/g)].map(m=>m[1]));const ids=[...new Set((message.mentions||[]).filter(u=>u?.id&&u.id!==botId&&!u.bot&&idOk(u.id)&&mentioned.has(String(u.id))).map(u=>String(u.id)))];return ids.length===1?ids[0]:null;}
+export const poopIntent=text=>/(?:掺|搀|混)[^。！？!?]{0,6}(?:💩|屎|便便)|(?:💩|屎|便便)红包/.test(text)&&!/(?:不要|不许|不|别|取消)[^。！？!?]{0,6}(?:掺|搀|混|💩|屎|便便)/.test(text);
 function exclusiveIntent(text){return /专属红包/.test(text);}
 export const RED_PACKET_REPEAT_LINES=Object.freeze(["文小弟领了一次还想领？贪心！", "文小弟，换个小号就想再领？红包可认得你！", "文小弟，红包都进兜了，还想再伸一次手呀？", "文小弟，大小号轮流上场？一次就是一次哦！", "文小弟，刚领完就又来了？给别人留点手气嘛！", "文小弟，换件马甲也没用，这个红包你领过啦！"]);
 const packetPerson=id=>RED_PACKET_LINKED_ACCOUNTS.includes(id)?RED_PACKET_LINKED_ACCOUNTS[0]:id;
@@ -23,27 +25,29 @@ function integerValue(raw){
 }
 function numberMatches(text,pattern){return [...text.matchAll(new RegExp(pattern,'dg'))].map(m=>{const group=m.findIndex((v,i)=>i>0&&v!==undefined);return {raw:m[group],start:m.indices[group][0],end:m.indices[group][1],value:integerValue(m[group])}});}
 export function redPacketIntent(message,botId){
- if(message?.author?.id!==RED_PACKET_OWNER||message.author.bot||!idOk(message.guild_id)||!idOk(message.channel_id)||!idOk(message.id))return false;
+ if(!idOk(message?.author?.id)||message.author.bot||!idOk(message.guild_id)||!idOk(message.channel_id)||!idOk(message.id))return false;
  if(!(message.mentions||[]).some(u=>u.id===botId)&&!String(message.content||'').includes(`<@${botId}>`)&&!String(message.content||'').includes(`<@!${botId}>`))return false;
  const text=String(message.content||'').normalize('NFKC').replace(/```[\s\S]*?```/g,'').split('\n').filter(l=>!/^\s*>/.test(l)).join(' ').replace(/<@!?[0-9]+>/g,'');
+ if(message.author.id!==RED_PACKET_OWNER&&!poopIntent(text))return false;
  if(!/(?:发|派|送|来|安排|整|弄|包)[^。!?！？]{0,80}红包/.test(text)||/(?:别|不要|不许|取消|停止|怎么|如何|如果|例如|比如)[^。!?！？]{0,80}(?:发|派|送|来|安排|整|弄|包)/.test(text))return false;
  return true;
 }
 export function validateExtractedPacket(message,botId,spec){
  if(!redPacketIntent(message,botId))return null;
  const text=String(message.content||'').normalize('NFKC').replace(/```[\s\S]*?```/g,'').split('\n').filter(l=>!/^\s*>/.test(l)).join(' ');
+ if(exclusiveIntent(text)&&poopIntent(text))return {error:'掺💩红包至少两份，不能与单人专属红包混用。'};
  if(exclusiveIntent(text)||spec?.kind==='exclusive'){
   const target=exclusiveTarget(message,botId), amounts=numberMatches(text,`${BOUNDARY}(${NUMBER})\\s*(?:酒馆币|金币|元|币|块(?:钱)?)|${BOUNDARY}(${NUMBER})\\s*(?:的)?\\s*专属红包|(?:红包|总额|金额)[:：,，\\s]*(?:为|是)?\\s*(${NUMBER})`);
   const amount=amounts.length===1?amounts[0]:null;
   if(!exclusiveIntent(text)||!target||target===message.author.id||!spec||spec.kind!=='exclusive'||(spec.targetUserId!==undefined&&String(spec.targetUserId)!==target)||!amount||amount.value<1||amount.value>1000000||spec.total!==amount.value||spec.slots!==1||spec.mode!=='equal'||typeof spec.totalEvidence!=='string'||integerValue(spec.totalEvidence)!==spec.total||!amounts.some(r=>r.raw===spec.totalEvidence))return {error:'专属红包需要明确 @ 一位其他真实用户和有效金额；请检查收礼人及金额后重发。'};
   return {total:spec.total,slots:1,mode:'equal',kind:'exclusive',targetUserId:target};
  }
- if(!spec||!Number.isSafeInteger(spec.total)||spec.total<1||spec.total>1000000||!Number.isSafeInteger(spec.slots)||spec.slots<1||spec.slots>100||spec.total<spec.slots||!['equal','random'].includes(spec.mode))return {error:'红包金额或名额不完整，请告诉我总额和领取人数。'};
+ if(!spec||!Number.isSafeInteger(spec.total)||spec.total<1||spec.total>1000000||!Number.isSafeInteger(spec.slots)||spec.slots<1||spec.slots>100||spec.total<spec.slots-(poopIntent(text)?1:0)||poopIntent(text)&&spec.slots<2||!['equal','random'].includes(spec.mode))return {error:'红包金额或名额不完整，请告诉我总额和领取人数。'};
  const plainText=String(message.content||'').normalize('NFKC').replace(/```[\s\S]*?```/g,'').split('\n').filter(l=>!/^\s*>/.test(l)).join(' ').replace(/<@!?[0-9]+>/g,'');
  const values=numberMatches(plainText,`${BOUNDARY}(${NUMBER})`);
  const evidence=(raw,value)=>typeof raw==='string'&&integerValue(raw)===value&&values.some(r=>r.raw===raw);
  if(!evidence(spec.totalEvidence,spec.total)||!evidence(spec.slotsEvidence,spec.slots))return {error:'红包金额或人数还不明确，请再写清总额和名额。'};
- return {total:spec.total,slots:spec.slots,mode:spec.mode};
+ return {total:spec.total,slots:spec.slots,mode:spec.mode,...(poopIntent(text)?{kind:'poop'}:{})};
 }
 export function decodePacketReply(raw){
  const text=String(raw||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
@@ -54,6 +58,7 @@ export function decodePacketReply(raw){
 export function parseRedPacket(message,botId){
  if(!redPacketIntent(message,botId))return null;
  const text=String(message.content||'').normalize('NFKC').replace(/```[\s\S]*?```/g,'').split('\n').filter(l=>!/^\s*>/.test(l)).join(' ').replace(/<@!?[0-9]+>/g,'');
+ if(exclusiveIntent(text)&&poopIntent(text))return {error:'掺💩红包至少两份，不能与单人专属红包混用。'};
  if(exclusiveIntent(text)){
   const target=exclusiveTarget(message,botId);const nums=numberMatches(text,`${BOUNDARY}(${NUMBER})\\s*(?:酒馆币|金币|元|币|块(?:钱)?)|${BOUNDARY}(${NUMBER})\\s*(?:的)?\\s*专属红包|(?:红包|总额|金额)[:：,，\\s]*(?:为|是)?\\s*(${NUMBER})`);
   if(!target||target===message.author.id||nums.length!==1||!Number.isSafeInteger(nums[0].value)||nums[0].value<1||nums[0].value>1000000)return {error:'专属红包需要明确 @ 一位其他真实用户和有效金额；请检查收礼人及金额后重发。'};
@@ -68,12 +73,12 @@ export function parseRedPacket(message,botId){
  const amounts=unique([
   ...numberMatches(amountText,`(?:总额|金额|红包)[:：,，\\s]*(?:为|是)?\\s*${n}`),
   ...numberMatches(amountText,`${BOUNDARY}${n}\\s*(?:酒馆币|金币|元|币|块(?:钱)?)`),
-  ...numberMatches(amountText,`${BOUNDARY}${n}\\s*(?:的)?\\s*(?:拼手气|随机|均分|平均|普通)?\\s*红包`)
+  ...numberMatches(amountText,`${BOUNDARY}${n}\\s*(?:的)?\\s*(?:掺💩|掺屎|掺便便|拼手气|随机|均分|平均|普通)?\\s*红包`)
  ]);
  if(amounts.length!==1||slotsFound.length!==1)return {error:'红包金额或名额还不明确，请补全，例如：发个600的拼手气红包，5个名额。'};
  const total=amounts[0].value,slots=slotsFound[0].value;
- if(!Number.isSafeInteger(total)||total<1||total>1000000||!Number.isSafeInteger(slots)||slots<1||slots>100||total<slots)return {error:'红包总额须为1～1,000,000酒馆币，名额1～100个，且每人至少1币。'};
- return {total,slots,mode:/均分|平均|普通红包/.test(text)?'equal':'random'};
+ if(!Number.isSafeInteger(total)||total<1||total>1000000||!Number.isSafeInteger(slots)||slots<1||slots>100||total<slots-(poopIntent(text)?1:0)||poopIntent(text)&&slots<2)return {error:'红包总额须为1～1,000,000酒馆币，普通名额1～100个；掺💩红包2～100份，固定一份0币，其余每份至少1币。'};
+ return {total,slots,mode:/均分|平均|普通红包/.test(text)?'equal':'random',...(poopIntent(text)?{kind:'poop'}:{})};
 }
 export function secureIndex(n){const a=new Uint32Array(1),limit=Math.floor(4294967296/n)*n;do{crypto.getRandomValues(a)}while(a[0]>=limit);return a[0]%n;}
 export function splitPacket(total,slots,mode,random=secureIndex){
@@ -81,16 +86,36 @@ export function splitPacket(total,slots,mode,random=secureIndex){
  for(let i=0;i<slots;i++){const remaining=slots-i;const amount=remaining===1?left:mode==='equal'?Math.floor(total/slots)+(i<total%slots?1:0):1+random(Math.min(left-(remaining-1),Math.max(1,Math.floor(2*left/remaining))));parts.push(amount);left-=amount;}
  return parts;
 }
+export function splitPoopPacket(total,slots,mode,random=secureIndex){
+ if(!Number.isSafeInteger(total)||!Number.isSafeInteger(slots)||slots<2||slots>100||total<slots-1)throw Error('invalid_poop_packet');
+ const parts=splitPacket(total,slots-1,mode,random);parts.splice(random(slots),0,0);return parts;
+}
 export class RedPackets{
  constructor(tavern){this.host=tavern;this.sql=tavern.sql;
  this.sql.exec('CREATE TABLE IF NOT EXISTS tavern_red_packets (id TEXT PRIMARY KEY,guild TEXT NOT NULL,channel TEXT NOT NULL,total INTEGER NOT NULL,slots INTEGER NOT NULL,mode TEXT NOT NULL,parts TEXT NOT NULL,created INTEGER NOT NULL,expires INTEGER NOT NULL,message_id TEXT)');
- this.sql.exec('CREATE TABLE IF NOT EXISTS tavern_red_claims (packet TEXT NOT NULL,user_id TEXT NOT NULL,amount INTEGER NOT NULL,at INTEGER NOT NULL,PRIMARY KEY(packet,user_id))');if(!this.sql.exec('PRAGMA table_info(tavern_red_packets)').toArray().some(c=>c.name==='target_user_id'))this.sql.exec('ALTER TABLE tavern_red_packets ADD COLUMN target_user_id TEXT');}
+ this.sql.exec('CREATE TABLE IF NOT EXISTS tavern_red_claims (packet TEXT NOT NULL,user_id TEXT NOT NULL,amount INTEGER NOT NULL,at INTEGER NOT NULL,PRIMARY KEY(packet,user_id))');if(!this.sql.exec('PRAGMA table_info(tavern_red_packets)').toArray().some(c=>c.name==='target_user_id'))this.sql.exec('ALTER TABLE tavern_red_packets ADD COLUMN target_user_id TEXT');
+ for(const [name,type]of [['payer_user_id','TEXT'],['refunded','INTEGER NOT NULL DEFAULT 0']])if(!this.sql.exec('PRAGMA table_info(tavern_red_packets)').toArray().some(c=>c.name===name))this.sql.exec(`ALTER TABLE tavern_red_packets ADD COLUMN ${name} ${type}`);}
  one(q,...a){return this.host.one(q,...a)}
  view(id){const p=this.one('SELECT * FROM tavern_red_packets WHERE id=?',id);if(!p)throw Error('红包不存在。');const claims=this.host.rows('SELECT user_id,amount,at FROM tavern_red_claims WHERE packet=? ORDER BY at,user_id',id);return {...p,claims};}
  create(message,botId,now=Date.now(),extracted=null){
  const spec=extracted?validateExtractedPacket(message,botId,extracted):parseRedPacket(message,botId);if(!spec)return null;if(spec.error)return spec;
- return this.host.storage.transactionSync(()=>{const prior=this.one('SELECT id FROM tavern_red_packets WHERE id=?',message.id);if(!prior)this.sql.exec('INSERT INTO tavern_red_packets(id,guild,channel,total,slots,mode,parts,created,expires,message_id,target_user_id) VALUES(?,?,?,?,?,?,?,?,?,NULL,?)',message.id,message.guild_id,message.channel_id,spec.total,spec.slots,spec.mode,JSON.stringify(splitPacket(spec.total,spec.slots,spec.mode)),now,now+RED_PACKET_TTL,spec.kind==='exclusive'?spec.targetUserId:null);return this.view(message.id);});
+ const ownBalance=message.author.id!==RED_PACKET_OWNER||spec.kind==='poop'&&/(?:用|花|扣)(?:我(?:的)?|自己(?:的)?|个人(?:的)?)?余额/.test(String(message.content));
+ return this.host.storage.transactionSync(()=>{
+ const prior=this.one('SELECT id FROM tavern_red_packets WHERE id=?',message.id);if(prior)return this.view(message.id);
+ const payer=ownBalance?message.author.id:null;
+ if(payer){const m=this.one('SELECT balance FROM tavern_members WHERE id=?',payer);if(!m||m.balance<spec.total)return {error:`钱包余额不足，发这个红包需要 ${spec.total} 酒馆币，当前余额 ${m?.balance||0} 币。`};this.sql.exec('UPDATE tavern_members SET balance=balance-? WHERE id=?',spec.total,payer);this.sql.exec('INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)',`redsend:${message.id}`,payer,-spec.total,'red_packet_send','自费掺💩红包',now);}
+ this.sql.exec('INSERT INTO tavern_red_packets(id,guild,channel,total,slots,mode,parts,created,expires,message_id,target_user_id,payer_user_id) VALUES(?,?,?,?,?,?,?,?,?,NULL,?,?)',message.id,message.guild_id,message.channel_id,spec.total,spec.slots,spec.mode,JSON.stringify(spec.kind==='poop'?splitPoopPacket(spec.total,spec.slots,spec.mode):splitPacket(spec.total,spec.slots,spec.mode)),now,now+RED_PACKET_TTL,spec.kind==='exclusive'?spec.targetUserId:null,payer);
+ return this.view(message.id);});
  }
+ nextExpiry(){return this.one('SELECT MIN(expires) due FROM tavern_red_packets WHERE payer_user_id IS NOT NULL AND refunded=0')?.due||null;}
+ settleExpired(now=Date.now()){
+ return this.host.storage.transactionSync(()=>{for(const p of this.host.rows('SELECT id,payer_user_id,total FROM tavern_red_packets WHERE payer_user_id IS NOT NULL AND refunded=0 AND expires<=?',now)){
+ const used=this.one('SELECT COALESCE(SUM(amount),0) used FROM tavern_red_claims WHERE packet=?',p.id).used,refund=p.total-used;
+ if(refund>0){this.sql.exec('UPDATE tavern_members SET balance=balance+? WHERE id=?',refund,p.payer_user_id);this.sql.exec('INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)',`redrefund:${p.id}`,p.payer_user_id,refund,'red_packet_refund','红包过期未领取金额退回',now);}
+ this.sql.exec('UPDATE tavern_red_packets SET refunded=1 WHERE id=?',p.id);
+ }});
+ }
+ cancelDelivery(id,now=Date.now()){const p=this.view(id);if(p.message_id||p.claims.length)return false;this.sql.exec('UPDATE tavern_red_packets SET expires=? WHERE id=?',now,id);this.settleExpired(now);return true;}
  bind(id,messageId){if(!idOk(messageId))throw Error('无效消息。');this.sql.exec('UPDATE tavern_red_packets SET message_id=COALESCE(message_id,?) WHERE id=?',messageId,id);return true;}
  claim(i,now=Date.now()){
  const id=String(i.data?.custom_id||'').split(':')[1],user=i.member?.user;
@@ -101,17 +126,18 @@ export class RedPackets{
  if(prior)return {packet:p,amount:prior.amount,repeated:true,...(RED_PACKET_LINKED_ACCOUNTS.includes(user.id)?{publicNotice:RED_PACKET_REPEAT_LINES[crypto.getRandomValues(new Uint32Array(1))[0]%RED_PACKET_REPEAT_LINES.length]}:{})};
  if(p.target_user_id&&packetPerson(user.id)!==packetPerson(p.target_user_id))throw Error('这是专属红包，只能由指定收礼人领取。');
  if(now>=p.expires)throw Error('这个红包已过期。');if(p.claims.length>=p.slots)throw Error('这个红包已领完。');
- const amount=JSON.parse(p.parts)[p.claims.length];this.host.member(user.id,i.member.nick||user.global_name||user.username,now,true);
+ const amount=JSON.parse(p.parts)[p.claims.length];if(amount>0)this.host.member(user.id,i.member.nick||user.global_name||user.username,now,true);
  this.sql.exec('INSERT INTO tavern_red_claims VALUES(?,?,?,?)',id,user.id,amount,now);
- this.sql.exec('UPDATE tavern_members SET balance=balance+? WHERE id=?',amount,user.id);
- this.sql.exec('INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)',`red:${id}:${user.id}`,user.id,amount,'system_red_packet','开发者系统红包',now);
+ if(amount>0)this.sql.exec('UPDATE tavern_members SET balance=balance+? WHERE id=?',amount,user.id);
+ if(amount>0)this.sql.exec('INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)',`red:${id}:${user.id}`,user.id,amount,p.payer_user_id?'player_red_packet':'system_red_packet',p.payer_user_id?'玩家自费红包':'开发者系统红包',now);
+ if(p.payer_user_id&&p.claims.length+1>=p.slots)this.sql.exec('UPDATE tavern_red_packets SET refunded=1 WHERE id=?',id);
  return {packet:this.view(id),amount,repeated:false};});
  }
 }
 export function packetCard(p,now=Date.now()){
- const done=p.claims.length>=p.slots,expired=now>=p.expires;
+ const done=p.claims.length>=p.slots,expired=now>=p.expires,poop=JSON.parse(p.parts||'[]').includes(0);
  const used=p.claims.reduce((s,c)=>s+c.amount,0),best=done?Math.max(...p.claims.map(c=>c.amount)):null;
- return {embeds:[{title:`🧧 ${p.target_user_id?'专属':p.mode==='equal'?'均分':'拼手气'}红包 · ${p.total.toLocaleString('en-US')} 酒馆币`,color:0xb72d36,description:`${p.target_user_id?`指定收礼人：<@${p.target_user_id}>\n`:''}${done?'已领完':expired?'已过期':'点击下方按钮拆红包'} · ${p.claims.length}/${p.slots} 人已领取\n已领取 ${used} 币 · 剩余 ${p.total-used} 币\n系统发放 · 不扣任何人的钱包\n有效期至 <t:${Math.floor(p.expires/1000)}:f>`,image:{url:'https://discord-holdem.aliceneko.workers.dev/art/red-packet/v1.jpg'},fields:p.claims.length?[{name:'领取记录',value:p.claims.slice(-15).map(c=>`<@${c.user_id}> · **${c.amount}** 币${c.amount===best?' 👑手气最佳':''}`).join('\n')+(p.claims.length>15?`\n共${p.claims.length}人，显示最近15人`:''),inline:false}]:[],footer:{text:'每人限领一次 · 金额单位为酒馆币'},timestamp:new Date(p.expires).toISOString()}],components:[{type:1,components:[{type:2,style:4,label:done?'已领完':expired?'已过期':'拆红包',custom_id:`rp:${p.id}`,disabled:done||expired}]}]};
+ return {embeds:[{title:`🧧 ${poop?'掺💩':p.target_user_id?'专属':p.mode==='equal'?'均分':'拼手气'}红包 · ${p.total.toLocaleString('en-US')} 酒馆币`,color:0xb72d36,description:`${p.target_user_id?`指定收礼人：<@${p.target_user_id}>\n`:''}${done?'已领完':expired?'已过期':'点击下方按钮拆红包'} · ${p.claims.length}/${p.slots} 人已领取\n已领取 ${used} 币 · 剩余 ${p.total-used} 币\n${p.payer_user_id?`<@${p.payer_user_id}> 自费发放 · 已从本人钱包扣款\n未领取金额到期自动退回`:'系统发放 · 不扣任何人的钱包'}\n${poop?'固定混入1份💩包：0币，昵称前加💩10分钟\n':''}有效期至 <t:${Math.floor(p.expires/1000)}:f>`,image:{url:'https://discord-holdem.aliceneko.workers.dev/art/red-packet/v1.jpg'},fields:p.claims.length?[{name:'领取记录',value:p.claims.slice(-15).map(c=>`<@${c.user_id}> · ${c.amount===0?'💩 **0** 币':`**${c.amount}** 币`}${c.amount>0&&c.amount===best?' 👑手气最佳':''}`).join('\n')+(p.claims.length>15?`\n共${p.claims.length}人，显示最近15人`:''),inline:false}]:[],footer:{text:'每人限领一次 · 金额单位为酒馆币'},timestamp:new Date(p.expires).toISOString()}],components:[{type:1,components:[{type:2,style:4,label:done?'已领完':expired?'已过期':'拆红包',custom_id:`rp:${p.id}`,disabled:done||expired}]}]};
 }
 export async function packetRpc(env,guild,body){const stub=env.TABLES.get(env.TABLES.idFromName(`tavern:${guild}`));const response=await stub.fetch('https://internal',{method:'POST',body:JSON.stringify({op:'redPacket',...body})});if(!response.ok)throw Error('红包服务暂时不可用。');return response.json();}
 export async function prepareRedPacket(env,message,botId,extracted=null){const spec=extracted?validateExtractedPacket(message,botId,extracted):parseRedPacket(message,botId);if(!spec)return null;if(spec.error)return spec;try{return await packetRpc(env,message.guild_id,{action:'create',message,botId,extracted});}catch{return {error:'红包创建失败，请稍后重新 @ 我发送。'};}}
@@ -119,6 +145,9 @@ export async function finishRedPacket(env,i){
  let content,publicNotice;
  try{const answer=await packetRpc(env,i.guild_id,{action:'claim',interaction:i});
  publicNotice=answer.publicNotice;
+ if(answer.poop&&!answer.repeated&&!answer.error){const name=`<@${i.member.user.id}>`;publicNotice=answer.penalty?.status==='active'?POOP_PACKET_LINES[secureIndex(POOP_PACKET_LINES.length)].replace('{name}',name):`${name} 拆中了💩红包：0酒馆币。${answer.penalty?.error||'昵称处理已记录，正在执行。'}`;}
+ if(answer.poop&&!answer.error){content=answer.repeated?'你已经抽到这份💩红包啦：0酒馆币。':'💩 拆开是掺💩红包：0酒馆币。';content+='\n'+(answer.penalty?.status==='active'?'昵称前已加💩，到期自动恢复；重复点击不延长10分钟时限。':['restored','expired','externally_changed','superseded'].includes(answer.penalty?.status)?'这次昵称惩罚已结束。':answer.penalty?.error||'昵称处理已记录，正在尝试执行。');}
+ if(!content)
  content=answer.error||(publicNotice?'这个红包你已经领过了，大小号共用一次领取机会。':`${answer.repeated?'你已经领过这个红包':'红包已拆开'}：**${answer.amount} 酒馆币**，已存入钱包。`);
  }catch{content='红包服务暂时繁忙，请重试。';}
  const webhook=`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${i.token}`;
