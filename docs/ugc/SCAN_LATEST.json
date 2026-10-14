@@ -9,17 +9,30 @@
   "ugc_objects": 2,
   "active_dishes": 3,
   "initial_missing": 1,
-  "pending_items": [
+  "pending_items": [],
+  "remaining_missing": 0,
+  "errors": [],
+  "completed_at": "2026-10-14T03:18:00.290Z",
+  "items": [
     {
       "dish_id": "ugc_031a04d99fcd445e980d",
       "recipe_revision": 1,
       "recipe_hash": "8c5ea789",
       "name": "蜜菠和牛流心炊饭",
-      "stage": "ci_building_assets",
-      "github_commit": "55f4ab3ebead9bc10ca2d8785af927345e1b1809",
-      "workflow_run": 38505262289
+      "stage": "ready_verified",
+      "workflow_conclusion": "success",
+      "deployment_id": "f866064c-1cc0-4d84-8223-4a26eb4d09be",
+      "version_id": "ce56824e-16be-490c-8130-e80a267813ae",
+      "public_image": {
+        "loaded": true,
+        "width": 512,
+        "height": 512,
+        "jpeg": true,
+        "bytes": 114087,
+        "sha256": "ef1d1352a86e420b216ea2717cf61f538fcd1c829854462f81779c959984a30f",
+        "matches_source": true
+      },
+      "binding_readback": "ready"
     }
-  ],
-  "remaining_missing": 1,
-  "errors": []
+  ]
 }
