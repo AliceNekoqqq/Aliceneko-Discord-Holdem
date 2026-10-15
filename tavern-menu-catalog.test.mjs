@@ -73,6 +73,6 @@ test('fixed temperatures and order metadata come from the catalogue',()=>{
 });
 
 test('program-owned economic ceilings stay stable while reward rates match the revised policy',()=>{
- assert.deepEqual([WELCOME_COINS,DAILY_REWARD_CAP,ROSTER_DAILY_LIMIT,ORDER_TTL],[60,150,8,180000]);
+ assert.deepEqual([WELCOME_COINS,DAILY_REWARD_CAP,ROSTER_DAILY_LIMIT,ORDER_TTL],[500,150,8,180000]);
  assert.deepEqual(REWARDS,{ghost:{name:'抽鬼牌',base:6,bonus:4,minMs:15000},poker:{name:'德州扑克',base:8,bonus:4,minMs:30000},uno:{name:'UNO',base:12,bonus:6,minMs:45000},liar:{name:'骗子酒馆',base:14,bonus:6,minMs:60000}});
 });

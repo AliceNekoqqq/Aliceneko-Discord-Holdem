@@ -25,7 +25,7 @@ function complete(s,now=Date.now(),material='paper'){
 
 test('view does not create wallet; adoption is single, durable and never gives another welcome grant',()=>{
  const s=setup();assert.equal(s.do('petView').pet,null);assert.equal(s.host.rows('SELECT * FROM tavern_members').length,0);
- const v=adopt(s);assert.equal(v.balance,60);assert.equal(v.pet.name,'灯灯');
+ const v=adopt(s);assert.equal(v.balance,500);assert.equal(v.pet.name,'灯灯');
  assert.throws(()=>adopt(s),/只能领养一只/);
  assert.equal(new TavernService(s.store).pets.view('1').pet.species,'lamp-cat');
  assert.equal(s.host.rows("SELECT * FROM tavern_ledger WHERE kind='welcome'").length,1);
@@ -83,8 +83,8 @@ test('material shop enforces preview, balance, daily cap and idempotency without
  const s=setup(),now=Date.now();adopt(s,now);s.host.claimDaily('1','Alice',now);
  const offer={material:'thread',expectedPrice:6,expectedQuantity:2,expectedShopVersion:'materials-v1'};
  assert.throws(()=>s.do('petMaterialBuy',{...offer,expectedPrice:0},now),/预览/);
- const first=s.do('petMaterialBuy',{...offer,requestKey:'material-once'},now);assert.equal(first.materials.thread,2);assert.equal(first.balance,74);
- s.do('petMaterialBuy',{...offer,requestKey:'material-once'},now);assert.equal(s.do('petView',{},now).balance,74);
+ const first=s.do('petMaterialBuy',{...offer,requestKey:'material-once'},now);assert.equal(first.materials.thread,2);assert.equal(first.balance,514);
+ s.do('petMaterialBuy',{...offer,requestKey:'material-once'},now);assert.equal(s.do('petView',{},now).balance,514);
  s.do('petMaterialBuy',{...offer,material:'paper'},now);s.do('petMaterialBuy',{...offer,material:'wood'},now);
  assert.throws(()=>s.do('petMaterialBuy',offer,now),/6份/);assert.equal(s.do('petView',{},now).reward.totalEarned,20);
  assert.equal(s.host.one("SELECT COUNT(*) AS n FROM tavern_ledger WHERE kind='pet_material'").n,3);
@@ -154,8 +154,8 @@ test('repeated interaction key returns the same outcome without advancing or pay
 });
 test('the pet subcap is inside the existing total cap and the wallet ledger matches actual credited amounts',()=>{
  const s=setup(),now=Date.now();adopt(s,now);s.host.sql.exec('INSERT INTO tavern_daily VALUES(?,?,?)','1',dayKey(now),DAILY_REWARD_CAP-3);
- const a=complete(s,now+1);assert.equal(a.receipt.coins,3);assert.equal(a.balance,63);
- const b=complete(s,now+20);assert.equal(b.receipt.coins,0);assert(b.receipt.materials>0);assert.equal(b.balance,63);
+ const a=complete(s,now+1);assert.equal(a.receipt.coins,3);assert.equal(a.balance,503);
+ const b=complete(s,now+20);assert.equal(b.receipt.coins,0);assert(b.receipt.materials>0);assert.equal(b.balance,503);
  assert.equal(s.host.one('SELECT earned FROM tavern_daily WHERE user_id=? AND day=?','1',dayKey(now)).earned,DAILY_REWARD_CAP);
  assert.equal(s.host.one("SELECT SUM(amount) AS n FROM tavern_ledger WHERE kind='pet'").n,3);
 });
@@ -167,7 +167,7 @@ test('daily arrival gift and pet settlement use the same allowance in either ord
   const v=complete(s,now+1);
   if(!giftFirst)s.host.claimDaily('1','Alice',now+20);
   assert.equal(s.host.view('1','Alice',now).earned,150);
-  assert.equal(s.host.view('1','Alice',now).member.balance,80);
+  assert.equal(s.host.view('1','Alice',now).member.balance,520);
   assert.equal(s.host.one('SELECT SUM(amount) AS n FROM tavern_ledger WHERE kind IN (?,?)','pet','daily_gift').n,20);
   assert.equal(v.receipt.coins,giftFirst?0:Math.min(10,6+v.receipt.stars*2));
  }
@@ -184,16 +184,16 @@ test('wallet, ledger, growth, materials and final route all roll back on a faile
  const params={walkId:v.walk.id,version:v.walk.version,choice:'porch-friend'},original=s.store.sql.exec;
  s.store.sql.exec=(q,...args)=>{if(q==='INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)'&&args[3]==='pet')throw Error('disk failed');return original(q,...args);};
  assert.throws(()=>s.do('petAct',params),/disk failed/);s.store.sql.exec=original;
- const failed=s.pets.view('1');assert.equal(failed.balance,60);assert.equal(failed.walk.step,4);assert.equal(failed.pet.growth,0);assert.deepEqual(failed.materials,{});
+ const failed=s.pets.view('1');assert.equal(failed.balance,500);assert.equal(failed.walk.step,4);assert.equal(failed.pet.growth,0);assert.deepEqual(failed.materials,{});
  const good=s.do('petAct',params);assert(good.receipt.coins>0);assert.equal(s.host.rows("SELECT * FROM tavern_ledger WHERE kind='pet'").length,1);
 });
 test('shop confirmation uses current price and recipe version; owned items cannot be bought twice and can be moved free',()=>{
  const s=setup();adopt(s);let pet=s.pets.profile('1');pet.materials.metal=1;s.pets.save('1',pet);
  assert.throws(()=>s.do('petBuy',{item:'bell-charm',expectedPrice:1,expectedShopVersion:'v1'}),/预览已变化/);
  const p={item:'bell-charm',expectedPrice:30,expectedShopVersion:'v1',requestKey:'buy-once'};
- const a=s.do('petBuy',p),b=s.do('petBuy',p);assert.equal(a.balance,30);assert.equal(b.balance,30);assert.equal(b.materials.metal,0);
+ const a=s.do('petBuy',p),b=s.do('petBuy',p);assert.equal(a.balance,470);assert.equal(b.balance,470);assert.equal(b.materials.metal,0);
  assert.throws(()=>s.do('petBuy',{...p,requestKey:'new-buy'}),/已经拥有/);
- const equipped=s.do('petEquip',{item:'bell-charm'});assert.equal(equipped.decor.charm,'bell-charm');assert.equal(equipped.balance,30);
+ const equipped=s.do('petEquip',{item:'bell-charm'});assert.equal(equipped.decor.charm,'bell-charm');assert.equal(equipped.balance,470);
  assert.throws(()=>s.do('petEquip',{item:'not-an-item'}),/已经拥有/);
 });
 test('a failed purchase cannot consume money or material; the original confirmation can retry safely',()=>{
@@ -201,8 +201,8 @@ test('a failed purchase cannot consume money or material; the original confirmat
  s.store.sql.exec=(q,...args)=>{if(q==='UPDATE pet_profiles SET body=?,version=version+1 WHERE owner=?')throw Error('profile write failed');return original(q,...args);};
  const p={item:'bell-charm',expectedPrice:30,expectedShopVersion:'v1',requestKey:'recover'};
  assert.throws(()=>s.do('petBuy',p),/profile write/);s.store.sql.exec=original;
- assert.equal(s.pets.view('1').balance,60);assert.equal(s.pets.view('1').materials.metal,1);assert.equal(s.host.rows("SELECT * FROM tavern_ledger WHERE kind='pet_shop'").length,0);
- assert.equal(s.do('petBuy',p).balance,30);
+ assert.equal(s.pets.view('1').balance,500);assert.equal(s.pets.view('1').materials.metal,1);assert.equal(s.host.rows("SELECT * FROM tavern_ledger WHERE kind='pet_shop'").length,0);
+ assert.equal(s.do('petBuy',p).balance,470);
 });
 test('first crafted pinwheel is a one-time keepsake; repeated practice cannot duplicate it or produce materials',()=>{
  const s=setup();adopt(s);for(let n=0;n<4;n++)complete(s,Date.now()+n*20);

@@ -69,7 +69,7 @@ test('private title modal, preview and confirmation charge once and yield nonce-
  assert.deepEqual(tavernDeferredReply(submit),{type:5,data:{flags:64}});
  const preview=await answerRenovation(e,submit);bounds(preview);assert(preview.content.includes('尚未扣款'));assert(preview.content.includes('160币'));
  const confirmId=preview.components[0].components[0].custom_id.split(':')[3];
- const receipt=await answerRenovation(e,comp(confirmId));assert(receipt.content.includes('余额 0币'));assert(receipt._renovationAnnouncement.nonce);assert(receipt._renovationAnnouncement.content.includes('邻窗木衣架'));
+ const receipt=await answerRenovation(e,comp(confirmId));assert(receipt.content.includes('余额 440币'));assert(receipt._renovationAnnouncement.nonce);assert(receipt._renovationAnnouncement.content.includes('邻窗木衣架'));
  const again=await answerRenovation(e,comp(confirmId));assert(again.content.includes('没有再次扣款'));assert.equal(again._renovationAnnouncement,null);
  const publicBoard=comp('renoBoard',{privateView:false});publicBoard.data.custom_id='t:3:any:renoBoard';const publicData=await answerRenovation(e,publicBoard);bounds(publicData);assert(!publicData.content.includes('余额'));
 });
@@ -93,6 +93,6 @@ test('a failed public announcement keeps the private receipt and confirmed debit
  const confirmId=preview.components[0].components[0].custom_id.split(':')[3],sent=[];
  const old=globalThis.fetch;globalThis.fetch=async(url,options)=>{sent.push({url,body:options.body&&JSON.parse(options.body)});return url.includes('/channels/')?new Response('',{status:500}):Response.json({id:'message'});};t.after(()=>globalThis.fetch=old);
  await finishTavern({TABLES:e.TABLES,BOT_TOKEN:'test',DISCORD_APPLICATION_ID:'123'}, {...comp(confirmId),token:'token'});
- assert.equal(e.service.view('1').member.balance,0);const receipt=sent.find(x=>x.url.includes('/webhooks/'));
+ assert.equal(e.service.view('1').member.balance,440);const receipt=sent.find(x=>x.url.includes('/webhooks/'));
  assert(receipt.body.content.includes('公告未能送达'));assert(sent.find(x=>x.url.includes('/channels/')).body.enforce_nonce);
 });

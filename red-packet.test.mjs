@@ -77,7 +77,7 @@ test('exclusive packet resolves only a real unique recipient, migrates old SQLit
  const p=packets.create(m,'99',100);assert.equal(p.target_user_id,'1402174864827219978');
  const card=packetCard(p,200);assert.match(card.embeds[0].title,/专属红包/);assert.match(card.embeds[0].description,/<@1402174864827219978>/);
  assert.throws(()=>packets.claim(interaction('10'),200),/指定收礼人/);assert.equal(tavern.one('SELECT COUNT(*) n FROM tavern_members').n,0);
- const associated=interaction('1360154014146363446');assert.equal(packets.claim(associated,300).amount,725);assert.equal(tavern.member('1360154014146363446').balance,785);
+ const associated=interaction('1360154014146363446');assert.equal(packets.claim(associated,300).amount,725);assert.equal(tavern.member('1360154014146363446').balance,1225);
  const before=tavern.member('10').balance;assert.throws(()=>packets.claim(interaction('10'),400),/指定收礼人/);assert.equal(tavern.member('10').balance,before);
 });
 test('exclusive extraction and fallback reject absent, ambiguous, bot, self, or model-invented recipients without public downgrade',async()=>{
@@ -157,7 +157,7 @@ test('expired player packet returns only unused cash once; explicit delivery fai
 });
 test('developer keeps system mode unless explicitly paying from own balance',()=>{
  const {packets,tavern}=setup();const p=packets.create(message('<@99> 发600元掺💩红包，3份'),'99',100);assert.equal(p.payer_user_id,null);assert.equal(tavern.one('SELECT * FROM tavern_members WHERE id=?',RED_PACKET_OWNER),null);
- const m={...message('<@99> 用自己的余额发50元掺💩红包，3份'),id:'124'};assert.match(packets.create(m,'99',200).error,/余额不足/);tavern.member(RED_PACKET_OWNER,'姐姐',200);assert.equal(packets.create(m,'99',300).payer_user_id,RED_PACKET_OWNER);assert.equal(tavern.member(RED_PACKET_OWNER).balance,10);
+ const m={...message('<@99> 用自己的余额发50元掺💩红包，3份'),id:'124'};assert.match(packets.create(m,'99',200).error,/余额不足/);tavern.member(RED_PACKET_OWNER,'姐姐',200);assert.equal(packets.create(m,'99',300).payer_user_id,RED_PACKET_OWNER);assert.equal(tavern.member(RED_PACKET_OWNER).balance,450);
 });
 
 test('unopened poop packet matches the ordinary packet appearance and reveals only actual drawn records',()=>{

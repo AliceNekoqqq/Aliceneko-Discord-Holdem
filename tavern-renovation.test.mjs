@@ -26,7 +26,7 @@ test('public board and scene are lazy, expose no member balance, private board c
  s.member('1','Alice');store.sql.exec('INSERT INTO tavern_orders(id,user_id,channel,item,price,details,at) VALUES(?,?,?,?,?,?,?)','legacy1','1','2','milk',15,JSON.stringify({itemName:'旧单'}),100);
  const publicBoard=await s.dispatch({guild:'3',action:'renoBoard'}),scene=await s.dispatch({guild:'3',action:'renoScene'});
  assert.equal(publicBoard.total,15);assert.equal(publicBoard.balance,undefined);assert.equal(scene.assets.length,0);
- const privateBoard=await s.dispatch({guild:'3',action:'renoBoard',id:'2',name:'New guest',privateView:true});assert.equal(privateBoard.balance,60);assert.equal(s.one('SELECT balance FROM tavern_members WHERE id=?','2').balance,60);
+ const privateBoard=await s.dispatch({guild:'3',action:'renoBoard',id:'2',name:'New guest',privateView:true});assert.equal(privateBoard.balance,500);assert.equal(s.one('SELECT balance FROM tavern_members WHERE id=?','2').balance,500);
  const one=s.renovation.board();assert.equal(one.consumption,15);assert.equal(one.direct,0);assert.equal(one.total,15);
  s.renovation.recordConsumption({id:'legacy1',user_id:'1',price:15,at:100},false);assert.equal(s.renovation.board().consumption,15);
  const restarted=new TavernService(store);assert.equal(restarted.renovation.board().consumption,15);
@@ -37,7 +37,7 @@ test('first paid order records consumption in the same transaction; free orders 
  const free=s.prepare({...p,item:'water',requestKey:'water'});s.confirm('1',free.id,'2',Date.now()+11000);assert.equal(s.renovation.board().consumption,15);
  const d2=s.prepare({...p,item:'milk',requestKey:'second'});const original=store.sql.exec;store.sql.exec=(q,...a)=>{if(q.startsWith('INSERT INTO tavern_reno_consumption'))throw Error('reno write failure');return original(q,...a)};
  assert.throws(()=>s.confirm('1',d2.id,'2',Date.now()+22000),/reno write failure/);store.sql.exec=original;
- assert.equal(s.one('SELECT status FROM tavern_drafts WHERE id=?',d2.id).status,'pending');assert.equal(s.one('SELECT balance FROM tavern_members WHERE id=?','1').balance,45);assert.equal(s.rows('SELECT * FROM tavern_orders').length,2);
+ assert.equal(s.one('SELECT status FROM tavern_drafts WHERE id=?',d2.id).status,'pending');assert.equal(s.one('SELECT balance FROM tavern_members WHERE id=?','1').balance,485);assert.equal(s.rows('SELECT * FROM tavern_orders').length,2);
 });
 
 test('purchase and each facility upgrade atomically debit, preserve founder/name and keep public identity snapshots',()=>{
@@ -65,7 +65,7 @@ test('competing drafts for an object or stale facility level cannot double-spend
 });
 
 test('insufficient, expired and changed-price drafts do not spend; completed receipts replay after expiry and guilds isolate',async()=>{
- const {service:s}=setup(),at=Date.now();s.view('1','Alice');
+ const {service:s}=setup(),at=Date.now();s.view('1','Alice');s.sql.exec('UPDATE tavern_members SET balance=60 WHERE id=?','1');
  const costly=s.renovation.prepare({...p,item:'oak_table',requestKey:'costly'},at);
  assert.throws(()=>s.renovation.confirm('1',costly.id,'2',at),/还差300/);
  const expired=s.renovation.prepare({...p,item:'coat_rack',requestKey:'expired'},at);
@@ -112,7 +112,7 @@ test('growth gating follows total consumption plus direct funding and board expo
  assert.throws(()=>s.renovation.prepare({...p,item:'pastry_case',requestKey:'locked'}),/成长至常客客厅/);
  s.sql.exec('INSERT INTO tavern_reno_consumption VALUES(?,?,?,?,?)','growth','1','Alice',3000,1);
  const unlocked=s.renovation.board();assert.equal(unlocked.stage.level,2);assert.equal(unlocked.catalog.find(x=>x.id==='pastry_case').available,true);
- const privateBoard=s.renovation.board('1','Alice');assert.equal(privateBoard.balance,60);assert.equal(privateBoard.mine.total,3000);
+ const privateBoard=s.renovation.board('1','Alice');assert.equal(privateBoard.balance,500);assert.equal(privateBoard.mine.total,3000);
 });
 
 test('owned facility levels and old-price previews survive catalog repricing safely',()=>{

@@ -23,20 +23,29 @@ function environment(service){return {TABLES:{idFromName:n=>n,get:n=>({fetch:asy
 function interaction(action='menu',extras={}){return {type:3,id:'999',guild_id:'3',channel_id:'2',member:{user:{id:'1',username:'Alice'}},message:{flags:64},data:{custom_id:`t:3:1:${action}`},...extras};}
 
 test('welcome and wallet persist once; guild stores are isolated; context reads never create money',async()=>{
- const {store,service:s}=setup();assert.equal(s.context('1','2'),null);assert.equal(s.view('1','Alice').member.balance,60);
- assert.equal(new TavernService(store).view('1').member.balance,60);assert.equal(s.rows("SELECT * FROM tavern_ledger WHERE kind='welcome'").length,1);
- const other=setup().service;other.view('1');const d=prepare(s);s.confirm('1',d.id,'2');assert.equal(other.view('1').member.balance,60);
+ const {store,service:s}=setup();assert.equal(s.context('1','2'),null);assert.equal(s.view('1','Alice').member.balance,500);
+ assert.equal(new TavernService(store).view('1').member.balance,500);assert.equal(s.rows("SELECT * FROM tavern_ledger WHERE kind='welcome'").length,1);
+ const other=setup().service;other.view('1');const d=prepare(s);s.confirm('1',d.id,'2');assert.equal(other.view('1').member.balance,500);
  await s.dispatch({...base,action:'view'});await assert.rejects(()=>s.dispatch({...base,guild:'4',action:'view'}),/不匹配/);
+});
+test('existing wallet balances are preserved and welcome cannot repeat after reopening',()=>{
+ const {store,service:s}=setup();s.member('1','Alice');
+ s.sql.exec('UPDATE tavern_members SET balance=17 WHERE id=?','1');
+ const restarted=new TavernService(store);
+ assert.equal(restarted.member('1','Alice').balance,17);
+ assert.equal(restarted.view('1','Alice').member.balance,17);
+ assert.equal(s.rows("SELECT * FROM tavern_ledger WHERE user_id='1' AND kind='welcome'").length,1);
+ assert.equal(restarted.member('2','Bob').balance,500);
 });
 test('draft creates no charge; repeated network confirmation charges exactly once, even after expiry',()=>{
  const {store,service:s}=setup(),now=Date.now(),d=prepare(s,'milk','same',now);
- assert.equal(s.view('1').member.balance,60);assert.equal(prepare(s,'soda','same',now).id,d.id);
- const a=s.confirm('1',d.id,'2',now);assert.equal(a.balance,45);assert(!a.repeated);
- const recovered=new TavernService(store),again=recovered.confirm('1',d.id,'2',now+999999);assert(again.repeated);assert.equal(again.balance,45);assert.equal(s.rows('SELECT * FROM tavern_orders').length,1);
+ assert.equal(s.view('1').member.balance,500);assert.equal(prepare(s,'soda','same',now).id,d.id);
+ const a=s.confirm('1',d.id,'2',now);assert.equal(a.balance,485);assert(!a.repeated);
+ const recovered=new TavernService(store),again=recovered.confirm('1',d.id,'2',now+999999);assert(again.repeated);assert.equal(again.balance,485);assert.equal(s.rows('SELECT * FROM tavern_orders').length,1);
  assert.throws(()=>s.confirm('2',d.id,'2',now),/不是你的/);assert.throws(()=>s.confirm('1',d.id,'9',now),/不是你的/);
 });
 test('insufficient funds, expiry, rapid order and free-water limits never deduct or insert orders',()=>{
- const {service:s}=setup(),now=Date.now(),first=prepare(s,'snack','first',now);s.confirm('1',first.id,'2',now);
+ const {service:s}=setup(),now=Date.now();s.member('1');s.sql.exec('UPDATE tavern_members SET balance=60 WHERE id=?','1');const first=prepare(s,'snack','first',now);s.confirm('1',first.id,'2',now);
  const d=prepare(s,'special','second',now);assert.throws(()=>s.confirm('1',d.id,'2',now+11000),/还差15/);
  const milk=prepare(s,'milk','milk',now);assert.throws(()=>s.confirm('1',milk.id,'2',now+1),/10秒/);assert.throws(()=>s.confirm('1',milk.id,'2',now+180001),/过期/);
  const water=prepare(s,'water','water',now);s.confirm('1',water.id,'2',now+11000);
@@ -47,15 +56,15 @@ test('transaction rollback covers debit, order, ledger and confirmation status',
  const {store,service:s}=setup(),d=prepare(s),original=store.sql.exec;
  store.sql.exec=(q,...args)=>{if(q==='INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)'&&args[3]==='order')throw Error('disk');return original(q,...args);};
  assert.throws(()=>s.confirm('1',d.id,'2'),/disk/);store.sql.exec=original;
- assert.equal(s.view('1').member.balance,60);assert.equal(s.rows('SELECT * FROM tavern_orders').length,0);assert.equal(s.one('SELECT status FROM tavern_drafts WHERE id=?',d.id).status,'pending');
- assert.equal(s.confirm('1',d.id,'2').balance,45);
+ assert.equal(s.view('1').member.balance,500);assert.equal(s.rows('SELECT * FROM tavern_orders').length,0);assert.equal(s.one('SELECT status FROM tavern_drafts WHERE id=?',d.id).status,'pending');
+ assert.equal(s.confirm('1',d.id,'2').balance,485);
 });
 test('all four games credit normalized rewards once; no poker chip conversion; ties earn base',()=>{
  for(const game of ['uno','ghost','liar','poker']){
-  const {store,service:s}=setup(),r=result('round:1',game);const a=s.reward('3',r);assert(a.counted);const balance=s.view('1').member.balance;assert(balance>60);
-  const restored=new TavernService(store);assert(restored.reward('3',r).repeated);assert.equal(restored.view('1').member.balance,balance);assert(s.view('2').member.balance>60);
+  const {store,service:s}=setup(),r=result('round:1',game);const a=s.reward('3',r);assert(a.counted);const balance=s.view('1').member.balance;assert(balance>500);
+  const restored=new TavernService(store);assert(restored.reward('3',r).repeated);assert.equal(restored.view('1').member.balance,balance);assert(s.view('2').member.balance>500);
  }
- const {service:s}=setup(),r=result('tie:1','poker');r.players.forEach(p=>p.won=false);assert(s.reward('3',r).counted);assert.equal(s.view('1').member.balance,68);
+ const {service:s}=setup(),r=result('tie:1','poker');r.players.forEach(p=>p.won=false);assert(s.reward('3',r).counted);assert.equal(s.view('1').member.balance,508);
 });
 test('short games, bots, inactivity, wrong guild, duplicates and surrender never mint coins',()=>{
  for(const change of [r=>r.startedAt=r.at-1,r=>r.players[1].bot=true,r=>r.players[1].actions=0,r=>r.players[1].surrendered=true,r=>r.guild='4',r=>r.players[1].id='1',r=>r.at+=999999,r=>r.id='bad']){
@@ -81,7 +90,7 @@ test('profile is explicit, whitelist-controlled, persists and clears without era
  const {store,service:s}=setup();s.profile('1','Alice','sweetness','light');s.profile('1','Alice','seat','window');s.profile('1','Alice','restrictions','不加肉桂');
  const p=new TavernService(store).view('1').member;assert.equal(p.sweetness,'light');assert.equal(p.seat,'window');assert.equal(p.restrictions,'不加肉桂');
  for(const [k,v]of [['balance',999],['seat','admin'],['__proto__','anything']])assert.throws(()=>s.profile('1','Alice',k,v));
- s.profile('1','Alice','reset');assert.equal(s.view('1').member.balance,60);assert.equal(s.view('1').member.restrictions,'');
+ s.profile('1','Alice','reset');assert.equal(s.view('1').member.balance,500);assert.equal(s.view('1').member.restrictions,'');
 });
 test('context exposes only the current account and current channel confirmed recent order',()=>{
  const {service:s}=setup(),now=Date.now();s.profile('1','Alice','restrictions','private note');const d=prepare(s,'special','mix',now,{options:{mood:'tired',sweetness:'light'}});
@@ -110,7 +119,7 @@ test('natural intent handles requests but does not interpret questions, quotes o
 test('natural previews run without model requests, publish no private preferences and never deduct',async t=>{
  const {service:s}=setup();s.profile('1','Alice','restrictions','secret');const env={...environment(s),BOT_TOKEN:'test'},sent=[];const previous=globalThis.fetch;globalThis.fetch=async(url,options)=>{sent.push({url,body:JSON.parse(options.body)});return Response.json({id:'111'});};t.after(()=>globalThis.fetch=previous);
  const message={guild_id:'3',channel_id:'2',id:'456',author:{id:'1',username:'Alice'}};
- assert(await handleNaturalTavern(env,message,'给我一杯红豆牛奶'));assert.equal(s.view('1').member.balance,60);assert(!JSON.stringify(sent).includes('secret'));assert(!sent.some(r=>r.url.includes('gemini')));
+ assert(await handleNaturalTavern(env,message,'给我一杯红豆牛奶'));assert.equal(s.view('1').member.balance,500);assert(!JSON.stringify(sent).includes('secret'));assert(!sent.some(r=>r.url.includes('gemini')));
  const draft=s.one('SELECT id FROM tavern_drafts');const data=await answerTavern(env,interaction(`review~${draft.id}`,{message:{flags:0}}));assert(data.content.includes('secret'));
 });
 test('natural dish image display creates neither a wallet nor a purchase draft',async t=>{
@@ -128,7 +137,7 @@ test('natural dish image display creates neither a wallet nor a purchase draft',
 test('reward outbox survives restart and a lost response; backoff clears when delivered',async()=>{
  const {service:s}=setup(),store=storage(),t={game:'uno',guild:'3',channel:'2',players:[{id:'1'},{id:'2'}],rankedResult:result(),tavernRound:{startedAt:Date.now()-60000,actions:{'1':3,'2':2}}};t.rankedResult.at=Date.now();let fail=true;
  const env=environment(s),send=env.TABLES.get;env.TABLES.get=n=>{const stub=send(n);return {fetch:async(...args)=>{const response=await stub.fetch(...args);if(fail){fail=false;throw Error('lost response');}return response;}};};
- const bridge=new TavernBridge({ctx:{storage:store},env});await bridge.capture(t);await bridge.capture(t);assert.equal((await store.get('tavernJobs')).length,1);await store.put('tavernSyncAt',1);await bridge.flush();const balance=s.view('1').member.balance;assert(balance>60);assert(await store.get('tavernSyncAt')>Date.now());
+ const bridge=new TavernBridge({ctx:{storage:store},env});await bridge.capture(t);await bridge.capture(t);assert.equal((await store.get('tavernJobs')).length,1);await store.put('tavernSyncAt',1);await bridge.flush();const balance=s.view('1').member.balance;assert(balance>500);assert(await store.get('tavernSyncAt')>Date.now());
  const recovered=new TavernBridge({ctx:{storage:store},env});await store.put('tavernSyncAt',1);await recovered.flush();assert.equal(s.view('1').member.balance,balance);assert.equal(await store.get('tavernSyncAt'),undefined);assert.equal(await store.get('tavernJobs'),undefined);
 });
 test('engine snapshots preserve completed poker leavers, exclude timeout actions and contain no cards',()=>{
@@ -151,8 +160,8 @@ test('signed tavern commands bypass occupied tables, defer privately and confirm
   const response=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Timestamp':ts,'X-Signature-Ed25519':sig}}),env,{waitUntil:p=>tasks.push(p)});await Promise.all(tasks);return response.json();};
  assert.equal((await call({type:2,data:{name:'酒馆',options:[{name:'菜单'}]}})).data.flags,64);assert(names.every(n=>n==='tavern:3'));
  await call({type:2,data:{name:'酒馆',options:[{name:'点单',options:[{name:'商品',value:'milk'}]}]}});
- const s=instances.get('tavern:3').tavern,d=s.one('SELECT * FROM tavern_drafts');assert.equal(s.view('1').member.balance,60);
- assert.equal((await call(interaction(`confirm~${d.id}`))).type,6);await call(interaction(`confirm~${d.id}`));assert.equal(s.view('1').member.balance,45);
+ const s=instances.get('tavern:3').tavern,d=s.one('SELECT * FROM tavern_drafts');assert.equal(s.view('1').member.balance,500);
+ assert.equal((await call(interaction(`confirm~${d.id}`))).type,6);await call(interaction(`confirm~${d.id}`));assert.equal(s.view('1').member.balance,485);
  assert.equal(sent.filter(r=>r.url.endsWith('/channels/2/messages')).length,1);assert(sent.find(r=>r.url.endsWith('/channels/2/messages')).body.enforce_nonce);
  const bad=await call(interaction(`confirm~${d.id}`,{member:{user:{id:'2'}}}));assert.equal(bad.type,4);assert.equal(bad.data.flags,64);
 });
@@ -176,38 +185,38 @@ test('unlocked seasonal menu works through natural order preview without a secon
  ops.vote({id:'1',name:'Alice',month,candidate:'c1'},now);for(let i=0;i<30;i++)ops.recordGame(`natural:${i}`,{at:now},[{id:'1',name:'Alice'}],false);
  const drink=ops.menu(now).at(-1),env=environment(s),oldFetch=globalThis.fetch,sent=[];globalThis.fetch=async(u,o)=>{sent.push(JSON.parse(o.body));return Response.json({id:'4'});};t.after(()=>globalThis.fetch=oldFetch);
  assert(await handleNaturalTavern(env,{guild_id:'3',channel_id:'2',id:'777',author:{id:'1',username:'Alice'}},`来一杯${drink.name}`));
- assert.match(sent[0].content,new RegExp(drink.name));assert.match(sent[0].content,/尚未扣款/);assert.equal(s.view('1').member.balance,60);assert.equal(s.rows('SELECT * FROM tavern_orders').length,0);
+ assert.match(sent[0].content,new RegExp(drink.name));assert.match(sent[0].content,/尚未扣款/);assert.equal(s.view('1').member.balance,500);assert.equal(s.rows('SELECT * FROM tavern_orders').length,0);
 });
 
 
 
 test('daily gift is explicit, persists once across restart, and resets at Beijing midnight',()=>{
  const {store,service:s}=setup(),before=Date.parse('2026-10-09T15:59:59Z'),after=before+1000;
- const first=s.view('1','Alice',before);assert.equal(first.member.balance,60);assert.equal(first.dailyGiftClaimed,false);assert.equal(first.dailyGiftAvailable,20);assert.equal(first.earned,0);
- const gift=s.claimDaily('1','Alice',before);assert.deepEqual(gift.dailyGift,{amount:20,repeated:false});assert.equal(gift.member.balance,80);assert.equal(gift.earned,20);assert(gift.dailyGiftClaimed);assert.equal(gift.dailyGiftAvailable,0);
- const restarted=new TavernService(store),repeat=restarted.claimDaily('1','Alice',before);assert(repeat.dailyGift.repeated);assert.equal(repeat.member.balance,80);assert.equal(repeat.earned,20);
+ const first=s.view('1','Alice',before);assert.equal(first.member.balance,500);assert.equal(first.dailyGiftClaimed,false);assert.equal(first.dailyGiftAvailable,20);assert.equal(first.earned,0);
+ const gift=s.claimDaily('1','Alice',before);assert.deepEqual(gift.dailyGift,{amount:20,repeated:false});assert.equal(gift.member.balance,520);assert.equal(gift.earned,20);assert(gift.dailyGiftClaimed);assert.equal(gift.dailyGiftAvailable,0);
+ const restarted=new TavernService(store),repeat=restarted.claimDaily('1','Alice',before);assert(repeat.dailyGift.repeated);assert.equal(repeat.member.balance,520);assert.equal(repeat.earned,20);
  assert.equal(s.rows("SELECT * FROM tavern_ledger WHERE kind='daily_gift'").length,1);
- assert.equal(restarted.claimDaily('1','Alice',after).member.balance,100);assert.equal(restarted.view('1','',after).earned,20);
- assert.equal(setup().service.claimDaily('1','Alice',before).member.balance,80);
+ assert.equal(restarted.claimDaily('1','Alice',after).member.balance,540);assert.equal(restarted.view('1','',after).earned,20);
+ assert.equal(setup().service.claimDaily('1','Alice',before).member.balance,520);
 });
 test('daily gift and games share cumulative cap; spending and replay never restore allowance',()=>{
  const {service:s}=setup(),now=Date.now();s.claimDaily('1','Alice',now);
  for(let n=1;n<=20;n++){const r=result(`cap:${n}`,'uno',now);r.players[1].id=String(n+20);s.reward('3',r,now);}
- const before=s.view('1','',now);assert.equal(before.earned,150);assert.equal(before.member.balance,210);
- const draft=prepare(s,'milk','capSpend',now);s.confirm('1',draft.id,'2',now);assert.equal(s.view('1','',now).member.balance,195);assert.equal(s.view('1','',now).earned,150);
- const r=result('cap:21','uno',now);r.players[1].id='90';s.reward('3',r,now);assert.equal(s.view('1','',now).member.balance,195);assert.equal(s.view('1','',now).earned,150);
- assert(s.claimDaily('1','Alice',now).dailyGift.repeated);assert.equal(s.view('1','',now).member.balance,195);
+ const before=s.view('1','',now);assert.equal(before.earned,150);assert.equal(before.member.balance,650);
+ const draft=prepare(s,'milk','capSpend',now);s.confirm('1',draft.id,'2',now);assert.equal(s.view('1','',now).member.balance,635);assert.equal(s.view('1','',now).earned,150);
+ const r=result('cap:21','uno',now);r.players[1].id='90';s.reward('3',r,now);assert.equal(s.view('1','',now).member.balance,635);assert.equal(s.view('1','',now).earned,150);
+ assert(s.claimDaily('1','Alice',now).dailyGift.repeated);assert.equal(s.view('1','',now).member.balance,635);
 });
 test('partial daily gift uses only remaining budget and cannot be topped up; full cap creates no gift ledger',()=>{
  const {service:s}=setup(),now=Date.now();s.member('1','Alice',now);s.sql.exec('INSERT INTO tavern_daily VALUES(?,?,?)','1',dayKey(now),145);
- const gift=s.claimDaily('1','Alice',now);assert.equal(gift.dailyGift.amount,5);assert.equal(gift.member.balance,65);assert.equal(gift.earned,150);assert(s.claimDaily('1','Alice',now).dailyGift.repeated);
- s.member('2','Bob',now);s.sql.exec('INSERT INTO tavern_daily VALUES(?,?,?)','2',dayKey(now),150);assert.equal(s.claimDaily('2','Bob',now).dailyGift.amount,0);assert.equal(s.view('2','',now).member.balance,60);assert.equal(s.rows("SELECT * FROM tavern_ledger WHERE user_id='2' AND kind='daily_gift'").length,0);
+ const gift=s.claimDaily('1','Alice',now);assert.equal(gift.dailyGift.amount,5);assert.equal(gift.member.balance,505);assert.equal(gift.earned,150);assert(s.claimDaily('1','Alice',now).dailyGift.repeated);
+ s.member('2','Bob',now);s.sql.exec('INSERT INTO tavern_daily VALUES(?,?,?)','2',dayKey(now),150);assert.equal(s.claimDaily('2','Bob',now).dailyGift.amount,0);assert.equal(s.view('2','',now).member.balance,500);assert.equal(s.rows("SELECT * FROM tavern_ledger WHERE user_id='2' AND kind='daily_gift'").length,0);
 });
 test('daily gift transaction failure rolls back wallet, allowance and ledger together',()=>{
  const {store,service:s}=setup(),now=Date.now(),original=store.sql.exec;
  store.sql.exec=(q,...a)=>{if(q==='INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)'&&a[3]==='daily_gift')throw Error('gift disk');return original(q,...a);};
  assert.throws(()=>s.claimDaily('1','Alice',now),/gift disk/);store.sql.exec=original;
- assert.equal(s.rows('SELECT * FROM tavern_members').length,0);assert.equal(s.rows('SELECT * FROM tavern_daily').length,0);assert.equal(s.rows('SELECT * FROM tavern_ledger').length,0);assert.equal(s.claimDaily('1','Alice',now).member.balance,80);
+ assert.equal(s.rows('SELECT * FROM tavern_members').length,0);assert.equal(s.rows('SELECT * FROM tavern_daily').length,0);assert.equal(s.rows('SELECT * FROM tavern_ledger').length,0);assert.equal(s.claimDaily('1','Alice',now).member.balance,520);
 });
 test('same roster earns full, half then quarter rewards with canonical order and retry preserving tier',()=>{
  const {service:s}=setup(),now=Date.now(),expected=[18,18,18,9,9,9,4,4];
@@ -218,24 +227,24 @@ test('daily gift UI keeps privacy and ownership and rejects cross-guild dispatch
  const {service:s}=setup(),env=environment(s);const wallet=await answerTavern(env,interaction('wallet'));assert.equal(s.view('1').earned,0);assert(wallet.components.flatMap(r=>r.components).some(c=>c.custom_id==='t:3:1:claimDaily'));
  for(const i of [interaction('claimDaily',{member:{user:{id:'2'}}}),interaction('claimDaily',{message:{flags:0}}),interaction('claimDaily',{guild_id:'4'})]){assert.equal(immediateTavernReply(i).type,4);await assert.rejects(()=>answerTavern(env,i));}
  await assert.rejects(()=>s.dispatch({...base,guild:'4',action:'claimDaily'}),/不匹配/);assert.equal(s.view('1').earned,0);
- const reply=await answerTavern(env,interaction('claimDaily'));assert.match(reply.content,/20/);assert.equal(s.view('1').earned,20);await answerTavern(env,interaction('claimDaily'));assert.equal(s.view('1').member.balance,80);
+ const reply=await answerTavern(env,interaction('claimDaily'));assert.match(reply.content,/20/);assert.equal(s.view('1').earned,20);await answerTavern(env,interaction('claimDaily'));assert.equal(s.view('1').member.balance,520);
 });
 
 test('gift charges only payer atomically once and gives recipient an order without wallet changes',()=>{
  const {store,service:s}=setup(),now=Date.now();s.member('2','Bob',now);
  const d=prepare(s,'milk','gift1',now,{recipient:{id:'2',name:'Bob'},quantity:2});
- assert.equal(d.price,30);assert.equal(s.view('1').member.balance,60);assert.equal(s.view('2').member.balance,60);
- const a=s.confirm('1',d.id,'2',now);assert.equal(a.balance,30);assert.equal(s.view('2').member.balance,60);
+ assert.equal(d.price,30);assert.equal(s.view('1').member.balance,500);assert.equal(s.view('2').member.balance,500);
+ const a=s.confirm('1',d.id,'2',now);assert.equal(a.balance,470);assert.equal(s.view('2').member.balance,500);
  assert.equal(s.context('2','2',now).currentOrder.itemName,'红豆牛奶');assert.equal(s.context('1','2',now).currentOrder,null);
  assert.equal(s.view('2').orders[0].details.recipientId,'2');assert.equal(s.view('1').frequent,null);
- const b=new TavernService(store).confirm('1',d.id,'2',now+999999);assert.equal(b.repeated,true);assert.equal(b.balance,30);
+ const b=new TavernService(store).confirm('1',d.id,'2',now+999999);assert.equal(b.repeated,true);assert.equal(b.balance,470);
  assert.equal(s.rows("SELECT * FROM tavern_ledger WHERE kind='gift_order'").length,1);
  assert.throws(()=>s.setRecipient({...base,draftId:d.id,recipient:{id:'3',name:'Other'}},now),/完成或过期/);
 });
 test('recipient selection preserves draft and payer; foreign users cannot change or confirm it',()=>{
  const {service:s}=setup(),now=Date.now(),d=prepare(s,'milk','gift2',now);
  const gift=s.setRecipient({...base,draftId:d.id,recipient:{id:'2',name:'Bob'}},now);
- assert.equal(gift.id,d.id);assert.equal(gift.details.recipientId,'2');assert.equal(gift.balance,60);
+ assert.equal(gift.id,d.id);assert.equal(gift.details.recipientId,'2');assert.equal(gift.balance,500);
  assert.throws(()=>s.setRecipient({...base,id:'2',draftId:d.id,recipient:{id:'3'}},now),/不是你的/);
  assert.throws(()=>s.confirm('2',d.id,'2',now),/不是你的/);
  const self=s.setRecipient({...base,draftId:d.id,recipient:{id:'1'}},now);assert.equal(self.details.recipientId,undefined);
@@ -248,7 +257,7 @@ test('gift SQL failure rolls back debit, ledger, order and consumption together'
  void s.renovation;void s.operations;
  const exec=s.sql.exec;s.sql.exec=(q,...args)=>{if(q==='INSERT INTO tavern_ledger VALUES(?,?,?,?,?,?)'&&args[3]==='gift_order')throw Error('injected gift failure');return exec(q,...args);};
  assert.throws(()=>s.confirm('1',d.id,'2',now),/injected/);s.sql.exec=exec;
- assert.equal(s.member('1').balance,60);assert.equal(s.rows('SELECT * FROM tavern_orders').length,0);
+ assert.equal(s.member('1').balance,500);assert.equal(s.rows('SELECT * FROM tavern_orders').length,0);
  assert.equal(s.one('SELECT status FROM tavern_drafts WHERE id=?',d.id).status,'pending');
  assert.equal(s.rows('SELECT * FROM tavern_reno_consumption').length,0);
 });
@@ -257,7 +266,7 @@ test('recipient changed while a confirmation was validating cannot be charged us
  const {service:s}=setup(),now=Date.now(),d=prepare(s,'milk','giftcas',now,{recipient:{id:'2',name:'Bob'}});
  s.setRecipient({...base,draftId:d.id,recipient:{id:'3',name:'Carol'}},now);
  assert.throws(()=>s.confirm('1',d.id,'2',now,'2'),/刚刚发生变化/);
- assert.equal(s.member('1').balance,60);assert.equal(s.rows('SELECT * FROM tavern_orders').length,0);
+ assert.equal(s.member('1').balance,500);assert.equal(s.rows('SELECT * FROM tavern_orders').length,0);
  const current=s.confirm('1',d.id,'2',now,'3');assert.equal(current.order.details.recipientId,'3');
  const repeated=s.confirm('1',d.id,'2',now+999999,'2');assert.equal(repeated.repeated,true);
 });

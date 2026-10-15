@@ -21,10 +21,10 @@ test('signed menu categories browse publicly without a wallet and food preview s
  assert.equal(select.options.length,6);
  await s.call(s.component(select.custom_id,64,{data:{custom_id:select.custom_id,values:['mushroom-noodles']}}));
  const preview=s.lastReply();assert.match(preview.embeds[0].image.url,/\/art\/mushroom-noodles\/v1\.jpg$/);assert.match(preview.content,/食材：.*香菇/);assert.match(preview.content,/搭配：/);assert.match(preview.content,/按菜品原味 · 温热/);
- assert.equal(service.view('1').member.balance,60);assert.equal(service.rows('SELECT * FROM tavern_orders').length,0);
+ assert.equal(service.view('1').member.balance,500);assert.equal(service.rows('SELECT * FROM tavern_orders').length,0);
  const confirm=preview.components.flatMap(r=>r.components).find(c=>c.custom_id.includes('confirm~')).custom_id;
  await s.call(s.component(confirm,64));await s.call(s.component(confirm,64));
- assert.equal(service.view('1').member.balance,60-MENU.find(p=>p.id==='mushroom-noodles').price);
+ assert.equal(service.view('1').member.balance,500-MENU.find(p=>p.id==='mushroom-noodles').price);
  assert.equal(service.rows('SELECT * FROM tavern_orders').length,1);
  assert.equal(s.sent.filter(r=>r.url.endsWith('/channels/2/messages')).length,1);assert.match(s.sent.find(r=>r.url.endsWith('/channels/2/messages')).body.embeds[0].image.url,/mushroom-noodles/);
  const other=await s.call(s.component('t:3:1:menuCat~savory',64,{member:{user:{id:'2',username:'Bob'}}}));assert.equal(other.type,4);
@@ -65,7 +65,7 @@ test('signed public room entry creates no wallet; opening renovation privately a
  assert(!s.lastReply().content.includes('余额'));
  const enter=s.lastReply().components.flatMap(r=>r.components).find(c=>c.custom_id.endsWith(':renoEnter')).custom_id;
  assert.deepEqual(await s.call(s.component(enter)),{type:5,data:{flags:64}});
- assert.match(s.lastReply().content,/60币/);assert.equal(service.view('1').member.balance,60);
+ assert.match(s.lastReply().content,/500币/);assert.equal(service.view('1').member.balance,500);
  await s.call(s.component(enter));assert.equal(service.rows("SELECT * FROM tavern_ledger WHERE kind='welcome'").length,1);
  assert.deepEqual(await s.call(s.component('t:3:any:renoLeaders')),{type:6});assert(!/私密余额|当前余额|余额[：:]/.test(s.lastReply().content));
  assert([...s.instances.keys()].every(n=>n==='tavern:3'));
@@ -77,7 +77,7 @@ test('signed title modal and private confirmation purchase once; public or other
  const submitted=await s.call({type:5,data:{custom_id:modal.data.custom_id,components:[{components:[{custom_id:'title',value:'旧街挂衣处'}]}]}});
  assert.deepEqual(submitted,{type:5,data:{flags:64}});
  const confirm=s.lastReply().components.flatMap(r=>r.components).find(c=>c.custom_id.includes(':renoConfirm~')).custom_id;
- const service=s.instances.get('tavern:3').tavern;assert.equal(service.view('1').member.balance,60);service.sql.exec('UPDATE tavern_members SET balance=160 WHERE id=?','1');
+ const service=s.instances.get('tavern:3').tavern;assert.equal(service.view('1').member.balance,500);service.sql.exec('UPDATE tavern_members SET balance=160 WHERE id=?','1');
  const other=await s.call(s.component(confirm,64,{member:{user:{id:'2',username:'Bob'}}}));assert.equal(other.type,4);assert.equal(other.data.flags,64);
  const publicClick=await s.call(s.component(confirm));assert.equal(publicClick.type,4);
  assert.deepEqual(await s.call(s.component(confirm,64)),{type:6});await s.call(s.component(confirm,64));
@@ -98,7 +98,7 @@ test('signed unified lobby opens private services and returns through buttons wi
  for(const action of ['lobbyMenu','lobbyWallet','lobbyCard']){
   const custom_id=buttons.find(b=>b.custom_id.endsWith(':'+action)).custom_id;
   assert.deepEqual(await s.call(s.component(custom_id)),{type:5,data:{flags:64}});
-  assert(service.view('1').member.balance===60);
+  assert(service.view('1').member.balance===500);
   const back=s.lastReply().components.flatMap(r=>r.components).find(b=>b.custom_id.endsWith(':lobby')).custom_id;
   assert.deepEqual(await s.call(s.component(back,64)),{type:6});assert(!s.lastReply().content.includes('余额'));
  }
@@ -162,7 +162,7 @@ test('signed daily gift click credits privately once through the real Worker and
  const claim=s.lastReply().components.flatMap(r=>r.components).find(c=>c.custom_id.endsWith(':claimDaily')).custom_id;
  const forged=await s.call(s.component(claim,64,{member:{user:{id:'2',username:'Bob'}}}));assert.equal(forged.type,4);assert.equal(service.rows("SELECT * FROM tavern_ledger WHERE kind='daily_gift'").length,0);
  assert.equal((await s.call(s.component(claim))).type,4);
- assert.deepEqual(await s.call(s.component(claim,64)),{type:6});assert.match(s.lastReply().content,/已到账.*20/);assert.equal(service.view('1').member.balance,80);assert.equal(service.view('1').earned,20);
- await s.call(s.component(claim,64));assert.equal(service.view('1').member.balance,80);assert.equal(service.rows("SELECT * FROM tavern_ledger WHERE kind='daily_gift'").length,1);assert.equal(s.sent.filter(r=>r.url.endsWith('/channels/2/messages')).length,0);
+ assert.deepEqual(await s.call(s.component(claim,64)),{type:6});assert.match(s.lastReply().content,/已到账.*20/);assert.equal(service.view('1').member.balance,520);assert.equal(service.view('1').earned,20);
+ await s.call(s.component(claim,64));assert.equal(service.view('1').member.balance,520);assert.equal(service.rows("SELECT * FROM tavern_ledger WHERE kind='daily_gift'").length,1);assert.equal(s.sent.filter(r=>r.url.endsWith('/channels/2/messages')).length,0);
 });
 

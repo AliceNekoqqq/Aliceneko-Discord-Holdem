@@ -1,5 +1,5 @@
 // Program-owned catalogue, preferences and reward rules. No model can edit prices or balances.
-export const WELCOME_COINS=60, DAILY_REWARD_CAP=150, DAILY_GIFT_COINS=20, ROSTER_DAILY_LIMIT=8, ORDER_TTL=180000;
+export const WELCOME_COINS=500, DAILY_REWARD_CAP=150, DAILY_GIFT_COINS=20, ROSTER_DAILY_LIMIT=8, ORDER_TTL=180000;
 export const MENU_CATEGORIES=Object.freeze([
  {id:'drinks',name:'饮品',emoji:'🍵'},
  {id:'desserts',name:'甜点',emoji:'🥮'},
