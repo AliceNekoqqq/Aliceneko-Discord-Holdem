@@ -402,7 +402,7 @@ async function handle(request,env,ctx){
     try{
       const response=await env.TABLES.get(env.TABLES.idFromName('system-discord-gateway')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayStatus'})});
       const actual=await response.json();
-      gateway={connected:actual.connected===true,ready:actual.ready===true,chatRuntime:typeof actual.chatRuntime==='string'?actual.chatRuntime:null,...(typeof actual.messageContentEnabled==='boolean'?{messageContentEnabled:actual.messageContentEnabled}:{})};
+      gateway={connected:actual.connected===true,ready:actual.ready===true,chatRuntime:typeof actual.chatRuntime==='string'?actual.chatRuntime:null,...(typeof actual.messageContentEnabled==='boolean'?{messageContentEnabled:actual.messageContentEnabled}:{}),...(typeof actual.memberEventsEnabled==='boolean'?{memberEventsEnabled:actual.memberEventsEnabled}:{})};
     }catch{}
     const ready=data.ok===true&&gateway.ready&&gateway.chatRuntime===CHAT_PIPELINE_RUNTIME;
     let commands;

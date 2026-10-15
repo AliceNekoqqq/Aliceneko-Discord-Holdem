@@ -6,7 +6,7 @@
   "scripts": {
     "scope": "node scripts/repo-scope.mjs",
     "test": "node --import=./test-static-assets.mjs --test *.test.mjs",
-    "test:chat": "node --import=./test-static-assets.mjs --test ai-chat.test.mjs chat-enrichment.test.mjs discord-chat-context.test.mjs gateway-concurrency.test.mjs runtime-context.test.mjs relationship-memory.test.mjs city*.test.mjs flower-chat.test.mjs",
+    "test:chat": "node --import=./test-static-assets.mjs --test ai-chat.test.mjs chat-enrichment.test.mjs discord-chat-context.test.mjs gateway-concurrency.test.mjs member-welcome.test.mjs runtime-context.test.mjs relationship-memory.test.mjs city*.test.mjs flower-chat.test.mjs",
     "test:lantern": "node --import=./test-static-assets.mjs --test rogue-*.test.mjs",
     "test:tavern": "node --import=./test-static-assets.mjs --test tavern*.test.mjs red-packet*.test.mjs flower*.test.mjs",
     "test:worker": "node --import=./test-static-assets.mjs --test worker.test.mjs lifecycle.test.mjs private-panels.test.mjs board-sync.test.mjs command-registration.test.mjs gemini-writing-jobs.test.mjs duel-roulette*.test.mjs",

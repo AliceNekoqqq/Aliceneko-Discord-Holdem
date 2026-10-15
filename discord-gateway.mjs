@@ -1,9 +1,10 @@
 import { replyToMention } from "./ai-chat.mjs";
+import {MemberWelcome,WELCOME_TARGET} from './member-welcome.mjs';
 
-export const CHAT_PIPELINE_RUNTIME = 'chat-city2-flower-npc-red2';
+export const CHAT_PIPELINE_RUNTIME = 'chat-city2-flower-npc-red2-welcome1';
 const GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 const GATEWAY_INTENTS = (1 << 0) | (1 << 9); // GUILDS + GUILD_MESSAGES; message content is only used for direct bot mentions.
-export const gatewayIntentsForFlags = flags => GATEWAY_INTENTS | ((Number(flags)&((1<<18)|(1<<19))) ? 1<<15 : 0);
+export const gatewayIntentsForFlags = flags => GATEWAY_INTENTS | ((Number(flags)&((1<<18)|(1<<19))) ? 1<<15 : 0) | ((Number(flags)&((1<<14)|(1<<15))) ? 1<<1 : 0);
 
 export class DiscordGateway {
   constructor(host) {
@@ -12,6 +13,7 @@ export class DiscordGateway {
     this.storage = host.ctx.storage;
     this.socket = null;
     this.chatQueues = new Map();
+    this.memberWelcome = new MemberWelcome(host);
     this.heartbeatTimer = null;
     this.heartbeatInterval = null;
     this.retryTimer = null;
@@ -31,12 +33,13 @@ export class DiscordGateway {
       this.gatewayIntents=previous||GATEWAY_INTENTS;
       try{
         const r=await fetch('https://discord.com/api/v10/applications/@me',{headers:{Authorization:'Bot '+this.env.BOT_TOKEN},signal:AbortSignal.timeout(3000)});
-        if(r.ok)this.gatewayIntents=gatewayIntentsForFlags((await r.json()).flags);
+        if(r.ok){const app=await r.json();this.gatewayIntents=gatewayIntentsForFlags(app.flags);this.gatewayIntents=gatewayIntentsForFlags(await this.ensureMemberEvents(app));}
       }catch{}
       if(previous!==this.gatewayIntents)await this.clearSession();
       await this.storage.put('gatewayIntents',this.gatewayIntents);
     }
     await this.storage.put("gatewayMode",true);
+    this.memberWelcome.flush();
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
       return {connected:true,connecting:this.socket.readyState === WebSocket.CONNECTING,chatRuntime:CHAT_PIPELINE_RUNTIME};
     }
@@ -53,7 +56,20 @@ export class DiscordGateway {
     return {connected:this.socket?.readyState === WebSocket.OPEN,
       ready:this.socket?.readyState === WebSocket.OPEN && Boolean(this.botId),
       messageContentEnabled:Boolean(this.gatewayIntents&(1<<15)),
+      memberEventsEnabled:Boolean(this.gatewayIntents&(1<<1)),
       chatRuntime:CHAT_PIPELINE_RUNTIME};
+  }
+
+  async ensureMemberEvents(app){
+    const flags=Number(app.flags)||0;
+    if(flags&((1<<14)|(1<<15)))return flags;
+    if(!Number.isFinite(app.approximate_guild_count)||app.approximate_guild_count>=100)return flags;
+    const headers={Authorization:'Bot '+this.env.BOT_TOKEN,'Content-Type':'application/json'};
+    const channel=await fetch(`https://discord.com/api/v10/channels/${WELCOME_TARGET.channel}`,{headers,signal:AbortSignal.timeout(4000)});
+    if(!channel.ok||(await channel.json()).guild_id!==WELCOME_TARGET.guild)return flags;
+    const r=await fetch('https://discord.com/api/v10/applications/@me',{method:'PATCH',headers,body:JSON.stringify({flags:(flags&((1<<13)|(1<<15)|(1<<19)))|(1<<15)}),signal:AbortSignal.timeout(4000)});
+    if(!r.ok){console.warn('member_events_enable_failed',{status:r.status});return flags;}
+    return Number((await r.json()).flags)||flags;
   }
 
   async enableMessageContent(){
@@ -156,6 +172,7 @@ export class DiscordGateway {
       return;
     }
     if (packet.t === "MESSAGE_CREATE") this.onGuildMessage(packet.d);
+    if (packet.t === 'GUILD_MEMBER_ADD') await this.memberWelcome.enqueue(packet.d);
   }
 
   onGuildMessage(message) {
@@ -227,7 +244,7 @@ export class DiscordGateway {
     this.clearHeartbeats();
     this.awaitingAck = false;
     this.socket = null;
-    if(event?.code===4014&&(this.gatewayIntents&(1<<15))){
+    if(event?.code===4014&&(this.gatewayIntents&((1<<15)|(1<<1)))){
       this.gatewayIntents=GATEWAY_INTENTS;
       console.warn('discord_message_content_unavailable',{code:4014});
       this.host.ctx.waitUntil(Promise.all([this.clearSession(),this.storage.put('gatewayIntents',GATEWAY_INTENTS)]).then(()=>this.scheduleReconnect()));
