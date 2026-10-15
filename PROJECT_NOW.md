@@ -2,7 +2,7 @@
 
 - 仅服务器1556735402692583454、频道1560315540982071386，真人GUILD_MEMBER_ADD调用现有聊天API生成一句欢迎语并只@本人；不处理GUILD_CREATE名单，不读写钱包或个人对话记忆。
 - 成员事件Intent按Discord应用许可启用；未启用且少于100服时先验证目标频道归属再启用limited flag，保留消息内容权限。加入时间戳持久去重，待发任务重启可续；发送结果未知不盲目重发，明确429最多重试3次并复用nonce，10分钟过时任务清理；模型失败使用备用短句。
-- 新增6项专项，聊天117/117、Worker82/82通过。模型配置同步线上build-gemini-3.8-flash，URL/key不变。待GitHub CI与线上成员事件许可核验；不发送测试欢迎或伪造入服事件。
+- 新增6项专项，聊天117/117、Worker82/82通过。模型配置同步线上build-gemini-3.8-flash，URL/key不变。已发布：运行提交e9e0e18f4119c91b8f981f6107e28f14c2621b7f，完整CI/部署38767218165成功；CF部署dc952799-10b5-458a-b57e-4c6ccc95175a，版本18fbdb7a-041a-433e-b06e-638110b9f412接收100%。生产源码读回欢迎模块、指定频道及新指纹；常驻Gateway切换后health HTTP200/ready:true、chatRuntime=expectedRuntime=chat-city2-flower-npc-red2-welcome1、memberEventsEnabled:true、messageContentEnabled:true。15bindings及兼容/观测/usage/limits与发布前一致，模型仍build-gemini-3.8-flash。未发送测试欢迎或伪造入服事件，真实入服API生成与消息呈现待下位成员加入验证。本批完成，不重复部署。
 
 ## 新客欢迎金500（2026-10-16）
 
