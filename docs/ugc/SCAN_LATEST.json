@@ -1,5 +1,5 @@
 {
-  "scan_at": "2026-10-16T16:38:51.172Z",
+  "scan_at": "2026-10-17T00:45:00+08:00",
   "scan_complete": true,
   "namespace_id": "4b8575058fe745bd8abbb9eed752bf91",
   "objects_listed": 46,
@@ -7,13 +7,17 @@
   "enumeration_pages": 2,
   "ugc_objects": 3,
   "active_dishes": 4,
-  "pending_items": [
+  "pending_items": [],
+  "remaining_missing": 0,
+  "errors": [],
+  "initial_missing": 1,
+  "items": [
     {
       "dish_id": "ugc_3b7597c0d1eb435c96ab",
       "recipe_revision": 1,
       "recipe_hash": "c564ee65",
       "name": "叶子的雪绵豆沙",
-      "stage": "deployed_public_jpeg_verified_awaiting_binding",
+      "stage": "ready_verified",
       "commit_sha": "87889bb76297a34d34883db9e2acdad652f90da8",
       "jpeg": {
         "bytes": 86895,
@@ -22,9 +26,28 @@
       "workflow_id": 38933824424,
       "deployment_id": "41e2bca8-85df-4d53-bbe4-b6647cabd32b",
       "version_id": "99bc783a-3beb-4e69-9c8c-9677824c6462",
-      "public_image_verified": true
+      "public_image_verified": true,
+      "binding_readback": {
+        "status": "ready",
+        "recipe_revision": 1,
+        "recipe_hash": "c564ee65"
+      },
+      "shared_catalog": {
+        "version": 9,
+        "status": "ready",
+        "asset_key": "art/ugc/ugc_3b7597c0d1eb435c96ab-r1-c564ee65.jpg"
+      },
+      "review": {
+        "style_reference": "assets/art/cake-v1.jpg",
+        "generation": "built-in image_gen",
+        "summary": "Warm storybook riverside tavern illustration; white fluffy egg-white coat with redbean center, white shallow plate, light sugar, warm steam; no extra garnish/text/watermark."
+      }
     }
   ],
-  "remaining_missing": 1,
-  "errors": []
+  "verification_notes": [
+    "All four public JPEGs loaded/downloaded using authorized cloud browser, 512x512 JPEG and SHA256 matched source.",
+    "Final source readback: 4 active dishes, 0 missing. Shared catalog version9 shows new dish ready.",
+    "Full GitHub Actions build/check/deployment 38933824424 success. Production settings exactly equal before/after; 15 bindings and model unchanged.",
+    "Local static-copy hash verified. Full local static build requires renderer atlas generated in CI; full CI passed."
+  ]
 }
