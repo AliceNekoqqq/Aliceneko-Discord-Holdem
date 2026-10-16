@@ -240,7 +240,7 @@ export class PokerTable extends DurableObject {
           }
         }
         const answer=await this.tavern.dispatch(payload);
-        if(['ugcPublish','ugcWithdraw','ugcImportArt'].includes(payload.action))try{await syncSharedUgc(this.env,this.tavern,payload.guild);}catch{answer.catalogPending=true;console.warn('ugc_catalog_publish_pending');}
+        if(['ugcPublish','ugcWithdraw','ugcRelist','ugcImportArt'].includes(payload.action))try{await syncSharedUgc(this.env,this.tavern,payload.guild);}catch{answer.catalogPending=true;console.warn('ugc_catalog_publish_pending');}
 
         if(payload.action?.startsWith('ugc'))await this.tavernLive.arm(await this.ctx.storage.get('tavernLobbyLive'));
         const acceptedMapMutation=['mapTouch','mapTable','mapMove'].includes(payload.action)&&answer===true;

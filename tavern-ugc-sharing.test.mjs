@@ -4,6 +4,8 @@ import {DatabaseSync} from 'node:sqlite';
 import {TavernService} from './tavern-service.mjs';
 import {UGCSharedCatalog,syncSharedUgc} from './tavern-ugc-sharing.mjs';
 import {readFile} from 'node:fs/promises';
+import {UGCService} from './tavern-ugc-service.mjs';
+import {answerUgc} from './tavern-ugc-ui.mjs';
 
 function storage(t){const db=new DatabaseSync(':memory:');t.after(()=>db.close());const map=new Map();return {sql:{exec(q,...a){const s=db.prepare(q);if(s.columns().length){const r=s.all(...a);return {toArray:()=>r};}s.run(...a);return {toArray:()=>[]};}},transactionSync(fn){db.exec('BEGIN');try{const r=fn();db.exec('COMMIT');return r;}catch(e){db.exec('ROLLBACK');throw e;}},get:async k=>map.get(k),put:async(k,v)=>map.set(k,v),setAlarm:async()=>{},deleteAlarm:async()=>{},getAlarm:async()=>null};}
 function fixture(t){const a=new TavernService(storage(t)),b=new TavernService(storage(t)),catalog=new UGCSharedCatalog(storage(t));let fail=false;const uploads=[];
@@ -72,4 +74,38 @@ test('actual Worker synchronizes menus and rejects shared checkout during a dire
  offline=true;const rejected=await call('789','confirm',{draftId:draft.id,channel:'33'});assert(rejected.error);
  assert.equal(instances.get('tavern:789').tavern.member('123').balance,500);
  offline=false;const paid=await call('789','confirm',{draftId:draft.id,channel:'33'});assert(!paid.error,paid.error);assert.equal(instances.get('tavern:789').tavern.member('123').balance,480);
+ await call('456','ugcWithdraw',{target:result.dish.id});assert(!(await call('789','opsMenu')).some(x=>x.id===result.dish.id));
+ const interaction={type:2,id:'111',guild_id:'456',channel_id:'33',member:{user:{id:'123'}},data:{name:'酒馆',options:[{name:'我的作品'}]}};
+ const list=await answerUgc(env,interaction),pick=list.components.flatMap(r=>r.components).find(x=>x.custom_id?.includes(':ugcRelistPick'));assert(pick);
+ const page=await answerUgc(env,{...interaction,type:3,id:'112',message:{flags:64},data:{custom_id:pick.custom_id,values:[result.dish.id]}});assert(page.content.includes('已重新上架'),page.content);
+ assert((await call('789','opsMenu')).some(x=>x.id===result.dish.id));
+ const daily=origin.one('SELECT COUNT(*) AS n FROM tavern_ugc_daily').n;await call('456','ugcRelist',{target:result.dish.id});assert.equal(origin.one('SELECT COUNT(*) AS n FROM tavern_ugc_daily').n,daily);
+
+});
+
+
+test('relisting preserves recipe/art/daily quota, checks author and source guild, and repeats without duplicate events',async t=>{
+ const {a}=fixture(t),dish=await publish(a,'456'),before=a.ugc._dish(dish.id),daily=a.one('SELECT COUNT(*) AS n FROM tavern_ugc_daily').n;
+ a.ugc.withdraw({guild:'456',id:'123',target:dish.id});
+ assert.throws(()=>a.ugc.relist({guild:'456',id:'777',target:dish.id}),/找不到/);
+ assert.throws(()=>a.ugc.relist({guild:'789',id:'123',target:dish.id}),/找不到/);
+ a.ugc.relist({guild:'456',id:'123',target:dish.id});assert.equal(a.ugc.relist({guild:'456',id:'123',target:dish.id}).repeated,true);
+ assert.deepEqual(a.ugc._dish(dish.id).recipe,before.recipe);assert.equal(a.one('SELECT COUNT(*) AS n FROM tavern_ugc_daily').n,daily);
+ assert.equal(a.one("SELECT COUNT(*) AS n FROM tavern_ugc_events WHERE event_type='relist'").n,1);
+ a.ugc.withdraw({guild:'456',id:'123',target:dish.id});
+ a.sql.exec("INSERT INTO tavern_ugc_dishes SELECT 'ugc_conflictingname00000',guild,user_id,author_name,name_key,'active',current_revision,created_at,price_policy FROM tavern_ugc_dishes WHERE id=?",dish.id);
+ assert.throws(()=>a.ugc.relist({guild:'456',id:'123',target:dish.id}),/同名/);assert.equal(a.ugc._dish(dish.id).status,'withdrawn');
+});
+
+test('one-time restoration revives existing withdrawals, preserves later withdrawals and never repeats',async t=>{
+ const {a,b}=fixture(t),da=await publish(a,'456'),db=await publish(b,'789'),cutoff=Date.parse('2026-10-16T12:57:35Z');
+ for(const [host,dish,guild,at] of [[a,da,'456',cutoff-1],[b,db,'789',cutoff+1]]){
+  host.sql.exec('UPDATE tavern_ugc_dishes SET created_at=? WHERE id=?',cutoff-1000,dish.id);
+  host.ugc.withdraw({guild,id:'123',target:dish.id},at);
+  host.sql.exec("DELETE FROM tavern_ugc_share_meta WHERE key='restore-withdrawn-20261016'");
+  host._ugc=new UGCService(host);
+ }
+ assert.equal(a.ugc._dish(da.id).status,'active');assert.equal(b.ugc._dish(db.id).status,'withdrawn');
+ a.ugc.withdraw({guild:'456',id:'123',target:da.id},cutoff+1000);a._ugc=new UGCService(a);assert.equal(a.ugc._dish(da.id).status,'withdrawn');
+ assert.equal(a.one("SELECT COUNT(*) AS n FROM tavern_ugc_events WHERE reason_code='developer_restore_20261016'").n,1);
 });

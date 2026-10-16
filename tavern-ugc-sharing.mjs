@@ -28,7 +28,7 @@ export class UGCSharedCatalog{
   const version=this.rows("SELECT value FROM ugc_catalog_meta WHERE key='version'")[0].value;
   return {version,entries:Number(p.version)===version?null:this.rows('SELECT data FROM ugc_catalog_entries ORDER BY id').map(x=>JSON.parse(x.data))};
  }
- status(){return {version:this.rows("SELECT value FROM ugc_catalog_meta WHERE key='version'")[0].value,sources:this.rows('SELECT COUNT(*) AS n FROM ugc_catalog_sources')[0].n,dishes:this.rows("SELECT COUNT(*) AS n FROM ugc_catalog_entries WHERE json_extract(data,'$.status')='active'")[0].n,bootstrapComplete:!!this.rows("SELECT value FROM ugc_catalog_meta WHERE key='bootstrap'")[0]?.value};}
+ status(){return {version:this.rows("SELECT value FROM ugc_catalog_meta WHERE key='version'")[0].value,sources:this.rows('SELECT COUNT(*) AS n FROM ugc_catalog_sources')[0].n,dishes:this.rows("SELECT COUNT(*) AS n FROM ugc_catalog_entries WHERE json_extract(data,'$.status')='active'")[0].n,withdrawn:this.rows("SELECT COUNT(*) AS n FROM ugc_catalog_entries WHERE json_extract(data,'$.status')='withdrawn'")[0].n,bootstrapComplete:!!this.rows("SELECT value FROM ugc_catalog_meta WHERE key='bootstrap'")[0]?.value};}
  async bootstrap(env){
   if(this.rows("SELECT value FROM ugc_catalog_meta WHERE key='bootstrap'")[0]?.value){
    for(const source of this.rows('SELECT guild,revision FROM ugc_catalog_sources')){
