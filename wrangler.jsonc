@@ -6,7 +6,7 @@
   "keep_vars": true,
   // The shared character profile is maintained directly in the Cloudflare dashboard.
   "vars": {
-    "GEMINI_API_BASE_URL": "https://gcli.ggchan.dev/v1",
+    "GEMINI_API_BASE_URL": "https://catiecli.sukaka.top/v1",
     "GEMINI_MODEL": "pg-gemini-3.8-flash"
   },
   "durable_objects": {"bindings": [{"name": "TABLES", "class_name": "PokerTable"}]},
