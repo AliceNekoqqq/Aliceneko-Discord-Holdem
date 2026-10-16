@@ -13,12 +13,16 @@
       "recipe_revision": 1,
       "recipe_hash": "c564ee65",
       "name": "叶子的雪绵豆沙",
-      "stage": "github_uploaded_awaiting_ci",
+      "stage": "deployed_public_jpeg_verified_awaiting_binding",
       "commit_sha": "87889bb76297a34d34883db9e2acdad652f90da8",
       "jpeg": {
         "bytes": 86895,
         "sha256": "2c59a3b6b2a2583f3837460813a1bad8eab75bebf5c26ce70f9366eb5d0edb49"
-      }
+      },
+      "workflow_id": 38933824424,
+      "deployment_id": "41e2bca8-85df-4d53-bbe4-b6647cabd32b",
+      "version_id": "99bc783a-3beb-4e69-9c8c-9677824c6462",
+      "public_image_verified": true
     }
   ],
   "remaining_missing": 1,
