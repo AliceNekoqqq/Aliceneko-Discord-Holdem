@@ -41,7 +41,7 @@ test('private manual UI saves all fields and publishes with model fetch forbidde
  let seq=0;
  const i=(custom,type=3,extra={})=>({type,id:String(++seq),guild_id:'456',channel_id:'33',member:{user:{id:'123'}},message:{flags:64},data:type===2?{name:'酒馆',options:[{name:'研发'}]}:{custom_id:custom,...extra}});
  const find=(p,part)=>{assert(p.components,p.content);assert(p.components.length<=5);const c=p.components.flatMap(r=>r.components).find(c=>c.custom_id?.includes(part));assert(c,part);assert(c.custom_id.length<=100);return c.custom_id;};
- let p=await answerUgc(env,i(null,2));p=await answerUgc(env,i(find(p,':ugcStartManual')));p=await answerUgc(env,i(find(p,':ugcType~drink')));p=await answerUgc(env,i(find(p,':ugcManual~')));
+ let p=await answerUgc(env,i(null,2));p=await answerUgc(env,i(find(p,':ugcStartManual')));p=await answerUgc(env,i(find(p,':ugcManualType~drink')));
  for(const [target,value] of Object.entries({name:'手作柠檬鸡尾酒',ingredients:'柠檬、金酒，汤力水',flavor:'清香微酸',method:'泡茶后加入柠檬',temperature:'冰凉',description:'一杯柠檬茶',appearance:'透明杯与柠檬片',lore:'夏日灵感',servingSizeMl:'250',alcoholPercent:'8.5'})){
   const modal=immediateUgcReply(i(find(p,':ugcManualPick~'),3,{values:[target]}));assert.equal(modal.type,9);
   p=await answerUgc(env,i(modal.data.custom_id,5,{components:[{components:[{custom_id:'value',value}]}]}));assert(p.content.includes('自填研发'),p.content);

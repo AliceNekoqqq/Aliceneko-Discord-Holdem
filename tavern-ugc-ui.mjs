@@ -64,7 +64,7 @@ function homePage(b,g,u){
   }
  } else {
   const publishedToday=!!b?.dailyPublished;
-  parts.push(`🔒 **私密菜品研发**${publishedToday?'\n今天已成功研发一款，明天可再制作。':'\n每个服务器每天最多成功研发一款。'}\n研发和修改不收费；售价由你填写，范围为10～50币。可选择自填研发，逐项填写即可，无需大模型；也可与她讨论研发。确认入库后才会发布。`,row(button(g,u,'ugcStartManual','自填研发',1,publishedToday),button(g,u,'ugcStart',publishedToday?'今天已完成研发':'对话研发',2,publishedToday)));
+  parts.push(`🔒 **私密菜品研发**${publishedToday?'\n今天已成功研发一款，明天可再制作。':'\n每个服务器每天最多成功研发一款。'}\n研发和修改不收费；售价由你填写，范围为10～50币。可选择自填研发，逐项填写即可，无需大模型；也可与她讨论研发。确认入库后才会发布。`,row(button(g,u,'ugcStart',publishedToday?'今天已完成研发':'对话研发',2,publishedToday),button(g,u,'ugcStartManual','自填研发',1,publishedToday)));
  }
  const tally=b?.attemptsRemaining;if(tally!==undefined)parts[0]+=`\n今日可开始会话：${clean(tally,8)}`;
  parts.push(row(button(g,u,'ugcList','我的作品'),button(g,u,'menu','返回总菜单')));
@@ -74,7 +74,7 @@ function listPage(b,g,u,mine=false){const items=b.items||[],page=b.page||0;const
  if(mine&&items.some(x=>x.status==='active')){const active=items.filter(x=>x.status==='active').slice(0,25);comps.push(row({type:3,custom_id:cid(g,u,'ugcWithdrawPick'),placeholder:'选择要下架的作品',min_values:1,max_values:1,options:active.map(x=>({label:clean(x.name,96),value:String(x.id).slice(0,100)}))}));}
  if(b.hasMore)comps.push(row(button(g,u,`ugcListPage~${page+1}`,'下一页')));
  comps.push(row(button(g,u,'ugcView','我的研发'),button(g,u,'menu','返回总菜单')));
- return {content:`🔒 **我的作品**\n${lines.join('\n')||'还没有发布作品。'}\n\n作品仅在本服务器显示；下架不返还当天研发名额。`,components:comps,allowed_mentions:mentionAllowed};
+ return {content:`🔒 **我的作品**\n${lines.join('\n')||'还没有发布作品。'}\n\n作品共享至所有服务器菜单；请在研发所在服务器管理下架。下架不返还当天研发名额。`,components:comps,allowed_mentions:mentionAllowed};
 }
 function encodeQuery(s){const bytes=new TextEncoder().encode(s);let raw='';for(const b of bytes)raw+=String.fromCharCode(b);return btoa(raw).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');}
 function decodeQuery(s){try{const raw=atob(String(s).replaceAll('-','+').replaceAll('_','/'));return new TextDecoder().decode(Uint8Array.from(raw,c=>c.charCodeAt(0)));}catch{return '';}}
@@ -96,7 +96,14 @@ async function dispatch(env,p,action,i){const base={...baseOf(p),...(p.sessionId
  if(action==='ugcBrowsePick'){const item=i.data?.values?.[0];if(!item||!/^ugc_[\w-]{10,60}$/.test(item))throw Error('请选择创作菜单中的作品。');const d=await call(env,{...base,action:'prepare',item,options:{},requestKey:`i${i.id}`});return {content:`🍽️ **点单预览 · ${clean(d.details?.itemName||d.item,50)}**\n本单 **${d.price}币**${Number.isInteger(d.balance)?` · 当前余额 ${d.balance}币`:''}\n${d.status==='pending'?'尚未扣款；请打开本人私密确认窗口。':'这份订单已处理或过期。'}`,components:[row(button(p.g,p.u,`review~${d.id}`,'打开我的确认窗口',1)),row(button(p.g,p.u,'ugcList','我的作品'),button(p.g,'any','ugcBrowse','返回创作菜单'))],allowed_mentions:mentionAllowed};}
  if(action==='我的作品'||action==='ugcList'||action.startsWith('ugcListPage~')){const page=action.startsWith('ugcListPage~')?Number(action.split('~')[1])||0:0;return listPage(await call(env,{...base,action:'ugcList',page,mine:true}),p.g,p.u,true);}
  if(action==='ugcWithdrawPick'){const target=i.data?.values?.[0];if(!target||!/^ugc_[\w-]{10,60}$/.test(target))throw Error('请选择你在本服的作品。');await call(env,{...base,action:'ugcWithdraw',target});return listPage(await call(env,{...base,action:'ugcList',page:0,mine:true}),p.g,p.u,true);}
- if(action==='ugcStart'||action==='ugcStartManual'){return homePage(await call(env,{...base,action:'ugcStart'}),p.g,p.u);}
+ if(action==='ugcStart'||action==='ugcStartManual'){
+  const view=await call(env,{...base,action:'ugcStart'}),s=sessionOf(view),page=homePage(view,p.g,p.u);
+  if(action==='ugcStartManual'&&s){
+   if(s.status!=='CHOOSING')return dispatch(env,{...p,sessionId:s.id,revision:s.revision},'ugcManual',i);
+   for(const row of page.components)for(const component of row.components)if(component.custom_id)component.custom_id=component.custom_id.replace(':ugcType~',':ugcManualType~');
+  }
+  return page;
+ }
  if(action==='ugcManual'){
   const s=sessionOf(await call(env,{...base,action:'ugcView'}));
   if(!s||s.id!==p.sessionId||s.revision!==p.revision)throw Error('菜品卡已更新，请刷新后继续。');
@@ -112,7 +119,7 @@ async function dispatch(env,p,action,i){const base={...baseOf(p),...(p.sessionId
   if(['servingSizeMl','alcoholPercent'].includes(target))value=Number(raw);
   const saved=await call(env,{...base,action:'ugcManualSave',target,value});const s=sessionOf(saved);return dispatch(env,{...p,sessionId:s.id,revision:s.revision},'ugcManual',i);
  }
- if(action.startsWith('ugcType~')){const value=action.split('~')[1];if(!['drink','dessert','savory'].includes(value))throw Error('请选择有效的菜品类型。');return homePage(await call(env,{...base,action:'ugcType',value}),p.g,p.u);}
+ if(action.startsWith('ugcType~')||action.startsWith('ugcManualType~')){const value=action.split('~')[1];if(!['drink','dessert','savory'].includes(value))throw Error('请选择有效的菜品类型。');const view=await call(env,{...base,action:'ugcType',value});if(action.startsWith('ugcManualType~')){const s=sessionOf(view);return dispatch(env,{...p,sessionId:s.id,revision:s.revision},'ugcManual',i);}return homePage(view,p.g,p.u);}
  if(action==='ugcChat')return modal(p.g,p.u,'ugcSubmitTurn','告诉她我的想法','最多800字',800);
  if(action==='ugcRetry'){
   const view=await call(env,{...base,action:'ugcView'}),s=sessionOf(view);
@@ -153,9 +160,9 @@ async function dispatch(env,p,action,i){const base={...baseOf(p),...(p.sessionId
  if(action.startsWith('ugcDiscardEdit~'))return homePage(await call(env,{...base,action:'ugcDiscardEdit',revision:Number(action.split('~')[1])}),p.g,p.u);
  if(action==='ugcPublish'){
   const b=await call(env,{...base,action:'ugcView'}),s=sessionOf(b);if(!s||!Number.isInteger(s.price)||s.edit_candidate)throw Error('请先填写售价并处理待采用的修改。');
-  return {content:`请检查完整菜品卡：\n${dishText(s)}\n\n确认后会在本服务器公开，并占用今天的一款研发名额。`,components:[row(sessionButton(p.g,p.u,s,`ugcPublishNow~${s.revision}`,'确认入库',1),sessionButton(p.g,p.u,s,'ugcView','返回继续修改'))],allowed_mentions:mentionAllowed};
+  return {content:`请检查完整菜品卡：\n${dishText(s)}\n\n确认后会共享至所有服务器的菜单，并占用今天的一款研发名额。`,components:[row(sessionButton(p.g,p.u,s,`ugcPublishNow~${s.revision}`,'确认入库',1),sessionButton(p.g,p.u,s,'ugcView','返回继续修改'))],allowed_mentions:mentionAllowed};
  }
- if(action.startsWith('ugcPublishNow~')){const s=base.sessionId?{id:base.sessionId}:sessionOf(await call(env,{...base,action:'ugcView'}));if(!s)throw Error('研发会话已失效，请刷新作品列表。');const result=await call(env,{...base,action:'ugcPublish',sessionId:s.id,revision:Number(action.split('~')[1]),requestKey:i.id});if(result?.dish)return {content:`✅ **已确认入库**\n**${clean(result.dish.recipe?.name,24)}**已发布到本服务器的总菜单，并按类型归入相应分类。\n作者：${clean(result.dish.author_name,32)} · 售价：${result.dish.recipe?.price}币\n今天的研发名额已使用。`,components:[row(button(p.g,p.u,'menu','查看总菜单'),button(p.g,p.u,'ugcList','我的作品'))],allowed_mentions:mentionAllowed};return homePage(result,p.g,p.u);}
+ if(action.startsWith('ugcPublishNow~')){const s=base.sessionId?{id:base.sessionId}:sessionOf(await call(env,{...base,action:'ugcView'}));if(!s)throw Error('研发会话已失效，请刷新作品列表。');const result=await call(env,{...base,action:'ugcPublish',sessionId:s.id,revision:Number(action.split('~')[1]),requestKey:i.id});if(result?.dish)return {content:`✅ **已确认入库**\n**${clean(result.dish.recipe?.name,24)}**已共享到所有服务器的总菜单，并按类型归入相应分类。\n作者：${clean(result.dish.author_name,32)} · 售价：${result.dish.recipe?.price}币\n今天的研发名额已使用。${result.catalogPending?'\n跨服目录正在同步，稍后刷新菜单即可。':''}`,components:[row(button(p.g,p.u,'menu','查看总菜单'),button(p.g,p.u,'ugcList','我的作品'))],allowed_mentions:mentionAllowed};return homePage(result,p.g,p.u);}
  if(action.startsWith('ugcAskConfirm~')){const operation=action.split('~')[1];if(!['cancel','restart','undo'].includes(operation))throw Error('确认操作无效。');const c=await call(env,{...base,action:'ugcAskConfirm',operation});const labels={cancel:'取消研发并删除本次草稿？',restart:'清空本轮研发内容并重新选择类型？',undo:'撤销最近一次研发填写或问答？'};return {content:`${labels[operation]}\n确认凭证60秒有效，未确认不会修改草稿。`,components:[row(sessionButton(p.g,p.u,{id:base.sessionId,revision:base.revision},`ugcExecuteConfirm~${c.token}`,'确认执行',4),sessionButton(p.g,p.u,{id:base.sessionId,revision:base.revision},'ugcView','返回研发'))],allowed_mentions:mentionAllowed};}
  if(action.startsWith('ugcExecuteConfirm~')){const token=action.slice('ugcExecuteConfirm~'.length);if(!token||token.length>80)throw Error('确认面板已失效，请重新打开。');const receipt=await call(env,{...base,action:'ugcExecuteConfirm',token});const view=await call(env,{...base,action:'ugcView',sessionId:base.sessionId});const page=homePage(view,p.g,p.u);if(receipt.operation==='cancel')page.content=`已取消本次研发，草稿和临时问答已清除。\n\n${page.content}`;else if(receipt.operation==='restart')page.content=`已清空本轮内容，请重新选择类型。\n\n${page.content}`;return page;}
  if(action.startsWith('ugcWithdraw~')){const target=action.slice('ugcWithdraw~'.length);return homePage(await call(env,{...base,action:'ugcWithdraw',target}),p.g,p.u);}

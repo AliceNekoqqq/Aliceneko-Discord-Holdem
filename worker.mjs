@@ -1,3 +1,4 @@
+import {UGCSharedCatalog,syncSharedUgc} from './tavern-ugc-sharing.mjs';
 import {DuelRouletteController,matches as duelRouletteInteraction} from './duel-roulette-controller.mjs';
 import {DuelRoulettePenalties} from './duel-roulette-penalties.mjs';
 import {isDuelRoulette} from './duel-roulette-model.mjs';
@@ -124,6 +125,16 @@ export class PokerTable extends DurableObject {
   }
   async fetch(request){
     const payload=await request.json();
+    if(['ugcCatalog','ugcCatalogStatus','ugcCatalogBootstrap','ugcShareExport'].includes(payload.op)){
+      try{
+        if(payload.op==='ugcShareExport'){const ugc=this.tavern.ugc,state=ugc.shareState(payload.guild);return json(payload.knownRevision===state.sourceRevision?{sourceRevision:state.sourceRevision}:ugc.shareExport(payload.guild));}
+        const catalog=this.ugcCatalog??=new UGCSharedCatalog(this.ctx.storage);
+        if(payload.op==='ugcCatalog')return json(catalog.sync(payload));
+        if(payload.op==='ugcCatalogStatus')return json(catalog.status());
+        this.ugcBootstrap??=catalog.bootstrap(this.env).finally(()=>{this.ugcBootstrap=null;});
+        return json(await this.ugcBootstrap);
+      }catch(e){return json({error:e.message});}
+    }
     if(payload.op==='city'){
       const service=this.cityService??=new CityService(this.ctx.storage);
       try{
@@ -219,7 +230,18 @@ export class PokerTable extends DurableObject {
         }
         if(payload.action==='opsBindLobby')return json(await this.tavernLive.track(payload));
         if(payload.action==='opsUnbindLobby')return json(await this.tavernLive.untrack(payload));
+        const shareRead=payload.action?.startsWith('ugc')||['menu','dish','view','context','opsMenu','opsMenuStatus','prepare','confirm'].includes(payload.action);
+        if(shareRead){
+          try{await syncSharedUgc(this.env,this.tavern,payload.guild);}
+          catch(e){
+            const sharedOrder=payload.action==='prepare'&&String(payload.item).startsWith('ugc_')||payload.action==='confirm'&&this.tavern.one('SELECT details FROM tavern_drafts WHERE id=?',payload.draftId)?.details?.includes('"source":"ugc"');
+            if(sharedOrder)throw e;
+            console.warn('ugc_catalog_sync_pending');
+          }
+        }
         const answer=await this.tavern.dispatch(payload);
+        if(['ugcPublish','ugcWithdraw','ugcImportArt'].includes(payload.action))try{await syncSharedUgc(this.env,this.tavern,payload.guild);}catch{answer.catalogPending=true;console.warn('ugc_catalog_publish_pending');}
+
         if(payload.action?.startsWith('ugc'))await this.tavernLive.arm(await this.ctx.storage.get('tavernLobbyLive'));
         const acceptedMapMutation=['mapTouch','mapTable','mapMove'].includes(payload.action)&&answer===true;
         const visitorAction=!payload.action?.startsWith('map')&&!['context','draft'].includes(payload.action)||payload.action==='context'&&payload.recordVisit===true;
@@ -407,7 +429,9 @@ async function handle(request,env,ctx){
     const ready=data.ok===true&&gateway.ready&&gateway.chatRuntime===CHAT_PIPELINE_RUNTIME;
     let commands;
     if(new URL(request.url).searchParams.get('commands')==='1')try{const inventory=await commandInventory(env);const probe=await env.TABLES.get(env.TABLES.idFromName('system-registration-city1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'registrationDiagnostics'})});const registration=probe.ok?await probe.json():{unavailable:true};commands={...inventory,cityPresent:inventory.names.includes('城市'),registration};}catch{commands={ok:false,cityPresent:false};}
-    return json({...data,ready,gateway:{...gateway,expectedRuntime:CHAT_PIPELINE_RUNTIME},...(commands?{commands}:{})});
+    let ugc;
+    if(new URL(request.url).searchParams.get('ugc')==='1')try{const r=await env.TABLES.get(env.TABLES.idFromName('ugc-global-catalog-v1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'ugcCatalogStatus'})});ugc=await r.json();}catch{ugc={unavailable:true};}
+    return json({...data,ready,gateway:{...gateway,expectedRuntime:CHAT_PIPELINE_RUNTIME},...(commands?{commands}:{}),...(ugc?{ugc}:{})});
   }
   if(path!=='/interactions')return new Response('Not found',{status:404});
   if(request.method!=='POST')return new Response('Method not allowed',{status:405,headers:{Allow:'POST'}});
@@ -444,7 +468,7 @@ export default {
     const headers=new Headers(response.headers);for(const [key,value]of Object.entries({'Cache-Control':asset?response.headers.get('Cache-Control'):'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow'}))headers.set(key,value);
     return new Response(response.body,{status:response.status,headers});
   },
-  async scheduled(event,env,ctx){ctx.waitUntil(runWritingJob(env).catch(e=>console.warn('writing_job_failed',{reason:e.name})));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-emojis')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'appEmojis'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-registration-city1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'register'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-discord-gateway')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayEnsure'})}));}
+  async scheduled(event,env,ctx){ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('ugc-global-catalog-v1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'ugcCatalogBootstrap'})}).then(async r=>{const d=await r.json();if(d.error)console.warn('ugc_catalog_backfill_pending');}).catch(()=>console.warn('ugc_catalog_backfill_pending')));ctx.waitUntil(runWritingJob(env).catch(e=>console.warn('writing_job_failed',{reason:e.name})));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-emojis')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'appEmojis'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-registration-city1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'register'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-discord-gateway')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayEnsure'})}));}
 };
 
 

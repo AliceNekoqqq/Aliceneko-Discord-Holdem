@@ -158,7 +158,7 @@ test('signed tavern commands bypass occupied tables, defer privately and confirm
  const sent=[],previous=globalThis.fetch;globalThis.fetch=async(url,options)=>{sent.push({url,body:options.body&&JSON.parse(options.body)});return Response.json({id:'444'});};t.after(()=>globalThis.fetch=previous);
  let seq=100;const call=async(i)=>{const payload={application_id:'123',guild_id:'3',channel_id:'2',member:{user:{id:'1',username:'Alice'}},token:'test-token',id:String(++seq),...i},body=JSON.stringify(payload),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex'),tasks=[];
   const response=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Timestamp':ts,'X-Signature-Ed25519':sig}}),env,{waitUntil:p=>tasks.push(p)});await Promise.all(tasks);return response.json();};
- assert.equal((await call({type:2,data:{name:'酒馆',options:[{name:'菜单'}]}})).data.flags,64);assert(names.every(n=>n==='tavern:3'));
+ assert.equal((await call({type:2,data:{name:'酒馆',options:[{name:'菜单'}]}})).data.flags,64);assert(names.every(n=>['tavern:3','ugc-global-catalog-v1'].includes(n)));assert(names.includes('ugc-global-catalog-v1'));
  await call({type:2,data:{name:'酒馆',options:[{name:'点单',options:[{name:'商品',value:'milk'}]}]}});
  const s=instances.get('tavern:3').tavern,d=s.one('SELECT * FROM tavern_drafts');assert.equal(s.view('1').member.balance,500);
  assert.equal((await call(interaction(`confirm~${d.id}`))).type,6);await call(interaction(`confirm~${d.id}`));assert.equal(s.view('1').member.balance,485);
