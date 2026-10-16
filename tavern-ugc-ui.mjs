@@ -31,7 +31,7 @@ function validate(i){
  if(i.type!==2){const p=String(i.data.custom_id).split(':');if(p.length!==4||p[0]!=='t'||p[1]!==g)throw Error('研发面板已失效，请重新打开。');owner=p[2];action=p[3];if(owner==='any'&&action!=='ugcBrowse')throw Error('此公开按钮只能打开创作菜单。');if(owner!=='any'&&owner!==u)throw Error('这是另一位来客的私密研发面板。');if(i.type===3&&owner!=='any'&&!(Number(i.message?.flags)&64))throw Error('请从本人私密研发面板继续操作。');}
  const ctx=actionContext(action);return {g,u,ch,...ctx,name:i.member?.nick||i.member?.user?.global_name||i.member?.user?.username||'来客'};
 }
-export function immediateUgcReply(i){if(!ugcInteraction(i))return null;try{const p=validate(i);if(i.type===3&&p.action==='ugcChat')return modal(p.g,p.u,`ugcSubmitTurn~${p.sessionId}~${p.revision}`,'告诉她我的想法','最多800字',800);if(i.type===3&&p.action==='ugcPrice')return modal(p.g,p.u,`ugcSetPrice~${p.sessionId}~${p.revision}`,'菜品售价','输入整数，范围10～50币',2,2);if(i.type===3&&p.action==='ugcBrowseSearch')return modal(p.g,p.u,'ugcSearchList','搜索创作菜单','输入菜名或作者',60,1);if(i.type===3&&p.action.startsWith('ugcEdit~')){const target=p.action.slice(8);if(!editFields.some(([key])=>key===target))throw Error('请选择菜品卡中的字段。');return modal(p.g,p.u,`ugcEditText~${target}~${p.sessionId}~${p.revision}`,'修改菜品卡',`描述希望怎样修改：${editFields.find(x=>x[0]===target)[1]}`,800);}return null;}catch(e){return {type:4,data:{content:e.message,flags:64,allowed_mentions:mentions}};}}
+export function immediateUgcReply(i){if(!ugcInteraction(i))return null;try{const p=validate(i);if(i.type===3&&p.action==='ugcManualPick'){const target=i.data?.values?.[0];if(!editFields.some(([key])=>key===target))throw Error('请选择需要自填的字段。');const hints={type:'饮品 / 甜点 / 小食（或主食）',ingredients:'1～8项，用顿号、逗号或换行分隔',temperature:'温热 / 冰凉 / 常温',servingSizeMl:'1～2000的整数',alcoholPercent:'0.1～100的数字，不加百分号'};const limits={name:24,type:20,ingredients:270,flavor:100,method:300,temperature:20,servingSizeMl:4,alcoholPercent:5,description:180,appearance:200,lore:120};return modal(p.g,p.u,`ugcManualSave~${target}~${p.sessionId}~${p.revision}`,'自填菜品资料',hints[target]||editFields.find(x=>x[0]===target)[1],limits[target]);}if(i.type===3&&p.action==='ugcChat')return modal(p.g,p.u,`ugcSubmitTurn~${p.sessionId}~${p.revision}`,'告诉她我的想法','最多800字',800);if(i.type===3&&p.action==='ugcPrice')return modal(p.g,p.u,`ugcSetPrice~${p.sessionId}~${p.revision}`,'菜品售价','输入整数，范围10～50币',2,2);if(i.type===3&&p.action==='ugcBrowseSearch')return modal(p.g,p.u,'ugcSearchList','搜索创作菜单','输入菜名或作者',60,1);if(i.type===3&&p.action.startsWith('ugcEdit~')){const target=p.action.slice(8);if(!editFields.some(([key])=>key===target))throw Error('请选择菜品卡中的字段。');return modal(p.g,p.u,`ugcEditText~${target}~${p.sessionId}~${p.revision}`,'修改菜品卡',`描述希望怎样修改：${editFields.find(x=>x[0]===target)[1]}`,800);}return null;}catch(e){return {type:4,data:{content:e.message,flags:64,allowed_mentions:mentions}};}}
 export function ugcDeferredReply(i){if(!ugcInteraction(i))return null;if(i.type===3){const p=String(i.data?.custom_id||'').split(':');if(p[2]==='any')return {type:5,data:{flags:64}};const ctx=actionContext(p[3]);if(ctx.action==='ugcRetry')return {type:7,data:{content:'⏳ 已收到重试，正在用上一轮原文重新生成。完成后这张菜品卡会自动更新；原要求仍保存在私密会话中。',components:[row(sessionButton(p[1],p[2],{id:ctx.sessionId,revision:ctx.revision},'ugcView','刷新研发面板'))],allowed_mentions:mentions}};return {type:6};}return {type:5,data:{flags:64}};}
 async function call(env,p){return tavernRequest(env,p);}
 const baseOf=p=>({guild:p.g,id:p.u,name:p.name,channel:p.ch});
@@ -54,7 +54,7 @@ function homePage(b,g,u){
    parts.push(row(sessionButton(g,u,s,'ugcAskConfirm~cancel','取消研发',2)));
   } else {
    const generating=s.status==='GENERATING';
-   const controls=[sessionButton(g,u,s,'ugcChat',s.retryText?'继续补充想法':'告诉她我的想法',1,generating),sessionButton(g,u,s,'ugcEdit','修改一项',2,generating||!!candidate),sessionButton(g,u,s,'ugcPrice','填写/修改售价',2,generating)];
+   const controls=[sessionButton(g,u,s,'ugcManual','自填资料',1,generating||!!candidate||!!s.edit_target),sessionButton(g,u,s,'ugcChat',s.retryText?'继续补充想法':'告诉她我的想法',1,generating),sessionButton(g,u,s,'ugcEdit','修改一项',2,generating||!!candidate),sessionButton(g,u,s,'ugcPrice','填写/修改售价',2,generating)];
    if(s.retryText)controls.push(sessionButton(g,u,s,'ugcRetry','重试上一轮',1,generating));
    parts.push(row(...controls));
    parts.push(row(sessionButton(g,u,s,`ugcAskConfirm~undo`,'回退上一轮',2,generating||!(s.snapshots?.length)),sessionButton(g,u,s,'ugcAskConfirm~restart','重新研发'),sessionButton(g,u,s,'ugcAskConfirm~cancel','取消研发')));
@@ -64,7 +64,7 @@ function homePage(b,g,u){
   }
  } else {
   const publishedToday=!!b?.dailyPublished;
-  parts.push(`🔒 **私密菜品研发**${publishedToday?'\n今天已成功研发一款，明天可再制作。':'\n每个服务器每天最多成功研发一款。'}\n研发和修改不收费；售价由你填写，范围为10～50币。模型只整理候选内容，确认入库后才会发布。`,row(button(g,u,'ugcStart',publishedToday?'今天已完成研发':'开始研发',1,publishedToday)));
+  parts.push(`🔒 **私密菜品研发**${publishedToday?'\n今天已成功研发一款，明天可再制作。':'\n每个服务器每天最多成功研发一款。'}\n研发和修改不收费；售价由你填写，范围为10～50币。可选择自填研发，逐项填写即可，无需大模型；也可与她讨论研发。确认入库后才会发布。`,row(button(g,u,'ugcStartManual','自填研发',1,publishedToday),button(g,u,'ugcStart',publishedToday?'今天已完成研发':'对话研发',2,publishedToday)));
  }
  const tally=b?.attemptsRemaining;if(tally!==undefined)parts[0]+=`\n今日可开始会话：${clean(tally,8)}`;
  parts.push(row(button(g,u,'ugcList','我的作品'),button(g,u,'menu','返回总菜单')));
@@ -96,7 +96,22 @@ async function dispatch(env,p,action,i){const base={...baseOf(p),...(p.sessionId
  if(action==='ugcBrowsePick'){const item=i.data?.values?.[0];if(!item||!/^ugc_[\w-]{10,60}$/.test(item))throw Error('请选择创作菜单中的作品。');const d=await call(env,{...base,action:'prepare',item,options:{},requestKey:`i${i.id}`});return {content:`🍽️ **点单预览 · ${clean(d.details?.itemName||d.item,50)}**\n本单 **${d.price}币**${Number.isInteger(d.balance)?` · 当前余额 ${d.balance}币`:''}\n${d.status==='pending'?'尚未扣款；请打开本人私密确认窗口。':'这份订单已处理或过期。'}`,components:[row(button(p.g,p.u,`review~${d.id}`,'打开我的确认窗口',1)),row(button(p.g,p.u,'ugcList','我的作品'),button(p.g,'any','ugcBrowse','返回创作菜单'))],allowed_mentions:mentionAllowed};}
  if(action==='我的作品'||action==='ugcList'||action.startsWith('ugcListPage~')){const page=action.startsWith('ugcListPage~')?Number(action.split('~')[1])||0:0;return listPage(await call(env,{...base,action:'ugcList',page,mine:true}),p.g,p.u,true);}
  if(action==='ugcWithdrawPick'){const target=i.data?.values?.[0];if(!target||!/^ugc_[\w-]{10,60}$/.test(target))throw Error('请选择你在本服的作品。');await call(env,{...base,action:'ugcWithdraw',target});return listPage(await call(env,{...base,action:'ugcList',page:0,mine:true}),p.g,p.u,true);}
- if(action==='ugcStart'){return homePage(await call(env,{...base,action:'ugcStart'}),p.g,p.u);}
+ if(action==='ugcStart'||action==='ugcStartManual'){return homePage(await call(env,{...base,action:'ugcStart'}),p.g,p.u);}
+ if(action==='ugcManual'){
+  const s=sessionOf(await call(env,{...base,action:'ugcView'}));
+  if(!s||s.id!==p.sessionId||s.revision!==p.revision)throw Error('菜品卡已更新，请刷新后继续。');
+  return {content:`🔒 **自填研发 · 无需大模型**\n${compactDishText(s)}\n\n选择一个字段填写，保存后直接更新草稿，可反复修改。食材用顿号、逗号或换行分隔。售价仍在菜品卡填写。`,components:[row({type:3,custom_id:cid(p.g,p.u,`ugcManualPick~${s.id}~${s.revision}`),placeholder:'选择要填写 / 修改的资料',min_values:1,max_values:1,options:editFields.map(([value,label])=>({label,value}))}),row(sessionButton(p.g,p.u,s,'ugcView','返回菜品卡'))],allowed_mentions:mentionAllowed};
+ }
+ if(action.startsWith('ugcManualSave~')){
+  const target=action.slice('ugcManualSave~'.length),raw=valueFrom(i).trim();
+  if(!editFields.some(([key])=>key===target)||!raw)throw Error('请选择字段并填写内容。');
+  let value=raw;
+  if(target==='ingredients')value=raw.split(/[、,，\n]+/).map(x=>x.trim()).filter(Boolean);
+  if(target==='type')value=({饮品:'drink',甜点:'dessert',小食:'savory',主食:'savory','小食/主食':'savory'})[raw]||raw;
+  if(target==='temperature')value=({温热:'warm',热:'warm',冰凉:'cold',冰:'cold',冷:'cold',常温:'room'})[raw]||raw;
+  if(['servingSizeMl','alcoholPercent'].includes(target))value=Number(raw);
+  const saved=await call(env,{...base,action:'ugcManualSave',target,value});const s=sessionOf(saved);return dispatch(env,{...p,sessionId:s.id,revision:s.revision},'ugcManual',i);
+ }
  if(action.startsWith('ugcType~')){const value=action.split('~')[1];if(!['drink','dessert','savory'].includes(value))throw Error('请选择有效的菜品类型。');return homePage(await call(env,{...base,action:'ugcType',value}),p.g,p.u);}
  if(action==='ugcChat')return modal(p.g,p.u,'ugcSubmitTurn','告诉她我的想法','最多800字',800);
  if(action==='ugcRetry'){
@@ -141,7 +156,7 @@ async function dispatch(env,p,action,i){const base={...baseOf(p),...(p.sessionId
   return {content:`请检查完整菜品卡：\n${dishText(s)}\n\n确认后会在本服务器公开，并占用今天的一款研发名额。`,components:[row(sessionButton(p.g,p.u,s,`ugcPublishNow~${s.revision}`,'确认入库',1),sessionButton(p.g,p.u,s,'ugcView','返回继续修改'))],allowed_mentions:mentionAllowed};
  }
  if(action.startsWith('ugcPublishNow~')){const s=base.sessionId?{id:base.sessionId}:sessionOf(await call(env,{...base,action:'ugcView'}));if(!s)throw Error('研发会话已失效，请刷新作品列表。');const result=await call(env,{...base,action:'ugcPublish',sessionId:s.id,revision:Number(action.split('~')[1]),requestKey:i.id});if(result?.dish)return {content:`✅ **已确认入库**\n**${clean(result.dish.recipe?.name,24)}**已发布到本服务器的总菜单，并按类型归入相应分类。\n作者：${clean(result.dish.author_name,32)} · 售价：${result.dish.recipe?.price}币\n今天的研发名额已使用。`,components:[row(button(p.g,p.u,'menu','查看总菜单'),button(p.g,p.u,'ugcList','我的作品'))],allowed_mentions:mentionAllowed};return homePage(result,p.g,p.u);}
- if(action.startsWith('ugcAskConfirm~')){const operation=action.split('~')[1];if(!['cancel','restart','undo'].includes(operation))throw Error('确认操作无效。');const c=await call(env,{...base,action:'ugcAskConfirm',operation});const labels={cancel:'取消研发并删除本次草稿？',restart:'清空本轮研发内容并重新选择类型？',undo:'撤销最近一轮研发问答？'};return {content:`${labels[operation]}\n确认凭证60秒有效，未确认不会修改草稿。`,components:[row(sessionButton(p.g,p.u,{id:base.sessionId,revision:base.revision},`ugcExecuteConfirm~${c.token}`,'确认执行',4),sessionButton(p.g,p.u,{id:base.sessionId,revision:base.revision},'ugcView','返回研发'))],allowed_mentions:mentionAllowed};}
+ if(action.startsWith('ugcAskConfirm~')){const operation=action.split('~')[1];if(!['cancel','restart','undo'].includes(operation))throw Error('确认操作无效。');const c=await call(env,{...base,action:'ugcAskConfirm',operation});const labels={cancel:'取消研发并删除本次草稿？',restart:'清空本轮研发内容并重新选择类型？',undo:'撤销最近一次研发填写或问答？'};return {content:`${labels[operation]}\n确认凭证60秒有效，未确认不会修改草稿。`,components:[row(sessionButton(p.g,p.u,{id:base.sessionId,revision:base.revision},`ugcExecuteConfirm~${c.token}`,'确认执行',4),sessionButton(p.g,p.u,{id:base.sessionId,revision:base.revision},'ugcView','返回研发'))],allowed_mentions:mentionAllowed};}
  if(action.startsWith('ugcExecuteConfirm~')){const token=action.slice('ugcExecuteConfirm~'.length);if(!token||token.length>80)throw Error('确认面板已失效，请重新打开。');const receipt=await call(env,{...base,action:'ugcExecuteConfirm',token});const view=await call(env,{...base,action:'ugcView',sessionId:base.sessionId});const page=homePage(view,p.g,p.u);if(receipt.operation==='cancel')page.content=`已取消本次研发，草稿和临时问答已清除。\n\n${page.content}`;else if(receipt.operation==='restart')page.content=`已清空本轮内容，请重新选择类型。\n\n${page.content}`;return page;}
  if(action.startsWith('ugcWithdraw~')){const target=action.slice('ugcWithdraw~'.length);return homePage(await call(env,{...base,action:'ugcWithdraw',target}),p.g,p.u);}
  throw Error('研发面板已失效，请重新打开。');
