@@ -301,7 +301,7 @@ function retryDelay(response,retry) {
 export async function generateGemini(env, contents, context = "chat", fetcher = fetch, emojiTokens = [], knowledge = "", wait = waitForRetry, speakerIdentity = "", runtimeData = {}) {
   if (!env.GEMINI_API_KEY) throw new Error("missing_gemini_key");
   const persona = clamp(personaValue([env.GEMINI_PERSONA, env.GEMINI_PERSONA_CONT].filter(value => value != null).join("")),MAX_PERSONA_CHARS);
-  const model = /^[A-Za-z0-9.-]{1,80}$/.test(env.GEMINI_MODEL || "") ? env.GEMINI_MODEL : "gemini-3.8-flash";
+  const model = /^[A-Za-z0-9.-]{1,80}$/.test(env.GEMINI_MODEL || "") ? env.GEMINI_MODEL : "pg-gemini-3.8-flash";
   const openAI=Boolean(env.GEMINI_API_BASE_URL);
   let retries=0;
   if(contents.some(item=>item.parts?.some(part=>part.imageUrl))) {
