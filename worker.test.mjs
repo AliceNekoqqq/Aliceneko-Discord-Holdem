@@ -47,6 +47,16 @@ test('roulette alarms operate the imported engine rather than poker lifecycle',a
  t.state.shells=[false,true];t.state.pointer=0;t.state.turnPlayerId='1';t.turn='1';t.deadline=Date.now()-60000;await ctx.storage.put('table',t);const token=t.state.turnToken;
  await host.alarm();const after=ctx.map.get('table');assert.equal(after.game,'devil_roulette');assert.equal(after.state.turnToken,token+1);assert.equal(after.state.pointer,1);assert.equal(after.turn,'4');assert(after.deadline>Date.now());assert(!after.computerDue);assert(!after.lastActive);
 });
+test('gateway cron detects stale API configuration and resets only its runtime instance',async()=>{
+  const ctx=context();
+  let aborted=null;
+  ctx.abort=(message,options)=>{aborted={message,options};throw Error('expected gateway reset');};
+  const table=new PokerTable(ctx,{GEMINI_API_BASE_URL:'https://previous.invalid/v1',GEMINI_MODEL:'pg-gemini-3.8-flash'});
+  const payload={op:'gatewayEnsure',expectedChatConfig:{baseUrl:'https://current.invalid/v1',model:'pg-gemini-3.8-flash'}};
+  await assert.rejects(table.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify(payload)})),/expected gateway reset/);
+  assert.deepEqual(aborted?.options,{retryAlarm:false});
+  assert.equal(ctx.map.size,0,'reset must not delete persistent state');
+});
 test('health rejects a connected gateway running the previous chat pipeline',async()=>{
   let actual={connected:true,ready:true,chatRuntime:'chat50-channel-order-speaker-map',token:'must-not-leak'};
   const env={TABLES:{idFromName:n=>n,get:n=>({fetch:async()=>Response.json(n==='system-health'?{ok:true,version:'test'}:actual)})}};

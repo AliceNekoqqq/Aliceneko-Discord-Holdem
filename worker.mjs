@@ -177,7 +177,17 @@ export class PokerTable extends DurableObject {
         catch(e){return json(privateReply(e.message||'远征暂时无法打开，请稍后重试。'));}
       }
       if(payload.op==='petHome'){try{return json(await dispatchPetHome(this.ctx.storage,payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='gatewayEnsure'){try{return json(await this.discordGateway.ensure());}catch{return json({connected:false,chatRuntime:CHAT_PIPELINE_RUNTIME});}}
+      if(payload.op==='gatewayEnsure'){
+        // Long-lived Discord WebSocket objects may retain an old environment after a vars-only deploy.
+        // The cron caller uses the fresh top-level Worker bindings as the expected non-secret config.
+        const expected=payload.expectedChatConfig;
+        if(expected&&typeof expected.baseUrl==='string'&&typeof expected.model==='string'&&
+           (this.env.GEMINI_API_BASE_URL!==expected.baseUrl||this.env.GEMINI_MODEL!==expected.model)){
+          console.warn('discord_gateway_config_stale',{model:String(this.env.GEMINI_MODEL||''),expectedModel:expected.model});
+          this.ctx.abort('Discord gateway config changed; restart stale instance',{retryAlarm:false});
+        }
+        try{return json(await this.discordGateway.ensure());}catch{return json({connected:false,chatRuntime:CHAT_PIPELINE_RUNTIME});}
+      }
       if(payload.op==='gatewayStatus')return json(this.discordGateway.status());
       if(payload.op==='gatewayEnableMessageContent')return json(await this.discordGateway.enableMessageContent());
       if(payload.op==='aiProbe'){
@@ -469,7 +479,7 @@ export default {
     const headers=new Headers(response.headers);for(const [key,value]of Object.entries({'Cache-Control':asset?response.headers.get('Cache-Control'):'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow'}))headers.set(key,value);
     return new Response(response.body,{status:response.status,headers});
   },
-  async scheduled(event,env,ctx){ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('ugc-global-catalog-v1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'ugcCatalogBootstrap'})}).then(async r=>{const d=await r.json();if(d.error)console.warn('ugc_catalog_backfill_pending');}).catch(()=>console.warn('ugc_catalog_backfill_pending')));ctx.waitUntil(runWritingJob(env).catch(e=>console.warn('writing_job_failed',{reason:e.name})));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-emojis')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'appEmojis'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-registration-city1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'register'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-discord-gateway')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayEnsure'})}));}
+  async scheduled(event,env,ctx){ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('ugc-global-catalog-v1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'ugcCatalogBootstrap'})}).then(async r=>{const d=await r.json();if(d.error)console.warn('ugc_catalog_backfill_pending');}).catch(()=>console.warn('ugc_catalog_backfill_pending')));ctx.waitUntil(runWritingJob(env).catch(e=>console.warn('writing_job_failed',{reason:e.name})));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-emojis')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'appEmojis'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-registration-city1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'register'})}));ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName('system-discord-gateway')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayEnsure',expectedChatConfig:{baseUrl:env.GEMINI_API_BASE_URL||'',model:env.GEMINI_MODEL||''}})}));}
 };
 
 
