@@ -3,7 +3,7 @@
 Node.js 24，无额外依赖。此目录在部署工作流的 docs 忽略范围内，不触发游戏部署。
 
 凭据通过受保护环境注入 `GEMINI_WRITER_API_KEY`，不得提交真实密钥。
-可选配置：`GEMINI_WRITER_BASE_URL`（默认 https://gcli.ggchan.dev/v1）、`GEMINI_WRITER_MODEL`（默认 gemini-3.8-flash）。
+可选配置：`GEMINI_WRITER_BASE_URL`（默认 https://gcli.ggchan.dev/v1）、`GEMINI_WRITER_MODEL`（默认 pg-gemini-3.8-flash）。
 新工作环境必须重新注入凭据；工具不会从 GitHub、文档或历史对话里抓取密钥。当前会话的受保护本地凭据不是跨环境 secret 服务。
 
 创建 brief.json，包含 purpose、requirements、locked_facts，按需添加 min_chars、max_chars、required_literals、forbidden_literals、max_tokens（默认4096）、max_calls（默认9）。事实、人名、性别、实际功能必须明确写进 locked_facts。
