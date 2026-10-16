@@ -1,84 +1,21 @@
 {
-  "schema_version": 1,
-  "scan_at": "2026-10-15T09:33:05+08:00",
+  "scan_at": "2026-10-16T16:38:51.172Z",
   "scan_complete": true,
   "namespace_id": "4b8575058fe745bd8abbb9eed752bf91",
-  "objects_listed": 38,
-  "stored_objects_checked": 25,
+  "objects_listed": 46,
+  "stored_objects_checked": 30,
   "enumeration_pages": 2,
-  "ugc_objects": 2,
-  "active_dishes": 3,
-  "initial_missing": 0,
-  "pending_items": [],
-  "remaining_missing": 0,
-  "errors": [],
-  "verification_notes": [
-    "All public JPEGs freshly loaded and downloaded using authorized cloud browser; JPEG signature, dimensions, byte counts and SHA256 match recorded source.",
-    "Final SQL readback confirms current active revision/hash and ready bindings. No generation, resource upload, CI or Worker deployment needed."
-  ],
-  "items": [
+  "ugc_objects": 3,
+  "active_dishes": 4,
+  "pending_items": [
     {
-      "dish_id": "ugc_25451bb14a77495f96e7",
+      "dish_id": "ugc_3b7597c0d1eb435c96ab",
       "recipe_revision": 1,
-      "recipe_hash": "b5dfad58",
-      "stage": "ready_verified",
-      "asset_key": "art/ugc/ugc_25451bb14a77495f96e7-r1-b5dfad58.jpg",
-      "public_image": {
-        "loaded": true,
-        "jpeg": true,
-        "width": 512,
-        "height": 512,
-        "bytes": 98862,
-        "sha256": "b48ff9d41944cec4d9984c0c7d3a3b58f651171d010de4c7b1a47d919cb7d53d",
-        "matches_recorded_source": true
-      },
-      "binding_readback": {
-        "status": "ready",
-        "recipe_hash": "b5dfad58",
-        "current_revision": 1
-      }
-    },
-    {
-      "dish_id": "ugc_031a04d99fcd445e980d",
-      "recipe_revision": 1,
-      "recipe_hash": "8c5ea789",
-      "stage": "ready_verified",
-      "asset_key": "art/ugc/ugc_031a04d99fcd445e980d-r1-8c5ea789.jpg",
-      "public_image": {
-        "loaded": true,
-        "jpeg": true,
-        "width": 512,
-        "height": 512,
-        "bytes": 114087,
-        "sha256": "ef1d1352a86e420b216ea2717cf61f538fcd1c829854462f81779c959984a30f",
-        "matches_recorded_source": true
-      },
-      "binding_readback": {
-        "status": "ready",
-        "recipe_hash": "8c5ea789",
-        "current_revision": 1
-      }
-    },
-    {
-      "dish_id": "ugc_edf5fe7e7ef740f7ba85",
-      "recipe_revision": 1,
-      "recipe_hash": "8a988a6d",
-      "stage": "ready_verified",
-      "asset_key": "art/ugc/ugc_edf5fe7e7ef740f7ba85-r1-8a988a6d.jpg",
-      "public_image": {
-        "loaded": true,
-        "jpeg": true,
-        "width": 512,
-        "height": 512,
-        "bytes": 83175,
-        "sha256": "e0169775f1308370cb98c62dfeb54c87e7638bd95575c8d678011dc4c95572b2",
-        "matches_recorded_source": true
-      },
-      "binding_readback": {
-        "status": "ready",
-        "recipe_hash": "8a988a6d",
-        "current_revision": 1
-      }
+      "recipe_hash": "c564ee65",
+      "name": "叶子的雪绵豆沙",
+      "stage": "awaiting_generation"
     }
-  ]
+  ],
+  "remaining_missing": 1,
+  "errors": []
 }
