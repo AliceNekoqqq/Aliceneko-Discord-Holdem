@@ -125,12 +125,13 @@ export class PokerTable extends DurableObject {
   }
   async fetch(request){
     const payload=await request.json();
-    if(['ugcCatalog','ugcCatalogStatus','ugcCatalogBootstrap','ugcShareExport'].includes(payload.op)){
+    if(['ugcCatalog','ugcCatalogStatus','ugcCatalogBootstrap','ugcShareExport','ugcRestoreStatus'].includes(payload.op)){
       try{
+        if(payload.op==='ugcRestoreStatus'){const u=this.tavern.ugc;return json({restored:u.one("SELECT value FROM tavern_ugc_share_meta WHERE key='restore-withdrawn-20261016'")?.value??null,withdrawn:u.one("SELECT COUNT(*) AS n FROM tavern_ugc_dishes WHERE status='withdrawn'").n,afterCutoff:u.one("SELECT COUNT(*) AS n FROM tavern_ugc_dishes d WHERE status='withdrawn' AND (created_at>? OR EXISTS(SELECT 1 FROM tavern_ugc_events e WHERE e.dish_id=d.id AND e.event_type='withdraw' AND e.at>?))",Date.parse('2026-10-16T12:57:35Z'),Date.parse('2026-10-16T12:57:35Z')).n});}
         if(payload.op==='ugcShareExport'){const ugc=this.tavern.ugc,state=ugc.shareState(payload.guild);return json(payload.knownRevision===state.sourceRevision?{sourceRevision:state.sourceRevision}:ugc.shareExport(payload.guild));}
         const catalog=this.ugcCatalog??=new UGCSharedCatalog(this.ctx.storage);
         if(payload.op==='ugcCatalog')return json(catalog.sync(payload));
-        if(payload.op==='ugcCatalogStatus')return json(catalog.status());
+        if(payload.op==='ugcCatalogStatus')return json(await catalog.diagnostics(this.env));
         this.ugcBootstrap??=catalog.bootstrap(this.env).finally(()=>{this.ugcBootstrap=null;});
         return json(await this.ugcBootstrap);
       }catch(e){return json({error:e.message});}

@@ -29,6 +29,7 @@ export class UGCSharedCatalog{
   return {version,entries:Number(p.version)===version?null:this.rows('SELECT data FROM ugc_catalog_entries ORDER BY id').map(x=>JSON.parse(x.data))};
  }
  status(){return {version:this.rows("SELECT value FROM ugc_catalog_meta WHERE key='version'")[0].value,sources:this.rows('SELECT COUNT(*) AS n FROM ugc_catalog_sources')[0].n,dishes:this.rows("SELECT COUNT(*) AS n FROM ugc_catalog_entries WHERE json_extract(data,'$.status')='active'")[0].n,withdrawn:this.rows("SELECT COUNT(*) AS n FROM ugc_catalog_entries WHERE json_extract(data,'$.status')='withdrawn'")[0].n,bootstrapComplete:!!this.rows("SELECT value FROM ugc_catalog_meta WHERE key='bootstrap'")[0]?.value};}
+ async diagnostics(env){const sourceRestore=[];for(const source of this.rows('SELECT guild FROM ugc_catalog_sources')){const r=await env.TABLES.get(env.TABLES.idFromName(`tavern:${source.guild}`)).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'ugcRestoreStatus'})});if(!r.ok)throw Error('ugc_restore_status_failed');const d=await r.json();if(d.error)throw Error('ugc_restore_status_failed');sourceRestore.push(d);}return {...this.status(),restoration:{restored:sourceRestore.reduce((n,x)=>n+(x.restored||0),0),withdrawn:sourceRestore.reduce((n,x)=>n+x.withdrawn,0),afterCutoff:sourceRestore.reduce((n,x)=>n+x.afterCutoff,0)}};}
  async bootstrap(env){
   if(this.rows("SELECT value FROM ugc_catalog_meta WHERE key='bootstrap'")[0]?.value){
    for(const source of this.rows('SELECT guild,revision FROM ugc_catalog_sources')){
