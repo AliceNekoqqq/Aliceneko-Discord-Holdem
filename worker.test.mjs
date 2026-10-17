@@ -62,7 +62,7 @@ test('health rejects a connected gateway running the previous chat pipeline',asy
   const env={TABLES:{idFromName:n=>n,get:n=>({fetch:async()=>Response.json(n==='system-health'?{ok:true,version:'test'}:actual)})}};
   const probe=async()=> (await worker.fetch(new Request('https://test/health'),env,{})).json();
   assert.equal((await probe()).ready,false);
-  actual.chatRuntime='chat-city2-flower-npc-red2-welcome1-marriage1';
+  actual.chatRuntime='chat-city2-flower-npc-red2-welcome1-marriage-slash1';
   const good=await probe();assert.equal(good.ready,true);assert.equal(JSON.stringify(good).includes('must-not-leak'),false);
   actual.ready=false;assert.equal((await probe()).ready,false);
 });
@@ -76,7 +76,7 @@ test('signed Discord flow, private cards, stale click, duplicate, modal, timeout
  const call=async(data)=>{const i={application_id:'123',guild_id:'3',channel_id:'2',id:String(++counter),token:'transient-secret',member:{user:{id:'1'},permissions:'0'},...data};const body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');const ctx=context();const r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);await Promise.all(ctx.tasks);return {reply:await r.json(),i};};
  const unsigned=await worker.fetch(new Request('https://test/interactions',{method:'POST',body:'{}'}),env,context());assert.equal(unsigned.status,401);
  const hidden=await worker.fetch(new Request('https://test/.env'),env,context());assert.equal(hidden.status,404);
- const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage1'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
+ const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash1'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
  assert.deepEqual((await call({type:1})).reply,{type:1});
  const create={type:2,data:{name:'德州',options:[{name:'创建'}]}};
  let {reply:b}=await call(create);assert.equal(b.type,4);assert(!JSON.stringify(b).includes(env.BOT_TOKEN));
@@ -325,5 +325,28 @@ test('signed city commands acknowledge privately and use a separate city object 
  const old=globalThis.fetch,deliveries=[];globalThis.fetch=async(url,o)=>{deliveries.push(JSON.parse(o.body));return Response.json({});};
  try{const ctx=context();const r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);assert.deepEqual(await r.json(),{type:5,data:{flags:64}});await Promise.all(ctx.tasks);assert(objects.has('city:3'));assert(!objects.has('table:3:2'));assert.equal(deliveries[0].flags,64);assert.deepEqual(deliveries[0].allowed_mentions,{parse:[]});}
  finally{globalThis.fetch=old;}
+});
+
+test('signed /结婚 slash interaction completes publicly with its live PNG hall',async()=>{
+ const keys=await crypto.subtle.generateKey({name:'Ed25519'},true,['sign','verify']);
+ const env={BOT_TOKEN:'test-bot',DISCORD_APPLICATION_ID:'123456789012345678',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex')};
+ const groom='999000000000000002',bride='999000000000000003';
+ const interaction={application_id:env.DISCORD_APPLICATION_ID,guild_id:'3',channel_id:'2',id:'marriage-interaction',token:'temporary-secret',type:2,member:{user:{id:'5'}},data:{name:'结婚',options:[{name:'新郎',type:6,value:groom},{name:'新娘',type:6,value:bride}],resolved:{users:{[groom]:{username:'groom'},[bride]:{username:'bride'}},members:{[groom]:{nick:'新郎'},[bride]:{nick:'新娘'}}}}};
+ const body=JSON.stringify(interaction),timestamp=String(Math.floor(Date.now()/1000));
+ const signature=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(timestamp+body))).toString('hex');
+ const deliveries=[],oldFetch=globalThis.fetch;globalThis.fetch=async(url,options)=>{deliveries.push({url:String(url),options});return new Response('{}',{status:200});};
+ try{
+  const ctx=context();
+  const response=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':signature,'X-Signature-Timestamp':timestamp}}),env,ctx);
+  assert.deepEqual(await response.json(),{type:5,data:{content:'礼堂正在布置，请稍候片刻。',allowed_mentions:{parse:[]}}});
+  await Promise.all(ctx.tasks);
+  assert.equal(deliveries.length,1);
+  assert.equal(deliveries[0].url,'https://discord.com/api/v10/webhooks/123456789012345678/temporary-secret/messages/@original');
+  assert.equal(deliveries[0].options.method,'PATCH');
+  const form=deliveries[0].options.body,payload=JSON.parse(form.get('payload_json'));
+  assert.equal(payload.embeds[1].image.url,'attachment://wedding-hall.png');
+  assert.match(payload.content,/<@999000000000000002>/);assert.match(payload.content,/<@999000000000000003>/);
+  assert.ok(form.get('files[0]').size>1000);
+ }finally{globalThis.fetch=oldFetch;}
 });
 
