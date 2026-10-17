@@ -9,7 +9,7 @@ export async function commandInventory(env,fetcher=fetch,definitions=false){
 // Compare only desired fields: Discord adds IDs, versions and optional defaults.
 function project(expected,actual){
  if(Array.isArray(expected))return Array.isArray(actual)?actual.map((v,n)=>project(expected[n],v)):actual;
- if(expected&&typeof expected==='object')return Object.fromEntries(Object.entries(expected).map(([k,v])=>[k,project(v,actual?.[k])]));
+ if(expected&&typeof expected==='object')return Object.fromEntries(Object.entries(expected).map(([k,v])=>{const remote=actual?.[k];if((k==='type'&&v===1&&remote==null)||(k==='required'&&v===false&&remote==null))return [k,v];return [k,project(v,remote)];}));
  return actual;
 }
 export const sameCommand=(desired,actual)=>Boolean(actual)&&JSON.stringify(desired)===JSON.stringify(project(desired,actual));
