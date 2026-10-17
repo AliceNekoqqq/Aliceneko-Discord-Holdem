@@ -15,34 +15,46 @@ export const MARRIAGE_COPY=Object.freeze([
   '酒馆今晚加开一席喜宴——{groom}、{bride} 请收下掌柜的祝福，剩下的热闹就交给在场亲友。'
 ]);
 
-const COMMAND=/^(?:请\s*)?(?:举行婚礼|举办婚礼|办婚礼|结婚|婚礼)(?=$|[\s，,。.!！<])/u;
+const GUEST_OPTIONS=Array.from({length:8},(_,index)=>({
+  type:6,name:`宾客${index+1}`,description:'选择一位到场宾客',required:false
+}));
+export const marriageCommand={
+  name:'结婚',description:'为两位来客举办小酒馆婚礼',type:1,integration_types:[0],contexts:[0],
+  options:[
+    {type:6,name:'新郎',description:'选择新郎',required:true},
+    {type:6,name:'新娘',description:'选择新娘',required:true},
+    ...GUEST_OPTIONS
+  ]
+};
 
 function validId(id){return /^\d{1,20}$/.test(String(id||''));}
-function mentionUserMap(message){return new Map((Array.isArray(message?.mentions)?message.mentions:[]).filter(user=>validId(user?.id)).map(user=>[String(user.id),user]));}
-function safeName(user,id){
-  const raw=user?.member?.nick||user?.nick||user?.global_name||user?.display_name||user?.username||user?.name||'来客';
+function safeName(user,member,id){
+  const raw=member?.nick||user?.global_name||user?.username||user?.display_name||'来客';
   return String(raw).replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,48)||`来客${id.slice(-4)}`;
 }
 
-export function isMarriageCommand(content,botId){
-  const text=String(content||'').replace(new RegExp(`<@!?${String(botId||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}>`,'g'),' ').trimStart();
-  return COMMAND.test(text);
-}
-
-export function weddingParty(message,botId){
-  const users=mentionUserMap(message),seen=new Set(),people=[];
-  for(const match of String(message?.content||'').matchAll(/<@!?(\d+)>/g)){
-    const id=String(match[1]);
-    if(id===String(botId||''))continue;
-    if(seen.has(id)){if(people.length<2)return {error:'新郎和新娘需要是两位不同的来客，请检查前两个提及。'};continue;}
-    const user=users.get(id);
-    if(!user||user.bot)continue;
-    seen.add(id);
-    people.push({id,name:safeName(user,id)});
+export function weddingPartyFromInteraction(interaction){
+  const options=Array.isArray(interaction?.data?.options)?interaction.data.options:[];
+  const byName=new Map(options.map(option=>[option.name,String(option.value||'')]));
+  const resolved=interaction?.data?.resolved||{};
+  const users=resolved.users||{},members=resolved.members||{};
+  const pick=(name,required=false)=>{
+    const id=byName.get(name)||'';
+    if(!validId(id))return required?{error:`请在 /结婚 的「${name}」栏选择一位成员。`}:null;
+    const user=users[id]||{};
+    if(user.bot)return {error:'新郎、新娘和宾客都需要选择真人账号。'};
+    return {id,name:safeName(user,members[id],id)};
+  };
+  const groom=pick('新郎',true);if(groom?.error)return groom;
+  const bride=pick('新娘',true);if(bride?.error)return bride;
+  if(groom.id===bride.id)return {error:'新郎和新娘需要是两位不同的成员。'};
+  const people=[groom,bride],seen=new Set(people.map(person=>person.id));
+  for(let n=1;n<=GUEST_OPTIONS.length;n++){
+    if(!byName.has(`宾客${n}`))continue;
+    const guest=pick(`宾客${n}`);if(guest?.error)return guest;
+    if(guest&&!seen.has(guest.id)){seen.add(guest.id);people.push(guest);}
   }
-  if(people.length<2)return {error:'举行婚礼请依次 @新郎 @新娘；后续提及的人也会出现在礼堂现场图里。'};
-  if(people.length>100)return {error:'礼堂现场图最多绘制 100 位被提及的来客，请分场举行婚礼。'};
-  return {groom:people[0],bride:people[1],people};
+  return {groom,bride,people};
 }
 
 export function weddingReplyText(party,randomIndex=secureIndex){
@@ -53,7 +65,7 @@ export function weddingReplyText(party,randomIndex=secureIndex){
 
 function mentionListForAlt(people){
   const names=people.map(person=>person.name);
-  let result=`小酒馆婚礼礼堂现场，共${people.length}位被提及的来客：`;
+  let result=`小酒馆婚礼礼堂现场，共${people.length}位来客：`;
   for(let i=0;i<names.length;i++){
     const next=result+(i?', ':'')+names[i];
     if(next.length>930){result+='等其余来客';break;}
@@ -62,7 +74,11 @@ function mentionListForAlt(people){
   return result;
 }
 
-export async function sendWeddingReply(env,message,party,{fetcher=fetch,randomIndex=secureIndex}={}){
+function originalResponseUrl(env,interaction){
+  return `https://discord.com/api/v10/webhooks/${encodeURIComponent(String(env.DISCORD_APPLICATION_ID))}/${encodeURIComponent(String(interaction.token))}/messages/@original`;
+}
+
+export async function sendWeddingReply(env,interaction,party,{fetcher=fetch,randomIndex=secureIndex}={}){
   const line=weddingReplyText(party,randomIndex),hall=await renderWeddingHall(party.people);
   const filename='wedding-hall.png';
   const payload={
@@ -72,34 +88,35 @@ export async function sendWeddingReply(env,message,party,{fetcher=fetch,randomIn
       {title:'礼堂现场',description:`${party.people.length} 位来客已经到场`,color:0xb72d36,image:{url:`attachment://${filename}`}}
     ],
     attachments:[{id:0,filename,description:mentionListForAlt(party.people)}],
-    message_reference:{message_id:message.id,fail_if_not_exists:false},
-    allowed_mentions:{parse:[]},
-    nonce:message.id,
-    enforce_nonce:true
+    allowed_mentions:{parse:[]}
   };
   const form=new FormData();
   form.set('payload_json',JSON.stringify(payload));
   form.set('files[0]',hall.png,filename);
-  const response=await fetcher(`https://discord.com/api/v10/channels/${encodeURIComponent(String(message.channel_id))}/messages`,{
-    method:'POST',headers:{Authorization:'Bot '+env.BOT_TOKEN},body:form,signal:AbortSignal.timeout(8000)
+  const response=await fetcher(originalResponseUrl(env,interaction),{
+    method:'PATCH',body:form,signal:AbortSignal.timeout(8000)
   });
   if(!response.ok){const error=new Error('discord_reply_failed');error.status=response.status;throw error;}
   return {line,attendeeCount:party.people.length,width:hall.width,height:hall.height};
 }
 
-export async function sendWeddingError(env,message,content,fetcher=fetch){
-  const response=await fetcher(`https://discord.com/api/v10/channels/${encodeURIComponent(String(message.channel_id))}/messages`,{
-    method:'POST',headers:{Authorization:'Bot '+env.BOT_TOKEN,'Content-Type':'application/json'},
-    body:JSON.stringify({content,message_reference:{message_id:message.id,fail_if_not_exists:false},allowed_mentions:{parse:[]},nonce:message.id,enforce_nonce:true}),
+export async function sendWeddingError(env,interaction,content,fetcher=fetch){
+  const response=await fetcher(originalResponseUrl(env,interaction),{
+    method:'PATCH',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({content,embeds:[],attachments:[],allowed_mentions:{parse:[]}}),
     signal:AbortSignal.timeout(8000)
   });
   if(!response.ok){const error=new Error('discord_reply_failed');error.status=response.status;throw error;}
 }
 
-export async function handleMarriageCommand(env,message,botId,options={}){
-  if(!isMarriageCommand(message?.content,botId))return null;
-  const party=weddingParty(message,botId);
-  if(party.error){await sendWeddingError(env,message,party.error,options.fetcher||fetch);return {handled:true,error:true};}
-  const result=await sendWeddingReply(env,message,party,options);
-  return {handled:true,...result};
+export async function completeMarriageInteraction(env,interaction,options={}){
+  const party=weddingPartyFromInteraction(interaction);
+  if(party.error){await sendWeddingError(env,interaction,party.error,options.fetcher||fetch);return {handled:true,error:true};}
+  try{
+    const result=await sendWeddingReply(env,interaction,party,options);
+    return {handled:true,...result};
+  }catch(error){
+    if(error.status)try{await sendWeddingError(env,interaction,'礼堂图片暂时没能送出，请稍后再试。',options.fetcher||fetch);}catch{}
+    throw error;
+  }
 }

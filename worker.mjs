@@ -10,6 +10,7 @@ import {CityPanel} from './city-panel.mjs';
 import {CityService} from './city-service.mjs';
 import {cityCommand,cityInteraction,finishCity} from './city-ui.mjs';
 import {RedPackets,packetCard,finishRedPacket} from './red-packet.mjs';
+import {marriageCommand,completeMarriageInteraction} from './marriage.mjs';
 import {serveArt} from './tavern-art.mjs';
 import {servePetArt} from './pet-art.mjs';
 import {servePetWalkArt} from './pet-walk-map.mjs';
@@ -50,7 +51,7 @@ import { BoardSync } from './board-sync.mjs';
 import { PrivatePanels } from './private-panels.mjs';
 import { initializeLifecycle, nextLifecycleAlarm, automaticCloseReason, idleWarning, takeoverAt, canTakeover, touchOwner, effectiveHumanAction } from './lifecycle.mjs';
 import { board, quickRaises, confirmation, handPanel, management, panelAction, button, row } from './ui.mjs';
-const COMMAND_VERSION='games-city2-flower-panel-duel-roulette-v1';
+const COMMAND_VERSION='games-city2-flower-panel-duel-roulette-marriage1';
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。点「准备下一手」，所有参与真人准备后 5 秒自动发牌；人员变化会取消全部准备。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；连续 2 次超时会在本手结束后暂离，保留筹码；在牌桌管理恢复参与。全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码；游玩中可预约本手结束后离桌，并随时取消。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。\n未发牌空闲 5 分钟、结算后空闲 10 分钟自动关桌，提前 1 分钟提醒；刷新和查看手牌不延长计时。\n游玩中 10 分钟无人有效操作且仍可行动真人均已超时时，取消本手并退回下注。\n等待发牌或结算时，桌主 2 分钟未交互，其他已入座真人可接管。只供娱乐，无充值或兑换。';
@@ -266,7 +267,7 @@ export class PokerTable extends DurableObject {
       if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
       if(payload.op==='registrationDiagnostics')return json(await this.ctx.storage.get('commandDiagnostics')||{registered:false,unchecked:true});
       if(payload.op==='register'){
-        try{return json(await registerCommands(this.env,this.ctx.storage,[command,unoCommand,ghostCommand,liarCommand,duelCommand,devilCommand,aiCommand,tavernCommand,rogueCommand,cityCommand],COMMAND_VERSION));}catch{return json({registered:false});}
+        try{return json(await registerCommands(this.env,this.ctx.storage,[command,unoCommand,ghostCommand,liarCommand,duelCommand,devilCommand,aiCommand,tavernCommand,rogueCommand,cityCommand,marriageCommand],COMMAND_VERSION));}catch{return json({registered:false});}
       }
       let t=await this.ctx.storage.get('table');
       if(payload.op==='channelMessage'){
@@ -468,6 +469,11 @@ async function handle(request,env,ctx){
   if(profileInteraction(i)){if(!i.member?.user?.id)return json(privateReply('请在服务器内使用。'));ctx.waitUntil(finishProfile(env,i));const parts=(i.data?.custom_id||'').split(':');const updateOwn=i.type===3&&!!(Number(i.message?.flags)&64)&&parts.length===4&&parts[1]===i.guild_id&&parts[2]===i.member.user.id;return json(updateOwn?{type:6}:{type:5,data:{flags:64}});}
   if(liarRankingInteraction(i)){if(!i.member?.user?.id)return json(privateReply('请在服务器内使用。'));ctx.waitUntil(finishLiarRanking(env,i));return json({type:5,data:{flags:64}});}
   if(rankingInteraction(i)){if(!i.member?.user?.id)return json(privateReply('请在服务器内使用。'));ctx.waitUntil(finishRanking(env,i));return json({type:5,data:{flags:64}});}
+  if(i.type===2&&i.data?.name==='结婚'){
+    if(!i.member?.user?.id)return json(privateReply('请在服务器内使用。'));
+    ctx.waitUntil(completeMarriageInteraction(env,i).catch(error=>console.warn('marriage_interaction_failed',{reason:error?.name||'Error',status:error?.status})));
+    return json({type:5,data:{content:'礼堂正在布置，请稍候片刻。',allowed_mentions:{parse:[]}}});
+  }
   if(i.type===2&&i.data?.name==='ai')return json(await handleAiCommand(env,i));
   const stub=env.TABLES.get(env.TABLES.idFromName(`table:${i.guild_id}:${i.channel_id}`));
   const response=await stub.fetch('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:i})});
