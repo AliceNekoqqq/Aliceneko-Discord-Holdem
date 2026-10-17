@@ -5,7 +5,7 @@ import {isDuelRoulette} from './duel-roulette-model.mjs';
 import {duelCommand,devilCommand} from './duel-roulette-ui.mjs';
 import {runWritingJob} from './gemini-writing-jobs.mjs';
 import {flowerInteraction,finishFlower} from './flower-ui.mjs';
-import {registerCommands,commandInventory} from './command-registration.mjs';
+import {registerCommands,commandInventory,sameCommand} from './command-registration.mjs';
 import {CityPanel} from './city-panel.mjs';
 import {CityService} from './city-service.mjs';
 import {cityCommand,cityInteraction,finishCity} from './city-ui.mjs';
@@ -440,7 +440,25 @@ async function handle(request,env,ctx){
     }catch{}
     const ready=data.ok===true&&gateway.ready&&gateway.chatRuntime===CHAT_PIPELINE_RUNTIME;
     let commands;
-    if(new URL(request.url).searchParams.get('commands')==='1')try{const inventory=await commandInventory(env);const probe=await env.TABLES.get(env.TABLES.idFromName('system-registration-city1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'registrationDiagnostics'})});const registration=probe.ok?await probe.json():{unavailable:true};commands={...inventory,cityPresent:inventory.names.includes('城市'),registration};}catch{commands={ok:false,cityPresent:false};}
+    if(new URL(request.url).searchParams.get('commands')==='1')try{
+      const inventory=await commandInventory(env,fetch,true);
+      const probe=await env.TABLES.get(env.TABLES.idFromName('system-registration-city1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'registrationDiagnostics'})});
+      const registration=probe.ok?await probe.json():{unavailable:true};
+      const wedding=inventory.definitions?.find(command=>command.name===marriageCommand.name&&(command.type||1)===(marriageCommand.type||1));
+      const marriage={
+        exists:Boolean(wedding),
+        schemaMatches:wedding?sameCommand(marriageCommand,wedding):false,
+        type:wedding?.type||1,
+        description:wedding?.description||null,
+        integrationTypes:wedding?.integration_types||null,
+        contexts:wedding?.contexts||null,
+        options:Array.isArray(wedding?.options)?wedding.options.map(option=>({
+          name:option.name,type:option.type,description:option.description,required:option.required??false,
+          ...(Array.isArray(option.choices)?{choices:option.choices.map(choice=>({name:choice.name,value:choice.value}))}:{})
+        })):[]
+      };
+      commands={ok:inventory.ok,status:inventory.status,names:inventory.names,cityPresent:inventory.names.includes('城市'),registration,marriage};
+    }catch{commands={ok:false,cityPresent:false};}
     let ugc;
     if(new URL(request.url).searchParams.get('ugc')==='1')try{const r=await env.TABLES.get(env.TABLES.idFromName('ugc-global-catalog-v1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'ugcCatalogStatus'})});ugc=await r.json();}catch{ugc={unavailable:true};}
     return json({...data,ready,gateway:{...gateway,expectedRuntime:CHAT_PIPELINE_RUNTIME},...(commands?{commands}:{}),...(ugc?{ugc}:{})});
