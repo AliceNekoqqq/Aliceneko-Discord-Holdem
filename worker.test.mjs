@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {board as pokerBoard} from './ui.mjs';
+import {marriageCommand} from './marriage.mjs';
 import { readFile } from 'node:fs/promises';
 const source=(await readFile(new URL('./worker.mjs',import.meta.url),'utf8')).replace("import { DurableObject } from 'cloudflare:workers';","class DurableObject {constructor(ctx,env){this.ctx=ctx;this.env=env;}}").replace("'./engine.mjs'",JSON.stringify(new URL('./engine.mjs',import.meta.url).href)).replace("'./computer.mjs'",JSON.stringify(new URL('./computer.mjs',import.meta.url).href)).replace("'./ui.mjs'",JSON.stringify(new URL('./ui.mjs',import.meta.url).href)).replace("'./private-panels.mjs'",JSON.stringify(new URL('./private-panels.mjs',import.meta.url).href)).replace("'./lifecycle.mjs'",JSON.stringify(new URL('./lifecycle.mjs',import.meta.url).href));
 const preparedSource=source.replaceAll("'./uno-engine.mjs'",JSON.stringify(new URL('./uno-engine.mjs',import.meta.url).href)).replaceAll("'./board-sync.mjs'",JSON.stringify(new URL('./board-sync.mjs',import.meta.url).href)).replaceAll("'./uno-controller.mjs'",JSON.stringify(new URL('./uno-controller.mjs',import.meta.url).href)).replaceAll("'./uno-ui.mjs'",JSON.stringify(new URL('./uno-ui.mjs',import.meta.url).href));
@@ -65,6 +66,20 @@ test('health rejects a connected gateway running the previous chat pipeline',asy
   actual.chatRuntime='chat-city2-flower-npc-red2-welcome1-marriage-slash2';
   const good=await probe();assert.equal(good.ready,true);assert.equal(JSON.stringify(good).includes('must-not-leak'),false);
   actual.ready=false;assert.equal((await probe()).ready,false);
+});
+test('health command diagnostics expose only the registered wedding option schema',async()=>{
+ const actual={...structuredClone(marriageCommand),id:'command-id-must-not-leak'};
+ const env={BOT_TOKEN:'token-must-not-leak',DISCORD_APPLICATION_ID:'123',TABLES:{idFromName:n=>n,get:n=>({fetch:async()=>Response.json(n==='system-health'?{ok:true,version:'test'}:n==='system-discord-gateway'?{connected:true,ready:true,chatRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2'}:{version:'test',registered:false})})}};
+ const oldFetch=globalThis.fetch;globalThis.fetch=async()=>Response.json([actual]);
+ try{
+  const response=await worker.fetch(new Request('https://test/health?commands=1'),env,{});
+  const body=await response.json();
+  assert.equal(body.commands.marriage.exists,true);
+  assert.equal(body.commands.marriage.schemaMatches,true);
+  assert.deepEqual(body.commands.marriage.options[2].choices,[{name:'中式婚礼',value:'chinese'},{name:'西式婚礼',value:'western'}]);
+  assert(!JSON.stringify(body).includes('must-not-leak'));
+  assert(!JSON.stringify(body).includes('command-id'));
+ }finally{globalThis.fetch=oldFetch;}
 });
 function context(){const map=new Map();const storage={sql:{exec:()=>({one:()=>({ok:1})})},get:async k=>structuredClone(map.get(k)),delete:async k=>map.delete(k),put:async(k,v)=>map.set(k,structuredClone(v)),setAlarm:async v=>map.set('alarm',v),deleteAlarm:async()=>map.delete('alarm')};storage.transaction=async fn=>fn(storage);const tasks=[];return {storage,map,tasks,blockConcurrencyWhile:fn=>fn(),waitUntil:p=>tasks.push(p)};}
 test('signed Discord flow, private cards, stale click, duplicate, modal, timeout and safe routes',async()=>{
