@@ -6,6 +6,7 @@
 - 功能 PR #55 已上线；Gateway 健康指纹对齐 PR #57、斜杠 schema 诊断 PR #58、Discord 默认字段比对修正 PR #59 均已通过完整 CI 并合并。生产部署 `137e649b-0f6c-46f4-af5f-1cde34778334` / 版本 `628e0dee-5b96-4243-80bf-7729def93069`，100% 流量。
 - 线上核验：`/health` 为 `ready:true`，Gateway connected/ready 且 `marriage-slash2` 指纹匹配；Discord 实际 `/结婚` schema 已注册且匹配，婚礼类型选择为「中式婚礼 / 西式婚礼」，诊断状态 `registered:true`、无 pending。
 - Cloudflare 15 个 bindings 未变；`GEMINI_MODEL=pg-gemini-3.8-flash`、`GEMINI_API_BASE_URL=https://catiecli.sukaka.top/v1` 保持原值，未读取或改动密钥。
+
 ## 雪绵豆沙补图完成（2026-10-17）
 
 - 重新枚举46对象、30有数据、3含UGC源表；4款在售，仅叶子的雪绵豆沙r1/c564ee65缺图。参考assets/art/cake-v1.jpg及IMAGE_ASSET_PLAN.md，内置生图已目检白色蓬松蛋白外皮/豆沙芯/浅盘/暖色酒馆，无额外装饰。512px JPEG86895字节，SHA256 2c59a3b6b2a2583f3837460813a1bad8eab75bebf5c26ce70f9366eb5d0edb49。
