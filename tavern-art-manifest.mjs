@@ -275,6 +275,17 @@ export default {
     "filename": "water-v1.jpg",
     "version": "v1"
   },
+  "wedding": {
+    "path": "/art/wedding/v1.jpg",
+    "mime": "image/jpeg",
+    "bytes": 152937,
+    "sha256": "075dd696ecaaf9212c8259c43dd84db1fbd76167b6b7b1f193cbcda15c0a6867",
+    "width": 960,
+    "height": 640,
+    "id": "wedding",
+    "filename": "wedding-v1.jpg",
+    "version": "v1"
+  },
   "wheat-beer": {
     "path": "/art/wheat-beer/v1.jpg",
     "mime": "image/jpeg",

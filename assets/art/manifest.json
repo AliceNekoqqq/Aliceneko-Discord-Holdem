@@ -258,5 +258,15 @@
     "bytes": 68391,
     "sha256": "4d8eb36ca8979ba08ec7dbdde473c41e4a0fdebbc3504e22b68daba6519be057",
     "version": "v1"
+  },
+  "wedding": {
+    "id": "wedding",
+    "filename": "wedding-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 960,
+    "height": 640,
+    "bytes": 152937,
+    "sha256": "075dd696ecaaf9212c8259c43dd84db1fbd76167b6b7b1f193cbcda15c0a6867",
+    "version": "v1"
   }
 }

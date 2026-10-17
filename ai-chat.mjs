@@ -5,6 +5,7 @@ import {cityChatContext} from './city-ui.mjs';
 import {cityRequest} from './city-service.mjs';
 import {readRelationship,relationshipContext,RELATIONSHIP_INSTRUCTION,decodeRelationshipReply,saveRelationship,clearRelationshipStatements,handleRelationshipCommand} from './relationship-memory.mjs';
 import {redPacketIntent,decodePacketReply,prepareRedPacket,packetCard,packetRpc} from './red-packet.mjs';
+import {handleMarriageCommand} from './marriage.mjs';
 import {handleNaturalTavern,draftData} from './tavern-ui.mjs';
 import {isTavernOrderTurn,decodeOrderReply,prepareChatOrder,TAVERN_ORDER_INSTRUCTION} from './tavern-chat.mjs';
 import {tavernRequest} from './tavern-service.mjs';
@@ -755,6 +756,10 @@ export async function replyToMention(env, message, botId) {
   const userId = String(message.author?.id || "");
   const channelId = String(message.channel_id || "");
   const content = clamp(textValue(textValue(message.content).replace(new RegExp("<@!?" + botId + ">","g")," ")),MAX_USER_CHARS);
+  try{
+    const wedding=await handleMarriageCommand(env,message,botId);
+    if(wedding){if(wedding.attendeeCount)console.info('marriage_reply_sent',{messageId:message.id,channelId,attendeeCount:wedding.attendeeCount});return true;}
+  }catch(error){console.warn('marriage_reply_delivery_failed',{messageId:message.id,channelId,reason:error?.message||error?.name||'Error',status:error?.status});return true;}
   let memoryOn = true;
   let history = [];
   let longMemory=[];
