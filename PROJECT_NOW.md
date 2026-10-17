@@ -1,10 +1,11 @@
-## 可选西式婚礼（2026-10-17）
+## 小酒馆婚礼类型功能上线（2026-10-17）
 
-- 在已上线的斜杠指令 `/结婚` 增加可选「婚礼类型」：中式为默认，另可选西式；新郎、新娘仍是前两个必填项，宾客仍可选8位。两种类型各用独立的十条固定婚礼文案，并选择匹配的主图及实时礼堂 PNG；没有 SVG 或模型实时写文案。
-- 西式新人穿深色礼服与白色婚纱，礼堂使用花拱门图案；固定主图为小酒馆暖色手绘画法，960×640 JPEG 172562字节，SHA256 `1e0b561dd8baa0a60e2586f1e9dd56c2e880af298eef9957d1d70ea956d67d15`，ID `wedding-western`。
-- 本地专项婚礼8/8、酒馆图片清单4/4、聊天126/126通过。完整Worker/酒馆/资源测试需要CI预生成的Noto CJK图集；此工作副本无该字体，部署工作流会安装字体并生成图集。目前仍是本地实现，PR检查、合并与部署待完成。
-- 模型与API URL保持现有 `pg-gemini-3.8-flash` / `https://catiecli.sukaka.top/v1`，未读写密钥；本批没有生产配置或生产部署变更。
-
+- Discord 斜杠指令为 `/结婚`：前两个必填成员依次是新郎、新娘，后面可选最多8位宾客；「婚礼类型」默认中式，可选西式。新人名称、宾客名单和婚礼类型由指令参数明确传入。
+- 中式新人穿婚服，新娘戴红盖头；西式新人穿礼服与婚纱白纱，配花拱门。两类使用小酒馆暖色手绘主图和各自的实时礼堂 PNG，不做 SVG。两类文案各有10条固定 GPT 撰写祝词，每次随机抽取，不调用模型实时写文案。
+- 西式主图 `assets/art/wedding-western-v1.jpg`：960×640 JPEG、172562字节，SHA256 `1e0b561dd8baa0a60e2586f1e9dd56c2e880af298eef9957d1d70ea956d67d15`，艺术资源 ID `wedding-western`。
+- 功能 PR #55 已上线；Gateway 健康指纹对齐 PR #57、斜杠 schema 诊断 PR #58、Discord 默认字段比对修正 PR #59 均已通过完整 CI 并合并。生产部署 `137e649b-0f6c-46f4-af5f-1cde34778334` / 版本 `628e0dee-5b96-4243-80bf-7729def93069`，100% 流量。
+- 线上核验：`/health` 为 `ready:true`，Gateway connected/ready 且 `marriage-slash2` 指纹匹配；Discord 实际 `/结婚` schema 已注册且匹配，婚礼类型选择为「中式婚礼 / 西式婚礼」，诊断状态 `registered:true`、无 pending。
+- Cloudflare 15 个 bindings 未变；`GEMINI_MODEL=pg-gemini-3.8-flash`、`GEMINI_API_BASE_URL=https://catiecli.sukaka.top/v1` 保持原值，未读取或改动密钥。
 ## 雪绵豆沙补图完成（2026-10-17）
 
 - 重新枚举46对象、30有数据、3含UGC源表；4款在售，仅叶子的雪绵豆沙r1/c564ee65缺图。参考assets/art/cake-v1.jpg及IMAGE_ASSET_PLAN.md，内置生图已目检白色蓬松蛋白外皮/豆沙芯/浅盘/暖色酒馆，无额外装饰。512px JPEG86895字节，SHA256 2c59a3b6b2a2583f3837460813a1bad8eab75bebf5c26ce70f9366eb5d0edb49。
