@@ -349,6 +349,19 @@
       "height": 640,
       "bytes": 152937,
       "sha256": "075dd696ecaaf9212c8259c43dd84db1fbd76167b6b7b1f193cbcda15c0a6867"
+    },
+    {
+      "id": "wedding-western",
+      "subject": "Western wedding couple in the riverside tavern",
+      "status": "ready",
+      "dimensions": "1536x1024 landscape source; 960x640 JPEG",
+      "prompt": "Companion illustration to the Chinese tavern wedding image. Show exactly two clearly adult newlyweds in the established warm storybook painterly style of the riverside tavern: a groom in a tailored charcoal formal suit and a bride in an elegant ivory wedding gown with a soft translucent white veil, face visible. Set them in a modest old timber tavern wedding hall with glowing amber lanterns, a simple floral arch, ivory flowers, restrained burgundy accents, and a glimpse of the riverside old street. Intimate, dignified, romantic, detailed soft brush texture, wide landscape 3:2 composition. No guests, text, logo, watermark, photorealism, 3D or neon.",
+      "review": "Pass: two clearly adult newlyweds in Western wedding attire; the bride wears an ivory gown and white veil. Warm wood, amber light, floral arch, riverside glimpse, and painterly rendering match the Tavern art style. No text, logo, watermark, or extra guests.",
+      "filename": "wedding-western-v1.jpg",
+      "width": 960,
+      "height": 640,
+      "source": "generated image asset; retained source in this session workspace",
+      "sha256": "1e0b561dd8baa0a60e2586f1e9dd56c2e880af298eef9957d1d70ea956d67d15"
     }
   ]
 }

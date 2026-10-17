@@ -25,6 +25,47 @@ function drawCouple(c,cx,baseY){
   c.ellipse(cx,baseY-52,10,6,palette.gold);c.rect(cx-2,baseY-48,4,19,palette.gold);
 }
 
+const western={
+  foliage:[102,118,83],leaf:[130,145,101],ivory:[251,247,235],dress:[248,245,235],
+  dressShade:[220,212,193],suit:[58,66,76],suitLight:[83,91,99],shirt:[255,251,241],
+  flower:[255,247,226],flowerPink:[194,119,111],green:[98,119,82],tie:[111,43,48]
+};
+function drawWesternArch(c){
+  c.ellipse(540,164,267,171,western.foliage);c.ellipse(540,169,248,159,[239,225,201]);c.rect(318,174,444,112,[239,225,201]);
+  c.ellipse(540,160,235,145,[245,234,216]);c.rect(338,173,404,113,[245,234,216]);
+  for(let i=0;i<=12;i++){
+    const angle=Math.PI+i*Math.PI/12,x=540+248*Math.cos(angle),y=171+156*Math.sin(angle);
+    c.ellipse(x,y,17,13,i%3===0?western.flowerPink:western.flower);
+    c.ellipse(x-5,y-1,5,5,palette.cream);c.ellipse(x+5,y+2,5,5,palette.gold);
+    if(i%2===0){c.ellipse(x-13,y+13,8,4,western.leaf);c.ellipse(x+13,y+13,8,4,western.foliage);}
+  }
+  for(const side of [225,855]){
+    c.ellipse(side,242,36,53,western.foliage);c.ellipse(side,218,27,37,western.leaf);
+    for(let i=0;i<5;i++){c.ellipse(side-18+i*9,194+i%2*10,8,7,i%2?western.flower:western.flowerPink);}
+  }
+}
+
+function drawWesternCouple(c,cx,baseY){
+  const groomX=cx-55,brideX=cx+55;
+  c.polygon([[brideX-21,baseY-128],[brideX+17,baseY-132],[brideX+49,baseY-87],[brideX+62,baseY],[brideX-68,baseY],[brideX-50,baseY-80]],western.ivory);
+  c.polygon([[brideX-14,baseY-73],[brideX-38,baseY-57],[brideX-65,baseY],[brideX+63,baseY],[brideX+38,baseY-57],[brideX+15,baseY-73]],western.dress);
+  c.ellipse(brideX,baseY-101,22,29,palette.skin);c.ellipse(brideX,baseY-119,25,18,palette.hair);
+  c.ellipse(brideX+19,baseY-104,8,21,palette.hair);c.ellipse(brideX-19,baseY-104,6,19,palette.hair);
+  c.polygon([[brideX-13,baseY-75],[brideX,baseY-39],[brideX+13,baseY-75]],western.ivory);
+  c.polygon([[brideX-7,baseY-74],[brideX,baseY-51],[brideX+7,baseY-74]],western.dressShade);
+  c.rect(brideX-33,baseY-18,66,5,palette.gold);
+  c.ellipse(brideX-10,baseY-82,4,4,western.flowerPink);c.ellipse(brideX,baseY-86,4,4,western.flower);c.ellipse(brideX+8,baseY-81,4,4,western.flowerPink);
+  c.ellipse(groomX,baseY-101,22,29,palette.skin);c.ellipse(groomX,baseY-120,24,14,palette.hair);c.rect(groomX-21,baseY-118,6,18,palette.hair);
+  c.polygon([[groomX-16,baseY-75],[groomX-39,baseY-59],[groomX-52,baseY],[groomX+51,baseY],[groomX+39,baseY-59],[groomX+16,baseY-75]],western.suit);
+  c.polygon([[groomX-9,baseY-74],[groomX,baseY-34],[groomX+9,baseY-74],[groomX+2,baseY-81]],western.shirt);
+  c.polygon([[groomX-3,baseY-75],[groomX+3,baseY-75],[groomX+6,baseY-44],[groomX,baseY-39],[groomX-6,baseY-44]],western.tie);
+  c.polygon([[groomX-16,baseY-73],[groomX-33,baseY-62],[groomX-14,baseY-35],[groomX-2,baseY-47]],western.suitLight);
+  c.polygon([[groomX+16,baseY-73],[groomX+33,baseY-62],[groomX+14,baseY-35],[groomX+2,baseY-47]],western.suitLight);
+  c.ellipse(groomX+17,baseY-66,4,4,western.flowerPink);c.ellipse(groomX+24,baseY-69,4,4,western.flower);
+  c.rect(groomX-47,baseY-2,103,7,palette.wood);c.rect(brideX-64,baseY-2,128,7,palette.wood);
+  c.ellipse(cx,baseY-47,11,8,western.green);c.ellipse(cx-8,baseY-53,7,7,western.flower);c.ellipse(cx,baseY-56,7,7,western.flowerPink);c.ellipse(cx+8,baseY-52,7,7,western.flower);
+}
+
 function hashColor(value){let h=2166136261;for(const char of String(value)){h^=char.codePointAt(0);h=Math.imul(h,16777619);}return [
   72+(h>>>16&63),
   53+(h>>>8&63),
@@ -36,18 +77,24 @@ function drawGuest(c,cx,top,person,index){
   c.polygon([[cx-9,top+24],[cx-22,top+34],[cx-25,top+58],[cx+25,top+58],[cx+22,top+34],[cx+9,top+24]],robe);c.polygon([[cx-5,top+26],[cx,top+40],[cx+5,top+26]],palette.cream);c.rect(cx-20,top+47,40,3,palette.gold);
 }
 
-function makeScene(people){
+function makeScene(people,type){
   const guests=people.slice(2),columns=10,rows=Math.ceil(guests.length/columns),width=1080,height=Math.max(500,405+rows*72),c=new Raster(width,height,palette.wall);
   c.rect(0,0,width,25,palette.wood);c.rect(18,24,width-36,14,palette.gold);
   c.rect(30,38,1020,250,[234,216,186]);
   c.rect(66,45,13,225,palette.wood);c.rect(1000,45,13,225,palette.wood);
-  c.ellipse(540,159,269,168,palette.darkRed);c.ellipse(540,166,249,162,palette.cream);c.ellipse(540,176,221,148,[230,210,178]);c.rect(319,176,442,112,palette.cream);
-  c.rect(265,53,29,229,palette.red);c.polygon([[294,53],[339,53],[306,270],[276,270]],palette.brightRed);c.rect(786,53,29,229,palette.red);c.polygon([[786,53],[741,53],[774,270],[804,270]],palette.brightRed);
+  if(type==='western'){
+    drawWesternArch(c);
+    c.rect(263,53,28,229,palette.cream);c.polygon([[291,53],[337,53],[306,270],[278,270]],[224,210,183]);
+    c.rect(789,53,28,229,palette.cream);c.polygon([[789,53],[743,53],[774,270],[802,270]],[224,210,183]);
+  }else{
+    c.ellipse(540,159,269,168,palette.darkRed);c.ellipse(540,166,249,162,palette.cream);c.ellipse(540,176,221,148,[230,210,178]);c.rect(319,176,442,112,palette.cream);
+    c.rect(265,53,29,229,palette.red);c.polygon([[294,53],[339,53],[306,270],[276,270]],palette.brightRed);c.rect(786,53,29,229,palette.red);c.polygon([[786,53],[741,53],[774,270],[804,270]],palette.brightRed);
+  }
   c.rect(0,287,width,36,palette.deepWood);c.rect(0,323,width,9,palette.gold);
   c.rect(0,332,width,height-332,palette.floor);for(let y=354;y<height;y+=40){c.rect(0,y,width,2,palette.floorLight);}
-  c.rect(90,341,900,9,palette.gold);c.rect(90,350,900,7,palette.wood);
+  c.rect(90,341,900,9,type==='western'?western.dress:palette.gold);c.rect(90,350,900,7,palette.wood);
   drawLamp(c,139,106,0.75);drawLamp(c,941,106,0.75);
-  drawCouple(c,540,286);
+  if(type==='western')drawWesternCouple(c,540,286);else drawCouple(c,540,286);
   if(guests.length){const panelY=368;c.rect(42,panelY-8,width-84,rows*72+23,[131,72,56]);c.rect(48,panelY-3,width-96,rows*72+13,[239,218,190]);for(let i=0;i<guests.length;i++){const row=Math.floor(i/columns),col=i%columns,cx=96+col*98;drawGuest(c,cx,panelY+row*72,guests[i],i);}}
   c.rect(18,height-19,width-36,9,palette.gold);c.rect(18,height-10,width-36,10,palette.deepWood);
   return {canvas:c,rows,guestCount:guests.length};
@@ -63,8 +110,9 @@ async function encodePNG(canvas){
   return new Blob([new Uint8Array([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',compressed),chunk('IEND',new Uint8Array())],{type:'image/png'});
 }
 
-export async function renderWeddingHall(people){
+export async function renderWeddingHall(people,type='chinese'){
   if(!Array.isArray(people)||people.length<2||people.length>100)throw Error('Invalid wedding party');
-  const {canvas,guestCount}=makeScene(people);
-  return {png:await encodePNG(canvas),width:canvas.width,height:canvas.height,guestCount};
+  if(type!=='chinese'&&type!=='western')throw Error('Invalid wedding type');
+  const {canvas,guestCount}=makeScene(people,type);
+  return {png:await encodePNG(canvas),width:canvas.width,height:canvas.height,guestCount,type};
 }

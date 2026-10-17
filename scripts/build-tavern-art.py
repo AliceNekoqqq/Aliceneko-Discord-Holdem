@@ -11,7 +11,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 PROMPTS = ROOT / "assets" / "art" / "prompts.json"
 TARGETS = {
-    asset["id"]: (960, 640) if asset["id"] == "room" else (512, 512)
+    asset["id"]: (960, 640) if asset["id"] in ("room", "wedding", "wedding-western") else (512, 512)
     for asset in json.loads(PROMPTS.read_text())["assets"]
 }
 LIMIT = 180 * 1024

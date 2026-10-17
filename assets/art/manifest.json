@@ -268,5 +268,15 @@
     "bytes": 152937,
     "sha256": "075dd696ecaaf9212c8259c43dd84db1fbd76167b6b7b1f193cbcda15c0a6867",
     "version": "v1"
+  },
+  "wedding-western": {
+    "id": "wedding-western",
+    "filename": "wedding-western-v1.jpg",
+    "mime": "image/jpeg",
+    "width": 960,
+    "height": 640,
+    "bytes": 172562,
+    "sha256": "1e0b561dd8baa0a60e2586f1e9dd56c2e880af298eef9957d1d70ea956d67d15",
+    "version": "v1"
   }
 }
