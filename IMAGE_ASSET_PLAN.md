@@ -34,9 +34,16 @@ beta.37已补齐并接入全部20款常驻菜品图，连同酒馆氛围图共21
 
 ## 结婚功能插画
 
-婚礼主图为独立剧情插画，不属于菜单菜品：成年新郎新娘穿中式红色婚服，新娘佩戴遮住面容的红盖头；以暖木、琥珀灯火和临河旧街氛围延续小酒馆的手绘画法。JPEG 为 960×640、152937 字节，稳定 ID 为 `wedding`，Worker 地址为 `/art/wedding/v1.jpg`。婚礼指令另行生成带来客形象的实时礼堂 PNG，不修改本图或静态资产。
+婚礼主图为独立剧情插画，不属于菜单菜品，统一延续暖木、琥珀灯火与临河旧街的手绘氛围：
 
-构建脚本[scripts/build-tavern-art.py](scripts/build-tavern-art.py)要求全部21个ID各一次；既有JPEG哈希匹配时原样保留，其他文件仅按比例缩小及JPEG压缩。示例：`python scripts/build-tavern-art.py room=assets/art/room-v1.jpg water=assets/art/water-v1.jpg ...`，省略号须替换为全部ID。脚本更新JSON清单和小型tavern-art-manifest.mjs。部署构建由scripts/build-static-art.py把JPG复制到public/art/{id}/v1.jpg；Worker从ASSETS绑定读取文件。图片字节不再写入JavaScript生成模块。
+| 类型 | 画面 | 稳定 ID 与地址 | JPEG |
+|---|---|---|---|
+| 中式（默认） | 新人穿红色婚服，新娘戴遮住面容的红盖头 | `wedding` · `/art/wedding/v1.jpg` | 960×640，152937 字节 |
+| 西式 | 新郎穿深色礼服，新娘穿象牙白婚纱并戴白色头纱；暖木礼堂配花拱门 | `wedding-western` · `/art/wedding-western/v1.jpg` | 960×640，172562 字节 |
+
+斜杠指令 /结婚 可选「婚礼类型」，缺省使用中式；两种类型各有十条随机旁白，并分别绘制相配的实时礼堂 PNG。所有主图为独立插画，不包含宾客；所选宾客只绘入本次实时 PNG。
+
+构建脚本[scripts/build-tavern-art.py](scripts/build-tavern-art.py)要求 prompts.json 中全部ID各提交一次；room与两张婚礼主图为960×640，其余菜单图为512×512。既有JPEG哈希匹配时原样保留，其他文件仅按比例缩小及JPEG压缩。脚本更新JSON清单和小型tavern-art-manifest.mjs。部署构建由scripts/build-static-art.py把JPG复制到public/art/{id}/v1.jpg；Worker从ASSETS绑定读取文件。图片字节不再写入JavaScript生成模块。
 
 ## 展示、地址与检查
 

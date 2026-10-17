@@ -286,6 +286,17 @@ export default {
     "filename": "wedding-v1.jpg",
     "version": "v1"
   },
+  "wedding-western": {
+    "path": "/art/wedding-western/v1.jpg",
+    "mime": "image/jpeg",
+    "bytes": 172562,
+    "sha256": "1e0b561dd8baa0a60e2586f1e9dd56c2e880af298eef9957d1d70ea956d67d15",
+    "width": 960,
+    "height": 640,
+    "id": "wedding-western",
+    "filename": "wedding-western-v1.jpg",
+    "version": "v1"
+  },
   "wheat-beer": {
     "path": "/art/wheat-beer/v1.jpg",
     "mime": "image/jpeg",
