@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {registerCommands,commandInventory,sameCommand} from './command-registration.mjs';
+import {marriageCommand} from './marriage.mjs';
 const env={BOT_TOKEN:'must-not-leak',DISCORD_APPLICATION_ID:'123'};
 const storage=()=>{const m=new Map();return {get:async k=>m.get(k),put:async(k,v)=>m.set(k,v)};};
 test('registration requires actual Discord command inventory before caching success',async()=>{
@@ -29,4 +30,14 @@ test('successful missing city creation makes complete inventory cacheable withou
  const d=await registerCommands(env,s,commands,'v',fetcher);assert(d.registered);assert.deepEqual(writes,['城市']);assert.equal(await s.get('commandVersion'),'v');
  assert(sameCommand({name:'城市',options:[{name:'地图',type:1}]},{id:'99',name:'城市',options:[{name:'地图',type:1,options:[]}]}));
  assert(!sameCommand({name:'城市',options:[{name:'地图',type:1}]},{name:'城市',options:[{name:'地图',type:1},{name:'位置',type:1}]}));
+});
+
+test('Discord omitted defaults match explicit chat command defaults',()=>{
+ const actual=structuredClone(marriageCommand);
+ delete actual.type;
+ for(const option of actual.options)if(!option.required)delete option.required;
+ actual.id='discord-generated-id';
+ assert.equal(sameCommand(marriageCommand,actual),true);
+ actual.options[2].choices[1].value='wrong';
+ assert.equal(sameCommand(marriageCommand,actual),false);
 });
