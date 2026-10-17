@@ -336,6 +336,19 @@
       "height": 512,
       "source": "generated image asset; retained source in this session workspace",
       "sha256": "4d8eb36ca8979ba08ec7dbdde473c41e4a0fdebbc3504e22b68daba6519be057"
+    },
+    {
+      "id": "wedding",
+      "subject": "Traditional Chinese tavern wedding couple",
+      "status": "ready",
+      "dimensions": "1536x1024 landscape source; 960x640 JPEG",
+      "prompt": "Use case: illustration-story. Asset type: final wide tavern wedding illustration, 1536x1024 landscape. Primary request: an intimate Chinese wedding portrait of one adult groom and one adult bride standing together. Scene/backdrop: a modest wedding hall in a riverside old-street tavern, warm wooden beams and a softly glowing amber lantern, understated red silk accents and a small suggestion of a ceremonial doorway; cozy, refined, not grand or crowded. The groom wears elegant traditional Chinese wedding robes in deep warm red with muted gold detail; the bride wears a richly layered traditional Chinese red wedding hanfu and a red embroidered bridal veil (盖头) fully covering her face. They stand close side by side, calm and dignified; only the two of them. Warm storybook digital hand-painted illustration matching the tavern's established illustrations, tactile soft brush texture, gently painterly edges; not photography or 3D. Balanced waist-up to three-quarter portrait, couple clear and central, soft amber lamplight, warm walnut brown, cream, ceremonial red and muted gold, restrained berry-pink accent. Unmistakably traditional Chinese wedding clothing; the bride's red veil must cover her face. No extra people, guests, modern clothes, white wedding dress, uncovered bride's face, text, letters, logo, watermark, photorealism, plastic 3D gloss, or neon colors.",
+      "review": "Pass: one adult groom and one adult bride in traditional Chinese red wedding clothes; the bride's embroidered red veil fully covers her face. Warm wood, amber lantern light, and painterly rendering fit the tavern's riverside illustration style. No guests, readable text, logo, or watermark.",
+      "filename": "wedding-v1.jpg",
+      "width": 960,
+      "height": 640,
+      "bytes": 152937,
+      "sha256": "075dd696ecaaf9212c8259c43dd84db1fbd76167b6b7b1f193cbcda15c0a6867"
     }
   ]
 }

@@ -32,6 +32,10 @@ beta.37已补齐并接入全部20款常驻菜品图，连同酒馆氛围图共21
 
 实际生成提示词、状态与视觉核验见[assets/art/prompts.json](assets/art/prompts.json)；交付JPEG、尺寸、SHA256与v1文件名见[manifest.json](assets/art/manifest.json)，总JPEG字节1457155。每张≤180KB，20张菜图512×512，酒馆图960×640。主agent完成视觉核验，不凭图片修改菜单配方或价格。
 
+## 结婚功能插画
+
+婚礼主图为独立剧情插画，不属于菜单菜品：成年新郎新娘穿中式红色婚服，新娘佩戴遮住面容的红盖头；以暖木、琥珀灯火和临河旧街氛围延续小酒馆的手绘画法。JPEG 为 960×640、152937 字节，稳定 ID 为 `wedding`，Worker 地址为 `/art/wedding/v1.jpg`。婚礼指令另行生成带来客形象的实时礼堂 PNG，不修改本图或静态资产。
+
 构建脚本[scripts/build-tavern-art.py](scripts/build-tavern-art.py)要求全部21个ID各一次；既有JPEG哈希匹配时原样保留，其他文件仅按比例缩小及JPEG压缩。示例：`python scripts/build-tavern-art.py room=assets/art/room-v1.jpg water=assets/art/water-v1.jpg ...`，省略号须替换为全部ID。脚本更新JSON清单和小型tavern-art-manifest.mjs。部署构建由scripts/build-static-art.py把JPG复制到public/art/{id}/v1.jpg；Worker从ASSETS绑定读取文件。图片字节不再写入JavaScript生成模块。
 
 ## 展示、地址与检查

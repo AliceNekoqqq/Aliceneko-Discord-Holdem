@@ -21,6 +21,7 @@ import {
   prepareChatContext
 } from "./ai-chat.mjs";
 import { DiscordGateway } from "./discord-gateway.mjs";
+import {MARRIAGE_COPY} from './marriage.mjs';
 
 test('public tavern room and current-speaker wallet remain separate even when one source fails',async()=>{
  const requests=[];
@@ -1173,5 +1174,20 @@ test('daily operations scene stays public and separate from personal tavern cont
  assert.deepEqual(await tavernRuntimeData(env,'3','2','4'),{tavernOperations:scene});assert.equal(requests.find(p=>p.action==='opsScene').id,undefined);
  assert.match(makeSystemInstruction(''),/模型不能任命或更换店长、代投票/);
  assert.match(getBotKnowledge('一日店长 季节研发 纪念章'),/北京时间.*随机/);
+});
+
+test('marriage command sends the selected ceremony and hall image without invoking Gemini',async t=>{
+ const calls=[];t.mock.method(globalThis,'fetch',async(url,options)=>{calls.push({url:String(url),options});return new Response('{}',{status:200});});
+ const bot='999000000000000001',groom='999000000000000002',bride='999000000000000003',guest='999000000000000004';
+ const message={id:'wedding-msg',guild_id:'g1',channel_id:'c1',author:{id:'host',username:'掌柜'},content:`<@${bot}> 结婚 <@${groom}> <@${bride}> <@${guest}>`,mentions:[
+  {id:groom,username:'新郎'},{id:bride,username:'新娘'},{id:guest,username:'宾客'}
+ ]};
+ assert.equal(await replyToMention({BOT_TOKEN:'test'},message,bot),true);
+ assert.equal(calls.length,1);assert.equal(calls[0].url,'https://discord.com/api/v10/channels/c1/messages');
+ const form=calls[0].options.body,payload=JSON.parse(form.get('payload_json'));
+ assert.ok(MARRIAGE_COPY.some(line=>payload.content===line.replaceAll('{groom}',`<@${groom}>`).replaceAll('{bride}',`<@${bride}>`)));
+ assert.equal(payload.embeds[0].image.url,'https://discord-holdem.aliceneko.workers.dev/art/wedding/v1.jpg');
+ assert.equal(payload.embeds[1].image.url,'attachment://wedding-hall.png');assert.equal(payload.enforce_nonce,true);
+ assert.ok(form.get('files[0]').size>1000);
 });
 
