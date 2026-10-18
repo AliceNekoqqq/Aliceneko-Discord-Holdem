@@ -523,7 +523,7 @@ test("ordinary chat has a completion-first short-reply boundary", () => {
   assert.match(prompt,/正文＋解释/);
   assert.match(prompt,/不要评价用户是否满意/);
   assert.match(prompt,/角色扮演时只写角色内台词/);
-  assert.match(prompt,/只有用户明确要求详细说明/);
+  assert.match(prompt,/只有用户明确要求总结、详细说明/);
   assert.equal(makeSystemInstruction("","game").includes("完成后立即停下"),false);
 });
 
@@ -712,7 +712,8 @@ test("channel memory is off by default, scoped to the current channel, and admin
     data:{options:[{name:"频道记忆",options:[{name:action}]}]}
   });
   const status=await handleAiCommand({CHAT_DB:db},interaction("查看"));
-  assert.match(status.data.content,/已关闭/);
+  assert.match(status.data.content,/未开启/);
+  assert.match(status.data.content,/按需读取最近30条/);
   const denied=await handleAiCommand({CHAT_DB:db},interaction("开启"));
   assert.match(denied.data.content,/管理服务器/);
   assert.equal(db.state.channelMemory.size,0);
@@ -720,12 +721,15 @@ test("channel memory is off by default, scoped to the current channel, and admin
   assert.match(enabled.data.content,/已开启当前频道/);
   assert.equal(db.state.channelMemory.get("guild-1:channel-1"),1);
   const otherChannel=await handleAiCommand({CHAT_DB:db},interaction("查看","0","channel-2"));
-  assert.match(otherChannel.data.content,/已关闭/);
+  assert.match(otherChannel.data.content,/未开启/);
   db.state.channelHistory.push({guild_id:"guild-1",channel_id:"channel-1",user_id:"u1",role:"user",content:"旧内容",id:1});
   const cleared=await handleAiCommand({CHAT_DB:db},interaction("清除","40"));
   assert.match(cleared.data.content,/已清除/);
   assert.equal(db.state.channelHistory.length,0);
   assert.equal(db.state.channelMemory.get("guild-1:channel-1"),1);
+  await handleAiCommand({CHAT_DB:db},interaction("关闭","40"));
+  const off=await handleAiCommand({CHAT_DB:db},interaction("查看"));
+  assert.match(off.data.content,/普通频道历史读取也已关闭/);
 });
 
 test("clearing personal memory also removes that member from channel memory", async () => {

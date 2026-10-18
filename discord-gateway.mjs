@@ -1,7 +1,7 @@
 import { replyToMention } from "./ai-chat.mjs";
 import {MemberWelcome,WELCOME_TARGET} from './member-welcome.mjs';
 
-export const CHAT_PIPELINE_RUNTIME = 'chat-city2-flower-npc-red2-welcome1-marriage-slash2';
+export const CHAT_PIPELINE_RUNTIME = 'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1';
 const GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 const GATEWAY_INTENTS = (1 << 0) | (1 << 9); // GUILDS + GUILD_MESSAGES; message content is only used for direct bot mentions.
 export const gatewayIntentsForFlags = flags => GATEWAY_INTENTS | ((Number(flags)&((1<<18)|(1<<19))) ? 1<<15 : 0) | ((Number(flags)&((1<<14)|(1<<15))) ? 1<<1 : 0);

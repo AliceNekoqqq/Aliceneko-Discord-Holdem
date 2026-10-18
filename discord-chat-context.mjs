@@ -1,3 +1,4 @@
+import {recentChannelMessages} from './channel-recent-messages.mjs';
 const validId=value=>/^\d{1,20}$/.test(String(value||''));
 const clean=value=>String(value||'').replace(/[\x00-\x1f<>@]/g,' ').trim().slice(0,64);
 const cache=new Map();
@@ -60,7 +61,7 @@ async function roster(env,message,fetcher) {
   return value;
 }
 
-export async function discordChatContext(env,message,botId,fetcher=fetch) {
+export async function discordChatContext(env,message,botId,fetcher=fetch,options={}) {
   if(!env.BOT_TOKEN||!validId(message.guild_id)||!validId(message.channel_id))return {text:'',reference:null};
   const ref=message.message_reference;
   let reference=null,referenceNotice='';
@@ -88,13 +89,13 @@ export async function discordChatContext(env,message,botId,fetcher=fetch) {
     if(original===undefined&&validId(target.message_id))try{original=await api(env,'/channels/'+message.channel_id+'/messages/'+target.message_id,fetcher);}catch{}
     if(original&&String(original.id)===String(target.message_id)&&(!original.channel_id||String(original.channel_id)===String(message.channel_id))&&validId(original.author?.id))replyTo=identity(original.author,original.member);
   }
-  const members=await roster(env,message,fetcher);
+  const [members,recentMessages]=await Promise.all([roster(env,message,fetcher),recentChannelMessages(env,message,botId,fetcher,options.readRecent!==false)]);
   const current=identity(message.author,message.member);
   const involved=[current,...(message.mentions||[]).map(u=>identity(u,u.member))];
   if(reference?.author)involved.push(identity(reference.author,reference.member));
   if(replyTo)involved.push(replyTo);
   const unique=new Map();
-  for(const p of [...members.people,...involved])if(validId(p.id)&&p.id!==String(botId))unique.set(p.id,{...unique.get(p.id),...Object.fromEntries(Object.entries(p).filter(([,v])=>v))});
+  for(const p of [...members.people,...recentMessages.records.map(row=>row.author),...involved])if(validId(p.id)&&p.id!==String(botId))unique.set(p.id,{...unique.get(p.id),...Object.fromEntries(Object.entries(p).filter(([,v])=>v))});
   const content=String(message.content||'');
   const priority=new Set(involved.map(p=>p.id));
   const people=[...unique.values()].sort((a,b)=>Number(priority.has(b.id)||[b.nick,b.display,b.username].some(n=>n&&content.includes(n)))-Number(priority.has(a.id)||[a.nick,a.display,a.username].some(n=>n&&content.includes(n))));
@@ -114,6 +115,6 @@ export async function discordChatContext(env,message,botId,fetcher=fetch) {
     replyTo,
     ...(String(reference.author.id)===String(botId)?{replyToCurrentUser:replyTo?replyTo.id===current.id:null}:{})
   }:null;
-  return {text:lines.join('\n'),reference,replyReference,current,people:shown,mentions:mentionIds,source:members.source,complete:members.complete&&shown.length===people.length,referenceNotice,botId:String(botId)};
+  return {text:lines.join('\n'),recentMessages,reference,replyReference,current,people:shown,mentions:mentionIds,source:members.source,complete:members.complete&&shown.length===people.length,referenceNotice,botId:String(botId)};
 }
 
