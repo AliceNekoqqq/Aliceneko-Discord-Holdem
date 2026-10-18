@@ -52,8 +52,8 @@ test('gateway cron detects stale API configuration and resets only its runtime i
   const ctx=context();
   let aborted=null;
   ctx.abort=(message,options)=>{aborted={message,options};throw Error('expected gateway reset');};
-  const table=new PokerTable(ctx,{GEMINI_API_BASE_URL:'https://previous.invalid/v1',GEMINI_MODEL:'pg-gemini-3.8-flash'});
-  const payload={op:'gatewayEnsure',expectedChatConfig:{baseUrl:'https://current.invalid/v1',model:'pg-gemini-3.8-flash'}};
+  const table=new PokerTable(ctx,{GEMINI_API_BASE_URL:'https://previous.invalid/v1',GEMINI_MODEL:'pggo-gemini-3.8-flash'});
+  const payload={op:'gatewayEnsure',expectedChatConfig:{baseUrl:'https://current.invalid/v1',model:'pggo-gemini-3.8-flash'}};
   await assert.rejects(table.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify(payload)})),/expected gateway reset/);
   assert.deepEqual(aborted?.options,{retryAlarm:false});
   assert.equal(ctx.map.size,0,'reset must not delete persistent state');

@@ -36,7 +36,7 @@ async function generateLocked(file, env, fetcher) {
   const task = JSON.parse(await readFile(file, 'utf8'));
   if (!['brief','revise'].includes(task.status)) throw Error('task_not_ready');
   if (!env.GEMINI_WRITER_API_KEY) throw Error('missing_writer_key');
-  const model = env.GEMINI_WRITER_MODEL || 'pg-gemini-3.8-flash';
+  const model = env.GEMINI_WRITER_MODEL || 'pggo-gemini-3.8-flash';
   const url = endpoint(env.GEMINI_WRITER_BASE_URL || 'https://gcli.ggchan.dev/v1');
   if (task.attempts.length >= (task.brief.max_calls || 9)) throw Error('content_call_budget_exhausted');
   const attempt = {number:task.attempts.length+1, model, started_at:new Date().toISOString(), status:'requesting'};

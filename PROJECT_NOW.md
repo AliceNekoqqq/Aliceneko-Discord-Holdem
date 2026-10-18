@@ -1,3 +1,8 @@
+## 文本模型配置更新（2026-10-18）
+
+- GitHub 代码统一采用 `pggo-gemini-3.8-flash`：wrangler 变量、聊天默认模型、后台文案任务及独立文案工具默认模型。API 站点保持 `https://catiecli.sukaka.top/v1`，密钥没有修改。
+- Cloudflare 控制台设置由开发者自行管理。注意 main 推送会触发 GitHub Actions Wrangler 自动部署，其中 `GEMINI_MODEL` 变量会由 `wrangler.jsonc` 同步；如存在 `GEMINI_WRITER_MODEL` 单独覆盖也要对应检查。以下章节为历史操作记录。
+
 ## 小酒馆婚礼类型功能上线（2026-10-17）
 
 - Discord 斜杠指令为 `/结婚`：前两个必填成员依次是新郎、新娘，后面可选最多8位宾客；「婚礼类型」默认中式，可选西式。新人名称、宾客名单和婚礼类型由指令参数明确传入。
