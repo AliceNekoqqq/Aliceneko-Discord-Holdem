@@ -3,7 +3,7 @@
 - 已实现按需读取同频道、触发消息之前最近30条普通消息；自然语言总结默认100条，明确最近N条最多300条/3页。正文预算普通6000/总结24000字符，单条1200字符；时间、作者统一账号key、回复消息ID、截断和权限不足范围均保留。普通群聊不另存、不逐条调用模型、不授权历史文字触发交易。
 - 原频道显式关闭enabled=0时不读取；未配置时默认按需读，原频道共享问答存储仍默认关；读取设置数据库失败时禁用普通历史。/ai频道记忆说明已同步。Gateway指纹追加channel-recent1，模型pggo及URL/密钥不变。
 - 本地聊天131/131、Worker86/86通过；涵盖非@发言进入原生/兼容请求、作者归属、分页、跨频道/未来消息过滤、去重、预算截断、权限失败、部分读取与关闭。PR #61完整CI39116613799成功后合并，运行提交4132dce6c5538ee37ad2a7bd95d55107847d851d；main完整检查与部署39116695083成功。CF部署69f80fb6-5604-4499-a99c-03a10990b08b/版本ce725332-53c1-491a-b033-e8480a2cdb64接收100%。15bindings（含人设/模型pggo/URL）、兼容/观测/usage/limits与发布前逐字匹配。
-- 线上health外层新指纹channel-recent1已生效，但常驻Gateway仍报告旧marriage-slash2，connected/ready=true，整体ready=false；不能宣称新聊天功能已运行。自动审批拒绝临时维护入口调用重连，理由是需明确授权临时凭证端点及重连机制。临时Worker tavern-release-reconnect-20261018已删除，临时token文件已删除，未修改玩家数据或实际执行重连。下一步获明确重连授权后刷新旧Gateway并核验新指纹/ready；或后续只读检查是否自行切换。未发送真人测试消息。
+- 2026-10-18 17:53（北京时间）重新只读核验线上health：ready:true、Gateway connected/ready:true，实际chatRuntime与expectedRuntime均为chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1，Message Content Intent已启用，新聊天功能已实际加载。此前旧实例在发布传播后自行切换；用户已明确授权临时重连，但本次检查发现已就绪，无须执行。临时维护Worker及token此前已清理，本轮未重新创建。未修改玩家数据或发送真人测试消息。功能上线完成；下一步用户在Discord @bot说“总结最近聊天”或“总结最近200条消息”验证真实回复，勿重复发布/重连。
 
 ## 文本模型配置更新（2026-10-18）
 
