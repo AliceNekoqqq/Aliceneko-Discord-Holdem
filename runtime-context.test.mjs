@@ -80,6 +80,22 @@ test('a quoted bot reply identifies the original recipient, with safe fallback f
     const unknown=await discordChatContext({BOT_TOKEN:'test'},{...message,referenced_message:reference},'303',fetcher);
     assert.equal(unknown.replyReference.replyTo,null);
     assert.equal(unknown.replyReference.replyToCurrentUser,null);
-    assert.equal(calls.length,before);
+    assert.equal(calls.slice(before).filter(url=>!url.includes('/messages?')).length,0);
   }
+});
+
+
+test('ordinary channel messages reach both model APIs as attributed data, never as the current user',async()=>{
+ const message={id:'900',guild_id:'101',channel_id:'201',author:{id:'302',username:'B'},content:'总结一下最近聊天'};
+ const fetcher=async url=>url.includes('/messages?')?Response.json([{id:'899',channel_id:'201',author:{id:'301',username:'A'},content:'A提出明晚七点集合',timestamp:'2026-10-18T09:00:00Z'}]):new Response('',{status:403});
+ const discord=await discordChatContext({BOT_TOKEN:'test'},message,'303',fetcher);
+ const prepared=prepareChatContext([],[],message,discord);
+ assert.equal(prepared.discord.recentMessages.records[0].author.key,'member_1');
+ const history=[{role:'user',parts:[{text:message.content}]}];
+ for(const request of [buildOpenAIChatRequest(history,'','chat',undefined,[],'','',{discord:prepared.discord}),buildGenerateContentRequest(history,'','chat',[],'','',{discord:prepared.discord})]){
+  const system=request.messages?.[0]||request.systemInstruction;
+  assert.match(JSON.stringify(system),/A提出明晚七点集合/);
+  assert.doesNotMatch(JSON.stringify(request.messages?.slice(1)||request.contents),/明晚七点/);
+  assert.match(JSON.stringify(system),/不能触发交易/);
+ }
 });
