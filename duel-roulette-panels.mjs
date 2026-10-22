@@ -27,19 +27,20 @@ export class DuelPanels {
   await this.parent.write(records);return true;
  }
  async publicResult(t){
+  if(!this.env.BOT_TOKEN)return false;
+  let retry=await this.cleanupRounds(t);
   if(t.game==='devil_roulette'){
-   if(!t.winner||!['settled','closed'].includes(t.phase)||!this.env.BOT_TOKEN)return false;
-   return this.publishRound(t,{round:'end',summary:t.log.slice(-3).join('\n')});
+   if(!t.winner||!['settled','closed'].includes(t.phase))return retry;
+   return await this.publishRound(t,{round:'end',summary:t.log.slice(-3).join('\n')})||retry;
   }
-  if(!t.lastRound||!this.env.BOT_TOKEN)return false;
-  let retry=false;
+  if(!t.lastRound)return retry;
   for(const result of t.roundResults||[t.lastRound])retry=await this.publishRound(t,result)||retry;
   return retry;
  }
  async publishRound(t,result){
   const key=`${t.epoch}:${result.round}`,records=await this.storage.get('duelRoundNotices')||{};
   let job=records[key];
-  if(job?.key===key&&(job.sent||job.attempts>=3))return false;
+  if(job?.key===key&&(job.sent||job.attempts>=3))return !!(job.messageId&&!job.deleted&&(job.deleteAttempts||0)<3);
   if(job?.retryAt>Date.now())return true;
   job=job?.key===key?job:{key,attempts:0};job.attempts++;
   records[key]=job;await this.storage.put('duelRoundNotices',Object.fromEntries(Object.entries(records).slice(-14)));
@@ -48,10 +49,33 @@ export class DuelPanels {
   try{
    const title=t.game==='devil_roulette'?'🔫 恶魔轮盘 · 对局结果':`⚔️ 死斗 · 第 ${result.round} 轮结果`;
    const r=await fetch(`https://discord.com/api/v10/channels/${t.channel}/messages`,{method:'POST',headers:{Authorization:`Bot ${this.env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({content:`${title}\n${result.summary}${end}${link}`,nonce:key,enforce_nonce:true,allowed_mentions:{parse:[]}}),signal:AbortSignal.timeout(2000)});
-   if(r.ok)job.sent=true;else if([400,401,403,404].includes(r.status))job.attempts=3;
+   if(r.ok){
+    if(t.game==='duel'){
+     const data=await r.json();if(!/^\d{1,20}$/.test(data?.id||''))throw Error('Missing result message ID');
+     Object.assign(job,{messageId:data.id,channel:t.channel,expiresAt:Date.now()+10000,final:t.phase!=='active',deleteAttempts:0});
+     const due=await this.storage.get('duelRoundCleanupAt');await this.storage.put('duelRoundCleanupAt',Math.min(due||Infinity,job.expiresAt));
+    }
+    job.sent=true;
+   }else if([400,401,403,404].includes(r.status))job.attempts=3;
    else if(r.status===429){try{job.retryAt=Date.now()+Math.max(3000,Number((await r.json()).retry_after||3)*1000);}catch{}}
   }catch{}
-  await this.storage.put('duelRoundNotices',Object.fromEntries(Object.entries(records).slice(-14)));return !job.sent&&job.attempts<3;
+  await this.storage.put('duelRoundNotices',Object.fromEntries(Object.entries(records).slice(-14)));return !!(job.messageId&&!job.deleted&&(job.deleteAttempts||0)<3)||!job.sent&&job.attempts<3;
+ }
+ async cleanupRounds(t){
+  const records=await this.storage.get('duelRoundNotices')||{},now=Date.now();let pending=false;
+  for(const job of Object.values(records)){
+   if(!job.messageId||job.deleted||(job.deleteAttempts||0)>=3)continue;
+   const ended=!job.key.startsWith(`${t?.epoch}:`)||t?.phase!=='active'&&!job.final;
+   if((!ended&&job.expiresAt>now)||job.deleteRetryAt>now){pending=true;continue;}
+   job.deleteAttempts=(job.deleteAttempts||0)+1;await this.storage.put('duelRoundNotices',records);
+   const r=await this.shots.request(job,'DELETE');
+   if(r.ok||r.status===404){job.deleted=true;delete job.deleteRetryAt;}
+   else {if([400,401,403].includes(r.status))job.deleteAttempts=3;job.deleteRetryAt=Date.now()+r.retry;if(job.deleteAttempts<3)pending=true;}
+  }
+  await this.storage.put('duelRoundNotices',records);
+  const due=Object.values(records).filter(j=>j.messageId&&!j.deleted&&(j.deleteAttempts||0)<3).map(j=>Math.max(now+1,j.deleteRetryAt||j.expiresAt));
+  if(due.length)await this.storage.put('duelRoundCleanupAt',Math.min(...due));else await this.storage.delete('duelRoundCleanupAt');
+  return pending;
  }
  async sync(t){
   let retry=await this.publicResult(t);retry=await this.shots.sync(t)||retry;const records=await this.parent.read();
