@@ -18,8 +18,27 @@ import {
   replyToMention,
   startTypingIndicator,
   tavernRuntimeData,
-  prepareChatContext
+  prepareChatContext,
+  directMentionBindings,
+  currentMentionNames
 } from "./ai-chat.mjs";
+
+test('direct mentions link exact tokens and order to account keys without leaking developer ID',()=>{
+  const keys=new Map([['123','member_2'],['456','member_1']]);
+  assert.deepEqual(directMentionBindings('<@123> 是谁，<@!456> 呢，<@789> 呢',keys,'456'),[
+    {position:1,token:'<@123>',key:'member_2'},
+    {position:2,token:'[开发者账号的@]',key:'member_1',verifiedDeveloper:true},
+    {position:3,token:'<@789>',key:'unknown'}
+  ]);
+});
+
+test('explicit identity target excludes reply author and reply recipient from memory search names',()=>{
+  const message={content:'<@999> <@123> 那这是谁',mentions:[{id:'999',bot:true,username:'机器人'},{id:'123',username:'泡椒'}],referenced_message:{author:{username:'红豆粉'}}};
+  const context={botId:'999',replyReference:{author:{display:'姐姐'},replyTo:{display:'月迟'}}};
+  assert.deepEqual(currentMentionNames(message,context),['泡椒']);
+  assert.deepEqual(currentMentionNames({content:'<@999> 你好',mentions:[{id:'999',bot:true,username:'红豆粉小酒馆'}]},{botId:'999'}),[]);
+  assert.ok(currentMentionNames({...message,content:'这是谁',mentions:[]},context).includes('月迟'));
+});
 import { DiscordGateway } from "./discord-gateway.mjs";
 
 test('public tavern room and current-speaker wallet remain separate even when one source fails',async()=>{
@@ -1087,13 +1106,14 @@ test('a real mention request reuses one speaker key across channel, roster, quot
     ]);
     return new Response('{}');
   });
-  const message={id:'identity-link',guild_id:guild,channel_id:channel,author:{id:current,username:'b',global_name:'同名'},member:{nick:'同名'},mentions:[{id:owner,username:'a'}],content:'<@bot> 小猫是谁？',message_reference:{message_id:'quoted',channel_id:channel},referenced_message:{id:'quoted',channel_id:channel,author:{id:owner,username:'a',global_name:'同名'},member:{nick:'新名'},content:'刚才那位的普通引用'}};
+  const message={id:'identity-link',guild_id:guild,channel_id:channel,author:{id:current,username:'b',global_name:'同名'},member:{nick:'同名'},mentions:[{id:owner,username:'a'}],content:`<@bot> <@${owner}> 小猫是谁？`,message_reference:{message_id:'quoted',channel_id:channel},referenced_message:{id:'quoted',channel_id:channel,author:{id:owner,username:'a',global_name:'同名'},member:{nick:'新名'},content:'刚才那位的普通引用'}};
   await replyToMention({BOT_TOKEN:'test',GEMINI_API_KEY:'test',CHAT_DB:db,DEVELOPER_DISCORD_USER_ID:owner},message,'bot');
   const system=requests[0].systemInstruction.parts[0].text;
   const background=JSON.parse(system.slice(system.lastIndexOf('\n{')+1));
   const key=background.channelConversation.records[0].speaker;
   assert.equal(background.discord.people.find(person=>person.nick==='新名').key,key);
   assert.equal(background.replyReference.author.key,key);
+  assert.deepEqual(background.directMentions.bindings,[{position:1,token:'[开发者账号的@]',key,verifiedDeveloper:true}]);
   const shared=background.sharedLongMemory.slice(background.sharedLongMemory.lastIndexOf('\n')+1);
   assert.equal(JSON.parse(shared)[0].ownerKey,key);
   assert.equal(JSON.stringify(background).includes(owner),false);
