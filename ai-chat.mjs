@@ -726,8 +726,10 @@ function redactDeveloperDiscordIdFromPrompt(value, env) {
   return /^\d{17,20}$/.test(id) ? text.split(id).join("[开发者账号]") : text;
 }
 
-function currentMentionNames(message,discordContext={}) {
+export function currentMentionNames(message,discordContext={}) {
   const mentions=Array.isArray(message?.mentions)?message.mentions:[];
+  const explicit=mentions.filter(item=>/^\d{1,20}$/.test(String(item?.id||''))&&!item.bot&&String(item.id)!==String(discordContext.botId||'')&&new RegExp(`<@!?${item.id}>`).test(String(message?.content||'')));
+  if(explicit.length)return explicit.flatMap(item=>[item?.global_name,item?.username,item?.nick,item?.display_name]).filter(value=>typeof value==='string'&&value.trim()).map(value=>value.trim().slice(0,80)).slice(0,12);
   const reference=message?.referenced_message;
   const referenceAuthor=reference?.author;
   return [...mentions.flatMap(item=>[item?.global_name,item?.username,item?.nick,item?.display_name]),
@@ -736,6 +738,15 @@ function currentMentionNames(message,discordContext={}) {
     discordContext.replyReference?.author?.username,discordContext.replyReference?.replyTo?.nick,
     discordContext.replyReference?.replyTo?.display,discordContext.replyReference?.replyTo?.username]
     .filter(value=>typeof value==='string'&&value.trim()).map(value=>value.trim().slice(0,80)).slice(0,12);
+}
+
+export function directMentionBindings(text,idsToKeys,developerId='') {
+  return [...String(text||'').matchAll(/<@!?(\d{1,20})>/g)].map((match,index)=>({
+    position:index+1,
+    token:match[1]===String(developerId)?'[开发者账号的@]':match[0],
+    key:idsToKeys.get(match[1])||'unknown',
+    ...(match[1]===String(developerId)&&idsToKeys.has(match[1])?{verifiedDeveloper:true}:{})
+  }));
 }
 
 export async function tavernRuntimeData(env,guild,id,channel,name=null) {
@@ -833,6 +844,8 @@ export async function replyToMention(env, message, botId) {
   try {
     const last=history.at(-1);
     const runtimeData={currentSpeaker:prepared.currentSpeaker};
+    const mentionBindings=directMentionBindings(currentUserText,prepared.idsToKeys,env.DEVELOPER_DISCORD_USER_ID);
+    if(mentionBindings.length)runtimeData.directMentions={source:'current_message',bindings:mentionBindings,rule:'position为最后一条user正文中@从左到右的序号，key明确对应成员身份。问@的人是谁时优先用该key，不用引用作者、引用回复对象或matched记忆代替；unknown不猜。verifiedDeveloper由程序核验，与当前发言者是否开发者无关。旧模型回复不是身份依据。'};
     if(cityFailed)runtimeData.city={unavailable:true};
     if(flowerHere&&!packetIntent)runtimeData.cityNPC={...FLOWER_COPY.npc,role:'花店店员',menu:FLOWERS};
     if(flowerIntent)runtimeData.flowerOrderExtraction={source:'current_message_only',menu:FLOWERS.map(f=>({id:f.id,name:f.name,price:f.price}))};
