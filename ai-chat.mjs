@@ -727,8 +727,8 @@ function redactDeveloperDiscordIdFromPrompt(value, env) {
 }
 
 export function currentMentionNames(message,discordContext={}) {
-  const mentions=Array.isArray(message?.mentions)?message.mentions:[];
-  const explicit=mentions.filter(item=>/^\d{1,20}$/.test(String(item?.id||''))&&!item.bot&&String(item.id)!==String(discordContext.botId||'')&&new RegExp(`<@!?${item.id}>`).test(String(message?.content||'')));
+  const mentions=(Array.isArray(message?.mentions)?message.mentions:[]).filter(item=>!item.bot&&String(item.id)!==String(discordContext.botId||''));
+  const explicit=mentions.filter(item=>/^\d{1,20}$/.test(String(item?.id||''))&&new RegExp(`<@!?${item.id}>`).test(String(message?.content||'')));
   if(explicit.length)return explicit.flatMap(item=>[item?.global_name,item?.username,item?.nick,item?.display_name]).filter(value=>typeof value==='string'&&value.trim()).map(value=>value.trim().slice(0,80)).slice(0,12);
   const reference=message?.referenced_message;
   const referenceAuthor=reference?.author;

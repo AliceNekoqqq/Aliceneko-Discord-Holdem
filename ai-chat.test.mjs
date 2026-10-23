@@ -36,6 +36,7 @@ test('explicit identity target excludes reply author and reply recipient from me
   const message={content:'<@999> <@123> 那这是谁',mentions:[{id:'999',bot:true,username:'机器人'},{id:'123',username:'泡椒'}],referenced_message:{author:{username:'红豆粉'}}};
   const context={botId:'999',replyReference:{author:{display:'姐姐'},replyTo:{display:'月迟'}}};
   assert.deepEqual(currentMentionNames(message,context),['泡椒']);
+  assert.deepEqual(currentMentionNames({content:'<@999> 你好',mentions:[{id:'999',bot:true,username:'红豆粉小酒馆'}]},{botId:'999'}),[]);
   assert.ok(currentMentionNames({...message,content:'这是谁',mentions:[]},context).includes('月迟'));
 });
 import { DiscordGateway } from "./discord-gateway.mjs";
