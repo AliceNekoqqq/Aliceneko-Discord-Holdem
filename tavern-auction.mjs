@@ -1,13 +1,15 @@
 import {validId} from './tavern-catalog.mjs';
-import {AUCTION_ITEMS,auctionCatalogFor} from './tavern-auction-data.mjs';
+import {AUCTION_ITEMS,auctionCatalogFor,scaleAuctionValue} from './tavern-auction-data.mjs';
 import {AUCTION_RATE,auctionAmount} from './tavern-auction-currency.mjs';
 import {layoutAuction,auctionBoardView} from './tavern-auction-board.mjs';
 
+// Legacy constants also bound old controls; new sessions use the tier configuration.
 export const AUCTION_BUDGET=200*AUCTION_RATE,AUCTION_FEE=10*AUCTION_RATE,AUCTION_TTL=30*60_000,AUCTION_READY_TTL=15*60_000;
 export const AUCTION_TIERS=Object.freeze(Object.fromEntries([
  ['small','小额',0.25],['standard','常规',1],['high','高额',3],['collection','典藏',10]
-].map(([id,name,scale])=>[id,Object.freeze({name,scale,budget:AUCTION_BUDGET*scale,fee:AUCTION_FEE*scale})])));
-export const AUCTION_MAX_BUDGET=AUCTION_TIERS.collection.budget;
+].map(([id,name,scale])=>[id,Object.freeze({name,scale,budget:AUCTION_BUDGET*.5*scale,fee:AUCTION_FEE*.1*scale})])));
+// Historical collection sessions may still have a 200M escrow.
+export const AUCTION_MAX_BUDGET=Math.max(AUCTION_TIERS.collection.budget,2000*AUCTION_RATE);
 export const AUCTION_QUALITIES=Object.freeze(['白','绿','蓝','紫','金','红']);
 export const AUCTION_ROLES=Object.freeze({
  sophie:{name:'索菲',skill:'首轮随机获知5件品质，此后每轮再获知2件未知品质。'},
@@ -31,7 +33,7 @@ export function generateAuction(random=auctionRandom,unit=AUCTION_RATE,catalog=A
  return Array.from({length:8},()=>{
   let ticket=random(100),quality=0;
   while(ticket>=weights[quality])ticket-=weights[quality++];
-  const pool=catalog.filter(x=>x.quality===quality),item=pool[random(pool.length)];return {...item,value:item.value*unit/AUCTION_RATE};
+  const pool=catalog.filter(x=>x.quality===quality),item=pool[random(pool.length)];return {...item,value:scaleAuctionValue(item.value,unit)};
  });
 }
 export function revealAuction(items,info,role,round,random=auctionRandom){
@@ -52,15 +54,17 @@ export function estimateAuction(info,unit=AUCTION_RATE,catalog=AUCTION_ITEMS,wei
   let value=0,weight=0;
   for(const c of options){
    const prior=weights[c.quality]/counts[c.quality],w=info.highCount===null?prior:prior*(c.quality>=3?info.highCount/2:(8-info.highCount)/6);
-   value+=c.value*unit/AUCTION_RATE*w;weight+=w;
+   // Do not price an unconfirmed jackpot as guaranteed money in the repriced pool.
+   const quoted=catalog===AUCTION_ITEMS&&x.quality===null&&c.quality===5?Math.min(c.value,20*AUCTION_RATE):c.value;
+   value+=scaleAuctionValue(quoted,unit)*w;weight+=w;
   }
   return sum+(weight?value/weight:0);
  },0);
 }
-export function npcAuctionBid(info,round,style,random=auctionRandom,unit=AUCTION_RATE,catalog=AUCTION_ITEMS,weights=AUCTION_QUALITY_WEIGHTS){
+export function npcAuctionBid(info,round,style,random=auctionRandom,unit=AUCTION_RATE,catalog=AUCTION_ITEMS,weights=AUCTION_QUALITY_WEIGHTS,budget=(catalog===AUCTION_ITEMS?100:200)*unit){
  if(random(12)===0)return 0;
  const factor=[0.78,0.94,1.08][style]*(0.64+round*0.06)*(0.90+random(21)/100);
- return Math.min(200*unit,Math.max(1,Math.floor(estimateAuction(info,unit,catalog,weights)*factor)));
+ return Math.min(budget,Math.max(1,Math.floor(estimateAuction(info,unit,catalog,weights)*factor)));
 }
 export function decideAuction(round,bids,priority,budget=AUCTION_BUDGET){
  if(!Number.isInteger(round)||round<1||round>5||bids.length!==4||bids.some(b=>!Number.isInteger(b)||b<0||b>budget)||priority.length!==4||new Set(priority).size!==4||priority.some(x=>!Number.isInteger(x)||x<0||x>3))throw Error('无效竞拍回合。');
@@ -97,7 +101,7 @@ export class TavernAuction {
   const roles=[state.role,'sophie','gabriella','viktor'];
   roles.forEach((role,i)=>revealAuction(state.items,state.infos[i],role,state.round,this.random));
   // Commit opponents before receiving the human's sealed offer, then persist with the round.
-  state.committed=state.infos.slice(1).map((info,i)=>npcAuctionBid(info,state.round,i,this.random,state.unit??(state.currency==='auction'?AUCTION_RATE:1),auctionCatalogFor(state.catalogVersion),sessionWeights(state)));
+  state.committed=state.infos.slice(1).map((info,i)=>npcAuctionBid(info,state.round,i,this.random,state.unit??(state.currency==='auction'?AUCTION_RATE:1),auctionCatalogFor(state.catalogVersion),sessionWeights(state),state.budget??200));
  }
  present(p,row,now,repeated=false){
   const state=row?.state?JSON.parse(row.state):null,settled=row?.status==='settled';
@@ -110,7 +114,7 @@ export class TavernAuction {
   // Whitelist: hidden catalog identities, prices and opponent information never leave the guild DO.
   return {balance:revealing?null:this.tavern.auctionCurrency.balance(p.id),tavernBalance:this.tavern.one('SELECT balance FROM tavern_members WHERE id=?',p.id).balance,stats,repeated,
    offerToken:!state||settled?this.ready(p,now):null,
-   session:state?{currency:state.currency||'tavern',dropVersion:state.dropVersion??1,tier:state.tier||'standard',catalogSize:auctionCatalogFor(state.catalogVersion).length,estimate:Math.floor(estimateAuction(state.infos[0],state.unit??(state.currency==='auction'?AUCTION_RATE:1),auctionCatalogFor(state.catalogVersion),sessionWeights(state))),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel,status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,history:state.history,result,info:state.infos[0],items,board:auctionBoardView(state,row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
+   session:state?{currency:state.currency||'tavern',catalogVersion:state.catalogVersion??1,dropVersion:state.dropVersion??1,tier:state.tier||'standard',catalogSize:auctionCatalogFor(state.catalogVersion).length,estimate:Math.floor(estimateAuction(state.infos[0],state.unit??(state.currency==='auction'?AUCTION_RATE:1),auctionCatalogFor(state.catalogVersion),sessionWeights(state))),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel,status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,history:state.history,result,info:state.infos[0],items,board:auctionBoardView(state,row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
  }
  view(p,now=Date.now()){
   this.validate(p);let answer;
@@ -138,7 +142,7 @@ export class TavernAuction {
    if(active){if(JSON.parse(active.state).expires<=now)this.forfeit(active,JSON.parse(active.state),now,'expired');else throw Error('你已有一局竞拍，请先恢复或结束该局。');}
    if(row.created_at+AUCTION_READY_TTL<=now)throw Error('开局窗口已过期，请刷新；尚未扣币。');
    if(this.tavern.auctionCurrency.balance(p.id)<budget+fee)throw Error(`需要${auctionAmount((budget+fee)/10000)}万竞拍币：${auctionAmount(budget/10000)}万预算及${auctionAmount(fee/10000)}万入场费，请先用酒馆币兑换。`);
-   const state={currency:'auction',catalogVersion:3,dropVersion:2,tier,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateAuction(this.random,AUCTION_RATE*scale),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},emptyInfo),history:[]};
+   const state={currency:'auction',catalogVersion:4,dropVersion:2,tier,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateAuction(this.random,AUCTION_RATE*scale),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},emptyInfo),history:[]};
    state.board=layoutAuction(state.items,row.token);
    if(p.presentation==='warehouse'){state.opened=0;state.revealOrder=state.board.map((_,i)=>i).sort((a,b)=>state.board[a].y-state.board[b].y||state.board[a].x-state.board[b].x);}
    this.stage(state);
@@ -172,7 +176,7 @@ export class TavernAuction {
  }
  forfeit(row,state,now,reason){while(row.status==='active')this.advance(row,state,0,now,reason);}
  bid(p,now=Date.now()){
-  if(!Number.isSafeInteger(p.bid)||p.bid<0||p.bid>AUCTION_MAX_BUDGET||!Number.isInteger(p.round)||p.round<1||p.round>5)throw Error('报价须为本局预算内的整数，最高200,000,000；0表示本轮不出价。');let answer;
+  if(!Number.isSafeInteger(p.bid)||p.bid<0||p.bid>AUCTION_MAX_BUDGET||!Number.isInteger(p.round)||p.round<1||p.round>5)throw Error('报价须为本局预算内的整数；0表示本轮不出价。');let answer;
   this.storage.transactionSync(()=>{
    const row=this.load(p);if(row.status==='ready')throw Error('请先选择能力开始。');const state=JSON.parse(row.state);
    if(p.bid>(state.budget??200))throw Error(state.currency==='auction'?'报价超出本局竞拍币预算。':'这是旧版酒馆币局，报价上限仍为200酒馆币。');

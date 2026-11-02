@@ -1,0 +1,188 @@
+{
+  "warehouseSamples": 120000,
+  "independentSeedGroups": 60000,
+  "strategyRollouts": 480000,
+  "samplesPerRoleModel": 20000,
+  "seedScheme": "SplitMix32 with rejection, 0x7102026 + index*0x85ebca6b + role*0x27d4eb2d",
+  "sampleUnit": "independent seed groups; old/new model pairs and policies reuse the same warehouse seed and are correlated",
+  "hiddenInformationUsed": false,
+  "productionParity": "first 100 samples per role/model checked against real estimator and NPC functions with identical random tapes",
+  "moments": [
+    {
+      "quality": 0,
+      "count": 28,
+      "min": 3626,
+      "max": 14586,
+      "mean": 7177.392857142857,
+      "byArea": [
+        {
+          "area": 1,
+          "count": 14,
+          "mean": 4266.642857142857
+        },
+        {
+          "area": 2,
+          "count": 7,
+          "mean": 7639.714285714285
+        },
+        {
+          "area": 4,
+          "count": 7,
+          "mean": 12536.57142857143
+        }
+      ]
+    },
+    {
+      "quality": 1,
+      "count": 26,
+      "min": 8840,
+      "max": 38144,
+      "mean": 18950.03846153846,
+      "byArea": [
+        {
+          "area": 1,
+          "count": 13,
+          "mean": 11452.923076923076
+        },
+        {
+          "area": 2,
+          "count": 7,
+          "mean": 20962.428571428572
+        },
+        {
+          "area": 4,
+          "count": 6,
+          "mean": 32846
+        }
+      ]
+    },
+    {
+      "quality": 2,
+      "count": 29,
+      "min": 26917,
+      "max": 145330,
+      "mean": 61057.93103448276,
+      "byArea": [
+        {
+          "area": 1,
+          "count": 15,
+          "mean": 35372.13333333333
+        },
+        {
+          "area": 2,
+          "count": 7,
+          "mean": 65196.42857142857
+        },
+        {
+          "area": 4,
+          "count": 7,
+          "mean": 111960.42857142857
+        }
+      ]
+    },
+    {
+      "quality": 3,
+      "count": 29,
+      "min": 80577,
+      "max": 378883,
+      "mean": 170297.7931034483,
+      "byArea": [
+        {
+          "area": 1,
+          "count": 15,
+          "mean": 103721.73333333334
+        },
+        {
+          "area": 2,
+          "count": 7,
+          "mean": 158760.85714285713
+        },
+        {
+          "area": 4,
+          "count": 7,
+          "mean": 324497.71428571426
+        }
+      ]
+    },
+    {
+      "quality": 4,
+      "count": 28,
+      "min": 342711,
+      "max": 1664877,
+      "mean": 769728.4285714285,
+      "byArea": [
+        {
+          "area": 1,
+          "count": 14,
+          "mean": 459833.5
+        },
+        {
+          "area": 2,
+          "count": 7,
+          "mean": 712102.2857142857
+        },
+        {
+          "area": 4,
+          "count": 7,
+          "mean": 1447144.4285714286
+        }
+      ]
+    },
+    {
+      "quality": 5,
+      "count": 52,
+      "min": 3851506,
+      "max": 55604181,
+      "mean": 11482357.134615384,
+      "byArea": [
+        {
+          "area": 1,
+          "count": 26,
+          "mean": 7524248.461538462
+        },
+        {
+          "area": 2,
+          "count": 13,
+          "mean": 8388697.76923077
+        },
+        {
+          "area": 4,
+          "count": 13,
+          "mean": 22492233.846153848
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Only 4 fixed strategies; no exhaustive strategy search or human play test",
+    "Model pairs and policy rollouts share warehouse seeds and are correlated",
+    "Viktor is weaker under sampled reference-bid strategies; abilities unchanged",
+    "Positive sample mean is not guaranteed or risk-free profit"
+  ],
+  "results": [
+    {"model": "casino.9", "role": "sophie", "policy": "reference80", "samples": 20000, "meanNetT": -1.6747938134999836, "ci95": [-2.1090032827769023, -1.2405843442230648], "medianNetT": -10, "p01NetT": -12.2, "p95NetT": 65, "p99NetT": 152, "profitRate": 0.0977, "winRate": 0.1153, "capTieRate": 0.32245, "warehouseMeanT": 208.524, "redWarehouseRate": 0.07935},
+    {"model": "casino.9", "role": "sophie", "policy": "reference95", "samples": 20000, "meanNetT": 0.1889468955000324, "ci95": [-0.29273158544326344, 0.6706253764433283], "medianNetT": -10, "p01NetT": -52, "p95NetT": 73, "p99NetT": 153, "profitRate": 0.19335, "winRate": 0.338, "capTieRate": 0.4156, "warehouseMeanT": 208.524, "redWarehouseRate": 0.07935},
+    {"model": "casino.9", "role": "sophie", "policy": "maximum", "samples": 20000, "meanNetT": -21.92035, "ci95": [-22.66357076999547, -21.177129230004528], "medianNetT": -10, "p01NetT": -132, "p95NetT": 73, "p99NetT": 153, "profitRate": 0.1867, "winRate": 0.67395, "capTieRate": 0.5236, "warehouseMeanT": 208.524, "redWarehouseRate": 0.07935},
+    {"model": "casino.9", "role": "sophie", "policy": "wait3reference95", "samples": 20000, "meanNetT": -0.2527080724999876, "ci95": [-0.7239748133380733, 0.21855866833809812], "medianNetT": -10, "p01NetT": -50, "p95NetT": 71, "p99NetT": 152, "profitRate": 0.17955, "winRate": 0.30985, "capTieRate": 0.3924, "warehouseMeanT": 208.524, "redWarehouseRate": 0.07935},
+    {"model": "casino.9", "role": "gabriella", "policy": "reference80", "samples": 20000, "meanNetT": -1.233569453000003, "ci95": [-1.677228481790234, -0.7899104242097719], "medianNetT": -10, "p01NetT": -10, "p95NetT": 68, "p99NetT": 156, "profitRate": 0.1002, "winRate": 0.11205, "capTieRate": 0.3172, "warehouseMeanT": 208.25695, "redWarehouseRate": 0.0736},
+    {"model": "casino.9", "role": "gabriella", "policy": "reference95", "samples": 20000, "meanNetT": -0.08065861600001663, "ci95": [-0.5745492245844317, 0.41323199258439847], "medianNetT": -10, "p01NetT": -64.14551, "p95NetT": 73, "p99NetT": 156, "profitRate": 0.2066, "winRate": 0.37145, "capTieRate": 0.39845, "warehouseMeanT": 208.25695, "redWarehouseRate": 0.0736},
+    {"model": "casino.9", "role": "gabriella", "policy": "maximum", "samples": 20000, "meanNetT": -22.0149, "ci95": [-22.76397983806428, -21.26582016193572], "medianNetT": -10, "p01NetT": -133, "p95NetT": 73, "p99NetT": 157, "profitRate": 0.18985, "winRate": 0.67775, "capTieRate": 0.52065, "warehouseMeanT": 208.25695, "redWarehouseRate": 0.0736},
+    {"model": "casino.9", "role": "gabriella", "policy": "wait3reference95", "samples": 20000, "meanNetT": 0.12550773549998995, "ci95": [-0.33917972092018894, 0.5901951919201689], "medianNetT": -10, "p01NetT": -46.87456, "p95NetT": 69, "p99NetT": 154, "profitRate": 0.1934, "winRate": 0.33275, "capTieRate": 0.37405, "warehouseMeanT": 208.25695, "redWarehouseRate": 0.0736},
+    {"model": "casino.9", "role": "viktor", "policy": "reference80", "samples": 20000, "meanNetT": -1.9716991275000473, "ci95": [-2.409435940507992, -1.5339623144921026], "medianNetT": -10, "p01NetT": -36, "p95NetT": 62, "p99NetT": 155, "profitRate": 0.10655, "winRate": 0.14945, "capTieRate": 0.3607, "warehouseMeanT": 208.05845, "redWarehouseRate": 0.0762},
+    {"model": "casino.9", "role": "viktor", "policy": "reference95", "samples": 20000, "meanNetT": -3.670352905000055, "ci95": [-4.147120414615733, -3.1935853953843774], "medianNetT": -10, "p01NetT": -66.97999, "p95NetT": 64, "p99NetT": 155, "profitRate": 0.13945, "winRate": 0.29915, "capTieRate": 0.3707, "warehouseMeanT": 208.05845, "redWarehouseRate": 0.0762},
+    {"model": "casino.9", "role": "viktor", "policy": "maximum", "samples": 20000, "meanNetT": -21.77485, "ci95": [-22.52244165489746, -21.027258345102542], "medianNetT": -10, "p01NetT": -131, "p95NetT": 74, "p99NetT": 159, "profitRate": 0.19095, "winRate": 0.68045, "capTieRate": 0.521, "warehouseMeanT": 208.05845, "redWarehouseRate": 0.0762},
+    {"model": "casino.9", "role": "viktor", "policy": "wait3reference95", "samples": 20000, "meanNetT": -3.765811408999957, "ci95": [-4.224225659277612, -3.307397158722302], "medianNetT": -10, "p01NetT": -63.06333, "p95NetT": 60, "p99NetT": 152, "profitRate": 0.12835, "winRate": 0.2663, "capTieRate": 0.3468, "warehouseMeanT": 208.05845, "redWarehouseRate": 0.0762},
+    {"model": "casino.10", "role": "sophie", "policy": "reference80", "samples": 20000, "meanNetT": -0.31039730350000716, "ci95": [-0.6287437862403868, 0.007949179240372473], "medianNetT": -1, "p01NetT": -40.83843, "p95NetT": -0.43335, "p99NetT": 40.42804, "profitRate": 0.0442, "winRate": 0.1911, "capTieRate": 0.00725, "warehouseMeanT": 19.5799879165, "redWarehouseRate": 0.07935},
+    {"model": "casino.10", "role": "sophie", "policy": "reference95", "samples": 20000, "meanNetT": -0.44378166350000203, "ci95": [-0.7975062769561283, -0.09005705004387571], "medianNetT": -1, "p01NetT": -43.80166, "p95NetT": 3.28946, "p99NetT": 48.834, "profitRate": 0.0752, "winRate": 0.3309, "capTieRate": 0.01145, "warehouseMeanT": 19.5799879165, "redWarehouseRate": 0.07935},
+    {"model": "casino.10", "role": "sophie", "policy": "maximum", "samples": 20000, "meanNetT": -82.35598412850071, "ci95": [-82.93548365897006, -81.77648459803136], "medianNetT": -92.23365, "p01NetT": -99.88957, "p95NetT": -26.55792, "p99NetT": 60.91724, "profitRate": 0.0261, "winRate": 0.99285, "capTieRate": 0.0137, "warehouseMeanT": 19.5799879165, "redWarehouseRate": 0.07935},
+    {"model": "casino.10", "role": "sophie", "policy": "wait3reference95", "samples": 20000, "meanNetT": -1.128783187999998, "ci95": [-1.2801285337667538, -0.9774378422332424], "medianNetT": -1, "p01NetT": -8.88234, "p95NetT": -0.96567, "p99NetT": 7.44468, "profitRate": 0.0404, "winRate": 0.21305, "capTieRate": 0.0047, "warehouseMeanT": 19.5799879165, "redWarehouseRate": 0.07935},
+    {"model": "casino.10", "role": "gabriella", "policy": "reference80", "samples": 20000, "meanNetT": 0.30314904099999773, "ci95": [0.025192904008028538, 0.5811051779919669], "medianNetT": -1, "p01NetT": -5.93018, "p95NetT": 0.25912, "p99NetT": 16.2062, "profitRate": 0.053, "winRate": 0.13455, "capTieRate": 0.00635, "warehouseMeanT": 18.997655019499998, "redWarehouseRate": 0.0736},
+    {"model": "casino.10", "role": "gabriella", "policy": "reference95", "samples": 20000, "meanNetT": -0.18891344250000613, "ci95": [-0.4765206761992602, 0.09869379119924793], "medianNetT": -1, "p01NetT": -8.49562, "p95NetT": 0.94971, "p99NetT": 18.57754, "profitRate": 0.0729, "winRate": 0.34665, "capTieRate": 0.0067, "warehouseMeanT": 18.997655019499998, "redWarehouseRate": 0.0736},
+    {"model": "casino.10", "role": "gabriella", "policy": "maximum", "samples": 20000, "meanNetT": -82.89560853099958, "ci95": [-83.46128674489864, -82.32993031710052], "medianNetT": -92.3123, "p01NetT": -99.93121, "p95NetT": -33.94069, "p99NetT": 54.48737, "profitRate": 0.0243, "winRate": 0.9928, "capTieRate": 0.01265, "warehouseMeanT": 18.997655019499998, "redWarehouseRate": 0.0736},
+    {"model": "casino.10", "role": "gabriella", "policy": "wait3reference95", "samples": 20000, "meanNetT": -0.579642606999998, "ci95": [-0.7433007964624003, -0.4159844175375957], "medianNetT": -1, "p01NetT": -4.03038, "p95NetT": 0.0738, "p99NetT": 2.82072, "profitRate": 0.0524, "winRate": 0.17915, "capTieRate": 0.0031, "warehouseMeanT": 18.997655019499998, "redWarehouseRate": 0.0736},
+    {"model": "casino.10", "role": "viktor", "policy": "reference80", "samples": 20000, "meanNetT": -1.1261409744999988, "ci95": [-1.2134308954991564, -1.0388510535008413], "medianNetT": -1, "p01NetT": -7.55147, "p95NetT": -1, "p99NetT": -0.13538, "profitRate": 0.0095, "winRate": 0.0894, "capTieRate": 0.0006, "warehouseMeanT": 18.753459210000003, "redWarehouseRate": 0.0762},
+    {"model": "casino.10", "role": "viktor", "policy": "reference95", "samples": 20000, "meanNetT": -1.7744466925000004, "ci95": [-1.895804456637444, -1.653088928362557], "medianNetT": -1, "p01NetT": -11.6702, "p95NetT": -1, "p99NetT": 1.82216, "profitRate": 0.01585, "winRate": 0.24055, "capTieRate": 0.0006, "warehouseMeanT": 18.753459210000003, "redWarehouseRate": 0.0762},
+    {"model": "casino.10", "role": "viktor", "policy": "maximum", "samples": 20000, "meanNetT": -82.96866117050021, "ci95": [-83.52208123485968, -82.41524110614074], "medianNetT": -92.38848, "p01NetT": -99.87074, "p95NetT": -31.14377, "p99NetT": 54.08306, "profitRate": 0.0238, "winRate": 0.9936, "capTieRate": 0.0124, "warehouseMeanT": 18.753459210000003, "redWarehouseRate": 0.0762},
+    {"model": "casino.10", "role": "viktor", "policy": "wait3reference95", "samples": 20000, "meanNetT": -1.3851030620000018, "ci95": [-1.4074994357216404, -1.3627066882783632], "medianNetT": -1, "p01NetT": -7.47318, "p95NetT": -1, "p99NetT": -0.76808, "profitRate": 0.0065, "winRate": 0.131, "capTieRate": 0.0006, "warehouseMeanT": 18.753459210000003, "redWarehouseRate": 0.0762}
+  ]
+}

@@ -1,6 +1,7 @@
 import {AUCTION_RATE} from './tavern-auction-currency.mjs';
 import expansion from './assets/auction-art/expansion-v1.json' with {type:'json'};
 import additional from './assets/auction-art/expansion-v2.json' with {type:'json'};
+import prices from './assets/auction-art/prices-v1.json' with {type:'json'};
 // Original 24 names: approved Gemini job casino-auction-copy-20261102-v1.
 // Added 48 names and captions: authored directly per the user's no-Gemini request.
 // Original tavern catalog. Values, categories, shapes and drop weights are our adaptation.
@@ -23,10 +24,16 @@ export const AUCTION_ITEMS_V2=Object.freeze([...AUCTION_ITEMS_LEGACY,...expansio
  return Object.freeze({id:`tavern-${x.quality}-${x.slot+4}`,name:x.name,flavor:x.flavor,quality:x.quality,category:x.category,width:shapes[i][0],height:shapes[i][1],value:(values[x.quality][i]+delta)*AUCTION_RATE});
 })]);
 // Preserve the 72-item pool for games opened before the 192-item expansion.
-export const AUCTION_ITEMS=Object.freeze([...AUCTION_ITEMS_V2,...additional.map(x=>Object.freeze({
+export const AUCTION_ITEMS_V3=Object.freeze([...AUCTION_ITEMS_V2,...additional.map(x=>Object.freeze({
  id:x.id,name:x.name,flavor:x.flavor,quality:x.quality,category:x.category,width:x.width,height:x.height,value:x.valueT*AUCTION_RATE
 }))]);
-export const auctionCatalogFor=version=>version===3?AUCTION_ITEMS:version===2?AUCTION_ITEMS_V2:AUCTION_ITEMS_LEGACY;
+const priceById=new Map(prices.items.map(x=>[x.id,x.value]));
+export const AUCTION_ITEMS=Object.freeze(AUCTION_ITEMS_V3.map(item=>{
+ const value=priceById.get(item.id);if(!Number.isSafeInteger(value)||value<1)throw Error('藏品价格表不完整。');
+ return Object.freeze({...item,value});
+}));
+export const auctionCatalogFor=version=>version===4?AUCTION_ITEMS:version===3?AUCTION_ITEMS_V3:version===2?AUCTION_ITEMS_V2:AUCTION_ITEMS_LEGACY;
+export const scaleAuctionValue=(value,unit=AUCTION_RATE)=>Math.floor(value*unit/AUCTION_RATE);
 export function auctionCatalogPage(quality,page=0){
  if(!Number.isInteger(quality)||quality<0||quality>5||!Number.isInteger(page)||page<0)throw Error('无效图鉴页。');
  const pool=AUCTION_ITEMS.filter(x=>x.quality===quality),pages=Math.ceil(pool.length/12);
