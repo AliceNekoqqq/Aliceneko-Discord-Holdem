@@ -12,6 +12,7 @@ import {cityCommand,cityInteraction,finishCity} from './city-ui.mjs';
 import {RedPackets,packetCard,finishRedPacket} from './red-packet.mjs';
 import {marriageCommand,completeMarriageInteraction} from './marriage.mjs';
 import {serveArt} from './tavern-art.mjs';
+import {serveAuctionArt} from './tavern-auction-art.mjs';
 import {servePetArt} from './pet-art.mjs';
 import {servePetWalkArt} from './pet-walk-map.mjs';
 import {LiarController} from './liar-controller.mjs';
@@ -264,7 +265,7 @@ export class PokerTable extends DurableObject {
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
       if(payload.op==='unoRank'){try{return json(await this.rankings.dispatch(payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.5',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
+      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.6',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
       if(payload.op==='registrationDiagnostics')return json(await this.ctx.storage.get('commandDiagnostics')||{registered:false,unchecked:true});
       if(payload.op==='register'){
         try{return json(await registerCommands(this.env,this.ctx.storage,[command,unoCommand,ghostCommand,liarCommand,duelCommand,devilCommand,aiCommand,tavernCommand,rogueCommand,cityCommand,marriageCommand],COMMAND_VERSION));}catch{return json({registered:false});}
@@ -428,6 +429,7 @@ async function handle(request,env,ctx){
   if(/^\/art\/flowers\/(rose|sunflower|gypsophila|mixed|shop-background)\.jpg$/.test(path))return env.ASSETS?env.ASSETS.fetch(request):new Response('Not found',{status:404});
   if(path.startsWith('/art/pet-walk/'))return servePetWalkArt(request,env);
   if(path.startsWith('/art/pets/'))return servePetArt(request,env);
+  if(path.startsWith('/art/auction/'))return serveAuctionArt(request,env);
   if(path.startsWith('/art/'))return serveArt(request,env);
   if(path==='/health'&&request.method==='GET'){
     const health=await env.TABLES.get(env.TABLES.idFromName('system-health')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'health'})});

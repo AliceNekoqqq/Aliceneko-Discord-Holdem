@@ -3,6 +3,7 @@
 import hashlib
 import json
 import re
+import runpy
 import shutil
 from pathlib import Path
 
@@ -111,6 +112,7 @@ def main():
             raise FileNotFoundError(f"Run the renderer atlas builder first: {source}")
         publish(source, f"art/renderer/{name}", "application/octet-stream")
 
+    runpy.run_path(str(ROOT / 'scripts/build-auction-art.py'))['build']()
     all_public = list(PUBLIC.rglob("*"))
     files = [path for path in all_public if path.is_file()]
     totals["images"] = len(files)
