@@ -977,3 +977,7 @@ PR #71初始特性63e1965a2cb8beb5701edf24eadad8f7822a5855；首次CI41466144258
 ### casino.9 独立物件配色修订（2026-11-02，待发布）
 
 用户指出不能按品质给本体统一上色。旧72件以新v4路径重绘，新120件的b/c两批48件调整自然材质与各自配色，a/d/e经目检保留；品质色只用于UI。8张新增/修订源图4752292字节，逐图真实alpha透明，逐件配色记录palettes-v4.json。v1/v2源图/PNG/图集字节及URL保持，manifest.previousItems保留旧72路由。重建192件主图集，实际图鉴/仓库重新渲染，专项与Worker主文件61/61通过；尚待最终CI和部署。
+
+### casino.9 藏品192件与独立配色发布回执（2026-11-02，已发布）
+
+PR #72特性5da6040ccffdc409b2816ff385b84bd1ec041f4c，完整PR CI41480968350成功；合并484fe7a7f0498f710f87e1b2c82c793a17ed351e，main完整检查及部署41481271948成功。CF部署946eec3d-a561-41b4-b13a-7d98fd4bd622、版本c13e788e-7966-4504-8fa4-baf117e1876a接收100%；15bindings及settings全部字段前后保持。实际浏览器health确认casino.9、ok/ready:true、Gateway connected/ready:true、identity1运行指纹匹配；命令schema仍casino3/registered:true，failures/missing/pending为空。正式新增v3雷达、修订v4撤回键与旧v2/v1 PNG均256×256可打开，独立配色正确。 最终实现26文件2849已知文本行增删，8张WebP4752292字节单列核验；最终源码树9360299f3aca2a11c770d3e059d68ca89a142232与本地一致。发布前盲拍+Worker主文件61/61及离线打包通过，完整CI成功，无跳过检查或修改工作流。未操作玩家钱包或发测试消息。功能/发布闭环，真人Discord手感待试玩，不重复部署。
