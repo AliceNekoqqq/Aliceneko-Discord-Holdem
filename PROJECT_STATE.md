@@ -900,3 +900,10 @@
 开局10币费用与200币暂存预算，5轮暗标、严格倍率2/1.6/1.3/1.1、末轮最高正价、开局随机公布平局优先顺序，无分红，拍中物品按冻结值自动结算。同步事务保护费用/预算/退回/折算流水与状态；每服每人最多一活跃局，频道绑定，30分钟后重新打开或重试即可以余轮弃权完成结算。已保存报价同轮不可改价、重复请求不重复计费；已知线索白名单返回，NPC信息/报价与未开仓身份价值不出DO。
 
 本地受影响范围：酒馆265/265、Worker92/92通过，含真实Ed25519签名从命令进入、自填模态报价和重复提交；补充预算全额花费、过期重试/退款并修正展示后，盲拍14/14通过。PNG未知字段和开仓图已目检，字体构建含新增文字。Gemini任务casino-auction-copy-20261102-v1仅批准并导出24件藏品及3个NPC名称，其余气氛短句未采用。当前未合并/部署/真人试玩，下一步CI及发布核验。
+
+
+### 单人仓库盲拍发布回执（2026-11-02）
+
+PR #65（特性提交b6de123135dafb6b35e17b1d19fec217bfe4e9ad）完整CI41412480524成功，合并cc7936ac6f38d08eb753b4d91465171e3e1ced26；main完整检查及发布41412693757成功。Wrangler dry-run通过，仅有已有tavern-building重复z键提示。CF部署dab2456e-8792-4749-9cc7-ab1d63234aaa / 版本771d446a-f30b-4a7d-9391-e672a09e4f7b接收100%，15bindings及settings所有字段前后完全相同；未改模型、人设、Secrets、D1/DO、迁移或Cron。
+
+本环境shell公开health读取403，搜索抓取也不可达；Cloudflare接口可核验部署/配置但不提供该HTTP健康页，因此使用浏览器直接核验。浏览器一次刷新超时后重取原tab成功：health为casino.2、ok/ready:true，Gateway connected/ready:true，实际/预期chatRuntime均为chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity1；commands注册版本games-city2-flower-panel-duel-roulette-marriage2-casino2，registered:true，failures/missing/pending空。未动真人钱包或发测试消息，真人Discord交互待用户试玩。发布闭环已完成，不重复部署。
