@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import {board as pokerBoard} from './ui.mjs';
 import {marriageCommand} from './marriage.mjs';
 import { readFile } from 'node:fs/promises';
+import {DatabaseSync} from 'node:sqlite';
+import {TavernService} from './tavern-service.mjs';
+import {TavernSlots} from './tavern-slots.mjs';
 const source=(await readFile(new URL('./worker.mjs',import.meta.url),'utf8')).replace("import { DurableObject } from 'cloudflare:workers';","class DurableObject {constructor(ctx,env){this.ctx=ctx;this.env=env;}}").replace("'./engine.mjs'",JSON.stringify(new URL('./engine.mjs',import.meta.url).href)).replace("'./computer.mjs'",JSON.stringify(new URL('./computer.mjs',import.meta.url).href)).replace("'./ui.mjs'",JSON.stringify(new URL('./ui.mjs',import.meta.url).href)).replace("'./private-panels.mjs'",JSON.stringify(new URL('./private-panels.mjs',import.meta.url).href)).replace("'./lifecycle.mjs'",JSON.stringify(new URL('./lifecycle.mjs',import.meta.url).href));
 const preparedSource=source.replaceAll("'./uno-engine.mjs'",JSON.stringify(new URL('./uno-engine.mjs',import.meta.url).href)).replaceAll("'./board-sync.mjs'",JSON.stringify(new URL('./board-sync.mjs',import.meta.url).href)).replaceAll("'./uno-controller.mjs'",JSON.stringify(new URL('./uno-controller.mjs',import.meta.url).href)).replaceAll("'./uno-ui.mjs'",JSON.stringify(new URL('./uno-ui.mjs',import.meta.url).href));
 const {default:worker,PokerTable}=await import('data:text/javascript;base64,'+Buffer.from(preparedSource.replace(/from '(\.\/[^']+)'/g,(_,p)=>`from ${JSON.stringify(new URL(p,import.meta.url).href)}`)).toString('base64'));
@@ -91,7 +94,7 @@ test('signed Discord flow, private cards, stale click, duplicate, modal, timeout
  const call=async(data)=>{const i={application_id:'123',guild_id:'3',channel_id:'2',id:String(++counter),token:'transient-secret',member:{user:{id:'1'},permissions:'0'},...data};const body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');const ctx=context();const r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);await Promise.all(ctx.tasks);return {reply:await r.json(),i};};
  const unsigned=await worker.fetch(new Request('https://test/interactions',{method:'POST',body:'{}'}),env,context());assert.equal(unsigned.status,401);
  const hidden=await worker.fetch(new Request('https://test/.env'),env,context());assert.equal(hidden.status,404);
- const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity1'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
+ const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.1',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity1'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
  assert.deepEqual((await call({type:1})).reply,{type:1});
  const create={type:2,data:{name:'德州',options:[{name:'创建'}]}};
  let {reply:b}=await call(create);assert.equal(b.type,4);assert(!JSON.stringify(b).includes(env.BOT_TOKEN));
@@ -320,6 +323,23 @@ test('private interactions acknowledge only; latest hand refresh travels encrypt
  const refresh=await call(3,{custom_id:key('p~1~hand')},'1',{id:'888',flags:64});assert.deepEqual(refresh,{type:6});
 });
 
+
+test('signed single-player slots open privately and settle once through the guild wallet, without a game table',async t=>{
+ const db=new DatabaseSync(':memory:');t.after(()=>db.close());const map=new Map(),names=[],deliveries=[];
+ const storage={sql:{exec(q,...a){const s=db.prepare(q);if(s.columns().length)return {toArray:()=>s.all(...a)};s.run(...a);return {toArray:()=>[]};}},transactionSync(fn){db.exec('BEGIN');try{const r=fn();db.exec('COMMIT');return r;}catch(e){db.exec('ROLLBACK');throw e;}},get:async k=>map.get(k),put:async(k,v)=>map.set(k,v)};
+ const service=new TavernService(storage);service._slots=new TavernSlots(service,()=>9);
+ const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);
+ const env={DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex'),TABLES:{idFromName:n=>n,get:n=>{names.push(n);return {fetch:async(url,o)=>{assert.equal(n,'tavern:3');const p=JSON.parse(o.body);assert.equal(p.op,'tavern');return Response.json(await service.dispatch(p));}};}}};
+ t.mock.method(globalThis,'fetch',async(url,o)=>{assert(url.includes('/webhooks/123/'));const data=o.body instanceof FormData?JSON.parse(o.body.get('payload_json')):JSON.parse(o.body);deliveries.push(data);return Response.json({});});
+ const call=async(data)=>{const i={type:2,application_id:'123',id:crypto.randomUUID(),token:'transient-slots',guild_id:'3',channel_id:'2',member:{user:{id:'1'}},data:{name:'酒馆',options:[{name:'老虎机'}]},...data};const body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');const ctx=context(),r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);await Promise.all(ctx.tasks);return r.json();};
+ assert.deepEqual(await call(),{type:5,data:{flags:64}});
+ const spin=deliveries.at(-1).components[0].components[0].custom_id;
+ const click={type:3,message:{flags:64},data:{custom_id:spin}};
+ assert.deepEqual(await call(click),{type:6});assert(deliveries.at(-1).content.includes('返还 1000'));
+ await call(click);assert.equal(service.member('1').balance,1490);assert.equal(service.slots.view({guild:'3',id:'1',channel:'2'}).stats.plays,1);
+ const calls=names.length,bad=await call({...click,member:{user:{id:'4'}}});assert.equal(bad.type,4);assert.equal(names.length,calls);
+ assert(names.every(n=>n==='tavern:3'));assert(deliveries.every(d=>d.allowed_mentions.parse.length===0));
+});
 
 test('signed red packet clicks route to guild wallet and acknowledge privately, bypassing active game tables',async t=>{
  const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);const ctx=context(),rpc=[],patches=[];
