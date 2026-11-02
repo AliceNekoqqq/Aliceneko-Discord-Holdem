@@ -907,3 +907,12 @@
 PR #65（特性提交b6de123135dafb6b35e17b1d19fec217bfe4e9ad）完整CI41412480524成功，合并cc7936ac6f38d08eb753b4d91465171e3e1ced26；main完整检查及发布41412693757成功。Wrangler dry-run通过，仅有已有tavern-building重复z键提示。CF部署dab2456e-8792-4749-9cc7-ab1d63234aaa / 版本771d446a-f30b-4a7d-9391-e672a09e4f7b接收100%，15bindings及settings所有字段前后完全相同；未改模型、人设、Secrets、D1/DO、迁移或Cron。
 
 本环境shell公开health读取403，搜索抓取也不可达；Cloudflare接口可核验部署/配置但不提供该HTTP健康页，因此使用浏览器直接核验。浏览器一次刷新超时后重取原tab成功：health为casino.2、ok/ready:true，Gateway connected/ready:true，实际/预期chatRuntime均为chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity1；commands注册版本games-city2-flower-panel-duel-roulette-marriage2-casino2，registered:true，failures/missing/pending空。未动真人钱包或发测试消息，真人Discord交互待用户试玩。发布闭环已完成，不重复部署。
+
+
+## 竞拍币双向兑换 casino.3（2026-11-02，本地完成）
+
+用户要求竞拍币独立及双向兑换，以更大数额接近原作量级。用户追加“20万也太少了”，已放大到2000万竞拍币预算。本轮固定1酒馆币⇄100,000竞拍币、免手续费，独立SQLite钱包及流水，初始0；兑换按整数酒馆币数量填写，竞拍币零头原样保留。5分钟本人/频道兑换token，重复同方向同数额返回原收据，不同数额/方向拒绝。双方钱包/流水/收据同步事务，余额不足、溢出、跨频道重复透支、写失败均不移动资金，不贡献建设值或每日奖励额度。
+
+新局20,000,000预算/1,000,000费用、物价×100,000，支持单个竞拍币报价及8位输入；结算/退款仅进竞拍币钱包，暂存预算不可提前换回。旧currency缺失的casino.2局保持200酒馆币预算/10费，后续NPC按旧单位估值/上限，已有仓库及封存报价/收据不重抽；旧结算进酒馆币，新旧统计分币种。新增 `/酒馆 竞拍币`、大厅/钱包/盲拍内兑换入口及固定汇率说明。
+
+本地酒馆272/272、Worker92/92通过，含20个盲拍/汇兑专项测试；真实签名兑换→开局→八位报价→重试链路、旧局正常结算/过期、双方账本写失败回滚、兑换零头、不可兑换暂存预算、两频道同时兑换超支保护、未知线索不泄漏均覆盖。760×1000竞拍币PNG已目检。当前待dry-run、PR/完整CI和发布；不改生产Secrets/人设/模型/DO/D1/迁移标签/Cron，不操作真实玩家余额。

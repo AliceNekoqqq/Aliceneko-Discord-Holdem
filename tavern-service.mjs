@@ -7,6 +7,7 @@ import {PetService} from './pet-service.mjs';
 import {UGCService} from './tavern-ugc-service.mjs';
 import {TavernSlots} from './tavern-slots.mjs';
 import {TavernAuction} from './tavern-auction.mjs';
+import {TavernAuctionCurrency} from './tavern-auction-currency.mjs';
 
 export class TavernService {
  constructor(storage){
@@ -28,6 +29,7 @@ export class TavernService {
  get operations(){return this._operations??=new TavernOperations(this);}
  get pets(){return this._pets??=new PetService(this);}
  get ugc(){return this._ugc??=new UGCService(this);}
+ get auctionCurrency(){return this._auctionCurrency??=new TavernAuctionCurrency(this);}
  get auction(){return this._auction??=new TavernAuction(this);}
  get slots(){return this._slots??=new TavernSlots(this);}
  rows(q,...args){return this.sql.exec(q,...args).toArray();}
@@ -46,7 +48,7 @@ export class TavernService {
   const member=this.member(id,name,now),daily=this.one('SELECT earned FROM tavern_daily WHERE user_id=? AND day=?',id,dayKey(now));
   const dailyGiftClaimed=!!this.one('SELECT id FROM tavern_ledger WHERE id=?',`dailyGift:${id}:${dayKey(now)}`);
   this.operations.visit(id,member.name,now);
-  return {member,menu:this.operations.menu(now),lockedMenu:this.operations.lockedMenu(),dailyGiftClaimed,dailyGiftAvailable:dailyGiftClaimed?0:Math.max(0,Math.min(DAILY_GIFT_COINS,DAILY_REWARD_CAP-(daily?.earned||0))),earned:daily?.earned||0,cap:DAILY_REWARD_CAP,orders:this.rows('SELECT * FROM tavern_orders WHERE user_id=? OR json_extract(details,\'$.recipientId\')=? ORDER BY at DESC LIMIT 5',id,id).map(o=>({...o,details:JSON.parse(o.details)})),ledger:this.rows('SELECT amount,kind,note,at FROM tavern_ledger WHERE user_id=? ORDER BY at DESC LIMIT 6',id),frequent:this.one('SELECT item,COUNT(*) AS count FROM tavern_orders WHERE user_id=? AND price>0 AND json_extract(details,\'$.recipientId\') IS NULL GROUP BY item ORDER BY count DESC,MAX(at) DESC LIMIT 1',id),count:this.one('SELECT COUNT(*) AS n FROM tavern_orders WHERE user_id=? OR json_extract(details,\'$.recipientId\')=?',id,id)?.n||0};
+  return {member,auctionBalance:this.auctionCurrency.balance(id),menu:this.operations.menu(now),lockedMenu:this.operations.lockedMenu(),dailyGiftClaimed,dailyGiftAvailable:dailyGiftClaimed?0:Math.max(0,Math.min(DAILY_GIFT_COINS,DAILY_REWARD_CAP-(daily?.earned||0))),earned:daily?.earned||0,cap:DAILY_REWARD_CAP,orders:this.rows('SELECT * FROM tavern_orders WHERE user_id=? OR json_extract(details,\'$.recipientId\')=? ORDER BY at DESC LIMIT 5',id,id).map(o=>({...o,details:JSON.parse(o.details)})),ledger:this.rows('SELECT amount,kind,note,at FROM tavern_ledger WHERE user_id=? ORDER BY at DESC LIMIT 6',id),frequent:this.one('SELECT item,COUNT(*) AS count FROM tavern_orders WHERE user_id=? AND price>0 AND json_extract(details,\'$.recipientId\') IS NULL GROUP BY item ORDER BY count DESC,MAX(at) DESC LIMIT 1',id),count:this.one('SELECT COUNT(*) AS n FROM tavern_orders WHERE user_id=? OR json_extract(details,\'$.recipientId\')=?',id,id)?.n||0};
  }
  claimDaily(id,name,now=Date.now()){
   if(!validId(id))throw Error('请打开自己的酒馆钱包。');
@@ -167,6 +169,7 @@ export class TavernService {
  async dispatch(p){
   if(!validId(p.guild))throw Error('无效服务器。');
   const bound=await this.storage.get('tavernGuild');if(bound&&bound!==p.guild)throw Error('服务器不匹配。');if(!bound)await this.storage.put('tavernGuild',p.guild);
+  if(p.action?.startsWith('auctionExchange'))return this.auctionCurrency.dispatch(p);
   if(p.action?.startsWith('auction'))return this.auction.dispatch(p);
   if(p.action?.startsWith('slots'))return this.slots.dispatch(p);
   if(p.action?.startsWith('flower'))return (this.flowerShop??=new FlowerShop(this)).dispatch(p);
