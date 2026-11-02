@@ -930,3 +930,10 @@ PR #65（特性提交b6de123135dafb6b35e17b1d19fec217bfe4e9ad）完整CI41412480
 用户审查后“继续吧/继续继续”，本轮落实已确认F1和F2两个局部修复。F1将竞拍币schema初始化前移到TavernAuction构造、游戏资金事务之外；冷旧ready开局不足资金后，不再因DDL回滚留下无表的缓存服务。测试先复现no such table再转为通过，继续验证普通酒馆钱包、兑换与再次开局可用、余额正确。F2保持原服务幂等收据不变，在界面处理旧已结算局重试时额外只读当前局，恢复新局面板并提示历史净变化/结算余额；旧报价、旧开局、旧离场重试均不动当前局状态或账本。
 
 专项22/22通过；修复门为两个Local Fix Only，核心3文件共46行增删，scope检查无警告。预算/费用/汇率、NPC和物价不变，不处理经济定位风险。运行版本casino.4用于部署识别；命令schema无改动，COMMAND_VERSION保持casino3。酒馆274/274、Worker92/92及Wrangler dry-run通过；待PR/完整CI和部署核验；不修改生产玩家数据。
+
+
+### casino.4 审查缺陷修复发布回执（2026-11-02）
+
+PR #67特性提交eae3d6d65f26ba00d97613a6a726c4c25a3e198f，完整CI41434836360成功；合并43970c5b53ba24726e8f7344f83f0d9ae268ac56。main完整检查及部署41435005706成功。CF部署fc2ca05f-1135-4280-9371-05af0d4e3f63 / 版本5a3894f6-825d-4cfe-a0c0-f45f4d72306c接收100%；15bindings及settings全部字段前后完全一致。浏览器实际health为casino.4、ok/ready:true、Gateway connected/ready:true，实际/预期identity1聊天指纹一致；命令schema未变，因此注册版本保持casino3，registered:true且failures/missing/pending空。
+
+最终本地专项22/22、酒馆274/274、Worker92/92、Wrangler dry-run通过；两个新回归分别先失败再修复通过。F1和F2资金/幂等/旧局行为保持，仅恢复初始化后可用性和当前面板选择。预算、汇率、费用、物品、NPC无调整；模型/人设/Secrets/D1/DO/迁移标签/Cron未改。不动真实玩家余额或发送测试消息，真人Discord体验待用户试玩。当前修复发布完成，不重复发布；经济定位另行决定。
