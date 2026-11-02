@@ -1,5 +1,5 @@
 import {validId} from './tavern-catalog.mjs';
-import {AUCTION_ITEMS,AUCTION_ITEMS_LEGACY} from './tavern-auction-data.mjs';
+import {AUCTION_ITEMS,auctionCatalogFor} from './tavern-auction-data.mjs';
 import {AUCTION_RATE,auctionAmount} from './tavern-auction-currency.mjs';
 import {layoutAuction,auctionBoardView} from './tavern-auction-board.mjs';
 
@@ -97,7 +97,7 @@ export class TavernAuction {
   const roles=[state.role,'sophie','gabriella','viktor'];
   roles.forEach((role,i)=>revealAuction(state.items,state.infos[i],role,state.round,this.random));
   // Commit opponents before receiving the human's sealed offer, then persist with the round.
-  state.committed=state.infos.slice(1).map((info,i)=>npcAuctionBid(info,state.round,i,this.random,state.unit??(state.currency==='auction'?AUCTION_RATE:1),state.catalogVersion===2?AUCTION_ITEMS:AUCTION_ITEMS_LEGACY,sessionWeights(state)));
+  state.committed=state.infos.slice(1).map((info,i)=>npcAuctionBid(info,state.round,i,this.random,state.unit??(state.currency==='auction'?AUCTION_RATE:1),auctionCatalogFor(state.catalogVersion),sessionWeights(state)));
  }
  present(p,row,now,repeated=false){
   const state=row?.state?JSON.parse(row.state):null,settled=row?.status==='settled';
@@ -110,7 +110,7 @@ export class TavernAuction {
   // Whitelist: hidden catalog identities, prices and opponent information never leave the guild DO.
   return {balance:revealing?null:this.tavern.auctionCurrency.balance(p.id),tavernBalance:this.tavern.one('SELECT balance FROM tavern_members WHERE id=?',p.id).balance,stats,repeated,
    offerToken:!state||settled?this.ready(p,now):null,
-   session:state?{currency:state.currency||'tavern',dropVersion:state.dropVersion??1,tier:state.tier||'standard',catalogSize:state.catalogVersion===2?AUCTION_ITEMS.length:AUCTION_ITEMS_LEGACY.length,estimate:Math.floor(estimateAuction(state.infos[0],state.unit??(state.currency==='auction'?AUCTION_RATE:1),state.catalogVersion===2?AUCTION_ITEMS:AUCTION_ITEMS_LEGACY,sessionWeights(state))),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel,status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,history:state.history,result,info:state.infos[0],items,board:auctionBoardView(state,row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
+   session:state?{currency:state.currency||'tavern',dropVersion:state.dropVersion??1,tier:state.tier||'standard',catalogSize:auctionCatalogFor(state.catalogVersion).length,estimate:Math.floor(estimateAuction(state.infos[0],state.unit??(state.currency==='auction'?AUCTION_RATE:1),auctionCatalogFor(state.catalogVersion),sessionWeights(state))),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel,status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,history:state.history,result,info:state.infos[0],items,board:auctionBoardView(state,row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
  }
  view(p,now=Date.now()){
   this.validate(p);let answer;
@@ -138,7 +138,7 @@ export class TavernAuction {
    if(active){if(JSON.parse(active.state).expires<=now)this.forfeit(active,JSON.parse(active.state),now,'expired');else throw Error('你已有一局竞拍，请先恢复或结束该局。');}
    if(row.created_at+AUCTION_READY_TTL<=now)throw Error('开局窗口已过期，请刷新；尚未扣币。');
    if(this.tavern.auctionCurrency.balance(p.id)<budget+fee)throw Error(`需要${auctionAmount((budget+fee)/10000)}万竞拍币：${auctionAmount(budget/10000)}万预算及${auctionAmount(fee/10000)}万入场费，请先用酒馆币兑换。`);
-   const state={currency:'auction',catalogVersion:2,dropVersion:2,tier,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateAuction(this.random,AUCTION_RATE*scale),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},emptyInfo),history:[]};
+   const state={currency:'auction',catalogVersion:3,dropVersion:2,tier,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateAuction(this.random,AUCTION_RATE*scale),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},emptyInfo),history:[]};
    state.board=layoutAuction(state.items,row.token);
    if(p.presentation==='warehouse'){state.opened=0;state.revealOrder=state.board.map((_,i)=>i).sort((a,b)=>state.board[a].y-state.board[b].y||state.board[a].x-state.board[b].x);}
    this.stage(state);

@@ -1,0 +1,75 @@
+{
+  "source": "https://bidking.site/data/items",
+  "source_kind": "community-reference-not-official",
+  "data_version": "2026.10.29",
+  "observed_date": "2026-11-02",
+  "inspection": "Browser tab7; loaded until 已显示全部734条; 734 unique item links; 显示不可掉落 unchecked",
+  "index_total": 809,
+  "visible_droppable_total": 734,
+  "all_quality_counts": [
+    105,
+    96,
+    107,
+    108,
+    103,
+    215
+  ],
+  "excluded_chests": [
+    5,
+    5,
+    4,
+    5,
+    3,
+    27
+  ],
+  "excluded_currency": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    1
+  ],
+  "collection_total": 684,
+  "collection_quality_counts": [
+    100,
+    91,
+    103,
+    103,
+    100,
+    187
+  ],
+  "special_collection_subset": 10,
+  "quality_order": [
+    "白",
+    "绿",
+    "蓝",
+    "紫",
+    "金",
+    "红"
+  ],
+  "adapted_count": 192,
+  "adapted_quality_counts": [
+    28,
+    26,
+    29,
+    29,
+    28,
+    52
+  ],
+  "rounding": "Hamilton largest remainder",
+  "drop_rates_are_separate": true,
+  "adapted_drop_percent": [
+    30,
+    25,
+    20,
+    13,
+    11,
+    1
+  ],
+  "source_limitations": [
+    "Community index, not an official complete drop table",
+    "Different maps have different drops; catalogue counts do not imply drop probabilities",
+    "809 index entries include records excluded by default droppable filter; 734 displayed and inspected"
+  ]
+}
