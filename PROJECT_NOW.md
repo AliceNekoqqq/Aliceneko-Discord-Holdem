@@ -1,9 +1,9 @@
-## 单人老虎机 casino.1（2026-11-02，待同步发布）
+## 单人老虎机 casino.1（2026-11-02，已发布）
 
 - 本轮只做单人老虎机；指令为 `/酒馆 老虎机`，详情 docs/casino/SLOTS.md。大厅/钱包按钮打开本人私密面板，10/20/50币，单线三列；樱桃/啤酒/红豆/铃铛/钻石/蝴蝶三连返还4/10/15/30/50/100倍，两同退本金；穷举1000种停点确认95%理论返还率。
 - SQLite事务原子扣发与流水；本人/频道/服务器校验，15分钟窗口，跨频道2.5秒开局间隔，同token重复/重启恢复原结果。配图或Discord发送失败不重抽；不计入每日到店及多人奖励上限、不贡献装修值。
 - 本地酒馆252/252、Worker91/91（含新增真实签名路由）通过；Wrangler dry-run通过，840×460原生转轮PNG已目检，字体构建纳入新增中文。Gemini界面短句任务casino-slots-ui-20261102-v1已审查approved。
-- 版本追加.casino.1，不占灯下迷城beta号；wrangler、模型、Secrets、人设、DO/D1、迁移和Cron未改。GitHub/生产尚未更新，下一步PR检查、合并与线上核验；真人Discord未验证。
+- 版本追加.casino.1，不占灯下迷城beta号；wrangler、模型、Secrets、人设、DO/D1、迁移和Cron未改。PR #64完整CI41403524160通过并合并a7f2dbbdb528e03e905a03fab7f7d83bfdf110f3，main完整检查及发布41403670802成功。CF部署7d31f7dd-6113-445c-b07c-99597c27419e，版本59c75343-2699-404b-8a26-882916e8031a接收100%；15 bindings及完整settings前后完全一致。公开health确认.casino.1、ready:true、Gateway正常；commands注册版本casino1/registered:true/pending空，实际命令schema已匹配。未使用真人钱包做线上下注或发测试消息；下一步由用户在Discord试玩，不重复发布。
 
 ## 用户识别小修（2026-10-23，已发布）
 

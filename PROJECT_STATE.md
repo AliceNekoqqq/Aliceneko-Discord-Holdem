@@ -886,3 +886,8 @@
 - 53项聊天回归通过，覆盖A/B切换、同名/改名、个人/共享去重、两种适配器、引用对象与安全降级；最后仅调整来源协议措辞后4项相关回归再次通过。相同线上密钥、模型、人设的固定虚构场景真实API两次验证：B问自己的猫名时明确未知并把桃子归给A（10190ms）；B问A的猫名时正确回答桃子（4493ms）。不读取用户记忆，不向Discord发送测试消息。以上为固定样例，不保证所有自然模型输出。
 - GitHub源码/测试/协议已更新。Cloudflare版本91292782-07c7-41ed-8f67-2e2262af568c以100%发布，38模块保留，3个修改模块读回逐字符一致，Secret/D1/DO等11个绑定仍存在。实际Gateway已读回chat90-participant-context-v3，connected=true、connecting=false，确认正在运行的Discord连接已切换；临时诊断Worker删除HTTP200。固定模型场景验证通过，真人新消息的归属效果仍需由线上请求/回发核验。
 
+
+
+## 2026-11-02 单人老虎机 casino.1
+
+用户明确只做单人并先做老虎机。实现、概率、账本与恢复契约见docs/casino/SLOTS.md；11项新增专项、酒馆252/252、Worker91/91及PNG目检、dry-run通过。PR #64检查41403524160通过，合并a7f2dbbdb528e03e905a03fab7f7d83bfdf110f3；main检查与部署41403670802成功。生产部署7d31f7dd-6113-445c-b07c-99597c27419e / 版本59c75343-2699-404b-8a26-882916e8031a为100%，settings与15bindings完全一致。公开health确认casino.1、ready与Gateway正常，指令注册casino1已匹配，无pending。Gemini短句任务casino-slots-ui-20261102-v1已approved。没有实际向玩家钱包下注、发测试消息，真人Discord尚待用户验收。下次从反馈继续，不重复开发或发布。
