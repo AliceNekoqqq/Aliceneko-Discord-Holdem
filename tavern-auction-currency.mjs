@@ -1,7 +1,7 @@
 import {validId} from './tavern-catalog.mjs';
 export const AUCTION_RATE=100_000;
 export const EXCHANGE_TTL=5*60_000,EXCHANGE_MAX=1_000_000;
-export const auctionAmount=n=>Number(n).toLocaleString('en-US');
+export const auctionAmount=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:5});
 export class TavernAuctionCurrency {
  constructor(tavern){
   this.tavern=tavern;this.sql=tavern.sql;this.storage=tavern.storage;

@@ -1,0 +1,61 @@
+{
+  "source": "https://bidking.site/data/items",
+  "source_kind": "community-not-official",
+  "data_version": "2026.10.29",
+  "observed_date": "2026-11-03",
+  "method": "Full rendered table, 734 droppable rows; remove 49 chests and 1 currency; separate 10 special collectibles. Medians average the two middle observations for even sample sizes. Use base price, not live exchange price.",
+  "regular_collectibles": 674,
+  "quality_order": [
+    "白",
+    "绿",
+    "蓝",
+    "紫",
+    "金",
+    "红"
+  ],
+  "regular_counts": [
+    100,
+    91,
+    103,
+    103,
+    100,
+    177
+  ],
+  "one_cell_counts": [
+    50,
+    32,
+    31,
+    20,
+    22,
+    37
+  ],
+  "one_cell_medians": [
+    155,
+    402,
+    1260,
+    3380,
+    15087.5,
+    158550
+  ],
+  "regular_min": [
+    107,
+    252,
+    711,
+    2100,
+    7800,
+    52500
+  ],
+  "regular_max": [
+    902,
+    5129,
+    14659,
+    31688,
+    199900,
+    13145200
+  ],
+  "caveats": [
+    "Unweighted catalogue statistics, not map drop statistics",
+    "Currency scale, appraisal adjustments and area exponent are our adaptation",
+    "Special small treasures may cost more than large ordinary items"
+  ]
+}
