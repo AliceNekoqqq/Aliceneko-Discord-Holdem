@@ -5,7 +5,7 @@ import {writeFile} from 'node:fs/promises';
 import {TavernService} from './tavern-service.mjs';
 import {TavernAuction,AUCTION_QUALITY_WEIGHTS,AUCTION_LEGACY_WEIGHTS,AUCTION_TIERS,AUCTION_MAX_BUDGET,AUCTION_TTL,AUCTION_READY_TTL,auctionRandom,generateAuction,revealAuction,estimateAuction,npcAuctionBid,decideAuction} from './tavern-auction.mjs';
 import {AUCTION_RATE as R,EXCHANGE_TTL,EXCHANGE_MAX,TavernAuctionCurrency} from './tavern-auction-currency.mjs';
-import {AUCTION_ITEMS,AUCTION_ITEMS_LEGACY} from './tavern-auction-data.mjs';
+import {AUCTION_ITEMS,AUCTION_ITEMS_V2,AUCTION_ITEMS_LEGACY,auctionCatalogPage,auctionCatalogFor} from './tavern-auction-data.mjs';
 import {createHash} from 'node:crypto';
 import {auctionData,auctionRules,auctionCatalog} from './tavern-auction-ui.mjs';
 import {currencyData} from './tavern-auction-currency-ui.mjs';
@@ -60,8 +60,8 @@ test('strict early-win boundaries, integer bids, final ties and all-pass auction
  for(const [r,b,p]of [[0,[0,0,0,0],[0,1,2,3]],[5,[(200*R+1),0,0,0],[0,1,2,3]],[5,[0,0,0,0],[0,1,1,3]]])assert.throws(()=>decideAuction(r,b,p));
  assert.throws(()=>decideAuction(1,[201,0,0,0],[0,1,2,3],200));
 });
-test('72-item catalog values scale by 100000 while independent generation and unbiased sampling stay intact',()=>{
- assert.equal(AUCTION_ITEMS.length,72);assert.equal(new Set(AUCTION_ITEMS.map(x=>x.id)).size,72);
+test('192-item catalog values scale by 100000 while independent generation and unbiased sampling stay intact',()=>{
+ assert.equal(AUCTION_ITEMS.length,192);assert.equal(new Set(AUCTION_ITEMS.map(x=>x.id)).size,192);
  assert(generateAuction(n=>n-1).every(x=>x.quality===5&&x.value===cash(150)));assert.equal(AUCTION_ITEMS[0].value,(4*R));
  const original=crypto.getRandomValues;let k=0;try{crypto.getRandomValues=a=>{a[0]=k++?4294967289:4294967295;return a;};assert.equal(auctionRandom(10),9);assert.equal(k,2);}finally{crypto.getRandomValues=original;}
 });
@@ -82,26 +82,58 @@ test('pre-rarity 72-item sessions preserve their original prior, committed quote
  const e=setup(t),opened=open(e.auction),token=opened.session.token;
  assert.equal(opened.session.dropVersion,2);
  const state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
- delete state.dropVersion;state.items=Array.from({length:8},()=>({...AUCTION_ITEMS[0]}));
+ delete state.dropVersion;state.catalogVersion=2;state.items=Array.from({length:8},()=>({...AUCTION_ITEMS[0]}));
  const clues=(count,shape=false)=>({highCount:null,items:state.items.map((_,i)=>({quality:i<count?0:null,width:shape&&i<count?1:null,height:shape&&i<count?1:null}))});
  state.infos=[clues(5),clues(5),clues(2,true),{...clues(0),highCount:0}];state.committed=[100*R,100*R,100*R];
  e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
  const before=e.auction.view(base,1004);assert.equal(before.session.dropVersion,1);assert.equal(before.session.catalogSize,72);
- assert.equal(before.session.estimate,Math.floor(estimateAuction(state.infos[0],R,AUCTION_ITEMS,AUCTION_LEGACY_WEIGHTS)));
+ assert.equal(before.session.estimate,Math.floor(estimateAuction(state.infos[0],R,AUCTION_ITEMS_V2,AUCTION_LEGACY_WEIGHTS)));
  assert(auctionData(before,'3','1').content.includes('本局沿用旧掉率：红4% / 金8%'));
  assert.deepEqual(JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state).committed,state.committed);
  const next=e.auction.bid({...base,token,round:1,bid:100*R},1005);assert.equal(next.session.status,'active');
  const raw=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
- const expected=raw.infos.slice(1).map((info,j)=>npcAuctionBid(info,2,j,n=>n-1,R,AUCTION_ITEMS,AUCTION_LEGACY_WEIGHTS));
+ const expected=raw.infos.slice(1).map((info,j)=>npcAuctionBid(info,2,j,n=>n-1,R,AUCTION_ITEMS_V2,AUCTION_LEGACY_WEIGHTS));
  assert.deepEqual(raw.committed,expected);
  assert.notDeepEqual(raw.committed,raw.infos.slice(1).map((info,j)=>npcAuctionBid(info,2,j,n=>n-1,R)));
  assert.deepEqual(raw.items,state.items);
+});
+test('the 192-item pool follows the inspected source proportions and preserves quality means without changing drops',async()=>{
+ assert.deepEqual(AUCTION_ITEMS.slice(0,72),AUCTION_ITEMS_V2);
+ assert.equal(auctionCatalogFor(1),AUCTION_ITEMS_LEGACY);assert.equal(auctionCatalogFor(2),AUCTION_ITEMS_V2);assert.equal(auctionCatalogFor(3),AUCTION_ITEMS);
+ const reference=JSON.parse(await readFile(new URL('./docs/casino/BIDKING_POOL_REFERENCE.json',import.meta.url)));
+ assert.equal(reference.collection_quality_counts.reduce((s,n)=>s+n),684);
+ const quotas=reference.collection_quality_counts.map(n=>n*192/684),target=quotas.map(Math.floor);
+ const ranked=quotas.map((n,q)=>({q,rest:n-target[q]})).sort((a,b)=>b.rest-a.rest||a.q-b.q);
+ for(let n=0,left=192-target.reduce((a,b)=>a+b);n<left;n++)target[ranked[n].q]++;
+ assert.deepEqual(target,[28,26,29,29,28,52]);
+ const seen=new Set(),tickets=[0,30,55,75,88,99];
+ for(let q=0;q<6;q++){
+  const pool=AUCTION_ITEMS.filter(x=>x.quality===q),old=AUCTION_ITEMS_V2.filter(x=>x.quality===q);
+  assert.equal(pool.length,target[q]);assert.equal(pool.reduce((s,x)=>s+x.value,0)/pool.length,old.reduce((s,x)=>s+x.value,0)/old.length);
+  for(let slot=0;slot<pool.length;slot++){let calls=0;for(const item of generateAuction(()=>calls++%2===0?tickets[q]:slot))seen.add(item.id);}
+ }
+ assert.equal(seen.size,192);assert.equal(new Set(AUCTION_ITEMS.map(x=>x.name)).size,192);
+ assert.equal(Math.max(...AUCTION_ITEMS.map(x=>x.value))/R,300);assert.equal(AUCTION_ITEMS.filter(x=>x.value===300*R).length,1);
+ for(const x of AUCTION_ITEMS.slice(72)){assert(x.flavor&&[...x.flavor].length<=18);assert(!('visual'in x));assert(!('pack'in x));assert(Number.isSafeInteger(x.value));}
+});
+test('casino.8 games with red 1 percent retain the 72-item footprint prior and future sealed bids',t=>{
+ const e=setup(t),s=open(e.auction,'gabriella'),token=s.session.token;
+ const state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state),item=AUCTION_ITEMS_V2.find(x=>x.quality===2&&x.width===1&&x.height===2);
+ state.catalogVersion=2;state.items=Array.from({length:8},()=>({...item}));state.infos=Array.from({length:4},()=>({highCount:null,items:state.items.map(x=>({quality:x.quality,width:x.width,height:x.height}))}));state.committed=[100*R,100*R,100*R];
+ e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
+ const before=e.auction.view(base,1004);assert.equal(before.session.catalogSize,72);assert.equal(before.session.dropVersion,2);assert.equal(before.session.estimate,176*R);
+ assert.notEqual(before.session.estimate,Math.floor(estimateAuction(state.infos[0])));
+ const ledger=e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n;
+ e.auction.bid({...base,token,round:1,bid:100*R},1005);
+ const next=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
+ assert.deepEqual(next.committed,next.infos.slice(1).map((info,j)=>npcAuctionBid(info,2,j,n=>n-1,R,AUCTION_ITEMS_V2)));
+ assert.deepEqual(next.items,state.items);assert.equal(e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n,ledger);
 });
 test('expansion preserves quality/footprint probabilities and conditional means while adding genuine price variance',()=>{
  assert.deepEqual(AUCTION_ITEMS.slice(0,24),AUCTION_ITEMS_LEGACY);
  const weights=[30,25,20,13,8,4];let oldMean=0,newMean=0,oldSecond=0,newSecond=0;
  for(let q=0;q<6;q++){
-  const old=AUCTION_ITEMS_LEGACY.filter(x=>x.quality===q),now=AUCTION_ITEMS.filter(x=>x.quality===q);
+  const old=AUCTION_ITEMS_LEGACY.filter(x=>x.quality===q),now=AUCTION_ITEMS_V2.filter(x=>x.quality===q);
   assert.equal(now.length,12);
   for(const [w,h] of [[1,1],[1,2],[2,2]]){
    const a=old.filter(x=>x.width===w&&x.height===h),b=now.filter(x=>x.width===w&&x.height===h);
@@ -114,23 +146,28 @@ test('expansion preserves quality/footprint probabilities and conditional means 
   }
  }
  assert.equal(oldMean,newMean);assert(Math.abs(newMean*8-218.6)<1e-9);assert(newSecond>oldSecond);
- assert.equal(Math.min(...AUCTION_ITEMS.map(x=>x.value))/R,3);assert.equal(Math.max(...AUCTION_ITEMS.map(x=>x.value))/R,180);
+ assert.equal(Math.min(...AUCTION_ITEMS_V2.map(x=>x.value))/R,3);assert.equal(Math.max(...AUCTION_ITEMS_V2.map(x=>x.value))/R,180);
  for(const x of AUCTION_ITEMS.slice(24)){assert(x.flavor&&[...x.flavor].length<=18);assert(!Object.hasOwn(x,'visual'));}
- const seen=new Set();for(const ticket of [0,30,55,75,88,99])for(let slot=0;slot<12;slot++){let n=0;for(const x of generateAuction(limit=>n++%2===0?ticket:slot))seen.add(x.id);}
+ const seen=new Set();for(const ticket of [0,30,55,75,88,99])for(let slot=0;slot<12;slot++){let n=0;for(const x of generateAuction(limit=>n++%2===0?ticket:slot,R,AUCTION_ITEMS_V2))seen.add(x.id);}
  assert.equal(seen.size,72);
 });
-test('six catalog pages cover all items once and reject malformed or foreign controls',async t=>{
+test('all quality pages cover 192 items once, retain old controls and reject invalid pages',async t=>{
  const e=setup(t),env=envFor(e.tavern),seen=new Set();
- for(let page=0;page<6;page++){
-  const view=auctionCatalog('3','1',page);bounds(view);
-  for(const item of AUCTION_ITEMS){if(view.content.includes(`**${item.name}**`)){assert(!seen.has(item.id));seen.add(item.id);}}
-  const response=await answerTavern(env,i(`auctionCatalog~${page}`));bounds(response);assert(response._mapScene.bytes.length>1000);
-  assert.equal(response._mapScene.filename,`tavern-auction-catalog-${page}.png`);
+ for(let q=0;q<6;q++){
+  const {pages,count}=auctionCatalogPage(q);assert.equal(count,[28,26,29,29,28,52][q]);
+  for(let page=0;page<pages;page++){
+   const view=auctionCatalog('3','1',q,page);bounds(view);
+   for(const item of AUCTION_ITEMS){if(view.content.includes(`**${item.name}**`)){assert(!seen.has(item.id));seen.add(item.id);}}
+   const response=await answerTavern(env,i(`auctionCatalog~${q}~${page}`));bounds(response);assert(response._mapScene.bytes.length>1000);
+   assert.equal(response._mapScene.filename,`tavern-auction-catalog-${q}-${page}.png`);
+  }
+  bounds(await answerTavern(env,i(`auctionCatalog~${q}`)));
+  assert.equal(immediateTavernReply(i(`auctionCatalog~${q}~${pages}`)).type,4);
  }
- assert.equal(seen.size,72);
- for(const action of ['auctionCatalog~6','auctionCatalog~-1','auctionCatalog~00','auctionCatalog~1~x','auctionRulesx','auctionCatalogx'])assert.equal(immediateTavernReply(i(action)).type,4);
- for(const extra of [{member:{user:{id:'4'}}},{guild_id:'9'},{message:{flags:0}}])assert.equal(immediateTavernReply(i('auctionCatalog~5',extra)).type,4);
- assert.throws(()=>auctionCatalog('3','1',6));assert.throws(()=>auctionCatalog('3','1','1'));
+ assert.equal(seen.size,192);
+ for(const action of ['auctionCatalog~6','auctionCatalog~-1','auctionCatalog~00','auctionCatalog~1~x','auctionCatalog~5~5','auctionRulesx','auctionCatalogx'])assert.equal(immediateTavernReply(i(action)).type,4);
+ for(const extra of [{member:{user:{id:'4'}}},{guild_id:'9'},{message:{flags:0}}])assert.equal(immediateTavernReply(i('auctionCatalog~5~4',extra)).type,4);
+ assert.throws(()=>auctionCatalog('3','1',6));assert.throws(()=>auctionCatalog('3','1','1'));assert.throws(()=>auctionCatalog('3','1',1,3));
 });
 test('three information abilities reveal only stated fields and NPCs cannot read private warehouse data or a human bid',()=>{
  const items=AUCTION_ITEMS.slice(0,8),empty=()=>({highCount:null,items:items.map(()=>({quality:null,width:null,height:null}))});
@@ -311,6 +348,19 @@ test('every stake tier freezes proportional goods, information estimates and NPC
   if(tier==='collection')await writeFile('/tmp/tavern-auction-collection-result.png',await renderAuctionImage(end.session));
  }
 });
+test('new maximum-value collections settle above 32-bit amounts and cash out exact balances only once',async t=>{
+ const e=funded(t,5000),v=e.auction.view(base,1002),p={...base,token:v.offerToken,role:'sophie',tier:'collection'};
+ e.auction.start(p,1003);const row=e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',p.token),state=JSON.parse(row.state);
+ const top=AUCTION_ITEMS.find(x=>x.value===300*R);state.items=Array.from({length:8},()=>({...top,value:top.value*10}));state.board=layoutAuction(state.items,p.token);state.committed=[0,0,0];
+ e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),p.token);
+ const bid={...base,token:p.token,round:1,bid:1},end=e.auction.bid(bid,1004),ledger=e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n;
+ assert.equal(end.session.result.total,2400000000);assert.equal(end.balance,2889999999);bounds(auctionData(end,'3','1'));
+ const restored=new TavernAuction(new TavernService(e.storage),()=>{throw Error('rerolled');});assert.deepEqual(restored.bid(bid,1005).session.result,end.session.result);
+ assert.equal(e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n,ledger);
+ const fx=e.fx.view(base,1006),out=e.fx.convert({...base,token:fx.token,direction:'sell',amount:28899},1007);
+ assert.equal(out.tavernBalance,28899);assert.equal(out.auctionBalance,99999);
+ await writeFile('/tmp/auction9-max-receipt.png',await renderAuctionImage(end.session));
+});
 test('large-stake settlement, service restart, retries and bidirectional cashout preserve exact totals and dust',t=>{
  for(const [tier,config]of Object.entries(AUCTION_TIERS)){
   const e=funded(t,5000),v=e.auction.view(base,1002),s=e.auction.start({...base,token:v.offerToken,role:'sophie',tier},1003),token=s.session.token;
@@ -397,14 +447,14 @@ function cinematic(e,role='sophie'){
 }
 test('opening settles funds once, progressively discloses only opened objects and survives restart and duplicate clicks',t=>{
  const e=setup(t),s=cinematic(e),token=s.session.token;force(e,token,[40*R,50*R,60*R]);
- assert.equal(s.session.catalogSize,72);assert(!JSON.stringify(s).includes('flavor'));
+ assert.equal(s.session.catalogSize,192);assert(!JSON.stringify(s).includes('flavor'));
  const end=e.auction.bid({...base,token,round:1,bid:150*R},1004),wallet=e.fx.balance(base.id),ledger=e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n;
  assert.equal(wallet,1540*R);assert.equal(end.balance,null);assert.equal(end.session.reveal.count,0);assert(end.session.items.every(x=>x===null));
  for(const key of ['total','resale','net','balanceAfter'])assert(!Object.hasOwn(end.session.result,key));
  assert.equal(end.stats.net,0);const raw=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
  const positions=s.session.board.slots;const opened=e.auction.reveal({...base,token,step:0,all:false},1005);
  assert.equal(opened.session.reveal.count,1);assert.equal(opened.session.items.filter(Boolean).length,1);assert.equal(e.auction.reveal({...base,token,step:0,all:false},1006).session.reveal.count,1);
- assert.equal(opened.session.items.filter(Boolean)[0].flavor,'想撤回人生，先擦掉指纹。');
+ assert.equal(opened.session.items.filter(Boolean)[0].flavor,'正经方案不行，就用这个。');
  assert.throws(()=>e.auction.reveal({...base,token,step:3,all:false},1007),/进度已变化/);
  for(const extra of [{id:'4'},{channel:'4'},{step:-1},{all:'yes'}])assert.throws(()=>e.auction.reveal({...base,token,step:1,all:false,...extra},1008));
  const restored=new TavernAuction(new TavernService(e.storage),()=>{throw Error('reroll');});let result;
@@ -418,10 +468,10 @@ test('opening settles funds once, progressively discloses only opened objects an
  assert.deepEqual(restored.reveal({...base,token,step:0,all:true},1100).session.result,result.session.result);
  assert.equal(e.fx.balance(base.id),wallet);assert.equal(e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n,ledger);
 });
-test('warehouse UI next/all controls stay private, do not spoil results and produce 72 individual item images',async t=>{
+test('warehouse UI next/all controls stay private, do not spoil results and produce 192 individual item images',async t=>{
  const e=setup(t),env=envFor(e.tavern),start=await answerTavern(env,i()),s=await answerTavern(env,i(start.components[0].components[0].custom_id.split(':')[3]));bounds(s);
  const active=e.auction.view(base),token=active.session.token;assert.equal(e.auction.reveal instanceof Function,true);
- await writeFile('/tmp/auction7-clues.png',await renderAuctionImage(active.session));
+ await writeFile('/tmp/auction9-clues.png',await renderAuctionImage(active.session));
  assert.throws(()=>e.auction.reveal({...base,token,step:0,all:false}),/结束后/);
  force(e,token,[0,0,0]);const view=await answerTavern(env,i(`auctionBid~${token}~1~1`));bounds(view);
  assert(view.content.includes('开仓揭晓 0 / 8'));assert(!view.content.includes('本局净变化'));assert(!view.content.includes('始祖秘传配方'));
@@ -431,15 +481,17 @@ test('warehouse UI next/all controls stay private, do not spoil results and prod
  for(const extra of [{member:{user:{id:'4'}}},{guild_id:'9'},{message:{flags:0}}])assert.equal(immediateTavernReply(i(next,extra)).type,4);
  bounds(await answerTavern(env,i(next)));const first=e.auction.view(base);assert.equal(first.session.reveal.count,1);
  bounds(await answerTavern(env,i(next)));assert.equal(e.auction.view(base).session.reveal.count,1);
- await writeFile('/tmp/auction7-first-reveal.png',await renderAuctionImage(first.session));
+ await writeFile('/tmp/auction9-first-reveal.png',await renderAuctionImage(first.session));
  const all=`auctionReveal~${token}~1~all`;bounds(await answerTavern(env,i(all)));const done=e.auction.view(base);assert(done.session.reveal.complete);
- await writeFile('/tmp/auction7-open.png',await renderAuctionImage(done.session));
+ await writeFile('/tmp/auction9-open.png',await renderAuctionImage(done.session));
  const catalog=await answerTavern(env,i('auctionCatalog'));bounds(catalog);assert(catalog._mapScene.bytes.length>1000);
- await writeFile('/tmp/auction7-catalog.png',await renderAuctionCatalogImage());
- assert.equal(Object.keys(auctionArt.items).length,72);const signatures=new Set();
+ await writeFile('/tmp/auction9-catalog.png',await renderAuctionCatalogImage());
+ assert.equal(Object.keys(auctionArt.items).length,192);const signatures=new Set();
  for(const item of AUCTION_ITEMS){const record=auctionArt.items[item.id];assert(record);const bytes=await readFile(new URL('.'+record.path, new URL('./public/',import.meta.url)));assert.deepEqual([...bytes.slice(0,8)],[137,80,78,71,13,10,26,10]);signatures.add(Buffer.from(bytes).toString('hex'));}
- assert.equal(signatures.size,72);
+ assert.equal(signatures.size,192);
  const legacyAtlas=await readFile(new URL('./public/art/auction/sprites-v1.bin',import.meta.url)),legacyRed=await readFile(new URL('./public/art/auction/tavern-5-3-v1.png',import.meta.url));
  assert.equal(createHash('sha256').update(legacyAtlas).digest('hex'),'7aa7b328c729f325ba93b6459d203fbb4b98a3224b588b37a0c7624ad5391455');
  assert.equal(createHash('sha256').update(legacyRed).digest('hex'),'21652ddc510e20315fd15c7ea2e7477bbd8c03fb9b012d30e95d15f0e859917b');
+ const previousAtlas=await readFile(new URL('./public/art/auction/sprites-v2.bin',import.meta.url));
+ assert.equal(createHash('sha256').update(previousAtlas).digest('hex'),'792f0888fe084e93144fcc58dbf1ed1348ebf2830b6017cc3fcc2d4ab5cf88b2');
 });

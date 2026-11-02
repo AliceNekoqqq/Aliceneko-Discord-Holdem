@@ -1,0 +1,644 @@
+{
+  "principle": "Rarity colors belong only to UI borders/reveal indicators; props use independent natural materials and colors.",
+  "packs": [
+    {
+      "pack": "base",
+      "firstVariant": 0,
+      "output": "props-base-v4.webp",
+      "items": [
+        {
+          "id": "tavern-0-0",
+          "name": "旧软木垫",
+          "palette": "brown natural cork with old stains"
+        },
+        {
+          "id": "tavern-0-1",
+          "name": "磨损起子",
+          "palette": "brushed steel blade and medium walnut handle"
+        },
+        {
+          "id": "tavern-0-2",
+          "name": "素陶酒盅",
+          "palette": "warm ivory clay with a small dark green botanical motif"
+        },
+        {
+          "id": "tavern-0-3",
+          "name": "泛黄酿造笺",
+          "palette": "yellowed cream paper and faded brown binding"
+        },
+        {
+          "id": "tavern-1-0",
+          "name": "锡制调酒匙",
+          "palette": "natural tarnished silver tin"
+        },
+        {
+          "id": "tavern-1-1",
+          "name": "雕花火柴盒",
+          "palette": "rust-red and ochre printed matchbox, cream matches"
+        },
+        {
+          "id": "tavern-1-2",
+          "name": "粗织亚麻巾",
+          "palette": "sand linen with muted olive stripes"
+        },
+        {
+          "id": "tavern-1-3",
+          "name": "黄铜开酒器",
+          "palette": "naturally warm brass with dark cork"
+        },
+        {
+          "id": "tavern-2-0",
+          "name": "手工郁金香杯",
+          "palette": "clear transparent glass, subtle amber beer tint"
+        },
+        {
+          "id": "tavern-2-1",
+          "name": "陈年橡木捣棒",
+          "palette": "warm dark oak with visible end grain"
+        },
+        {
+          "id": "tavern-2-2",
+          "name": "留声机唱针",
+          "palette": "black cartridge, silver needle, one small vermilion accent"
+        },
+        {
+          "id": "tavern-2-3",
+          "name": "复古雕花冰夹",
+          "palette": "brushed stainless steel, pale ivory handle details"
+        },
+        {
+          "id": "tavern-3-0",
+          "name": "珐琅彩冷酒壶",
+          "palette": "ivory enamel with sparse cobalt floral decoration, dark iron rim"
+        },
+        {
+          "id": "tavern-3-1",
+          "name": "橡木桶侧板钟",
+          "palette": "natural oak staves and black iron bands, ivory clock face"
+        },
+        {
+          "id": "tavern-3-2",
+          "name": "手摇发条音盒",
+          "palette": "walnut case, dark teal lid inlay, brass mechanism"
+        },
+        {
+          "id": "tavern-3-3",
+          "name": "琉璃储酒罐",
+          "palette": "translucent sea-green glass with amber liquid and pewter lid"
+        },
+        {
+          "id": "tavern-4-0",
+          "name": "创始人签名桶",
+          "palette": "aged oak barrel, black iron hoops, pale wax seal"
+        },
+        {
+          "id": "tavern-4-1",
+          "name": "镀金开瓶器",
+          "palette": "actual brushed gold opener with ebony detail"
+        },
+        {
+          "id": "tavern-4-2",
+          "name": "纯银雕花酒具",
+          "palette": "actual engraved silver vessels, blackened recessed ornament"
+        },
+        {
+          "id": "tavern-4-3",
+          "name": "百年调酒手稿",
+          "palette": "old cream manuscript pages, brown leather spine"
+        },
+        {
+          "id": "tavern-5-0",
+          "name": "初代霓虹招牌",
+          "palette": "rusty dark iron frame and amber-orange neon mug silhouette"
+        },
+        {
+          "id": "tavern-5-1",
+          "name": "水晶醒酒器",
+          "palette": "clear cut crystal with burgundy wine inside"
+        },
+        {
+          "id": "tavern-5-2",
+          "name": "酿酒大师怀表",
+          "palette": "antique silver watch case, ivory dial, brown leather cord"
+        },
+        {
+          "id": "tavern-5-3",
+          "name": "始祖秘传配方",
+          "palette": "faded cream paper in a midnight-blue linen folio with modest brass clasp"
+        }
+      ],
+      "original_source": "exec-76cf4119-0863-459b-89bb-1da1ae793894.png"
+    },
+    {
+      "pack": "memes-a",
+      "firstVariant": 4,
+      "output": "props-memes-a-v4.webp",
+      "items": [
+        {
+          "id": "tavern-0-4",
+          "name": "老板画的大饼",
+          "palette": "ordinary toasted flatbread, weathered natural wooden easel"
+        },
+        {
+          "id": "tavern-0-5",
+          "name": "带薪摸鱼网",
+          "palette": "natural bamboo net, beige cord, silver-blue actual fish"
+        },
+        {
+          "id": "tavern-0-6",
+          "name": "躺平折叠椅",
+          "palette": "faded olive canvas and old brown wood"
+        },
+        {
+          "id": "tavern-0-7",
+          "name": "鸽王迟到闹钟",
+          "palette": "real pigeon gray and brown clock body, weathered copper bells"
+        },
+        {
+          "id": "tavern-1-4",
+          "name": "职场甩锅铲",
+          "palette": "dark iron kitchen spatula with natural wood grip"
+        },
+        {
+          "id": "tavern-1-5",
+          "name": "祖传退堂鼓",
+          "palette": "brick-red hand drum with rawhide cream head"
+        },
+        {
+          "id": "tavern-1-6",
+          "name": "电子功德木鱼",
+          "palette": "natural walnut wooden fish block, red lacquer base and black socket"
+        },
+        {
+          "id": "tavern-1-7",
+          "name": "五彩斑斓的黑",
+          "palette": "black paint tin with subtle real oil-slick iridescence only"
+        },
+        {
+          "id": "tavern-2-4",
+          "name": "情绪稳定保温桶",
+          "palette": "cream enamel urn with sea-green panels and brass spigot"
+        },
+        {
+          "id": "tavern-2-5",
+          "name": "自动抬杠扳手",
+          "palette": "bare steel wrench, black rubber handle and copper small gears"
+        },
+        {
+          "id": "tavern-2-6",
+          "name": "一键摆烂开关",
+          "palette": "bright signal-red pushbutton, gunmetal enclosure and worn brass rivets"
+        },
+        {
+          "id": "tavern-2-7",
+          "name": "已读不回信箱",
+          "palette": "aged galvanized mailbox painted desaturated mustard yellow, cream envelopes"
+        },
+        {
+          "id": "tavern-3-4",
+          "name": "甲方第八版印章",
+          "palette": "red-brown carved agate seal, gray steel stamp pads"
+        },
+        {
+          "id": "tavern-3-5",
+          "name": "防内耗结界灯",
+          "palette": "aged copper lantern, clear glass and a restrained warm amber inner light"
+        },
+        {
+          "id": "tavern-3-6",
+          "name": "无限续杯沙漏",
+          "palette": "clear hourglass and warm brown coffee, simple silver fittings"
+        },
+        {
+          "id": "tavern-3-7",
+          "name": "弹性下班弹簧椅",
+          "palette": "moss-green leather chair, dark walnut arms, bare steel spring"
+        },
+        {
+          "id": "tavern-4-4",
+          "name": "金饭碗认证餐具",
+          "palette": "actual gold bowl and chopsticks, white rice"
+        },
+        {
+          "id": "tavern-4-5",
+          "name": "永不背锅金锅",
+          "palette": "actual warm gold cooking pan with blackened inner seasoning"
+        },
+        {
+          "id": "tavern-4-6",
+          "name": "准时下班权杖",
+          "palette": "silver and ebony staff, ivory clock dial and small copper wing ornament"
+        },
+        {
+          "id": "tavern-4-7",
+          "name": "五险一金聚宝盆",
+          "palette": "deep red lacquer basin, jade green carved small animals and restrained brass trim"
+        },
+        {
+          "id": "tavern-5-4",
+          "name": "宇宙尽头编制椅",
+          "palette": "dark teal leather throne with ebony frame and silver fine craftsmanship"
+        },
+        {
+          "id": "tavern-5-5",
+          "name": "反向画饼圣餐盘",
+          "palette": "fine porcelain serving plate with silver rim and a delicate flatbread under clear glass"
+        },
+        {
+          "id": "tavern-5-6",
+          "name": "绝对不卷永动轮",
+          "palette": "bare steel and copper scientific gyroscope with dark wood base"
+        },
+        {
+          "id": "tavern-5-7",
+          "name": "摸鱼之神三叉戟",
+          "palette": "patinated sea-green bronze fishing trident, silver prongs and a bone grip; no water aura"
+        }
+      ],
+      "original_source": "exec-d0cce728-02e9-4e34-8cc4-6f5265038461.png"
+    },
+    {
+      "pack": "memes-b",
+      "firstVariant": 8,
+      "output": "props-memes-b-v4.webp",
+      "items": [
+        {
+          "id": "tavern-0-8",
+          "name": "薛定谔的罐头",
+          "palette": "dented rusty tin, naturally faded cream and brick-red food label"
+        },
+        {
+          "id": "tavern-0-9",
+          "name": "只会响的键帽",
+          "palette": "off-white old keycap and black steel spring"
+        },
+        {
+          "id": "tavern-0-10",
+          "name": "空气显卡支架",
+          "palette": "unpainted dusty gray steel graphics bracket"
+        },
+        {
+          "id": "tavern-0-11",
+          "name": "掉线网线头",
+          "palette": "black rubber cable, colored tiny exposed wires and clear plug"
+        },
+        {
+          "id": "tavern-1-8",
+          "name": "祖传存档软盘",
+          "palette": "matte black floppy disk with beige label and one red tassel"
+        },
+        {
+          "id": "tavern-1-9",
+          "name": "量子纠缠毛线球",
+          "palette": "mustard and terracotta yarn balls, ordinary unlit thread"
+        },
+        {
+          "id": "tavern-1-10",
+          "name": "猫主子的逗人棒",
+          "palette": "natural wood wand, cream-brown feather and plain wooden human toy"
+        },
+        {
+          "id": "tavern-1-11",
+          "name": "团灭复盘小黑板",
+          "palette": "green-black slate board, off-white chalk and natural oak frame"
+        },
+        {
+          "id": "tavern-2-8",
+          "name": "幸运值负一骰子",
+          "palette": "opaque aged ivory dice with dark red recessed pips; no electric blue glow"
+        },
+        {
+          "id": "tavern-2-9",
+          "name": "自动寻路拖鞋",
+          "palette": "brown worn suede slippers, tan fleece and warm brass compass faces"
+        },
+        {
+          "id": "tavern-2-10",
+          "name": "血条消失打孔器",
+          "palette": "black steel hole punch, bare silver cutting head and small orange lever"
+        },
+        {
+          "id": "tavern-2-11",
+          "name": "冷却中的回城石",
+          "palette": "smoky translucent quartz stone, weathered bronze mount and no blue coating"
+        },
+        {
+          "id": "tavern-3-8",
+          "name": "赛博招财机械爪",
+          "palette": "brushed silver mechanical paw, copper gears, dark leather base"
+        },
+        {
+          "id": "tavern-3-9",
+          "name": "读条九十九沙漏",
+          "palette": "clear glass sandtimer, walnut frame and copper fittings"
+        },
+        {
+          "id": "tavern-3-10",
+          "name": "防剧透眼罩",
+          "palette": "deep green velvet eye mask, cream stitching and small silver buckle"
+        },
+        {
+          "id": "tavern-3-11",
+          "name": "无限套娃盲盒",
+          "palette": "natural nesting wood boxes with ivory and terracotta geometric inlays"
+        },
+        {
+          "id": "tavern-4-8",
+          "name": "猫皇御用键盘",
+          "palette": "ivory keyboard keys and polished walnut case, silver paw feet, tiny gold badge"
+        },
+        {
+          "id": "tavern-4-9",
+          "name": "欧皇备用马蹄铁",
+          "palette": "natural dark iron horseshoe with copper protective inlays"
+        },
+        {
+          "id": "tavern-4-10",
+          "name": "存档守护黄金盘",
+          "palette": "actual gold flash drive in a black leather case with dark velvet lining"
+        },
+        {
+          "id": "tavern-4-11",
+          "name": "版本答案棋盘",
+          "palette": "black and ivory stone chessboard with aged bronze cat king"
+        },
+        {
+          "id": "tavern-5-8",
+          "name": "猫咪统治权杖",
+          "palette": "silver cat-head scepter with ebony shaft and small amber eyes"
+        },
+        {
+          "id": "tavern-5-9",
+          "name": "宇宙万能遥控器",
+          "palette": "charcoal handheld remote, ivory ceramic buttons and small colored glass planet insets"
+        },
+        {
+          "id": "tavern-5-10",
+          "name": "世界线重启怀表",
+          "palette": "antique brass split-dial watch, ivory and charcoal faces with precise tiny gears"
+        },
+        {
+          "id": "tavern-5-11",
+          "name": "传说中的撤回键",
+          "palette": "aged ivory single keycap with a simple curved arrow, black stone pedestal and copper edge"
+        }
+      ],
+      "original_source": "exec-0ce1eae3-107a-4997-8c2f-29a23fe7614c.png",
+      "background_extraction_source": "exec-6da7d0cc-5588-441f-b41a-019ea74735dd.png"
+    },
+    {
+      "pack": "b",
+      "output": "props-expansion-b-v3.webp",
+      "items": [
+        {
+          "id": "tavern-1-20",
+          "name": "自律失败打卡器",
+          "palette": "cream enamel punch clock, black analog dial, brown lever"
+        },
+        {
+          "id": "tavern-1-21",
+          "name": "健忘症钥匙盘",
+          "palette": "off-white ceramic paw tray with dusty pink pads and natural brass keys"
+        },
+        {
+          "id": "tavern-1-22",
+          "name": "小费磁吸存钱罐",
+          "palette": "clear glass tip jar with brushed steel top and copper coin"
+        },
+        {
+          "id": "tavern-1-23",
+          "name": "奶茶封印杯套",
+          "palette": "natural beige knit sleeve, milky tan tea, black padlock"
+        },
+        {
+          "id": "tavern-1-24",
+          "name": "反向导航罗盘",
+          "palette": "aged brass compass with one red needle and one dark gray needle"
+        },
+        {
+          "id": "tavern-1-25",
+          "name": "永远有货便利盒",
+          "palette": "natural cedar supply drawer with muted pale mint worn paint, multicolored actual supplies"
+        },
+        {
+          "id": "tavern-2-12",
+          "name": "摸鱼雷达接收器",
+          "palette": "off-white radio chassis, olive-green rear panel, dark glass radar and silver fish antenna"
+        },
+        {
+          "id": "tavern-2-13",
+          "name": "努力过载散热器",
+          "palette": "bare aluminum fan, black iron guard and a small burnt-orange knob"
+        },
+        {
+          "id": "tavern-2-14",
+          "name": "雨天备用云朵罐",
+          "palette": "clear glass preserving jar, white cloud and silver latch"
+        },
+        {
+          "id": "tavern-2-15",
+          "name": "失眠倒数绵羊机",
+          "palette": "walnut sheep-counting wheel, cream wool sheep, copper handle"
+        },
+        {
+          "id": "tavern-2-16",
+          "name": "手冲参数分歧表",
+          "palette": "natural copper coffee funnel, ivory analog gauges and clear glass vessels"
+        },
+        {
+          "id": "tavern-2-17",
+          "name": "拖延缓冲计时器",
+          "palette": "cream analog timer, black dial, bare steel expansion spring"
+        },
+        {
+          "id": "tavern-2-18",
+          "name": "永不串味茶叶舱",
+          "palette": "brushed stainless steel tea caddy and tiny bronze lids"
+        },
+        {
+          "id": "tavern-2-19",
+          "name": "非酋资格认证章",
+          "palette": "deep red-brown wood stamp handle, gray silver seal with horseshoe motif"
+        },
+        {
+          "id": "tavern-2-20",
+          "name": "薯片防碎运输箱",
+          "palette": "industrial orange flight case, black foam and pale golden potato chips"
+        },
+        {
+          "id": "tavern-2-21",
+          "name": "键盘考古工具箱",
+          "palette": "light gray precision tool case with maroon lining, natural wood brush and silver tools"
+        },
+        {
+          "id": "tavern-2-22",
+          "name": "午夜灵感收音机",
+          "palette": "warm walnut and dark brown leather radio, ivory tuning dial"
+        },
+        {
+          "id": "tavern-2-23",
+          "name": "猫咪占座投影仪",
+          "palette": "charcoal metal projector, small warm amber cat silhouette in clear lens"
+        },
+        {
+          "id": "tavern-2-24",
+          "name": "心率稳定节拍器",
+          "palette": "natural walnut metronome, ivory scale panel and brushed brass pendulum"
+        },
+        {
+          "id": "tavern-2-25",
+          "name": "拍卖师备用嗓子",
+          "palette": "oxidized copper gramophone horn, dark green enamel amplifier base"
+        },
+        {
+          "id": "tavern-2-26",
+          "name": "咖啡渣天气仪",
+          "palette": "clear glass weather sphere, brown coffee grounds and brass fittings"
+        },
+        {
+          "id": "tavern-2-27",
+          "name": "社交电量充电座",
+          "palette": "matte white charging cradle, terracotta cushion accent and plain wooden token"
+        },
+        {
+          "id": "tavern-2-28",
+          "name": "撤退专用滑板鞋",
+          "palette": "oxblood red and cream leather roller shoes, bare silver wheels"
+        },
+        {
+          "id": "tavern-3-12",
+          "name": "忘词歌手八音盒",
+          "palette": "mahogany music box with a muted blue-green lid inlay, silver bird, brass mechanism"
+        }
+      ],
+      "original_source": "exec-99c27930-eb34-4b11-ab38-9a10bef52c6a.png"
+    },
+    {
+      "pack": "c",
+      "output": "props-expansion-c-v3.webp",
+      "items": [
+        {
+          "id": "tavern-3-13",
+          "name": "废稿压成的唱片",
+          "palette": "black vinyl record in a torn natural brown paper and cardboard sleeve"
+        },
+        {
+          "id": "tavern-3-14",
+          "name": "老板消音留声机",
+          "palette": "natural walnut gramophone with a muted sage-green horn and brass mechanics"
+        },
+        {
+          "id": "tavern-3-15",
+          "name": "传说级背锅护盾",
+          "palette": "dark cast-iron pan shield with copper rivets and black leather grip"
+        },
+        {
+          "id": "tavern-3-16",
+          "name": "无限周末月历仪",
+          "palette": "ivory moon discs, warm oak frame and small aged brass astronomical parts"
+        },
+        {
+          "id": "tavern-3-17",
+          "name": "无需排队取号机",
+          "palette": "cream paper ticket ribbon, dark red wooden dispenser and brass gears"
+        },
+        {
+          "id": "tavern-3-18",
+          "name": "昨日重播幻灯机",
+          "palette": "charcoal and silver movie projector with tan leather bellows"
+        },
+        {
+          "id": "tavern-3-19",
+          "name": "自动谢幕帷幕盒",
+          "palette": "natural oak theater box, vermilion velvet curtains and brass stage gears"
+        },
+        {
+          "id": "tavern-3-20",
+          "name": "成功前最后一齿轮",
+          "palette": "unpainted steel large gears, copper small gear and dark wood base"
+        },
+        {
+          "id": "tavern-3-21",
+          "name": "被猫批准的合同夹",
+          "palette": "warm saddle-brown leather folio and silver cat-paw clasp"
+        },
+        {
+          "id": "tavern-3-22",
+          "name": "虚空加班指纹锁",
+          "palette": "gunmetal gray door frame, clear glass lock face and tiny soft teal fingerprint light"
+        },
+        {
+          "id": "tavern-3-23",
+          "name": "精神股东座位牌",
+          "palette": "smoky transparent glass nameplate on natural walnut and silver supports"
+        },
+        {
+          "id": "tavern-3-24",
+          "name": "情绪回收压缩机",
+          "palette": "cream and industrial orange compression machine, exposed steel rollers and multicolored cloth scraps"
+        },
+        {
+          "id": "tavern-3-25",
+          "name": "春天储存玻璃柜",
+          "palette": "clear glass cabinet, natural green leaves and pale pink blossoms"
+        },
+        {
+          "id": "tavern-3-26",
+          "name": "最后一口气风箱",
+          "palette": "warm russet leather bellows, silver trim and ivory buttons"
+        },
+        {
+          "id": "tavern-3-27",
+          "name": "直达床边旅行箱",
+          "palette": "tan leather travel case, sage-green bed linen and ivory pillow"
+        },
+        {
+          "id": "tavern-3-28",
+          "name": "万能借口打字机",
+          "palette": "muted pale green antique typewriter, cream keys, natural paper and small maroon umbrella"
+        },
+        {
+          "id": "tavern-4-12",
+          "name": "凌晨四点收藏勋章",
+          "palette": "brushed bronze medal, ivory clock dial, navy-and-cream ribbon"
+        },
+        {
+          "id": "tavern-4-13",
+          "name": "永不迟到机械鸟",
+          "palette": "copper clockwork swallow, small silver wing panels and walnut perch"
+        },
+        {
+          "id": "tavern-4-14",
+          "name": "最终定稿鎏金笔",
+          "palette": "actual gilt fountain pen, ivory pen rest and dark red wax seal"
+        },
+        {
+          "id": "tavern-4-15",
+          "name": "无需排期日晷",
+          "palette": "aged brass sundial with restrained midnight-blue enamel inlays"
+        },
+        {
+          "id": "tavern-4-16",
+          "name": "百年陈酿酒钻",
+          "palette": "warm tawny amber gemstone and dark bronze mount, natural clear glass reflections"
+        },
+        {
+          "id": "tavern-4-17",
+          "name": "罢工机器人的奖杯",
+          "palette": "brushed steel resting robot trophy, copper joints and dark wood base"
+        },
+        {
+          "id": "tavern-4-18",
+          "name": "皇室专供零食匣",
+          "palette": "deep red and black lacquer snack box, cream/pink/green pastries and thin gold rim"
+        },
+        {
+          "id": "tavern-4-19",
+          "name": "黄金罐头开封器",
+          "palette": "actual brushed gold can opener with polished black ebony handle"
+        }
+      ],
+      "original_source": "exec-b2df52b4-f8b0-47d1-a531-ba4c5ff68387.png"
+    }
+  ]
+}
