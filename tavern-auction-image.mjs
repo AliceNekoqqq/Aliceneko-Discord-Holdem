@@ -7,8 +7,8 @@ const f=n=>n>=100000000?`${Math.floor(n/100000000)}亿${n%100000000?`${n%1000000
 export const AUCTION_COLORS=[[203,198,193],[116,182,139],[106,172,214],[182,135,214],[237,192,102],[245,91,127]];
 const C={bg:[19,22,24],panel:[34,38,40],inner:[25,29,32],gold:[233,194,128],cream:[246,239,221],muted:[158,164,167],fog:[39,44,48]};
 const mix=(a,b,t)=>a.map((v,i)=>Math.round(v*(1-t)+b[i]*t));
-// The renderer's small font does not contain full-width Latin punctuation.
-const caption=item=>(item.flavor||'').replace(/[，；：！？]/g,c=>({'，':',','；':';','：':':','！':'!','？':'?'}[c]));
+// Use the font's supported clause separator instead of missing full-width marks.
+const caption=item=>(item.flavor||'').replace(/[，；：]/g,' · ').replace(/[！？]/g,c=>c==='！'?'!':'?');
 function frame(c,x,y,w,h,quality,last=false){
  const col=quality===null?C.muted:AUCTION_COLORS[quality];
  c.rect(x,y,w,h,col,3);c.rect(x+2,y+2,w-4,h-4,mix(C.inner,col,quality===null?0:0.12),2);
