@@ -11,13 +11,26 @@ import {currencyData} from './tavern-auction-currency-ui.mjs';
 import {answerTavern,immediateTavernReply,tavernDeferredReply,tavernCommand,finishTavern} from './tavern-ui.mjs';
 import {renderAuctionImage} from './tavern-auction-image.mjs';
 const base={guild:'3',id:'1',channel:'2',name:'Alice'},cash=n=>n*R;
-function setup(t,fund=500){
+function setup(t,fund=500,initializeCurrency=true){
  const db=new DatabaseSync(':memory:'),map=new Map();t.after(()=>db.close());let calls=0;
  const storage={sql:{exec(q,...a){const s=db.prepare(q);if(s.columns().length){const r=s.all(...a);return {toArray:()=>r,one:()=>r[0]};}s.run(...a);return {toArray:()=>[]};}},transactionSync(fn){db.exec('BEGIN');try{const r=fn();db.exec('COMMIT');return r;}catch(e){db.exec('ROLLBACK');throw e;}},get:async k=>map.get(k),put:async(k,v)=>map.set(k,v)};
- const tavern=new TavernService(storage),auction=new TavernAuction(tavern,n=>{calls++;return n-1;});tavern._auction=auction;const fx=tavern.auctionCurrency;
- fx.view(base,1000);if(fund){const v=fx.view(base,1000);fx.convert({...base,token:v.token,direction:'buy',amount:fund},1001);}
+ const tavern=new TavernService(storage),auction=new TavernAuction(tavern,n=>{calls++;return n-1;});tavern._auction=auction;const fx=initializeCurrency?tavern.auctionCurrency:null;
+ if(initializeCurrency){fx.view(base,1000);if(fund){const v=fx.view(base,1000);fx.convert({...base,token:v.token,direction:'buy',amount:fund},1001);}}
  return {db,storage,tavern,auction,fx,calls:()=>calls};
 }
+test('a cold old ready window can fail for insufficient funds without rolling back currency initialization',t=>{
+ const e=setup(t,0,false),a=e.auction,token='0123456789abcdef';
+ e.tavern.member(base.id,base.name,1000);
+ e.tavern.sql.exec("INSERT INTO tavern_auctions(token,user_id,channel,status,created_at) VALUES(?,?,?,'ready',?)",token,base.id,base.channel,1000);
+ assert.throws(()=>a.start({...base,token,role:'sophie'},1001),/先用酒馆币兑换/);
+ assert.equal(a.view(base,1002).balance,0);
+ const fx=e.tavern.auctionCurrency,v=fx.view(base,1003);assert.equal(v.tavernBalance,500);assert.equal(v.auctionBalance,0);
+ assert.equal(e.tavern.view(base.id,base.name,1004).member.balance,500);
+ assert.equal(e.tavern.one("SELECT COUNT(*) n FROM tavern_ledger WHERE kind LIKE 'auction_%'").n,0);
+ fx.convert({...base,token:v.token,direction:'buy',amount:210},1005);
+ const started=a.start({...base,token,role:'sophie'},1006);assert.equal(started.balance,0);assert.equal(started.tavernBalance,290);
+ assert.equal(a.leave({...base,token,round:1},1007).balance,200*R);
+});
 function open(a,role='sophie',now=1002){const v=a.view(base,now);return a.start({...base,token:v.offerToken,role},now+1);}
 function force(e,token,bids,priority){const r=e.tavern.one('SELECT * FROM tavern_auctions WHERE token=?',token),s=JSON.parse(r.state);s.committed=bids;if(priority)s.priority=priority;e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(s),token);}
 const i=(action='auction',extra={})=>({type:3,id:'999',token:'temporary',guild_id:'3',channel_id:'2',member:{user:{id:'1',username:'Alice'}},message:{flags:64},data:{custom_id:`t:3:1:${action}`},...extra});
@@ -179,4 +192,21 @@ test('two pre-opened exchange windows share available funds and cannot double-sp
  const now=Date.now(),c=e.fx.view(base,now),d=e.fx.view(other,now);
  const actual=await Promise.allSettled([e.tavern.dispatch({...base,action:'auctionExchangeConvert',token:c.token,direction:'buy',amount:400}),e.tavern.dispatch({...other,action:'auctionExchangeConvert',token:d.token,direction:'buy',amount:400})]);
  assert.equal(actual.filter(r=>r.status==='fulfilled').length,1);assert.equal(e.fx.balance('1'),(400*R));assert.equal(e.tavern.member('1').balance,100);assert.equal(e.fx.balance('1')+e.tavern.member('1').balance*R,(500*R));
+});
+
+test('replaying an old game keeps the current game panel and its unchanged funds, with the saved receipt noted',async t=>{
+ const e=setup(t),env=envFor(e.tavern),first=e.auction.view(base),start={...base,token:first.offerToken,role:'sophie'},g1=e.auction.start(start),old=g1.session.token;
+ force(e,old,[0,0,0]);const bid={...base,token:old,round:1,bid:1},ended=e.auction.bid(bid);
+ const current=e.auction.start({...base,token:ended.offerToken,role:'sophie'}),token=current.session.token;
+ const before=e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state,ledger=e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n;
+ for(const action of [`auctionBid~${old}~1~1`,`auctionStart~${old}~sophie`,`auctionLeave~${old}~1`]){
+  const view=await answerTavern(env,i(action));bounds(view);
+  assert(view.content.includes('当前进行中的竞拍'));assert(view.content.includes('上一局已结算'));
+  assert(view.components.flatMap(r=>r.components).some(c=>c.custom_id.includes(`auctionBid~${token}~1~`)));
+  assert(!view.components.flatMap(r=>r.components).some(c=>c.custom_id.startsWith('t:3:1:auctionStart~')));
+  assert.equal(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state,before);
+  assert.equal(e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n,ledger);
+  assert.equal(e.auction.view(base).balance,current.balance);
+ }
+ assert.deepEqual(e.auction.bid(bid).session.result,ended.session.result);
 });

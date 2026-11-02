@@ -64,6 +64,8 @@ export function decideAuction(round,bids,priority,budget=AUCTION_BUDGET){
 export class TavernAuction {
  constructor(tavern,random=auctionRandom){
   this.tavern=tavern;this.sql=tavern.sql;this.storage=tavern.storage;this.random=random;
+  // Initialize before a gameplay transaction can roll back schema creation.
+  this.tavern.auctionCurrency;
   this.sql.exec("CREATE TABLE IF NOT EXISTS tavern_auctions(token TEXT PRIMARY KEY,user_id TEXT NOT NULL,channel TEXT NOT NULL,status TEXT NOT NULL,created_at INTEGER NOT NULL,settled_at INTEGER,state TEXT)");
   this.sql.exec("CREATE UNIQUE INDEX IF NOT EXISTS tavern_auction_active ON tavern_auctions(user_id) WHERE status='active'");
   this.sql.exec("CREATE UNIQUE INDEX IF NOT EXISTS tavern_auction_ready ON tavern_auctions(user_id,channel) WHERE status='ready'");

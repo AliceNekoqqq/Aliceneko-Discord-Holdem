@@ -84,6 +84,14 @@ export async function answerAuction(env,i){
   else if(action==='auctionLeave')data=await tavernRequest(env,{...base,action,token,round:Number(value)});
   else data=await tavernRequest(env,{...base,action:'auctionView'});
  }catch(e){data=await tavernRequest(env,{...base,action:'auctionView'});notice=e.message;}
+ if(data.repeated&&data.session?.status==='settled'){
+  const previous=data.session,current=await tavernRequest(env,{...base,action:'auctionView'});
+  if(current.session&&current.session.token!==previous.token){
+   const r=previous.result,unit=previous.currency==='tavern'?'酒馆币':'竞拍币';
+   notice=`上一局已结算：净变化 ${r.net>0?'+':''}${f(r.net)}${unit}，结算后余额 ${f(r.balanceAfter)}${unit}。本次没有重复结算；已恢复${current.session.status==='active'?'当前进行中的竞拍':'最新一局的收据'}。`;
+   data=current;
+  }
+ }
  const view=auctionData(data,p.guild,p.id,notice);
  if(data.session)try{view._mapScene={bytes:await renderAuctionImage(data.session,env),filename:'tavern-auction.png',mime:'image/png',description:'仓库盲拍：仅展示本人的已知线索；结束后展示开仓清单'};}catch{view.content+='\n配图暂未加载，以上文字线索和结算仍有效。';}
  return view;
