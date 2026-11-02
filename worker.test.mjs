@@ -95,7 +95,7 @@ test('signed Discord flow, private cards, stale click, duplicate, modal, timeout
  const call=async(data)=>{const i={application_id:'123',guild_id:'3',channel_id:'2',id:String(++counter),token:'transient-secret',member:{user:{id:'1'},permissions:'0'},...data};const body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');const ctx=context();const r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);await Promise.all(ctx.tasks);return {reply:await r.json(),i};};
  const unsigned=await worker.fetch(new Request('https://test/interactions',{method:'POST',body:'{}'}),env,context());assert.equal(unsigned.status,401);
  const hidden=await worker.fetch(new Request('https://test/.env'),env,context());assert.equal(hidden.status,404);
- const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.4',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity1'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
+ const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.5',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity1'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
  assert.deepEqual((await call({type:1})).reply,{type:1});
  const create={type:2,data:{name:'德州',options:[{name:'创建'}]}};
  let {reply:b}=await call(create);assert.equal(b.type,4);assert(!JSON.stringify(b).includes(env.BOT_TOKEN));
@@ -368,6 +368,19 @@ test('signed single-player auction opens privately and submits a modal bid once 
  const submit={...click,type:5,data:{custom_id:modal.data.custom_id,components:[{type:1,components:[{type:4,custom_id:'bid',value:'10000000'}]}]}};
  assert.deepEqual(await call(submit),{type:6});const after=service.auction.view({guild:'3',id:'1',channel:'2'});assert.equal(after.session.history.length,1);
  await call(submit);assert.equal(service.auctionCurrency.balance('1'),after.balance);assert.equal(service.member('1').balance,0);assert.equal(service.auction.view({guild:'3',id:'1',channel:'2'}).session.history.length,1);
+ await call({...click,data:{custom_id:`t:3:1:auctionLeave~${session.token}~${after.session.round}`}});
+ service.sql.exec('UPDATE tavern_members SET balance=3000 WHERE id=?','1');
+ await call(exchangeEntry);const topupModal=await call({...click,data:{custom_id:deliveries.at(-1).components[0].components[0].custom_id}});
+ await call({...convert,data:{custom_id:topupModal.data.custom_id,components:[{type:1,components:[{type:4,custom_id:'amount',value:'3000'}]}]}});
+ await call({...click,data:{custom_id:'t:3:1:auctionTier~collection'}});
+ const highStart=deliveries.at(-1).components[0].components[0].custom_id;assert(highStart.endsWith('~collection'));
+ await call({...click,data:{custom_id:highStart}});const high=service.auction.view({guild:'3',id:'1',channel:'2'}).session;
+ assert.equal(high.budget,200000000);assert.equal(high.fee,10000000);
+ const highModal=await call({...click,data:{custom_id:deliveries.at(-1).components[0].components.at(-1).custom_id}});
+ assert.equal(highModal.data.components[0].components[0].max_length,9);
+ const highSubmit={...submit,data:{custom_id:highModal.data.custom_id,components:[{type:1,components:[{type:4,custom_id:'bid',value:'200000000'}]}]}};
+ assert.deepEqual(await call(highSubmit),{type:6});const highBalance=service.auctionCurrency.balance('1');
+ await call(highSubmit);assert.equal(service.auctionCurrency.balance('1'),highBalance);assert.equal(service.member('1').balance,0);
  const calls=names.length,bad=await call({...click,member:{user:{id:'4'}}});assert.equal(bad.type,4);assert.equal(names.length,calls);
  assert(names.every(n=>n==='tavern:3'));assert(deliveries.every(d=>d.allowed_mentions.parse.length===0));
 });

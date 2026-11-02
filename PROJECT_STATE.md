@@ -937,3 +937,7 @@ PR #65（特性提交b6de123135dafb6b35e17b1d19fec217bfe4e9ad）完整CI41412480
 PR #67特性提交eae3d6d65f26ba00d97613a6a726c4c25a3e198f，完整CI41434836360成功；合并43970c5b53ba24726e8f7344f83f0d9ae268ac56。main完整检查及部署41435005706成功。CF部署fc2ca05f-1135-4280-9371-05af0d4e3f63 / 版本5a3894f6-825d-4cfe-a0c0-f45f4d72306c接收100%；15bindings及settings全部字段前后完全一致。浏览器实际health为casino.4、ok/ready:true、Gateway connected/ready:true，实际/预期identity1聊天指纹一致；命令schema未变，因此注册版本保持casino3，registered:true且failures/missing/pending空。
 
 最终本地专项22/22、酒馆274/274、Worker92/92、Wrangler dry-run通过；两个新回归分别先失败再修复通过。F1和F2资金/幂等/旧局行为保持，仅恢复初始化后可用性和当前面板选择。预算、汇率、费用、物品、NPC无调整；模型/人设/Secrets/D1/DO/迁移标签/Cron未改。不动真实玩家余额或发送测试消息，真人Discord体验待用户试玩。当前修复发布完成，不重复发布；经济定位另行决定。
+
+### casino.5 可选金额与参考报价（2026-11-02，待发布）
+
+用户在9模型540万策略经济审视后要求继续。新增500万/2000万/6000万/2亿档，费用严格同比25万/100万/300万/1000万；货值、NPC估值与上限一起缩放，保存tier/unit确保后续回合沿用本局单位。参考价只读本人线索、默认常规、九位报价、酒馆币等值收据及旧局控制兼容。专项27/27、酒馆279/279、Worker92/92与Wrangler dry-run通过；大额实际签名路由和4档最大值5轮结算通过，12亿总值PNG目检。实现契约/预算/回滚与剩余经济问题见docs/casino/AUCTION_STAKES.md。GitHub与生产发布待继续，生产仍casino.4；不操作真实玩家资金或发测试消息。

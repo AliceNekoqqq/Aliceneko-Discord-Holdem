@@ -1,8 +1,12 @@
 import {validId} from './tavern-catalog.mjs';
 import {AUCTION_ITEMS} from './tavern-auction-data.mjs';
-import {AUCTION_RATE} from './tavern-auction-currency.mjs';
+import {AUCTION_RATE,auctionAmount} from './tavern-auction-currency.mjs';
 
 export const AUCTION_BUDGET=200*AUCTION_RATE,AUCTION_FEE=10*AUCTION_RATE,AUCTION_TTL=30*60_000,AUCTION_READY_TTL=15*60_000;
+export const AUCTION_TIERS=Object.freeze(Object.fromEntries([
+ ['small','小额',0.25],['standard','常规',1],['high','高额',3],['collection','典藏',10]
+].map(([id,name,scale])=>[id,Object.freeze({name,scale,budget:AUCTION_BUDGET*scale,fee:AUCTION_FEE*scale})])));
+export const AUCTION_MAX_BUDGET=AUCTION_TIERS.collection.budget;
 export const AUCTION_QUALITIES=Object.freeze(['白','绿','蓝','紫','金','红']);
 export const AUCTION_ROLES=Object.freeze({
  sophie:{name:'索菲',skill:'首轮随机获知5件品质，此后每轮再获知2件未知品质。'},
@@ -20,11 +24,11 @@ export function auctionRandom(n){
 export function shuffleAuction(list,random=auctionRandom){
  const a=[...list];for(let i=a.length-1;i>0;i--){const j=random(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;
 }
-export function generateAuction(random=auctionRandom){
+export function generateAuction(random=auctionRandom,unit=AUCTION_RATE){
  return Array.from({length:8},()=>{
   let ticket=random(100),quality=0;
   while(ticket>=QUALITY_WEIGHTS[quality])ticket-=QUALITY_WEIGHTS[quality++];
-  return {...AUCTION_ITEMS[quality*4+random(4)]};
+  const item=AUCTION_ITEMS[quality*4+random(4)];return {...item,value:item.value*unit/AUCTION_RATE};
  });
 }
 export function revealAuction(items,info,role,round,random=auctionRandom){
@@ -89,7 +93,7 @@ export class TavernAuction {
   const roles=[state.role,'sophie','gabriella','viktor'];
   roles.forEach((role,i)=>revealAuction(state.items,state.infos[i],role,state.round,this.random));
   // Commit opponents before receiving the human's sealed offer, then persist with the round.
-  state.committed=state.infos.slice(1).map((info,i)=>npcAuctionBid(info,state.round,i,this.random,state.currency==='auction'?AUCTION_RATE:1));
+  state.committed=state.infos.slice(1).map((info,i)=>npcAuctionBid(info,state.round,i,this.random,state.unit??(state.currency==='auction'?AUCTION_RATE:1)));
  }
  present(p,row,now,repeated=false){
   const state=row?.state?JSON.parse(row.state):null,settled=row?.status==='settled';
@@ -97,7 +101,7 @@ export class TavernAuction {
   // Whitelist: hidden catalog identities, prices and opponent information never leave the guild DO.
   return {balance:this.tavern.auctionCurrency.balance(p.id),tavernBalance:this.tavern.one('SELECT balance FROM tavern_members WHERE id=?',p.id).balance,stats,repeated,
    offerToken:!state||settled?this.ready(p,now):null,
-   session:state?{currency:state.currency||'tavern',budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:!settled&&row.channel!==p.channel,status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,history:state.history,result:state.result||null,info:state.infos[0],items:settled?state.items:null}:null};
+   session:state?{currency:state.currency||'tavern',tier:state.tier||'standard',estimate:Math.floor(estimateAuction(state.infos[0],state.unit??(state.currency==='auction'?AUCTION_RATE:1))),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:!settled&&row.channel!==p.channel,status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,history:state.history,result:state.result||null,info:state.infos[0],items:settled?state.items:null}:null};
  }
  view(p,now=Date.now()){
   this.validate(p);let answer;
@@ -110,23 +114,25 @@ export class TavernAuction {
   });return answer;
  }
  start(p,now=Date.now()){
-  if(!Object.hasOwn(AUCTION_ROLES,p.role))throw Error('请选择一种信息能力。');let answer;
+  if(!Object.hasOwn(AUCTION_ROLES,p.role))throw Error('请选择一种信息能力。');
+  const tier=p.tier??'standard';if(!Object.hasOwn(AUCTION_TIERS,tier))throw Error('请选择有效竞拍档位。');
+  const {budget,fee,scale}=AUCTION_TIERS[tier];let answer;
   this.storage.transactionSync(()=>{
    const row=this.load(p);
    if(row.status!=='ready'){
     const existing=JSON.parse(row.state);
-    if(existing.role!==p.role)throw Error('本次开局已选择另一能力，请刷新。');
+    if(existing.role!==p.role||(existing.tier??'standard')!==tier)throw Error('本次开局已选择另一能力或档位，请刷新。');
     if(row.status==='active'&&existing.expires<=now)this.forfeit(row,existing,now,'expired');
     answer=this.present(p,row,now,true);return;
    }
    const active=this.tavern.one("SELECT * FROM tavern_auctions WHERE user_id=? AND status='active'",p.id);
    if(active){if(JSON.parse(active.state).expires<=now)this.forfeit(active,JSON.parse(active.state),now,'expired');else throw Error('你已有一局竞拍，请先恢复或结束该局。');}
    if(row.created_at+AUCTION_READY_TTL<=now)throw Error('开局窗口已过期，请刷新；尚未扣币。');
-   if(this.tavern.auctionCurrency.balance(p.id)<AUCTION_BUDGET+AUCTION_FEE)throw Error('需要2,100万竞拍币：2,000万预算及100万入场费，请先用酒馆币兑换。');
-   const state={currency:'auction',budget:AUCTION_BUDGET,fee:AUCTION_FEE,role:p.role,items:generateAuction(this.random),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},emptyInfo),history:[]};
+   if(this.tavern.auctionCurrency.balance(p.id)<budget+fee)throw Error(`需要${auctionAmount((budget+fee)/10000)}万竞拍币：${auctionAmount(budget/10000)}万预算及${auctionAmount(fee/10000)}万入场费，请先用酒馆币兑换。`);
+   const state={currency:'auction',tier,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateAuction(this.random,AUCTION_RATE*scale),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},emptyInfo),history:[]};
    this.stage(state);
-   this.ledger(row,state,'fee',-AUCTION_FEE,'仓库盲拍 · 入场费',now);
-   this.ledger(row,state,'hold',-AUCTION_BUDGET,'仓库盲拍 · 暂存竞拍预算',now);
+   this.ledger(row,state,'fee',-fee,'仓库盲拍 · 入场费',now);
+   this.ledger(row,state,'hold',-budget,'仓库盲拍 · 暂存竞拍预算',now);
    row.status='active';this.sql.exec("UPDATE tavern_auctions SET status='active' WHERE token=?",p.token);this.save(row,state);
    answer=this.present(p,row,now);
   });return answer;
@@ -155,7 +161,7 @@ export class TavernAuction {
  }
  forfeit(row,state,now,reason){while(row.status==='active')this.advance(row,state,0,now,reason);}
  bid(p,now=Date.now()){
-  if(!Number.isInteger(p.bid)||p.bid<0||p.bid>AUCTION_BUDGET||!Number.isInteger(p.round)||p.round<1||p.round>5)throw Error('报价须为0至20,000,000的整数，0表示本轮不出价。');let answer;
+  if(!Number.isSafeInteger(p.bid)||p.bid<0||p.bid>AUCTION_MAX_BUDGET||!Number.isInteger(p.round)||p.round<1||p.round>5)throw Error('报价须为本局预算内的整数，最高200,000,000；0表示本轮不出价。');let answer;
   this.storage.transactionSync(()=>{
    const row=this.load(p);if(row.status==='ready')throw Error('请先选择能力开始。');const state=JSON.parse(row.state);
    if(p.bid>(state.budget??200))throw Error(state.currency==='auction'?'报价超出本局竞拍币预算。':'这是旧版酒馆币局，报价上限仍为200酒馆币。');
