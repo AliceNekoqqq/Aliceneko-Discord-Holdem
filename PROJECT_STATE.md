@@ -941,3 +941,7 @@ PR #67特性提交eae3d6d65f26ba00d97613a6a726c4c25a3e198f，完整CI41434836360
 ### casino.5 可选金额与参考报价（2026-11-02，待发布）
 
 用户在9模型540万策略经济审视后要求继续。新增500万/2000万/6000万/2亿档，费用严格同比25万/100万/300万/1000万；货值、NPC估值与上限一起缩放，保存tier/unit确保后续回合沿用本局单位。参考价只读本人线索、默认常规、九位报价、酒馆币等值收据及旧局控制兼容。专项27/27、酒馆279/279、Worker92/92与Wrangler dry-run通过；大额实际签名路由和4档最大值5轮结算通过，12亿总值PNG目检。实现契约/预算/回滚与剩余经济问题见docs/casino/AUCTION_STAKES.md。GitHub与生产发布待继续，生产仍casino.4；不操作真实玩家资金或发测试消息。
+
+### casino.5 发布回执（2026-11-02，已发布）
+
+PR #68特性aa803421bc0a3b519a9d8ed3f41d980d7c53a926，完整CI41443841426通过；合并9048a24cb2aad50e22ebdc7231e523eb54db54a8，main完整检查及发布41444065818成功。CF部署6ce0ac8c-eef8-45a4-b725-44a136d808a4 / 版本4f412593-c9f0-4103-934c-848b37c90833接收100%，15bindings和settings全字段前后保持。浏览器实际health为casino.5，ok/ready:true、Gateway connected/ready:true，identity1聊天指纹匹配；命令schema保持，casino3注册registered:true，failures/missing/pending为空。最终实现scope10文件239行增删、无警告；原tavern-building重复z键的打包警告未在此次扩范围修复。未操作真实玩家资金或发送测试消息，真人Discord手感待用户试玩。功能/发布闭环完成，不重复部署；高波动货池、常规收益分布、角色差异和持续消费仍是后续经济工作。
