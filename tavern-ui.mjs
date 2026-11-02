@@ -9,6 +9,7 @@ import {operationsInteraction,immediateOperationsReply,operationsDeferredReply,a
 import {petCommandOption} from './pet-ui.mjs';
 import {ugcInteraction,immediateUgcReply,answerUgc,ugcDeferredReply} from './tavern-ugc-ui.mjs';
 import {slotsCommandOption,slotsInteraction,immediateSlotsReply,slotsDeferredReply,answerSlots} from './tavern-slots-ui.mjs';
+import {auctionCommandOption,auctionInteraction,immediateAuctionReply,auctionDeferredReply,answerAuction} from './tavern-auction-ui.mjs';
 const mentions={parse:[]};
 const row=(...components)=>({type:1,components});
 const key=(guild,id,action)=>`t:${guild}:${id}:${action}`;
@@ -25,9 +26,9 @@ tavernCommand.options.push(...renoCommandOptions);
 tavernCommand.options.unshift(lobbyCommandOption);
 tavernCommand.options.push(...['研发','创作菜单','我的作品'].map((name,i)=>({type:1,name,description:['进入UGC研发工作台','打开总菜单并按菜品分类浏览玩家创作','查看和管理我的作品'][i]})));
 tavernCommand.options.push(petCommandOption);
-tavernCommand.options.push(slotsCommandOption);
+tavernCommand.options.push(slotsCommandOption,auctionCommandOption);
 tavernCommand.options.find(o=>o.name==='点单').options.push({type:6,name:'赠给',description:'由自己付款，送给本服务器的一位成员'},{type:4,name:'数量',description:'同一种商品1至10份',min_value:1,max_value:10});
-export const TAVERN_HELP=`🍵 **红豆粉的小酒馆**\n先用大厅按钮：吧台点单、钱包、常客卡、店内、共同装修、捐赠档案、贡献榜、小游戏、今日经营、季节菜单、共同活动和刷新。自然语言也可说“打开酒馆”或“走进酒馆”。\n快捷入口：\`/酒馆 大厅\`、\`/酒馆 菜单\`、\`/酒馆 点单\`、\`/酒馆 钱包\`、\`/酒馆 常客卡\`；装修也可用\`/酒馆 店内\`、\`/酒馆 装修\`、\`/酒馆 贡献榜\`、\`/酒馆 捐赠档案\`。\n每服务器独立共用一家店，跨频道共用装修。确认餐饮消费和主动出资按1币=1建设值，消费不再扣一次；装修先预览，3分钟内本人在原频道确认才扣款，余额流水仅本人可见。设备页购置咖啡机、烤箱、搅拌机与冰淇淋机，永久解锁本服务器公共菜单；新品从菜单分类里点单。\n新客欢迎金 **${WELCOME_COINS}币**，每服务器一次。${Object.values(REWARDS).map(r=>`${r.name} +${r.base}，胜者另 +${r.bonus}`).join('；')}。钱包内可手动领取每日到店礼20币，每天一次，北京时间零点刷新；与游戏奖励共用每日${DAILY_REWARD_CAP}币上限。至少两位真人实际行动才算合格；抽鬼牌/德州/UNO/骗子酒馆需分别达到15/30/45/60秒。同组每日前${ROSTER_DAILY_LIMIT}局跨游戏累计，奖励依次为全额、半额、四分之一（向下取整），之后为零。挂机、陪练局、取消局不发币，也没有按聊天条数发币。UNO按小局结算；德州筹码不兑换酒馆币。饮品分类含无酒精饮品和酒水；酒水商品会标注容量、酒精度。@我说“给我来一杯红豆牛奶”或“送给@某某一杯红豆牛奶”，会生成点单确认卡。点单预览中也可选择收礼人；赠送只扣付款人的酒馆币，确认后才上桌。`;
+export const TAVERN_HELP=`🍵 **红豆粉的小酒馆**\n先用大厅按钮：吧台点单、钱包、常客卡、店内、共同装修、捐赠档案、贡献榜、小游戏、今日经营、季节菜单、共同活动和刷新。自然语言也可说“打开酒馆”或“走进酒馆”。\n单人娱乐城可从大厅或钱包进入老虎机、仓库盲拍。\n快捷入口：\`/酒馆 大厅\`、\`/酒馆 菜单\`、\`/酒馆 点单\`、\`/酒馆 钱包\`、\`/酒馆 常客卡\`；装修也可用\`/酒馆 店内\`、\`/酒馆 装修\`、\`/酒馆 贡献榜\`、\`/酒馆 捐赠档案\`。\n每服务器独立共用一家店，跨频道共用装修。确认餐饮消费和主动出资按1币=1建设值，消费不再扣一次；装修先预览，3分钟内本人在原频道确认才扣款，余额流水仅本人可见。设备页购置咖啡机、烤箱、搅拌机与冰淇淋机，永久解锁本服务器公共菜单；新品从菜单分类里点单。\n新客欢迎金 **${WELCOME_COINS}币**，每服务器一次。${Object.values(REWARDS).map(r=>`${r.name} +${r.base}，胜者另 +${r.bonus}`).join('；')}。钱包内可手动领取每日到店礼20币，每天一次，北京时间零点刷新；与游戏奖励共用每日${DAILY_REWARD_CAP}币上限。至少两位真人实际行动才算合格；抽鬼牌/德州/UNO/骗子酒馆需分别达到15/30/45/60秒。同组每日前${ROSTER_DAILY_LIMIT}局跨游戏累计，奖励依次为全额、半额、四分之一（向下取整），之后为零。挂机、陪练局、取消局不发币，也没有按聊天条数发币。UNO按小局结算；德州筹码不兑换酒馆币。饮品分类含无酒精饮品和酒水；酒水商品会标注容量、酒精度。@我说“给我来一杯红豆牛奶”或“送给@某某一杯红豆牛奶”，会生成点单确认卡。点单预览中也可选择收礼人；赠送只扣付款人的酒馆币，确认后才上桌。`;
 const navigation=(g,id)=>row(button(g,id,'lobby','🏡 大厅'),button(g,id,'menu','🍵 菜单'),button(g,id,'wallet','🪙 钱包'),button(g,id,'card','🦋 常客卡'),button(g,id,'reno','🔧 装修'));
 export function menuData(data,id,guild,publicView=false,category='all',page=0){
  const view=renderMenu(data,id,guild,publicView,category,page);
@@ -39,7 +40,7 @@ export function walletData(data,id,guild,notice=''){
  const remaining=Math.max(0,data.cap-data.earned),gift=data.dailyGiftAvailable||0;
  const claim=button(guild,id,'claimDaily',data.dailyGiftClaimed?'今日到店礼已领取':gift?'领取今日到店礼':'今日收入已达上限',gift&&!data.dailyGiftClaimed?1:2);
  if(!gift||data.dailyGiftClaimed)claim.disabled=true;
- return {content:`🪙 **我的酒馆钱包**${notice?`\n${notice}`:''}\n余额：**${data.member.balance}币**\n今日到店与对局奖励：${data.earned} / ${data.cap}币（北京时间）· 还可赚 ${remaining}币\n到店礼：${data.dailyGiftClaimed?'今日已领取':gift?`可手动领取 ${gift}币`:'今日收入上限已满'}（与游戏奖励共用每日上限）\n\n最近流水：\n${data.ledger.map(l=>`${l.amount>=0?'+':''}${l.amount} · ${displayText(l.note)}`).join('\n')||'还没有流水。'}\n\n老虎机投入与返还单独结算。德州筹码与酒馆币分别计算。首次欢迎金${WELCOME_COINS}币独立发放一次。`,components:[row(claim,button(guild,id,'slots','🎰 单人老虎机')),navigation(guild,id)],allowed_mentions:mentions};
+ return {content:`🪙 **我的酒馆钱包**${notice?`\n${notice}`:''}\n余额：**${data.member.balance}币**\n今日到店与对局奖励：${data.earned} / ${data.cap}币（北京时间）· 还可赚 ${remaining}币\n到店礼：${data.dailyGiftClaimed?'今日已领取':gift?`可手动领取 ${gift}币`:'今日收入上限已满'}（与游戏奖励共用每日上限）\n\n最近流水：\n${data.ledger.map(l=>`${l.amount>=0?'+':''}${l.amount} · ${displayText(l.note)}`).join('\n')||'还没有流水。'}\n\n老虎机和仓库盲拍单独结算；盲拍未用预算会退回。德州筹码与酒馆币分别计算。首次欢迎金${WELCOME_COINS}币独立发放一次。`,components:[row(claim,button(guild,id,'slots','🎰 单人老虎机'),button(guild,id,'auction','📦 仓库盲拍')),navigation(guild,id)],allowed_mentions:mentions};
 }
 const select=(guild,id,field,label,map,current)=>row({type:3,custom_id:key(guild,id,`pref~${field}`),placeholder:label,options:Object.entries(map).map(([value,label])=>({label,value,default:value===current}))});
 export function cardData(data,id,guild,notice=''){
@@ -67,6 +68,7 @@ function interactionParts(i){
  return {id,guild,action};
 }
 export function immediateTavernReply(i){
+ if(auctionInteraction(i))return immediateAuctionReply(i);
  if(slotsInteraction(i))return immediateSlotsReply(i);
  if(ugcInteraction(i))return immediateUgcReply(i);
  if(operationsInteraction(i))return immediateOperationsReply(i);
@@ -84,6 +86,7 @@ async function sendServing(env,answer,name){
  }catch{return false;}
 }
 export async function answerTavern(env,i){
+ if(auctionInteraction(i))return answerAuction(env,i);
  if(slotsInteraction(i))return answerSlots(env,i);
  if(ugcInteraction(i))return answerUgc(env,i);
  if(operationsInteraction(i))return answerOperations(env,i);
@@ -145,7 +148,7 @@ export async function answerTavern(env,i){
  if(['菜单','menu','创作菜单'].includes(action)){await tavernRequest(env,{...base,action:'mapMove',area:'bar'});return menuData(data,id,guild);}
  throw Error('请重新打开 `/酒馆 菜单`。');
 }
-export function tavernDeferredReply(i){if(slotsInteraction(i))return slotsDeferredReply(i);if(ugcInteraction(i)){const reply=ugcDeferredReply(i);if(reply)return reply;}if(i.type===3&&String(i.data?.custom_id||'').split(':')[3]?.startsWith('menuCat~'))return {type:6};return operationsDeferredReply(i)||lobbyDeferredReply(i)||renovationDeferredReply(i);}
+export function tavernDeferredReply(i){if(auctionInteraction(i))return auctionDeferredReply(i);if(slotsInteraction(i))return slotsDeferredReply(i);if(ugcInteraction(i)){const reply=ugcDeferredReply(i);if(reply)return reply;}if(i.type===3&&String(i.data?.custom_id||'').split(':')[3]?.startsWith('menuCat~'))return {type:6};return operationsDeferredReply(i)||lobbyDeferredReply(i)||renovationDeferredReply(i);}
 export async function finishTavern(env,i){
  let data;try{data=await answerTavern(env,i);}catch(e){data={content:`🍵 ${e.message}`,components:[],allowed_mentions:mentions};}
  const announcement=data._renovationAnnouncement;delete data._renovationAnnouncement;

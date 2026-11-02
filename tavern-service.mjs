@@ -6,6 +6,7 @@ import {TavernOperations} from './tavern-operations.mjs';
 import {PetService} from './pet-service.mjs';
 import {UGCService} from './tavern-ugc-service.mjs';
 import {TavernSlots} from './tavern-slots.mjs';
+import {TavernAuction} from './tavern-auction.mjs';
 
 export class TavernService {
  constructor(storage){
@@ -27,6 +28,7 @@ export class TavernService {
  get operations(){return this._operations??=new TavernOperations(this);}
  get pets(){return this._pets??=new PetService(this);}
  get ugc(){return this._ugc??=new UGCService(this);}
+ get auction(){return this._auction??=new TavernAuction(this);}
  get slots(){return this._slots??=new TavernSlots(this);}
  rows(q,...args){return this.sql.exec(q,...args).toArray();}
  one(q,...args){return this.rows(q,...args)[0]||null;}
@@ -165,6 +167,7 @@ export class TavernService {
  async dispatch(p){
   if(!validId(p.guild))throw Error('无效服务器。');
   const bound=await this.storage.get('tavernGuild');if(bound&&bound!==p.guild)throw Error('服务器不匹配。');if(!bound)await this.storage.put('tavernGuild',p.guild);
+  if(p.action?.startsWith('auction'))return this.auction.dispatch(p);
   if(p.action?.startsWith('slots'))return this.slots.dispatch(p);
   if(p.action?.startsWith('flower'))return (this.flowerShop??=new FlowerShop(this)).dispatch(p);
   if(p.action?.startsWith('ugc'))return this.ugc.dispatch(p);
