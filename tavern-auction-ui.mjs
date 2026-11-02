@@ -2,7 +2,7 @@ import {tavernRequest} from './tavern-service.mjs';
 import {validId} from './tavern-catalog.mjs';
 import {AUCTION_BUDGET,AUCTION_MAX_BUDGET,AUCTION_TIERS,AUCTION_ROLES,AUCTION_QUALITIES} from './tavern-auction.mjs';
 import {AUCTION_ITEMS,AUCTION_NPCS} from './tavern-auction-data.mjs';
-import {renderAuctionImage} from './tavern-auction-image.mjs';
+import {renderAuctionImage,renderAuctionCatalogImage} from './tavern-auction-image.mjs';
 import {AUCTION_RATE,auctionAmount as f} from './tavern-auction-currency.mjs';
 import {currencyInteraction,immediateCurrencyReply,currencyDeferredReply,answerCurrency} from './tavern-auction-currency-ui.mjs';
 const mentions={parse:[]},row=(...components)=>({type:1,components});
@@ -18,7 +18,8 @@ function parts(i){
  const p=String(i.data?.custom_id||'').split(':');
  if(p.length!==4||p[1]!==guild)throw Error('竞拍面板已失效，请重新打开。');
  const action=p[3],menu=/^auction(?:$|Rules$|Catalog$)/.test(action),start=new RegExp(`^auctionStart~[a-f0-9]{16}~(?:sophie|gabriella|viktor)(?:~${tierPattern})?$`).test(action),tier=new RegExp(`^auctionTier~${tierPattern}$`).test(action),offer=/^auctionOffer~[a-f0-9]{16}~[1-5](?:~(?:legacy|[1-9][0-9]{0,8}))?$/.test(action),leave=/^auctionLeave~[a-f0-9]{16}~[1-5]$/.test(action),bid=/^auctionBid~[a-f0-9]{16}~[1-5](?:~(?:0|[1-9][0-9]{0,8}))?$/.test(action);
- if(!menu&&!start&&!tier&&!offer&&!leave&&!bid||i.type===5&&(!bid||action.split('~').length!==3)||i.type===3&&bid&&(action.split('~').length!==4||Number(action.split('~')[3])>AUCTION_MAX_BUDGET))throw Error('无效竞拍操作，请刷新。');
+ const reveal=/^auctionReveal~[a-f0-9]{16}~[0-8]~(?:next|all)$/.test(action);
+ if(!menu&&!start&&!tier&&!offer&&!leave&&!bid&&!reveal||i.type===5&&(!bid||action.split('~').length!==3)||i.type===3&&bid&&(action.split('~').length!==4||Number(action.split('~')[3])>AUCTION_MAX_BUDGET))throw Error('无效竞拍操作，请刷新。');
  if(i.type===3&&p[2]==='any'&&action==='auction')return {guild,id,channel,action,publicEntry:true};
  if(p[2]!==id||i.type===3&&!(Number(i.message?.flags)&64))throw Error('请从本人私密竞拍面板操作。');
  if(i.type===5&&i.message&&!(Number(i.message.flags)&64))throw Error('请从本人私密竞拍面板操作。');
@@ -46,7 +47,7 @@ export function auctionRules(g,id){return {content:`📦 **仓库盲拍 · 酒�
 export function auctionCatalog(g,id){return {content:`📚 **仓库盲拍 · 24件酒馆藏品**\n以下为**常规档竞拍币**价值；小额×0.25、高额×3、典藏×10，开局时固定；每库独立生成8件，允许重复。\n品质比例：白30% / 绿25% / 蓝20% / 紫13% / 金8% / 红4%；同品质4件等概率。\n\n${AUCTION_QUALITIES.map((q,i)=>`**${q}品质**\n${AUCTION_ITEMS.filter(x=>x.quality===i).map(x=>`${x.name} · ${x.width}×${x.height} · ${x.category} · ${f(x.value)}`).join('\n')}`).join('\n\n')}\n\n轮廓为宽×高，占格为两者相乘。可结合品质与轮廓对照估价。以上为原创酒馆物品和数值；旧版局价值为本页的1/${AUCTION_RATE}，单位酒馆币。`,components:[nav(g,id)],allowed_mentions:mentions};}
 export function auctionData(data,g,id,notice='',selectedTier='standard'){
  const tier=AUCTION_TIERS[selectedTier]||AUCTION_TIERS.standard;
- const s=data.session,active=s?.status==='active',legacy=s?.currency==='tavern',unit=legacy?'酒馆币':'竞拍币';let content=`📦 **酒馆仓库盲拍**\n可用竞拍币 **${f(data.balance)}** · 酒馆币 **${f(data.tavernBalance)}**`,components=[];
+ const s=data.session,active=s?.status==='active',revealing=s?.reveal&&!s.reveal.complete,legacy=s?.currency==='tavern',unit=legacy?'酒馆币':'竞拍币';let content=`📦 **酒馆仓库盲拍**\n可用竞拍币 **${data.balance===null?'开仓后显示':f(data.balance)}** · 酒馆币 **${f(data.tavernBalance)}**`,components=[];
  if(s){
   content+=`\n${active?`第 **${s.round} / 5** 轮 · 已暂存${f(s.budget)}${unit}`:'本局已结算'} · 能力：${AUCTION_ROLES[s.role].name}`;
   if(legacy)content+='\n这是升级前的旧局，以下金额仍为酒馆币。';
@@ -60,6 +61,11 @@ export function auctionData(data,g,id,notice='',selectedTier='standard'){
    const offers=[[0,'本轮不出价'],[Math.min(s.budget,Math.floor(reference*0.8)),'估值80%'],[Math.min(s.budget,Math.floor(reference*0.95)),'估值95%'],[s.budget,'预算上限']];
    components.push(row(...offers.map(([b,label])=>button(g,id,`auctionBid~${a}~${b}`,b?`${label} · ${legacy?f(b):f(b/10000)+'万'}`:label,b?1:2,s.readOnly)),button(g,id,`auctionOffer~${a}~${legacy?'legacy':s.budget}`,'自填报价',1,s.readOnly)));
    components.push(row(button(g,id,`auctionLeave~${a}`,'放弃余下竞拍',4,s.readOnly)));
+  }else if(revealing){
+   const r=s.result,shown=s.items.filter(Boolean),subtotal=shown.reduce((n,x)=>n+x.value,0);
+   content+=`\n\n${r.winner===null?'本局流拍':`${names[r.winner]}以 **${f(r.price)}${unit}** 拍中`}\n**开仓揭晓 ${s.reveal.count} / ${s.reveal.total}** · 已揭晓总值 **${f(subtotal)}${unit}**\n仓库格位保持不变，逐件揭晓图片、品质与真实价格。资金已结算，翻牌不再扣币。\n${shown.length?s.items.map((x,j)=>x?`${j+1}. ${x.name} · ${AUCTION_QUALITIES[x.quality]} · ${f(x.value)}${unit}`:null).filter(Boolean).join('\n'):'藏品仍在迷雾中。'}`;
+   if(s.readOnly)content+=`\n请回到 <#${s.channel}> 继续开仓。`;
+   components.push(row(button(g,id,`auctionReveal~${s.token}~${s.reveal.count}~next`,'揭晓下一件',1,s.readOnly),button(g,id,`auctionReveal~${s.token}~${s.reveal.count}~all`,'全部揭晓',2,s.readOnly)));
   }else{
    const r=s.result,won=r.winner===0;
    content+=`\n\n${r.winner===null?'本局流拍':`${names[r.winner]}以 **${f(r.price)}${unit}** 拍中`} · 仓库总值 **${f(r.total)}${unit}**\n退回预算 ${f(r.refund)} · 藏品结算 ${f(r.resale)}\n本局净变化 **${r.net>0?'+':''}${f(r.net)}${unit}**（含${f(s.fee)}入场费）${legacy?'':`\n折合酒馆币 **${r.net>0?'+':''}${f(r.net/AUCTION_RATE)}**`}\n结算后余额 ${f(r.balanceAfter)}${unit}${r.reason==='expired'?'\n本局已超时，余下各轮按不出价处理。':r.reason==='leave'?'\n已离场，余下各轮按不出价处理。':''}\n\n**开仓清单**（${unit}）\n${s.items.map((x,i)=>`${i+1}. ${x.name} · ${AUCTION_QUALITIES[x.quality]} · ${x.width*x.height}格 · ${f(x.value)}`).join('\n')}`;
@@ -68,7 +74,7 @@ export function auctionData(data,g,id,notice='',selectedTier='standard'){
   content+=`\n\n同价优先：${s.priority.map(i=>names[i]).join(' → ')}`;
   if(s.history.length)content+=`\n**已揭晓报价**（${unit}：你 / 阿吉 / 老猫 / 掌柜）\n${s.history.map(h=>`第${h.round}轮：${h.bids.map(f).join(' / ')}${h.done?' · 成交判定':''}`).join('\n')}`;
  }
- if(!active){
+ if(!active&&!revealing){
   content+=`\n\n选择能力开启${s?'下一':'一'}局：**${tier.name}档：${f(tier.fee)}入场费 + 暂存${f(tier.budget)}竞拍币预算**。未用预算退回竞拍币钱包。`;
   if(!s)content+=`\n${Object.values(AUCTION_ROLES).map(r=>`• ${r.name}：${r.skill}`).join('\n')}`;
   if(data.balance<tier.budget+tier.fee)content+='\n竞拍币不足，点“竞拍币双向兑换”先换入。';
@@ -83,20 +89,24 @@ export function auctionData(data,g,id,notice='',selectedTier='standard'){
 }
 export async function answerAuction(env,i){
  if(currencyInteraction(i))return answerCurrency(env,i);
- const p=parts(i);if(p.action==='auctionRules')return auctionRules(p.guild,p.id);if(p.action==='auctionCatalog')return auctionCatalog(p.guild,p.id);
+ const p=parts(i);if(p.action==='auctionRules')return auctionRules(p.guild,p.id);
+ if(p.action==='auctionCatalog'){
+  const view=auctionCatalog(p.guild,p.id);try{view._mapScene={bytes:await renderAuctionCatalogImage(env),filename:'tavern-auction-catalog.png',mime:'image/png',description:'24件酒馆藏品配图与常规档价值'};}catch{view.content+='\n藏品配图暂未加载，图鉴文字仍有效。';}return view;
+ }
  const base={guild:p.guild,id:p.id,channel:p.channel,name:i.member.nick||i.member.user.global_name||i.member.user.username||'来客'};
  const [action,token,value,last]=p.action.split('~');let data,notice='';
  try{
-  if(action==='auctionStart')data=await tavernRequest(env,{...base,action,token,role:value,tier:last||'standard'});
+  if(action==='auctionStart')data=await tavernRequest(env,{...base,action,token,role:value,tier:last||'standard',presentation:'warehouse'});
   else if(action==='auctionBid')data=await tavernRequest(env,{...base,action,token,round:Number(value),bid:i.type===5?modalBid(i):Number(last)});
   else if(action==='auctionLeave')data=await tavernRequest(env,{...base,action,token,round:Number(value)});
+  else if(action==='auctionReveal')data=await tavernRequest(env,{...base,action,token,step:Number(value),all:last==='all'});
   else data=await tavernRequest(env,{...base,action:'auctionView'});
  }catch(e){data=await tavernRequest(env,{...base,action:'auctionView'});notice=e.message;}
  if(data.repeated&&data.session?.status==='settled'){
   const previous=data.session,current=await tavernRequest(env,{...base,action:'auctionView'});
   if(current.session&&current.session.token!==previous.token){
    const r=previous.result,unit=previous.currency==='tavern'?'酒馆币':'竞拍币';
-   notice=`上一局已结算：净变化 ${r.net>0?'+':''}${f(r.net)}${unit}，结算后余额 ${f(r.balanceAfter)}${unit}。本次没有重复结算；已恢复${current.session.status==='active'?'当前进行中的竞拍':'最新一局的收据'}。`;
+   notice=previous.reveal&&!previous.reveal.complete?`上一局竞拍已结算，开仓进度${previous.reveal.count}/8；本次没有重复结算。已恢复当前竞拍。`:`上一局已结算：净变化 ${r.net>0?'+':''}${f(r.net)}${unit}，结算后余额 ${f(r.balanceAfter)}${unit}。本次没有重复结算；已恢复${current.session.status==='active'?'当前进行中的竞拍':'最新一局的收据'}。`;
    data=current;
   }
  }

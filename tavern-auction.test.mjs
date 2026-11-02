@@ -9,7 +9,10 @@ import {AUCTION_ITEMS} from './tavern-auction-data.mjs';
 import {auctionData,auctionRules,auctionCatalog} from './tavern-auction-ui.mjs';
 import {currencyData} from './tavern-auction-currency-ui.mjs';
 import {answerTavern,immediateTavernReply,tavernDeferredReply,tavernCommand,finishTavern} from './tavern-ui.mjs';
-import {renderAuctionImage} from './tavern-auction-image.mjs';
+import {renderAuctionImage,renderAuctionCatalogImage} from './tavern-auction-image.mjs';
+import {layoutAuction} from './tavern-auction-board.mjs';
+import {readFile} from 'node:fs/promises';
+import auctionArt from './auction-art-manifest.mjs';
 const base={guild:'3',id:'1',channel:'2',name:'Alice'},cash=n=>n*R;
 function setup(t,fund=500,initializeCurrency=true){
  const db=new DatabaseSync(':memory:'),map=new Map();t.after(()=>db.close());let calls=0;
@@ -282,6 +285,7 @@ test('tier selection is free, large modals accept nine digits and references use
  assert.equal(e.auction.view(base).session.estimate,s.estimate);
  const bid=submit(modal.data.custom_id.split(':')[3],'bid','200000000');assert.equal(immediateTavernReply(bid),null);bounds(await answerTavern(env,bid));
  const settled=e.auction.view(base);if(settled.session.status==='active')e.auction.leave({...base,token:s.token,round:settled.session.round});
+ const pending=e.auction.view(base);if(pending.session.reveal&&!pending.session.reveal.complete)e.auction.reveal({...base,token:s.token,step:pending.session.reveal.count,all:true});
  const next=await answerTavern(env,i());bounds(next);assert(next.components[0].components.every(c=>c.custom_id.endsWith('~standard')));
  for(const extra of [{member:{user:{id:'4'}}},{guild_id:'9'},{message:{flags:0}}])assert.equal(immediateTavernReply(i('auctionTier~collection',extra)).type,4);
 });
@@ -296,4 +300,72 @@ test('pre-tier auction-coin sessions retain standard prices, limits, later-round
  const raw=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
  assert.deepEqual(raw.committed,raw.infos.slice(1).map((info,j)=>npcAuctionBid(info,2,j,n=>n-1,R)));
  bounds(await answerTavern(envFor(e.tavern),i(`auctionBid~${token}~1~${100*R}`)));
+});
+
+test('warehouse layouts are fixed, in bounds and non-overlapping across mixed shapes',()=>{
+ for(let seed=0;seed<2000;seed++){
+  const items=Array.from({length:8},(_,i)=>AUCTION_ITEMS[(seed*13+i*7)%24]),layout=layoutAuction(items,String(seed)),cells=new Set();
+  assert.deepEqual(layout,layoutAuction(items,String(seed)));
+  layout.forEach((p,i)=>{
+   assert.equal(p.width,items[i].width);assert.equal(p.height,items[i].height);
+   assert(p.x>=0&&p.y>=0&&p.x+p.width<=8&&p.y+p.height<=6);
+   for(let dy=0;dy<p.height;dy++)for(let dx=0;dx<p.width;dx++){const cell=(p.y+dy)*8+p.x+dx;assert(!cells.has(cell));cells.add(cell);}
+  });
+ }
+});
+test('quality-only and count-only clues never disclose hidden footprints or identities in the warehouse board',t=>{
+ for(const role of ['sophie','gabriella','viktor']){
+  const e=setup(t),s=open(e.auction,role),slots=s.session.board.slots;
+  if(role==='viktor')assert(slots.every(x=>x===null));
+  else assert.equal(slots.filter(Boolean).length,role==='sophie'?5:2);
+  if(role==='sophie')assert(slots.filter(Boolean).every(x=>x.width===null&&x.height===null));
+  if(role==='gabriella')assert(slots.filter(Boolean).every(x=>x.width===2&&x.height===2));
+  assert.equal(s.session.items,null);assert(!JSON.stringify(s).includes('tavern-5-3'));
+ }
+});
+function cinematic(e,role='sophie'){
+ const v=e.auction.view(base,1002);return e.auction.start({...base,token:v.offerToken,role,presentation:'warehouse'},1003);
+}
+test('opening settles funds once, progressively discloses only opened objects and survives restart and duplicate clicks',t=>{
+ const e=setup(t),s=cinematic(e),token=s.session.token;force(e,token,[40*R,50*R,60*R]);
+ const end=e.auction.bid({...base,token,round:1,bid:150*R},1004),wallet=e.fx.balance(base.id),ledger=e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n;
+ assert.equal(wallet,1540*R);assert.equal(end.balance,null);assert.equal(end.session.reveal.count,0);assert(end.session.items.every(x=>x===null));
+ for(const key of ['total','resale','net','balanceAfter'])assert(!Object.hasOwn(end.session.result,key));
+ assert.equal(end.stats.net,0);const raw=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
+ const positions=s.session.board.slots;const opened=e.auction.reveal({...base,token,step:0,all:false},1005);
+ assert.equal(opened.session.reveal.count,1);assert.equal(opened.session.items.filter(Boolean).length,1);assert.equal(e.auction.reveal({...base,token,step:0,all:false},1006).session.reveal.count,1);
+ assert.throws(()=>e.auction.reveal({...base,token,step:3,all:false},1007),/进度已变化/);
+ for(const extra of [{id:'4'},{channel:'4'},{step:-1},{all:'yes'}])assert.throws(()=>e.auction.reveal({...base,token,step:1,all:false,...extra},1008));
+ const restored=new TavernAuction(new TavernService(e.storage),()=>{throw Error('reroll');});let result;
+ for(let step=1;step<8;step++){
+  result=restored.reveal({...base,token,step,all:false},1010+step);
+  assert.equal(result.session.reveal.count,step+1);assert.equal(result.session.items.filter(Boolean).length,step+1);
+  result.session.board.slots.forEach((p,i)=>{if(positions[i]){assert.equal(p.x,positions[i].x);assert.equal(p.y,positions[i].y);}});
+ }
+ assert(result.session.reveal.complete);assert.equal(result.balance,wallet);assert.equal(result.session.result.net,1040*R);assert.equal(result.session.result.total,1200*R);
+ assert.deepEqual(result.session.result,raw.result);assert.equal(result.stats.net,1040*R);
+ assert.deepEqual(restored.reveal({...base,token,step:0,all:true},1100).session.result,result.session.result);
+ assert.equal(e.fx.balance(base.id),wallet);assert.equal(e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n,ledger);
+});
+test('warehouse UI next/all controls stay private, do not spoil results and produce 24 individual item images',async t=>{
+ const e=setup(t),env=envFor(e.tavern),start=await answerTavern(env,i()),s=await answerTavern(env,i(start.components[0].components[0].custom_id.split(':')[3]));bounds(s);
+ const active=e.auction.view(base),token=active.session.token;assert.equal(e.auction.reveal instanceof Function,true);
+ await writeFile('/tmp/auction6-clues.png',await renderAuctionImage(active.session));
+ assert.throws(()=>e.auction.reveal({...base,token,step:0,all:false}),/结束后/);
+ force(e,token,[0,0,0]);const view=await answerTavern(env,i(`auctionBid~${token}~1~1`));bounds(view);
+ assert(view.content.includes('开仓揭晓 0 / 8'));assert(!view.content.includes('本局净变化'));assert(!view.content.includes('始祖秘传配方'));
+ const unopened=e.auction.view(base),a=await renderAuctionImage(unopened.session),hidden=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state).items;
+ const b=await renderAuctionImage({...unopened.session,items:hidden});assert.deepEqual(a,b);
+ const next=view.components[0].components[0].custom_id.split(':')[3];
+ for(const extra of [{member:{user:{id:'4'}}},{guild_id:'9'},{message:{flags:0}}])assert.equal(immediateTavernReply(i(next,extra)).type,4);
+ bounds(await answerTavern(env,i(next)));const first=e.auction.view(base);assert.equal(first.session.reveal.count,1);
+ bounds(await answerTavern(env,i(next)));assert.equal(e.auction.view(base).session.reveal.count,1);
+ await writeFile('/tmp/auction6-first-reveal.png',await renderAuctionImage(first.session));
+ const all=`auctionReveal~${token}~1~all`;bounds(await answerTavern(env,i(all)));const done=e.auction.view(base);assert(done.session.reveal.complete);
+ await writeFile('/tmp/auction6-open.png',await renderAuctionImage(done.session));
+ const catalog=await answerTavern(env,i('auctionCatalog'));bounds(catalog);assert(catalog._mapScene.bytes.length>1000);
+ await writeFile('/tmp/auction6-catalog.png',await renderAuctionCatalogImage());
+ assert.equal(Object.keys(auctionArt.items).length,24);const signatures=new Set();
+ for(const item of AUCTION_ITEMS){const record=auctionArt.items[item.id];assert(record);const bytes=await readFile(new URL('.'+record.path, new URL('./public/',import.meta.url)));assert.deepEqual([...bytes.slice(0,8)],[137,80,78,71,13,10,26,10]);signatures.add(Buffer.from(bytes).toString('hex'));}
+ assert.equal(signatures.size,24);
 });

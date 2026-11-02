@@ -95,7 +95,7 @@ test('signed Discord flow, private cards, stale click, duplicate, modal, timeout
  const call=async(data)=>{const i={application_id:'123',guild_id:'3',channel_id:'2',id:String(++counter),token:'transient-secret',member:{user:{id:'1'},permissions:'0'},...data};const body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');const ctx=context();const r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);await Promise.all(ctx.tasks);return {reply:await r.json(),i};};
  const unsigned=await worker.fetch(new Request('https://test/interactions',{method:'POST',body:'{}'}),env,context());assert.equal(unsigned.status,401);
  const hidden=await worker.fetch(new Request('https://test/.env'),env,context());assert.equal(hidden.status,404);
- const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.5',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity1'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
+ const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.6',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity1'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
  assert.deepEqual((await call({type:1})).reply,{type:1});
  const create={type:2,data:{name:'德州',options:[{name:'创建'}]}};
  let {reply:b}=await call(create);assert.equal(b.type,4);assert(!JSON.stringify(b).includes(env.BOT_TOKEN));
@@ -369,6 +369,7 @@ test('signed single-player auction opens privately and submits a modal bid once 
  assert.deepEqual(await call(submit),{type:6});const after=service.auction.view({guild:'3',id:'1',channel:'2'});assert.equal(after.session.history.length,1);
  await call(submit);assert.equal(service.auctionCurrency.balance('1'),after.balance);assert.equal(service.member('1').balance,0);assert.equal(service.auction.view({guild:'3',id:'1',channel:'2'}).session.history.length,1);
  await call({...click,data:{custom_id:`t:3:1:auctionLeave~${session.token}~${after.session.round}`}});
+ await call({...click,data:{custom_id:`t:3:1:auctionReveal~${session.token}~0~all`}});
  service.sql.exec('UPDATE tavern_members SET balance=3000 WHERE id=?','1');
  await call(exchangeEntry);const topupModal=await call({...click,data:{custom_id:deliveries.at(-1).components[0].components[0].custom_id}});
  await call({...convert,data:{custom_id:topupModal.data.custom_id,components:[{type:1,components:[{type:4,custom_id:'amount',value:'3000'}]}]}});
@@ -381,8 +382,29 @@ test('signed single-player auction opens privately and submits a modal bid once 
  const highSubmit={...submit,data:{custom_id:highModal.data.custom_id,components:[{type:1,components:[{type:4,custom_id:'bid',value:'200000000'}]}]}};
  assert.deepEqual(await call(highSubmit),{type:6});const highBalance=service.auctionCurrency.balance('1');
  await call(highSubmit);assert.equal(service.auctionCurrency.balance('1'),highBalance);assert.equal(service.member('1').balance,0);
+ const current=service.auction.view({guild:'3',id:'1',channel:'2'}).session;
+ if(current.status==='active')await call({...click,data:{custom_id:`t:3:1:auctionLeave~${high.token}~${current.round}`}});
+ assert(deliveries.at(-1).content.includes('开仓揭晓 0 / 8'));assert(!deliveries.at(-1).content.includes('本局净变化'));
+ const settledBalance=service.auctionCurrency.balance('1'),revealClick={...click,data:{custom_id:deliveries.at(-1).components[0].components[0].custom_id}};
+ assert.deepEqual(await call(revealClick),{type:6});await call(revealClick);
+ assert.equal(service.auction.view({guild:'3',id:'1',channel:'2'}).session.reveal.count,1);
+ await call({...click,data:{custom_id:`t:3:1:auctionReveal~${high.token}~1~all`}});
+ assert(deliveries.at(-1).content.includes('本局净变化'));assert.equal(service.auctionCurrency.balance('1'),settledBalance);
  const calls=names.length,bad=await call({...click,member:{user:{id:'4'}}});assert.equal(bad.type,4);assert.equal(names.length,calls);
  assert(names.every(n=>n==='tavern:3'));assert(deliveries.every(d=>d.allowed_mentions.parse.length===0));
+});
+
+test('auction item images and renderer atlas have bounded public asset routes with immutable caching',async()=>{
+ const env={ASSETS:{async fetch(req){const path=new URL(req.url).pathname;return new Response(await readFile(new URL('./public'+path,import.meta.url)),{headers:{'Content-Type':path.endsWith('.bin')?'application/octet-stream':'image/png'}});}}};
+ for(const path of ['/art/auction/tavern-5-3-v1.png','/art/auction/sprites-v1.bin']){
+  const request=new Request('https://test'+path),r=await worker.fetch(request,env,context());assert.equal(r.status,200);
+  const bytes=new Uint8Array(await r.arrayBuffer());assert.equal(bytes.length,Number(r.headers.get('Content-Length')));assert(bytes.length>1000);
+  assert(r.headers.get('Cache-Control').includes('immutable'));const etag=r.headers.get('ETag');assert(etag);
+  assert.equal((await worker.fetch(new Request(request,{headers:{'If-None-Match':etag}}),env,context())).status,304);
+  assert.equal((await worker.fetch(new Request(request,{method:'HEAD'}),env,context())).status,200);
+  assert.equal((await worker.fetch(new Request(request,{method:'POST'}),env,context())).status,405);
+ }
+ assert.equal((await worker.fetch(new Request('https://test/art/auction/fake.png'),env,context())).status,404);
 });
 
 test('signed red packet clicks route to guild wallet and acknowledge privately, bypassing active game tables',async t=>{

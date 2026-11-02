@@ -945,3 +945,7 @@ PR #67特性提交eae3d6d65f26ba00d97613a6a726c4c25a3e198f，完整CI41434836360
 ### casino.5 发布回执（2026-11-02，已发布）
 
 PR #68特性aa803421bc0a3b519a9d8ed3f41d980d7c53a926，完整CI41443841426通过；合并9048a24cb2aad50e22ebdc7231e523eb54db54a8，main完整检查及发布41444065818成功。CF部署6ce0ac8c-eef8-45a4-b725-44a136d808a4 / 版本4f412593-c9f0-4103-934c-848b37c90833接收100%，15bindings和settings全字段前后保持。浏览器实际health为casino.5，ok/ready:true、Gateway connected/ready:true，identity1聊天指纹匹配；命令schema保持，casino3注册registered:true，failures/missing/pending为空。最终实现scope10文件239行增删、无警告；原tavern-building重复z键的打包警告未在此次扩范围修复。未操作真实玩家资金或发送测试消息，真人Discord手感待用户试玩。功能/发布闭环完成，不重复部署；高波动货池、常规收益分布、角色差异和持续消费仍是后续经济工作。
+
+### casino.6 仓库格位、华丽藏品与逐件开仓（2026-11-02，本地完成）
+
+本地实现8×6固定仓库格位、24件原创透明物品图、金/红本体华丽化与品质辉光、next/all开仓、图鉴配图。布局/技能线索不泄露隐藏宽高或身份；成交资金一次结清、翻牌仅保存进度且幂等。盲拍31/31、酒馆283/283、Worker93/93、资产120/120通过，2000布局样本及真实签名流程通过；离线esbuild成功，目检完整/部分开仓和图鉴。Wrangler预检查询被自动审批以Cloudflare源码/构建信息传输风险拒绝，未绕过；尚未合并/部署，生产仍casino.5。下一步提交PR及CI，解除具体Cloudflare发送/发布阻断后再合并部署；详见docs/casino/AUCTION_WAREHOUSE.md。未操作真实玩家资金或发送测试消息。
