@@ -19,7 +19,7 @@ test('public lobby keeps a short status, build/map metadata, three button groups
  const data=await answerTavern(e,interaction);bounds(data);assert(data.content.includes('小酒馆'));assert(data.content.includes('大厅'));assert(data.content.includes('建设'));assert(data.content.includes('今日店长'));assert(data.content.includes('地图实况暂不可用'));assert(data._mapEmbed.title.includes('店内实况'));assert(data._mapEmbed.description.includes('%'));assert(data._mapEmbed.footer.includes('🌱'));assert(!data.content.includes('余额'));assert(!data.content.includes('最近落地'));assert(!data.content.includes('最近捐赠'));assert.equal(data.components.length,4);
  assert.equal(e.service.rows('SELECT * FROM tavern_members').length,0);
  const actions=data.components.flatMap(r=>r.components).map(c=>c.custom_id.split(':')[3]);
- for(const action of ['lobbyMenu','lobbyWallet','lobbyCard','lobbyRoom','renoEnter','renoHistory~0','renoLeaders','lobbyGames','lobby','lobbyMap','opsBoard','opsSeason','opsActivity','slots','auction'])assert(actions.includes(action));
+ for(const action of ['lobbyMenu','lobbyWallet','lobbyCard','lobbyRoom','renoEnter','renoHistory~0','renoLeaders','lobbyGames','lobby','lobbyMap','opsBoard','opsSeason','opsActivity','slots','auction','auctionExchange'])assert(actions.includes(action));
  assert.equal(tavernCommand.options[0].name,'大厅');
  assert(data.content.length<300);
 });
