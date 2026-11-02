@@ -1,9 +1,11 @@
-## 价格与占格重做 casino.10（2026-11-03，本地完成，待发布）
+## 价格与占格重做 casino.10（2026-11-03，已发布）
 
 - 用户授权重做192件价格，明确多格物品更贵。采用原版社区2026.10.29同占1格中位价阶梯，按统一尺度、占格0.8次方、类别工艺、稳定个体差异和纪念溢价形成固定自然尾数价格；192件身份/美术/格位和红1%等掉率不变。源价格表assets/auction-art/prices-v1.json，重建scripts/build-auction-prices.mjs；原作口径BIDKING_PRICE_REFERENCE.json。
 - 新局catalogVersion4；24/72/192旧池和已保存价格、预算、报价/收据保持。各档新预算250万/1000万/3000万/1亿，费用同步缩至2.5万/10万/30万/100万；小额需25.25T，初始余额不足常规档时默认展示小额。双方使用本局保存预算。小额逐件缩放向下取整至1竞拍币，等值显示5位小数，兑换余数保持。未知品质大奖折计保守参考价，确认红品质后完整估价；仅版本4应用，不读隐藏仓库。
-- No Refactor / Local Fix Only，18文件1800已知文本行内；无新依赖/源图/命令schema/模型人设/绑定/Secrets/Cron或财务事务变更。合同docs/casino/AUCTION_PRICING.md。前置38/38，最终盲拍+Worker主文件67/67、完整酒馆296/296、Worker93/93通过，离线esbuild通过（仅既有重复z键警告）；完整CI待执行。
-- 12万仓库、48万策略回放，生产函数/同随机记录一致性对照通过。参考80/95报价封顶同价0.06%～1.15%，报满大亏；维克托所测策略偏弱，技能未改，不宣称全局平衡。统计和局限docs/casino/AUCTION_PRICING_SIMULATION.json。当前远端/生产仍casino.9，尚未上传casino.10；下一步目检图鉴，PR完整CI→main部署→设置/health核验，不操作真人钱包或发测试消息，不做被拒的本地Wrangler联网预检。
+- No Refactor / Local Fix Only，18文件1800已知文本行内；无新依赖/源图/命令schema/模型人设/绑定/Secrets/Cron或财务事务变更。合同docs/casino/AUCTION_PRICING.md。前置38/38，最终盲拍+Worker主文件67/67、完整酒馆296/296、Worker93/93通过，离线esbuild通过（仅既有重复z键警告）；完整PR/main CI均成功。
+- 6万种子对应12万新旧仓库实例、48万策略回放，生产函数/同随机记录对照通过；模型和策略共用种子，非48万独立样本。参考80/95报价封顶同价0.06%～1.15%，报满大亏；维克托所测策略偏弱，技能未改，不宣称全局平衡。统计和局限docs/casino/AUCTION_PRICING_SIMULATION.json。图鉴已显示占格、完整自然尾数价格，本地实际渲染目检通过。
+- PR #73特性7c13389c2dc362c754ef7c02c1f5ef82334257d0，完整PR CI41516569771成功；合并f9b5aefa0cea6f7d230c9034be0b1f9b1d3cf7a0，main完整检查及部署41517267956成功。CF部署2041517d-37de-4c37-b357-f59b8f07fe62、版本a7bbf373-fd7d-49da-8942-b454cc65ee47接收100%；15bindings及settings全部字段保持。实际浏览器health确认casino.10、ok/ready:true、Gateway connected/ready:true、identity1指纹匹配；命令仍casino3/registered:true，failures/missing/pending为空。
+- 功能和发布闭环；最终18文件885已知文本行增删（回执文档另计少量行），无二进制/依赖变更；发布源码树654744a349bab5740c0f3ec5a6285f3c985b6da1与本地一致。未操作真人钱包或发测试消息，真人Discord手感待试玩；不要重复部署，不直接回退到不识别版本4的旧程序。
 
 ## 藏品192件与独立配色 casino.9（2026-11-02，已发布）
 
