@@ -47,7 +47,7 @@ export function auctionRules(g,id){return {content:`📦 **仓库盲拍 · 酒�
 export function auctionCatalog(g,id,page=0){
  if(!Number.isInteger(page)||page<0||page>5)throw Error('无效图鉴页。');
  const items=AUCTION_ITEMS.filter(x=>x.quality===page),tabs=AUCTION_QUALITIES.map((q,n)=>button(g,id,`auctionCatalog~${n}`,`${q}品质 · 12件`,page===n?1:2));
- return {content:`📚 **仓库盲拍 · 72件酒馆藏品**\n**${AUCTION_QUALITIES[page]}品质 · ${page+1}/6页 · 本页12件**\n以下为常规档竞拍币价值；小额×0.25、高额×3、典藏×10，开局固定。每库独立生成8件，允许重复。\n品质比例：白30% / 绿25% / 蓝20% / 紫13% / 金8% / 红4%；同品质12件等概率。\n\n${items.map(x=>`**${x.name}** · ${x.width}×${x.height} · ${x.category} · ${f(x.value)}${x.flavor?`\n${x.flavor}`:''}`).join('\n\n')}\n\n轮廓为宽×高。物品与数值均为酒馆原创；升级前旧局仍使用原24件藏品与原定价值。`,components:[row(...tabs.slice(0,3)),row(...tabs.slice(3)),nav(g,id)],allowed_mentions:mentions};
+ return {content:`📚 **仓库盲拍 · 72件酒馆藏品**\n**${AUCTION_QUALITIES[page]}品质 · ${page+1}/6页 · 本页12件**\n以下为常规档竞拍币价值；小额×0.25、高额×3、典藏×10，开局固定。每库独立生成8件，允许重复。\n品质比例：白30% / 绿25% / 蓝20% / 紫13% / 金11% / 红1%；同品质12件等概率。\n\n${items.map(x=>`**${x.name}** · ${x.width}×${x.height} · ${x.category} · ${f(x.value)}${x.flavor?`\n${x.flavor}`:''}`).join('\n\n')}\n\n轮廓为宽×高。物品与数值均为酒馆原创；升级前旧局仍使用原24件藏品与原定价值。`,components:[row(...tabs.slice(0,3)),row(...tabs.slice(3)),nav(g,id)],allowed_mentions:mentions};
 }
 export function auctionData(data,g,id,notice='',selectedTier='standard'){
  const tier=AUCTION_TIERS[selectedTier]||AUCTION_TIERS.standard;
@@ -57,6 +57,7 @@ export function auctionData(data,g,id,notice='',selectedTier='standard'){
   if(legacy)content+='\n这是升级前的旧局，以下金额仍为酒馆币。';
   else content+=`\n${AUCTION_TIERS[s.tier]?.name||'常规'}档 · 入场费 ${f(s.fee)}竞拍币 · ${f(s.fee/AUCTION_RATE)}酒馆币等值`;
   if(active){
+   if(s.dropVersion===1)content+='\n本局沿用旧掉率：红4% / 金8%；其余品质不变。';
    content+=`\n${AUCTION_ROLES[s.role].skill}\n${s.info.highCount===null?'':`紫、金、红品质合计 **${s.info.highCount}件**\n`}\n**你的仓库线索**\n${s.info.items.map((x,i)=>`${i+1}. ${x.quality===null?'品质未知':AUCTION_QUALITIES[x.quality]+'品质'} · ${x.width===null?'轮廓未知':`${x.width}×${x.height} / ${x.width*x.height}格`}`).join('\n')}`;
    content+=`\n\n${s.readOnly?`请回到 <#${s.channel}> 继续本局。`:`本轮报价单位：${unit}，0表示不出价。截止 <t:${Math.floor(s.expires/1000)}:R>`}`;
    const a=`${s.token}~${s.round}`;
