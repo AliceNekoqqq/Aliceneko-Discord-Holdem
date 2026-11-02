@@ -923,3 +923,10 @@ PR #65（特性提交b6de123135dafb6b35e17b1d19fec217bfe4e9ad）完整CI41412480
 用户追加“20万也太少了”后，本轮最终采用1酒馆币⇄100,000竞拍币，2000万预算/100万入场费、八位整数报价，物品/NPC同步放大，开仓图用万/亿无小数显示。经济对应开局210酒馆币的原预算与费用，实际需玩家主动兑换。未发布中间20万方案，生产从casino.2直接升级最终casino.3。
 
 本地最终酒馆272/272、Worker92/92、Wrangler dry-run通过；图像格式最后修订后专项PNG测试再次通过。PR #66特性提交6439c427160cc01a1babe7531f7e825d93ebd875，完整CI41415659898成功，合并a18aeb7c606211b5b2246d3fc6394c47b5a47698；main完整检查/发布41415781637成功。CF部署d8923958-a009-4b46-a416-9fd9ef7ded94，版本1f4a21f0-ef9f-45d8-8d45-7a28fdcff706接收100%，15bindings及settings所有字段前后完全一致。浏览器实际health确认casino.3、ok/ready:true、Gateway connected/ready:true，实际/预期identity1聊天指纹匹配；commands casino3 registered:true，failures/missing/pending空。未改模型/人设/Secrets/D1/DO/迁移标签/Cron；未动真实玩家余额或发测试消息，真人Discord交互待用户验证。功能发布闭环完成，不重复发布。
+
+
+## casino.4 竞拍审查缺陷修复（2026-11-02，本地完成）
+
+用户审查后“继续吧/继续继续”，本轮落实已确认F1和F2两个局部修复。F1将竞拍币schema初始化前移到TavernAuction构造、游戏资金事务之外；冷旧ready开局不足资金后，不再因DDL回滚留下无表的缓存服务。测试先复现no such table再转为通过，继续验证普通酒馆钱包、兑换与再次开局可用、余额正确。F2保持原服务幂等收据不变，在界面处理旧已结算局重试时额外只读当前局，恢复新局面板并提示历史净变化/结算余额；旧报价、旧开局、旧离场重试均不动当前局状态或账本。
+
+专项22/22通过；修复门为两个Local Fix Only，核心3文件共46行增删，scope检查无警告。预算/费用/汇率、NPC和物价不变，不处理经济定位风险。运行版本casino.4用于部署识别；命令schema无改动，COMMAND_VERSION保持casino3。酒馆274/274、Worker92/92及Wrangler dry-run通过；待PR/完整CI和部署核验；不修改生产玩家数据。
