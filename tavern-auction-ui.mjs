@@ -17,7 +17,7 @@ function parts(i){
  if(i.type===2&&auctionInteraction(i))return {guild,id,channel,action:'auction'};
  const p=String(i.data?.custom_id||'').split(':');
  if(p.length!==4||p[1]!==guild)throw Error('竞拍面板已失效，请重新打开。');
- const action=p[3],menu=/^auction(?:$|Rules$|Catalog$)/.test(action),start=new RegExp(`^auctionStart~[a-f0-9]{16}~(?:sophie|gabriella|viktor)(?:~${tierPattern})?$`).test(action),tier=new RegExp(`^auctionTier~${tierPattern}$`).test(action),offer=/^auctionOffer~[a-f0-9]{16}~[1-5](?:~(?:legacy|[1-9][0-9]{0,8}))?$/.test(action),leave=/^auctionLeave~[a-f0-9]{16}~[1-5]$/.test(action),bid=/^auctionBid~[a-f0-9]{16}~[1-5](?:~(?:0|[1-9][0-9]{0,8}))?$/.test(action);
+ const action=p[3],menu=/^auction(?:|Rules|Catalog(?:~[0-5])?)$/.test(action),start=new RegExp(`^auctionStart~[a-f0-9]{16}~(?:sophie|gabriella|viktor)(?:~${tierPattern})?$`).test(action),tier=new RegExp(`^auctionTier~${tierPattern}$`).test(action),offer=/^auctionOffer~[a-f0-9]{16}~[1-5](?:~(?:legacy|[1-9][0-9]{0,8}))?$/.test(action),leave=/^auctionLeave~[a-f0-9]{16}~[1-5]$/.test(action),bid=/^auctionBid~[a-f0-9]{16}~[1-5](?:~(?:0|[1-9][0-9]{0,8}))?$/.test(action);
  const reveal=/^auctionReveal~[a-f0-9]{16}~[0-8]~(?:next|all)$/.test(action);
  if(!menu&&!start&&!tier&&!offer&&!leave&&!bid&&!reveal||i.type===5&&(!bid||action.split('~').length!==3)||i.type===3&&bid&&(action.split('~').length!==4||Number(action.split('~')[3])>AUCTION_MAX_BUDGET))throw Error('无效竞拍操作，请刷新。');
  if(i.type===3&&p[2]==='any'&&action==='auction')return {guild,id,channel,action,publicEntry:true};
@@ -44,7 +44,11 @@ export function auctionDeferredReply(i){
 }
 const nav=(g,id)=>row(button(g,id,'auction','刷新 / 恢复'),button(g,id,'auctionExchange','竞拍币双向兑换',1),button(g,id,'auctionRules','玩法规则'),button(g,id,'auctionCatalog','藏品图鉴'),button(g,id,'wallet','酒馆钱包'));
 export function auctionRules(g,id){return {content:`📦 **仓库盲拍 · 酒馆单人改编**\n你与3位NPC竞拍同一仓库，每库8件藏品，共5轮。每轮报一个**总价**，不累加，可下调；0表示本轮不出价。NPC先封存报价，提交后同时公开当轮4人出价。\n\n**提前成交**：最高价须严格大于第二名的2 / 1.6 / 1.3 / 1.1倍（第1至4轮）。第5轮由最高正价成交；同价按开局公布的抽签顺序优先，全部为0则流拍。\n\n**竞拍币钱包**：先用酒馆币兑换，**1酒馆币 ⇄ 100,000竞拍币**，双向免手续费。兑换按整数酒馆币计算，不足100,000的竞拍币保留。\n开局前可选小额/常规/高额/典藏档，预算500万/2000万/6000万/2亿，入场费25万/100万/300万/1000万；货值和NPC报价同比缩放。常规档暂存2,000万预算并扣100万费用；报价不另扣款。你拍中时从预算付成交价，藏品按本局固定价值自动折算竞拍币；剩余预算退回竞拍币钱包。没拍中则退回2,000万，净支出100万竞拍币。\n例：1,500万拍中总值1,800万的仓库，退500万预算并结算1,800万，净赚200万竞拍币，可换回20酒馆币。无分红，无动态市场价。\n\n**线索**：品质、轮廓、占格、类别和名称分别记录。\n${Object.values(AUCTION_ROLES).map(r=>`• ${r.name}：${r.skill}`).join('\n')}\nNPC分别使用上述能力及不同出价风格，根据自己的线索估价。\n\n30分钟内可继续；离场或超时后，余轮按不出价处理，下次恢复时结算并退预算。每人每服同时一局，在开局频道操作。\n升级前的旧局继续按原酒馆币金额结算，不自动兑换；新局全部使用竞拍币。\n这是参考《竞拍之王》的单人改编；预算、费用、汇率、NPC、物品、平局与结算均为酒馆规则。`,components:[nav(g,id)],allowed_mentions:mentions};}
-export function auctionCatalog(g,id){return {content:`📚 **仓库盲拍 · 24件酒馆藏品**\n以下为**常规档竞拍币**价值；小额×0.25、高额×3、典藏×10，开局时固定；每库独立生成8件，允许重复。\n品质比例：白30% / 绿25% / 蓝20% / 紫13% / 金8% / 红4%；同品质4件等概率。\n\n${AUCTION_QUALITIES.map((q,i)=>`**${q}品质**\n${AUCTION_ITEMS.filter(x=>x.quality===i).map(x=>`${x.name} · ${x.width}×${x.height} · ${x.category} · ${f(x.value)}`).join('\n')}`).join('\n\n')}\n\n轮廓为宽×高，占格为两者相乘。可结合品质与轮廓对照估价。以上为原创酒馆物品和数值；旧版局价值为本页的1/${AUCTION_RATE}，单位酒馆币。`,components:[nav(g,id)],allowed_mentions:mentions};}
+export function auctionCatalog(g,id,page=0){
+ if(!Number.isInteger(page)||page<0||page>5)throw Error('无效图鉴页。');
+ const items=AUCTION_ITEMS.filter(x=>x.quality===page),tabs=AUCTION_QUALITIES.map((q,n)=>button(g,id,`auctionCatalog~${n}`,`${q}品质 · 12件`,page===n?1:2));
+ return {content:`📚 **仓库盲拍 · 72件酒馆藏品**\n**${AUCTION_QUALITIES[page]}品质 · ${page+1}/6页 · 本页12件**\n以下为常规档竞拍币价值；小额×0.25、高额×3、典藏×10，开局固定。每库独立生成8件，允许重复。\n品质比例：白30% / 绿25% / 蓝20% / 紫13% / 金8% / 红4%；同品质12件等概率。\n\n${items.map(x=>`**${x.name}** · ${x.width}×${x.height} · ${x.category} · ${f(x.value)}${x.flavor?`\n${x.flavor}`:''}`).join('\n\n')}\n\n轮廓为宽×高。物品与数值均为酒馆原创；升级前旧局仍使用原24件藏品与原定价值。`,components:[row(...tabs.slice(0,3)),row(...tabs.slice(3)),nav(g,id)],allowed_mentions:mentions};
+}
 export function auctionData(data,g,id,notice='',selectedTier='standard'){
  const tier=AUCTION_TIERS[selectedTier]||AUCTION_TIERS.standard;
  const s=data.session,active=s?.status==='active',revealing=s?.reveal&&!s.reveal.complete,legacy=s?.currency==='tavern',unit=legacy?'酒馆币':'竞拍币';let content=`📦 **酒馆仓库盲拍**\n可用竞拍币 **${data.balance===null?'开仓后显示':f(data.balance)}** · 酒馆币 **${f(data.tavernBalance)}**`,components=[];
@@ -90,8 +94,8 @@ export function auctionData(data,g,id,notice='',selectedTier='standard'){
 export async function answerAuction(env,i){
  if(currencyInteraction(i))return answerCurrency(env,i);
  const p=parts(i);if(p.action==='auctionRules')return auctionRules(p.guild,p.id);
- if(p.action==='auctionCatalog'){
-  const view=auctionCatalog(p.guild,p.id);try{view._mapScene={bytes:await renderAuctionCatalogImage(env),filename:'tavern-auction-catalog.png',mime:'image/png',description:'24件酒馆藏品配图与常规档价值'};}catch{view.content+='\n藏品配图暂未加载，图鉴文字仍有效。';}return view;
+ if(/^auctionCatalog(?:~[0-5])?$/.test(p.action)){
+  const page=Number(p.action.split('~')[1]||0),view=auctionCatalog(p.guild,p.id,page);try{view._mapScene={bytes:await renderAuctionCatalogImage(env,page),filename:`tavern-auction-catalog-${page}.png`,mime:'image/png',description:`72件酒馆藏品图鉴：${AUCTION_QUALITIES[page]}品质12件与常规档价值`};}catch{view.content+='\n藏品配图暂未加载，图鉴文字仍有效。';}return view;
  }
  const base={guild:p.guild,id:p.id,channel:p.channel,name:i.member.nick||i.member.user.global_name||i.member.user.username||'来客'};
  const [action,token,value,last]=p.action.split('~');let data,notice='';

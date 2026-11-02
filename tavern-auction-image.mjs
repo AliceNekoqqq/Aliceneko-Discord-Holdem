@@ -5,13 +5,15 @@ import {AUCTION_ITEMS} from './tavern-auction-data.mjs';
 import {prepareAuctionArt,drawAuctionItem} from './tavern-auction-art.mjs';
 const f=n=>n>=100000000?`${Math.floor(n/100000000)}亿${n%100000000?`${n%100000000/10000}万`:''}`:n>=10000?`${n/10000}万`:String(n);
 export const AUCTION_COLORS=[[203,198,193],[116,182,139],[106,172,214],[182,135,214],[237,192,102],[245,91,127]];
-const C={bg:[26,21,30],panel:[53,38,48],inner:[33,28,39],gold:[233,194,128],cream:[255,242,219],muted:[159,147,165],fog:[43,39,52]};
+const C={bg:[19,22,24],panel:[34,38,40],inner:[25,29,32],gold:[233,194,128],cream:[246,239,221],muted:[158,164,167],fog:[39,44,48]};
 const mix=(a,b,t)=>a.map((v,i)=>Math.round(v*(1-t)+b[i]*t));
+// The renderer's small font does not contain full-width Latin punctuation.
+const caption=item=>(item.flavor||'').replace(/[，；：！？]/g,c=>({'，':',','；':';','：':':','！':'!','？':'?'}[c]));
 function frame(c,x,y,w,h,quality,last=false){
  const col=quality===null?C.muted:AUCTION_COLORS[quality];
- if(quality>=4)for(let n=5;n>=1;n--)c.rect(x-n,y-n,w+2*n,h+2*n,mix(C.bg,col,(6-n)*0.065),10);
- c.rect(x,y,w,h,col,8);c.rect(x+2,y+2,w-4,h-4,mix(C.inner,col,quality===null?0:0.17),7);
- if(quality===5||last)for(const [sx,sy]of [[x+8,y+8],[x+w-10,y+h-10]]){c.rect(sx-3,sy,7,1,C.cream);c.rect(sx,sy-3,1,7,C.cream);}
+ c.rect(x,y,w,h,col,3);c.rect(x+2,y+2,w-4,h-4,mix(C.inner,col,quality===null?0:0.12),2);
+ c.rect(x+2,y+2,w-4,3,col);
+ if(last)c.rect(x+5,y+h-5,w-10,2,C.cream);
 }
 async function png(c){return new Uint8Array(await (await encodePNG(c)).arrayBuffer());}
 export async function renderAuctionImage(session,env){
@@ -19,7 +21,7 @@ export async function renderAuctionImage(session,env){
  const items=ended?session.items.map((item,i)=>!session.reveal||session.reveal.indices.includes(i)?item:null):null,shown=(items||[]).filter(Boolean),info=session.info,unit=session.currency==='tavern'?'酒馆币':'竞拍币';
  const title='酒馆仓库盲拍',subtitle=ended?revealing?`开仓揭晓 ${session.reveal.count} / 8`:'开仓结果':`第${session.round}轮 / 共5轮`,role=AUCTION_ROLES[session.role].name;
  const last=items?.[session.reveal?.last]||shown.at(-1),subtotal=shown.reduce((n,x)=>n+x.value,0);
- await prepareNicknameFont([title,subtitle,role,unit,'仓库','你的线索','仅显示已知品质与轮廓','轮廓未知','品质未知','白绿蓝紫金红','刚刚揭晓','已揭晓总值','开仓总值','本局净变化','等待开仓','图片与真实价格将在开仓时逐件揭晓','轮廓未知的藏品不显示实际占格','继续揭晓，或一次揭晓全部藏品','品质色与轮廓分别揭示 · 未知区域保持迷雾',...shown.flatMap(x=>[x.name,x.category]),...AUCTION_QUALITIES],env);
+ await prepareNicknameFont([title,subtitle,role,unit,'仓库','你的线索','仅显示已知品质与轮廓','轮廓未知','品质未知','白绿蓝紫金红','刚刚揭晓','已揭晓总值','开仓总值','本局净变化','等待开仓','图片与真实价格将在开仓时逐件揭晓','轮廓未知的藏品不显示实际占格','继续揭晓，或一次揭晓全部藏品','品质色与轮廓分别揭示 · 未知区域保持迷雾',...shown.flatMap(x=>[x.name,x.category,caption(x)]),...AUCTION_QUALITIES],env);
  const art=shown.length?await prepareAuctionArt(env):null,c=new Canvas(760,1000);
  c.rect(0,0,760,1000,C.bg);c.rect(24,24,712,4,C.gold);
  c.text(title,380,48,39,C.cream,true);c.text(`${subtitle}  /  ${role}`,380,103,24,C.gold,true);
@@ -47,6 +49,7 @@ export async function renderAuctionImage(session,env){
   frame(c,54,750,128,128,last.quality,true);drawAuctionItem(c,last.id,60,756,116,116,art);
   c.text(revealing?'刚刚揭晓':AUCTION_QUALITIES[last.quality]+'品质',207,752,19,AUCTION_COLORS[last.quality]);
   c.text(last.name,207,787,28,C.cream);c.text(`${f(last.value)}${unit}`,207,833,24,C.gold);
+  if(last.flavor)c.text(caption(last),207,867,17,C.muted);
  }else{
   c.text(ended?'等待开仓':'图片与真实价格将在开仓时逐件揭晓',380,791,23,C.cream,true);
   c.text('?',380,836,30,C.gold,true);
@@ -55,15 +58,18 @@ export async function renderAuctionImage(session,env){
  c.text(ended&&!revealing?`本局净变化 ${session.result.net>0?'+':''}${f(session.result.net)}${unit}`:ended?'继续揭晓，或一次揭晓全部藏品':'品质色与轮廓分别揭示 · 未知区域保持迷雾',380,968,17,C.muted,true);
  return png(c);
 }
-export async function renderAuctionCatalogImage(env){
- await prepareNicknameFont(['酒馆藏品图鉴','常规档竞拍币价值','小额 ×0.25 / 高额 ×3 / 典藏 ×10','白绿蓝紫金红',...AUCTION_QUALITIES,...AUCTION_ITEMS.map(x=>x.name)],env);
- const art=await prepareAuctionArt(env),c=new Canvas(760,1400);c.rect(0,0,760,1400,C.bg);
- c.text('酒馆藏品图鉴',380,34,36,C.cream,true);c.text('常规档竞拍币价值',380,88,19,C.gold,true);
- AUCTION_ITEMS.forEach((item,i)=>{
-  const x=22+i%4*184,y=130+Math.floor(i/4)*202;
-  frame(c,x,y,166,186,item.quality);drawAuctionItem(c,item.id,x+8,y+16,150,122,art);
-  c.text(item.name,x+83,y+139,17,C.cream,true);c.text(f(item.value),x+83,y+165,16,AUCTION_COLORS[item.quality],true);
+export async function renderAuctionCatalogImage(env,page=0){
+ if(!Number.isInteger(page)||page<0||page>5)throw Error('Invalid auction catalog page');
+ const items=AUCTION_ITEMS.filter(x=>x.quality===page),heading=`${AUCTION_QUALITIES[page]}品质 · ${page+1}/6页 · 共72件`;
+ await prepareNicknameFont(['酒馆藏品图鉴','常规档竞拍币价值','小额 ×0.25 / 高额 ×3 / 典藏 ×10',heading,...items.flatMap(x=>[x.name,caption(x)])],env);
+ const art=await prepareAuctionArt(env),c=new Canvas(760,1240);c.rect(0,0,760,1240,C.bg);
+ c.text('酒馆藏品图鉴',380,26,36,C.cream,true);c.text(heading,380,75,21,AUCTION_COLORS[page],true);c.text('常规档竞拍币价值',380,106,17,C.muted,true);
+ items.forEach((item,i)=>{
+  const x=20+i%3*244,y=146+Math.floor(i/3)*260;
+  frame(c,x,y,232,248,item.quality);drawAuctionItem(c,item.id,x+29,y+12,174,146,art);
+  c.text(item.name,x+116,y+164,20,C.cream,true);c.text(f(item.value),x+116,y+194,18,AUCTION_COLORS[item.quality],true);
+  if(item.flavor){const chars=[...caption(item)];for(let line=0;line<2;line++)c.text(chars.slice(line*14,(line+1)*14).join(''),x+116,y+216+line*16,14,C.muted,true);}
  });
- c.text('小额 ×0.25 / 高额 ×3 / 典藏 ×10',380,1360,19,C.muted,true);
+ c.text('小额 ×0.25 / 高额 ×3 / 典藏 ×10',380,1205,19,C.muted,true);
  return png(c);
 }
