@@ -64,7 +64,8 @@ export function tavernLobbyData(board,guild,owner='any',operations=null,live=nul
  const components=[
   row(button(guild,'any','lobbyMenu','🍵 点单',1),button(guild,'any','lobbyWallet','🪙 钱包'),button(guild,'any','lobbyCard','🦋 常客卡'),button(guild,'any','lobbyRoom','🏮 店内'),button(guild,'any','renoEnter','🔧 共同装修')),
   row(button(guild,'any','opsBoard','👑 今日经营',1),button(guild,'any','opsSeason','🌱 季节菜单'),button(guild,'any','opsActivity','🎉 共同活动'),button(guild,'any','renoHistory~0','📜 贡献历史'),button(guild,'any','renoLeaders','🏅 贡献榜')),
-  row(button(guild,'any','lobbyGames','🎮 小游戏'),button(guild,'any','lobbySeat','📍 换个位置'),button(guild,'any','lobbyMap','🗺️ 地图实况',1),button(guild,owner,'lobby','🔄 刷新大厅'),button(guild,'any','lobbyMapHD','🔍 清晰原图'))
+  row(button(guild,'any','lobbyGames','🎮 小游戏'),button(guild,'any','lobbySeat','📍 换个位置'),button(guild,'any','lobbyMap','🗺️ 地图实况',1),button(guild,owner,'lobby','🔄 刷新大厅'),button(guild,'any','lobbyMapHD','🔍 清晰原图')),
+  row(button(guild,'any','slots','🎰 单人老虎机'))
  ];
  const crowd=live?`最近30分钟 ${live.visitorCount} 位来客 · ${live.tableCount} 张牌桌`:'地图实况暂不可用';
  const manager=operations?.manager?.name||'等待首位来客';
