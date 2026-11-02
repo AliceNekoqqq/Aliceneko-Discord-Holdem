@@ -21,3 +21,5 @@
 ## 验证与发布
 
 本地专项33/33、酒馆285/285、Worker93/93、资产120/120通过；最终修改后专项与Worker主文件合跑56/56，包含v1哈希/新旧路由/旧局兼容/6页完整覆盖/介绍遮罩。2000布局、六页图鉴及固定混合藏品开仓样例目检，离线esbuild通过（仅原有重复z键警告）。无需重新注册斜杠命令，COMMAND_VERSION保持casino3；不调用本地Wrangler联网预检，不发送玩家消息或操作真实钱包。发布沿用已授权的GitHub PR→完整CI→main自动Cloudflare发布流程，合并前检查实际源码树和构建范围，发布后核对设置和版本健康。最终回执见PROJECT_NOW.md和PROJECT_STATE.md。
+
+发布回执：PR #70最终特性a87780094c1bc3c1828a7740eb317bd4fca3ff8d，完整PR CI41463003920成功；合并200a68fde32dc7ca1d9c86344644301a8ffa1dfd，main完整检查/部署41463541878成功。CF部署ca2ee794-7788-448e-8803-0f17fed56371、版本fd2396f7-b1a0-4334-a2d2-11ad7de9899c接收100%；15bindings与settings所有字段前后保持。实际浏览器health确认casino.7、ok/ready:true、Gateway connected/ready:true、identity1聊天指纹匹配；命令仍casino3/registered:true，failures/missing/pending为空。正式v2红藏品/白藏品和旧v1 PNG均256×256可打开。 功能与发布验证完成，真人Discord手感待试玩；3张实际渲染预览已交付，仓库图为固定展示组合，不是线上收益承诺。最终范围19文件912已知文本行增删，3张二进制明确核验后单列，未将未知行数记为零。
