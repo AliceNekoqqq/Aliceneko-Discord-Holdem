@@ -219,6 +219,7 @@ function route() {
     a.setAttribute("aria-current", "page"),
   );
   document.title = `${{ home: "仓库盲拍", play: "拍卖大厅", catalog: "藏品图鉴", roles: "人物技能", rules: "拍卖指南" }[name]} · 红豆粉小酒馆`;
+  document.body.classList.toggle("game-route", name === "play");
   if (name === "play") renderPlay();
   if (!hash.startsWith("rule-"))
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -495,6 +496,11 @@ function walletView() {
 function renderPlay() {
   if (!meta) return;
   $("#game-tabs").hidden = !account?.user || !guild;
+  const hudWallet = $("#hud-wallet");
+  if (hudWallet)
+    hudWallet.innerHTML = wallet
+      ? `<span>酒馆币 ${number(wallet.tavernBalance)}</span><span>竞拍币 ${number(wallet.auctionBalance)}</span>`
+      : "";
   $$("[data-view]").forEach((b) =>
     b.classList.toggle("active", b.dataset.view === view),
   );
