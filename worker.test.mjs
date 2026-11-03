@@ -95,7 +95,7 @@ test('signed Discord flow, private cards, stale click, duplicate, modal, timeout
  const call=async(data)=>{const i={application_id:'123',guild_id:'3',channel_id:'2',id:String(++counter),token:'transient-secret',member:{user:{id:'1'},permissions:'0'},...data};const body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');const ctx=context();const r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);await Promise.all(ctx.tasks);return {reply:await r.json(),i};};
  const unsigned=await worker.fetch(new Request('https://test/interactions',{method:'POST',body:'{}'}),env,context());assert.equal(unsigned.status,401);
  const hidden=await worker.fetch(new Request('https://test/.env'),env,context());assert.equal(hidden.status,404);
- const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.11',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity1'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
+ const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.12',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity1'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
  assert.deepEqual((await call({type:1})).reply,{type:1});
  const create={type:2,data:{name:'德州',options:[{name:'创建'}]}};
  let {reply:b}=await call(create);assert.equal(b.type,4);assert(!JSON.stringify(b).includes(env.BOT_TOKEN));
@@ -381,6 +381,8 @@ test('signed single-player auction opens privately and submits a modal bid once 
  const highModal=await call({...click,data:{custom_id:deliveries.at(-1).components[0].components.at(-1).custom_id}});
  assert.equal(highModal.data.components[0].components[0].max_length,9);
  const highSubmit={...submit,data:{custom_id:highModal.data.custom_id,components:[{type:1,components:[{type:4,custom_id:'bid',value:'100000000'}]}]}};
+ // Freeze a deterministic winning fixture so this path also covers retained assets and manual cashout.
+ const inventoryState=JSON.parse(service.one('SELECT state FROM tavern_auctions WHERE token=?',high.token).state);inventoryState.committed=[0,0,0];service.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(inventoryState),high.token);
  assert.deepEqual(await call(highSubmit),{type:6});const highBalance=service.auctionCurrency.balance('1');
  await call(highSubmit);assert.equal(service.auctionCurrency.balance('1'),highBalance);assert.equal(service.member('1').balance,0);
  const current=service.auction.view({guild:'3',id:'1',channel:'2'}).session;
@@ -390,7 +392,24 @@ test('signed single-player auction opens privately and submits a modal bid once 
  assert.deepEqual(await call(revealClick),{type:6});await call(revealClick);
  assert.equal(service.auction.view({guild:'3',id:'1',channel:'2'}).session.reveal.count,1);
  await call({...click,data:{custom_id:`t:3:1:auctionReveal~${high.token}~1~all`}});
- assert(deliveries.at(-1).content.includes('本局净变化'));assert.equal(service.auctionCurrency.balance('1'),settledBalance);
+ assert(deliveries.at(-1).content.includes('本局盈亏（含藏品价值）'));assert.equal(service.auctionCurrency.balance('1'),settledBalance);
+ const inventoryClick=custom_id=>call({...click,data:{custom_id}});
+ await inventoryClick('t:3:1:auctionInventory~0');
+ let collection=deliveries.at(-1);assert(collection.content.includes('个人藏品仓库'));assert(collection.components.length<=5);
+ const selected=collection.components[0].components[0],selectId=selected.options[0].value;
+ await call({...click,data:{custom_id:selected.custom_id,component_type:3,values:[selectId]}});
+ await inventoryClick(deliveries.at(-1).components[1].components[1].custom_id);
+ await inventoryClick(deliveries.at(-1).components[0].components[0].custom_id);
+ assert(deliveries.at(-1).content.includes('已陈列 **1/6件**'));
+ await inventoryClick('t:3:1:auctionInventory~0');
+ await inventoryClick(deliveries.at(-1).components[1].components[2].custom_id);
+ await call({...click,data:{custom_id:deliveries.at(-1).components[0].components[0].custom_id,component_type:3,values:['6']}});
+ assert(deliveries.at(-1).content.includes('确认出售 7件'));const saleConfirm=deliveries.at(-1).components[0].components[0].custom_id;
+ const beforeSale=service.auctionCurrency.balance('1');await inventoryClick(saleConfirm);
+ const afterSale=service.auctionCurrency.balance('1');assert(afterSale>beforeSale);assert(deliveries.at(-1).content.includes('出售完成'));
+ await inventoryClick(saleConfirm);assert.equal(service.auctionCurrency.balance('1'),afterSale);assert(deliveries.at(-1).content.includes('没有重复入账'));
+ const retained=service.auction.inventory.view({guild:'3',id:'1',channel:'2'});assert.equal(retained.count,1);assert.equal(retained.displayed,1);
+
  const calls=names.length,bad=await call({...click,member:{user:{id:'4'}}});assert.equal(bad.type,4);assert.equal(names.length,calls);
  assert(names.every(n=>n==='tavern:3'));assert(deliveries.every(d=>d.allowed_mentions.parse.length===0));
 });

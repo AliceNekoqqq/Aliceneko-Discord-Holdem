@@ -2,6 +2,7 @@ import {validId} from './tavern-catalog.mjs';
 import {AUCTION_ITEMS,auctionCatalogFor,scaleAuctionValue} from './tavern-auction-data.mjs';
 import {AUCTION_RATE,auctionAmount} from './tavern-auction-currency.mjs';
 import {layoutAuction,auctionBoardView} from './tavern-auction-board.mjs';
+import {TavernAuctionInventory} from './tavern-auction-inventory.mjs';
 
 // Legacy constants also bound old controls; new sessions use the tier configuration.
 export const AUCTION_BUDGET=200*AUCTION_RATE,AUCTION_FEE=10*AUCTION_RATE,AUCTION_TTL=30*60_000,AUCTION_READY_TTL=15*60_000;
@@ -115,6 +116,7 @@ export class TavernAuction {
   this.sql.exec("CREATE UNIQUE INDEX IF NOT EXISTS tavern_auction_active ON tavern_auctions(user_id) WHERE status='active'");
   this.sql.exec("CREATE UNIQUE INDEX IF NOT EXISTS tavern_auction_ready ON tavern_auctions(user_id,channel) WHERE status='ready'");
   this.sql.exec('CREATE INDEX IF NOT EXISTS tavern_auction_history ON tavern_auctions(user_id,settled_at DESC)');
+  this.inventory=new TavernAuctionInventory(tavern);
  }
  validate(p){if(!validId(p.id)||!validId(p.channel))throw Error('请在服务器频道打开自己的仓库盲拍。');}
  load(p){
@@ -141,13 +143,12 @@ export class TavernAuction {
   const revealing=settled&&state.revealOrder&&(state.opened??0)<state.items.length;
   const opened=settled&&state.revealOrder?new Set(state.revealOrder.slice(0,state.opened)):null;
   const items=settled?state.items.map((item,i)=>!opened||opened.has(i)?item:null):null;
-  const result=revealing?{winner:state.result.winner,price:state.result.price,reason:state.result.reason,at:state.result.at}:state?.result||null;
-  const stats=this.tavern.one("SELECT COUNT(*) AS plays,COALESCE(SUM(CASE WHEN json_extract(state,'$.currency')='auction' THEN json_extract(state,'$.result.net') ELSE 0 END),0) AS net,COALESCE(SUM(CASE WHEN json_extract(state,'$.currency') IS NULL THEN json_extract(state,'$.result.net') ELSE 0 END),0) AS legacyNet FROM tavern_auctions WHERE user_id=? AND status='settled'",p.id);
-  if(revealing)stats.net-=state.result.net;
+  const result=revealing?{winner:state.result.winner,price:state.result.price,reason:state.result.reason,at:state.result.at,...(state.result.inventory?{inventory:true}:{})}:state?.result||null;
+  const stats=this.tavern.one("SELECT COUNT(*) AS plays,COALESCE(SUM(CASE WHEN json_extract(state,'$.currency')='auction' AND (json_extract(state,'$.revealOrder') IS NULL OR COALESCE(json_extract(state,'$.opened'),0)>=8) THEN json_extract(state,'$.result.net') ELSE 0 END),0) AS net,COALESCE(SUM(CASE WHEN json_extract(state,'$.currency') IS NULL AND (json_extract(state,'$.revealOrder') IS NULL OR COALESCE(json_extract(state,'$.opened'),0)>=8) THEN json_extract(state,'$.result.net') ELSE 0 END),0) AS legacyNet FROM tavern_auctions WHERE user_id=? AND status='settled'",p.id);
   // Whitelist: hidden catalog identities, prices and opponent information never leave the guild DO.
   return {balance:revealing?null:this.tavern.auctionCurrency.balance(p.id),tavernBalance:this.tavern.one('SELECT balance FROM tavern_members WHERE id=?',p.id).balance,stats,repeated,
    offerToken:!state||settled?this.ready(p,now):null,
-   session:state?{currency:state.currency||'tavern',catalogVersion:state.catalogVersion??1,dropVersion:state.dropVersion??1,skillVersion:state.skillVersion??1,tier:state.tier||'standard',catalogSize:auctionCatalogFor(state.catalogVersion).length,estimate:Math.floor(estimateAuction(state.infos[0],state.unit??(state.currency==='auction'?AUCTION_RATE:1),auctionCatalogFor(state.catalogVersion),sessionWeights(state))),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel,status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,history:state.history,result,info:state.infos[0],items,board:auctionBoardView(state,row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
+   session:state?{currency:state.currency||'tavern',catalogVersion:state.catalogVersion??1,dropVersion:state.dropVersion??1,skillVersion:state.skillVersion??1,inventoryVersion:state.inventoryVersion??0,tier:state.tier||'standard',catalogSize:auctionCatalogFor(state.catalogVersion).length,estimate:Math.floor(estimateAuction(state.infos[0],state.unit??(state.currency==='auction'?AUCTION_RATE:1),auctionCatalogFor(state.catalogVersion),sessionWeights(state))),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel,status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,history:state.history,result,info:state.infos[0],items,board:auctionBoardView(state,row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
  }
  view(p,now=Date.now()){
   this.validate(p);let answer;
@@ -175,7 +176,7 @@ export class TavernAuction {
    if(active){if(JSON.parse(active.state).expires<=now)this.forfeit(active,JSON.parse(active.state),now,'expired');else throw Error('你已有一局竞拍，请先恢复或结束该局。');}
    if(row.created_at+AUCTION_READY_TTL<=now)throw Error('开局窗口已过期，请刷新；尚未扣币。');
    if(this.tavern.auctionCurrency.balance(p.id)<budget+fee)throw Error(`需要${auctionAmount((budget+fee)/10000)}万竞拍币：${auctionAmount(budget/10000)}万预算及${auctionAmount(fee/10000)}万入场费，请先用酒馆币兑换。`);
-   const state={currency:'auction',catalogVersion:4,dropVersion:2,skillVersion:2,tier,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateAuction(this.random,AUCTION_RATE*scale),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},emptyInfo),history:[]};
+   const state={currency:'auction',catalogVersion:4,dropVersion:2,skillVersion:2,inventoryVersion:1,tier,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateAuction(this.random,AUCTION_RATE*scale),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},emptyInfo),history:[]};
    state.board=layoutAuction(state.items,row.token);
    if(p.presentation==='warehouse'){state.opened=0;state.revealOrder=state.board.map((_,i)=>i).sort((a,b)=>state.board[a].y-state.board[b].y||state.board[a].x-state.board[b].x);}
    this.stage(state);
@@ -192,13 +193,14 @@ export class TavernAuction {
  }
  settle(row,state,outcome,now,reason){
   const budget=state.budget??200,fee=state.fee??10,newCurrency=state.currency==='auction';
-  const total=state.items.reduce((sum,x)=>sum+x.value,0),won=outcome.winner===0,refund=budget-(won?outcome.price:0),resale=won?total:0;
+  const total=state.items.reduce((sum,x)=>sum+x.value,0),won=outcome.winner===0,stored=newCurrency&&state.inventoryVersion===1,refund=budget-(won?outcome.price:0),resale=won&&!stored?total:0;
   const balance=(newCurrency?this.tavern.auctionCurrency.balance(row.user_id):this.tavern.one('SELECT balance FROM tavern_members WHERE id=?',row.user_id).balance)+refund+resale;
   if(!Number.isSafeInteger(balance))throw Error('钱包金额异常，竞拍未结算。');
   if(!newCurrency)this.sql.exec('UPDATE tavern_members SET balance=? WHERE id=?',balance,row.user_id);
   if(refund)this.ledger(row,state,'refund',refund,'仓库盲拍 · 未用预算退回',now);
   if(resale)this.ledger(row,state,'sale',resale,'仓库盲拍 · 藏品自动结算',now);
-  state.result={winner:outcome.winner,price:outcome.price,total,refund,resale,net:refund+resale-budget-fee,balanceAfter:balance,reason,at:now};
+  if(won&&stored)this.inventory.acquire(row,state,now);
+  state.result={winner:outcome.winner,price:outcome.price,total,refund,resale,net:(won?total-outcome.price:0)-fee,balanceAfter:balance,reason,at:now,...(stored?{inventory:true,inventoryValue:won?total:0,cashNet:refund-budget-fee}:{} )};
   state.committed=[];row.status='settled';this.sql.exec("UPDATE tavern_auctions SET status='settled',settled_at=? WHERE token=?",now,row.token);this.save(row,state);
  }
  advance(row,state,bid,now,reason='bid'){
@@ -238,8 +240,10 @@ export class TavernAuction {
    const row=this.load(p);if(row.status!=='settled')throw Error('竞拍结束后才能开仓。');const state=JSON.parse(row.state);
    if(!state.revealOrder||state.opened===state.items.length||p.step<state.opened){answer=this.present(p,row,now,true);return;}
    if(p.step!==state.opened)throw Error('开仓进度已变化，请刷新。');
-   state.opened=p.all?state.items.length:state.opened+1;this.save(row,state);answer=this.present(p,row,now);
+   state.opened=p.all?state.items.length:state.opened+1;
+   if(state.inventoryVersion===1&&state.result.winner===0)this.inventory.unlock(row.user_id,row.token,state.revealOrder.slice(0,state.opened));
+   this.save(row,state);answer=this.present(p,row,now);
   });return answer;
  }
- dispatch(p){if(p.action==='auctionView')return this.view(p);if(p.action==='auctionStart')return this.start(p);if(p.action==='auctionBid')return this.bid(p);if(p.action==='auctionLeave')return this.leave(p);if(p.action==='auctionReveal')return this.reveal(p);throw Error('无效竞拍操作。');}
+ dispatch(p){if(p.action?.startsWith('auctionInventory'))return this.inventory.dispatch(p);if(p.action==='auctionView')return this.view(p);if(p.action==='auctionStart')return this.start(p);if(p.action==='auctionBid')return this.bid(p);if(p.action==='auctionLeave')return this.leave(p);if(p.action==='auctionReveal')return this.reveal(p);throw Error('无效竞拍操作。');}
 }
