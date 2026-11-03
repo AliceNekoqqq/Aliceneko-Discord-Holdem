@@ -101,9 +101,14 @@ export function estimateAuction(info,unit=AUCTION_RATE,catalog=AUCTION_ITEMS,wei
   return sum+(weight?value/weight:0);
  },0);
 }
+// Opponents used to bid at (and sometimes above) their own valuation, which left a
+// player who bids near the published estimate winning only ~38% of rounds. The
+// scaling keeps every style/round curve intact and only softens the level; see
+// docs/casino/AUCTION_NPC_AGGRESSION.md for the measured before/after rates.
+export const NPC_BID_AGGRESSION=0.85;
 export function npcAuctionBid(info,round,style,random=auctionRandom,unit=AUCTION_RATE,catalog=AUCTION_ITEMS,weights=AUCTION_QUALITY_WEIGHTS,budget=(([AUCTION_ITEMS,AUCTION_ITEMS_V4].includes(catalog)||isRegionCatalog(catalog))?100:200)*unit,estimate=estimateAuction){
  if(random(12)===0)return 0;
- const factor=[0.78,0.94,1.08][style]*(0.64+round*0.06)*(0.90+random(21)/100);
+ const factor=[0.78,0.94,1.08][style]*(0.64+round*0.06)*(0.90+random(21)/100)*NPC_BID_AGGRESSION;
  return Math.min(budget,Math.max(1,Math.floor(estimate(info,unit,catalog,weights)*factor)));
 }
 export function decideAuction(round,bids,priority,budget=AUCTION_BUDGET){

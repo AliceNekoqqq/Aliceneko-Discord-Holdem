@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {writeFile} from 'node:fs/promises';
 import {TavernService} from './tavern-service.mjs';
-import {TavernAuction,AUCTION_QUALITY_WEIGHTS,AUCTION_LEGACY_WEIGHTS,AUCTION_TIERS,AUCTION_MAX_BUDGET,AUCTION_TTL,AUCTION_READY_TTL,auctionRandom,generateAuction,revealAuction,estimateAuction,npcAuctionBid,decideAuction} from './tavern-auction.mjs';
+import {TavernAuction,AUCTION_QUALITY_WEIGHTS,AUCTION_LEGACY_WEIGHTS,AUCTION_TIERS,AUCTION_MAX_BUDGET,AUCTION_TTL,AUCTION_READY_TTL,auctionRandom,generateAuction,revealAuction,estimateAuction,npcAuctionBid,decideAuction,NPC_BID_AGGRESSION} from './tavern-auction.mjs';
 import {AUCTION_RATE as R,auctionAmount as formatAuctionAmount,EXCHANGE_TTL,EXCHANGE_MAX,TavernAuctionCurrency} from './tavern-auction-currency.mjs';
 import {AUCTION_ITEMS,AUCTION_LARGE_ITEMS,AUCTION_ALL_ITEMS,AUCTION_ITEMS_V4,auctionItemWeight,auctionItemChance,AUCTION_ITEMS_V3,scaleAuctionValue,AUCTION_ITEMS_V2,AUCTION_ITEMS_LEGACY,auctionCatalogPage,auctionCatalogFor} from './tavern-auction-data.mjs';
 import {createHash} from 'node:crypto';
@@ -686,4 +686,17 @@ test('casino.12 active sessions keep uniform posterior estimates, sealed quotes 
  e.auction.bid({...base,token,round:1,bid:40*R},1005);const after=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
  assert.deepEqual(after.history[0].bids,[40*R,40*R,40*R,40*R]);assert.deepEqual(after.items,state.items);assert.equal(e.fx.balance('1'),balance);
  assert.deepEqual(after.committed,after.infos.slice(1).map((info,j)=>npcAuctionBid(info,2,j,n=>n-1,R,AUCTION_ITEMS_V4,AUCTION_QUALITY_WEIGHTS,state.budget)));
+});
+
+test("npc offers stay under their own valuation after the aggression tuning", () => {
+ const info={highCount:null,items:Array.from({length:8},()=>({quality:null,width:null,height:null}))};
+ const value=estimateAuction(info);
+ assert.equal(NPC_BID_AGGRESSION,0.85);
+ // Highest tape the production formula can draw, at the greediest style and last round.
+ const top=[0,1,2].map(style=>npcAuctionBid(info,5,style,n=>n-1));
+ for(const bid of top)assert.ok(bid<=Math.floor(value*0.95),`${bid} should stay below ${value}`);
+ assert.ok(Math.max(...top)>value*0.8);
+ // Before the tuning an opponent could outbid its own valuation, which is what made
+ // a reasonable player win only about a third of the rounds.
+ assert.ok(Math.floor(value*1.08*0.94*1.1)>value*0.95);
 });
