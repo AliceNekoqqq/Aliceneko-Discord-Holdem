@@ -362,6 +362,9 @@ function setup() {
 }
 const gameMoney = (s, value) =>
   `${number(value)} ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}`;
+// One click moves the sealed offer by 1% of this session's budget, so the
+// stepper feels the same in 小额 (2.5M) and 典藏 (100M).
+const bidStep = (s) => Math.max(1, Math.round((s?.budget ?? 0) / 100));
 async function unlockAfterReveal(g = guild, token = game?.session?.token) {
   if (!g) return;
   const e = epoch;
@@ -457,7 +460,7 @@ function gameView() {
           })
           .join(
             "",
-          )}<button data-bid="0">本轮不出价<small>0 ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small></button><button data-bid="${s.budget}">预算上限<small>${gameMoney(s, s.budget)}</small></button></div><form id="bid-form" class="bid-form"><label for="bid-amount">本轮暗标总价（整数）</label><input id="bid-amount" name="bid" type="number" min="0" max="${s.budget}" step="1" placeholder="输入报价" required inputmode="numeric"><button class="button primary wide" type="submit">封存本轮暗标 →</button></form><details class="clue-list"><summary>查看本局线索</summary>${s.info.highCount === null ? "" : `<p>紫 / 金 / 红合计 ${s.info.highCount} 件</p>`}${s.info.highCounts ? `<p>紫${s.info.highCounts[0]} / 金${s.info.highCounts[1]} / 红${s.info.highCounts[2]}</p>` : ""}${s.info.highArea === undefined ? "" : `<p>高品质总占格 ${s.info.highArea} 格</p>`}${s.info.items.map((c, i) => `<p>${i + 1}. ${c.quality === null ? "品质未知" : meta.qualities[c.quality] + "品质"} · ${c.width === null ? "轮廓未知" : `${c.width}×${c.height} / ${c.width * c.height}格`}</p>`).join("")}</details><button class="danger-link" data-leave>放弃余下竞拍</button>`
+          )}<button data-bid="0">本轮不出价<small>0 ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small></button><button data-bid="${s.budget}">预算上限<small>${gameMoney(s, s.budget)}</small></button></div><form id="bid-form" class="bid-form"><label for="bid-amount">本轮暗标总价（整数）</label><div class="bid-stepper"><button type="button" class="step-button" data-bid-step="-1" aria-label="减少报价">−</button><input id="bid-amount" name="bid" type="number" min="0" max="${s.budget}" step="1" placeholder="输入报价" required inputmode="numeric"><button type="button" class="step-button" data-bid-step="1" aria-label="增加报价">+</button></div><small class="step-hint">每次 ±${number(bidStep(s))}，上限 ${gameMoney(s, s.budget)}</small><button class="button primary wide" type="submit">封存本轮暗标 →</button></form><details class="clue-list"><summary>查看本局线索</summary>${s.info.highCount === null ? "" : `<p>紫 / 金 / 红合计 ${s.info.highCount} 件</p>`}${s.info.highCounts ? `<p>紫${s.info.highCounts[0]} / 金${s.info.highCounts[1]} / 红${s.info.highCounts[2]}</p>` : ""}${s.info.highArea === undefined ? "" : `<p>高品质总占格 ${s.info.highArea} 格</p>`}${s.info.items.map((c, i) => `<p>${i + 1}. ${c.quality === null ? "品质未知" : meta.qualities[c.quality] + "品质"} · ${c.width === null ? "轮廓未知" : `${c.width}×${c.height} / ${c.width * c.height}格`}</p>`).join("")}</details><button class="danger-link" data-leave>放弃余下竞拍</button>`
       : `<span class="auction-stage">仓门打开，惊喜揭晓。</span><h2>${r.winner === null ? "本局流拍" : r.winner === 0 ? "竞拍成功！" : `${npc[r.winner]}拍中`}</h2><p>成交价 ${gameMoney(s, r.price)}<br>已揭晓 ${s.reveal.count} / ${s.reveal.total}件</p><div class="line-value">${number(subtotal)}</div><p>已揭晓总值 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</p>${revealControls(s)}`
   }</aside></div>`;
 }
@@ -762,6 +765,21 @@ document.addEventListener("click", (event) => {
   if (b.hasAttribute("data-bid")) {
     $("#bid-amount").value = b.dataset.bid;
     $("#bid-amount").focus();
+    return;
+  }
+  if (b.hasAttribute("data-bid-step")) {
+    const field = $("#bid-amount"),
+      session = game?.session;
+    if (!field || !session) return;
+    const next = Math.max(
+      0,
+      Math.min(
+        session.budget,
+        (Number(field.value) || 0) +
+          Number(b.dataset.bidStep) * bidStep(session),
+      ),
+    );
+    field.value = String(next);
     return;
   }
   if (b.hasAttribute("data-reveal") && b.dataset.reveal === "auto") {

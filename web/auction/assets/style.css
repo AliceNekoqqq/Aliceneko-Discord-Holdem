@@ -3660,3 +3660,58 @@ summary:focus-visible {
     font-size: 9px;
   }
 }
+/* Bid stepper: -/+ around the sealed offer, 1% of the session budget per tap. */
+.bid-stepper {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.bid-stepper input {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+}
+
+.step-button {
+  flex: none;
+  width: 48px;
+  border: 1px solid #bfd4e6;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff, #eef6fd);
+  color: #3f6f97;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.16s var(--ease),
+    transform 0.1s var(--ease);
+}
+
+.step-button:hover {
+  background: #e7f2fb;
+}
+
+.step-button:active {
+  transform: translateY(2px);
+}
+
+.step-hint {
+  display: block;
+  margin-top: -4px;
+  font-size: 11px;
+  color: #7890a8;
+  letter-spacing: 0.3px;
+}
+
+@media (max-width: 420px) {
+  .step-button {
+    width: 42px;
+  }
+  .bid-stepper input {
+    font-size: 19px;
+  }
+}
