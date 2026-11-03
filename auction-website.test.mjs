@@ -13,7 +13,7 @@ import { handleAuctionWebsite, publicAuctionData } from "./auction-website.mjs";
 import { TavernService } from "./tavern-service.mjs";
 import { TavernAuction } from "./tavern-auction.mjs";
 import { largeCatalog } from "./tavern-auction-large.mjs";
-const ROOT = "https://discord-holdem.aliceneko.workers.dev",
+const ROOT = "https://auction.alicenekoqqq.cc.cd",
   B = { guild: "3", id: "1", channel: "2", name: "Alice" };
 function storage(t) {
   const db = new DatabaseSync(":memory:"),
