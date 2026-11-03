@@ -4,6 +4,7 @@ import {AUCTION_ITEMS,AUCTION_ITEMS_V4,auctionItemWeight,auctionCatalogFor,scale
 import {AUCTION_RATE,auctionAmount} from './tavern-auction-currency.mjs';
 import {layoutAuction,auctionBoardView} from './tavern-auction-board.mjs';
 import {TavernAuctionInventory} from './tavern-auction-inventory.mjs';
+import {AuctionRooms} from './auction-rooms.mjs';
 import {AUCTION_MAX_ITEMS,AUCTION_REGIONS,regionCatalog,isRegionCatalog,drawAuctionWarehouse} from './tavern-auction-regions.mjs';
 
 // Legacy constants also bound old controls; new sessions use the tier configuration.
@@ -147,6 +148,7 @@ export class TavernAuction {
   this.sql.exec("CREATE UNIQUE INDEX IF NOT EXISTS tavern_auction_ready ON tavern_auctions(user_id,channel) WHERE status='ready'");
   this.sql.exec('CREATE INDEX IF NOT EXISTS tavern_auction_history ON tavern_auctions(user_id,settled_at DESC)');
   this.inventory=new TavernAuctionInventory(tavern);
+  this.rooms=new AuctionRooms(tavern);
  }
  validate(p){if(!validId(p.id)||!validId(p.channel))throw Error('请在服务器频道打开自己的仓库盲拍。');}
  load(p){
@@ -279,5 +281,5 @@ export class TavernAuction {
    this.save(row,state);answer=this.present(p,row,now);
   });return answer;
  }
- dispatch(p){if(p.action?.startsWith('auctionInventory'))return this.inventory.dispatch(p);if(p.action==='auctionView')return this.view(p);if(p.action==='auctionStart')return this.start(p);if(p.action==='auctionBid')return this.bid(p);if(p.action==='auctionLeave')return this.leave(p);if(p.action==='auctionReveal')return this.reveal(p);throw Error('无效竞拍操作。');}
+ dispatch(p){if(p.action?.startsWith('room'))return this.rooms.dispatch(p);if(p.action?.startsWith('auctionInventory'))return this.inventory.dispatch(p);if(p.action==='auctionView')return this.view(p);if(p.action==='auctionStart')return this.start(p);if(p.action==='auctionBid')return this.bid(p);if(p.action==='auctionLeave')return this.leave(p);if(p.action==='auctionReveal')return this.reveal(p);throw Error('无效竞拍操作。');}
 }

@@ -399,6 +399,7 @@ const bidStep = (s) => Math.max(1, Math.round((s?.budget ?? 0) / 100));
 const REVEAL_SPIN_MS = [420, 620, 820, 1080, 1340, 1700];
 let revealSuspense = null;
 let settledSoundToken = null;
+let roomState = null;
 const sleepFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function playSuspense(session) {
   const last = session?.reveal?.last,
@@ -581,6 +582,63 @@ function cabinetView() {
 function walletView() {
   return `${summary()}<div class="panel wallet-panel"><p class="eyebrow">同一间小酒馆，同一个钱包</p><h2>竞拍币双向兑换</h2><div class="exchange-rate"><div>1<small>酒馆币</small></div><span>⇄</span><div>100,000<small>竞拍币</small></div></div><p>整数兑换，免手续费。</p><form id="exchange-form"><label>兑换方向<select id="exchange-direction"><option value="buy">酒馆币 → 竞拍币</option><option value="sell">竞拍币 → 酒馆币</option></select></label><label>酒馆币数量（整数）<input id="exchange-amount" type="number" min="1" max="1000000" step="1" required placeholder="例如：100" inputmode="numeric"></label><button class="button primary wide" type="submit">预览兑换 →</button></form><p>与 Discord 同一个钱包。</p></div>`;
 }
+// Room actions all return the same payload shape: the caller's room, or null.
+async function roomAction(action, fields = {}) {
+  const answer = await api("action", { action, guild, ...fields });
+  if (answer?.kind === "room") roomState = answer.data;
+  renderPlay();
+  return answer;
+}
+function roomSeatView(seat) {
+  const role = meta.roles?.[seat.role];
+  return `<div class="room-seat${seat.you ? " you" : ""}${seat.npc ? " npc" : ""}"><span class="room-seat-name">${escape(seat.name)}${seat.you ? " <i>你</i>" : ""}</span><small>${escape(role?.name ?? "待定")}</small><em>${seat.npc ? "NPC 补位" : seat.ready ? "已就绪" : "还没准备"}</em></div>`;
+}
+
+function renderRoom() {
+  const r = roomState?.room;
+  if (!r)
+    return `<div class="panel room-panel"><p class="eyebrow">联机 · 同服开黑</p><h2>凑一桌，四个人抢一个仓库。</h2><p class="room-hint">房间只有本服务器的人能看到。开好之后，把 6 位房号念给朋友。</p><div class="room-boot"><label>区域<select id="room-tier">${Object.entries(
+      meta.tiers,
+    )
+      .map(
+        ([k, t]) =>
+          `<option value="${k}">${escape(t.name)}区 · 入场 ${number(t.fee)}</option>`,
+      )
+      .join("")}</select></label><button class="button primary" data-room-create>开一个房间</button></div><div class="room-boot"><label>房号<input id="room-code" maxlength="6" placeholder="比如 A7K2M9" autocomplete="off" spellcheck="false"></label><button class="button outline" data-room-join>加入</button></div></div>`;
+
+  const seats = r.seats,
+    you = seats.find((s) => s.you),
+    waiting = r.status === "waiting";
+  const head = waiting
+    ? `<p class="eyebrow">联机 · 等人中</p><h2>房号 <span class="room-code">${escape(r.code)}</span></h2><p class="room-hint">还剩 ${4 - seats.length} 个位置；开局时空位由 NPC 顶上。</p>`
+    : `<p class="eyebrow">联机 · 已开局</p><h2>${escape(r.started?.warehouse?.name ?? "仓库")} · ${r.started?.itemCount ?? 0} 件</h2><p class="room-hint">${escape(r.started?.warehouse?.cols ?? 0)} × ${escape(r.started?.warehouse?.rows ?? 0)} 格板。竞价回合还在路上，下一版就能出价。</p>`;
+
+  const seatGrid = `<div class="room-seats">${seats.map(roomSeatView).join("")}${Array.from(
+    { length: Math.max(0, 4 - seats.length) },
+    () => '<div class="room-seat empty"><span class="room-seat-name">空位</span><small>开局后 NPC 顶上</small><em>——</em></div>',
+  ).join("")}</div>`;
+
+  let controls = "";
+  if (waiting) {
+    if (r.host) {
+      controls = `<button class="button primary wide" data-room-start${r.canStart ? "" : " disabled"}>开局${r.canStart ? "" : "（等大家准备）"} →</button>`;
+    } else {
+      controls = `<button class="button ${you?.ready ? "outline" : "primary"} wide" data-room-ready="${you?.ready ? "0" : "1"}">${you?.ready ? "取消准备" : "准备好了"}</button>`;
+    }
+    if (you)
+      controls += `<div class="room-role"><label>你的眼力<select id="room-role">${Object.entries(
+        meta.roles,
+      )
+        .map(
+          ([k, role]) =>
+            `<option value="${k}"${you.role === k ? " selected" : ""}>${escape(role.name)} · ${escape(role.skill.slice(0, 14))}…</option>`,
+        )
+        .join("")}</select></label><button class="button outline" data-room-role>换</button></div>`;
+  }
+  controls += `<button class="text-link" data-room-leave>${waiting ? "退出房间" : "解散这局"}</button>`;
+  return `<div class="panel room-panel">${head}${seatGrid}${controls}</div>`;
+}
+
 function renderPlay() {
   if (!meta) return;
   $("#game-tabs").hidden = !account?.user || !guild;
@@ -616,13 +674,15 @@ function renderPlay() {
     return;
   }
   $("#game-content").innerHTML =
-    view === "wallet"
-      ? walletView()
-      : view === "cabinet"
-        ? cabinetView()
-        : view === "inventory"
-          ? inventoryView()
-          : `${summary()}${game ? gameView() : '<p class="loading">正在恢复你的拍卖…</p>'}`;
+    view === "room"
+      ? renderRoom()
+      : view === "wallet"
+        ? walletView()
+        : view === "cabinet"
+          ? cabinetView()
+          : view === "inventory"
+            ? inventoryView()
+            : `${summary()}${game ? gameView() : '<p class="loading">正在恢复你的拍卖…</p>'}`;
   if (view === "auction" && game?.session) mountBoard(game.session);
   tick();
 }
@@ -743,6 +803,47 @@ document.addEventListener("click", (event) => {
   const b = event.target.closest("button,a");
   if (!b) return;
   if (b.matches("button")) play("click");
+  if (b.hasAttribute("data-room-create")) {
+    const tier = $("#room-tier")?.value || "standard";
+    perform(async () => {
+      await roomAction("roomCreate", { tier });
+    });
+    return;
+  }
+  if (b.hasAttribute("data-room-join")) {
+    const code = ($("#room-code")?.value || "").trim().toUpperCase();
+    if (!code) return toast("先念一下房号。");
+    perform(async () => {
+      await roomAction("roomJoin", { code });
+    });
+    return;
+  }
+  if (b.hasAttribute("data-room-ready")) {
+    perform(async () => {
+      await roomAction("roomReady", { ready: b.dataset.roomReady === "1" });
+    });
+    return;
+  }
+  if (b.hasAttribute("data-room-role")) {
+    const role = $("#room-role")?.value;
+    if (!role) return;
+    perform(async () => {
+      await roomAction("roomRole", { role });
+    });
+    return;
+  }
+  if (b.hasAttribute("data-room-start")) {
+    perform(async () => {
+      await roomAction("roomStart");
+    });
+    return;
+  }
+  if (b.hasAttribute("data-room-leave")) {
+    perform(async () => {
+      await roomAction("roomLeave");
+    });
+    return;
+  }
   if (b.hasAttribute("data-sound")) {
     setSoundEnabled(!soundEnabled());
     renderPlay();
@@ -819,6 +920,9 @@ document.addEventListener("click", (event) => {
       } else if (view === "wallet") {
         const data = await api(`wallet?guild=${g}`);
         if (g === guild && e === epoch) wallet = data.data;
+      } else if (view === "room") {
+        const data = await api("action", { action: "roomView", guild: g });
+        if (g === guild && e === epoch) roomState = data.data;
       } else {
         const data = await api(`state?guild=${g}`);
         if (g === guild && e === epoch) game = data.data;
