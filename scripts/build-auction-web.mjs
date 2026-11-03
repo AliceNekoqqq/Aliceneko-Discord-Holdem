@@ -33,4 +33,4 @@ for (const tier of ["small", "standard", "high", "collection"])
     resolve(target, `assets/catalog-${tier}.json`),
     JSON.stringify(publicAuctionData(tier)),
   );
-console.log(JSON.stringify({ website: target, items: 204, regions: 4 }));
+console.log(JSON.stringify({ website: target, items: publicAuctionData("standard").items.length, regions: 4 }));

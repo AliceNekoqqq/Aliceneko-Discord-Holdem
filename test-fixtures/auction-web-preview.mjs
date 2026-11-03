@@ -8,7 +8,7 @@ import { AuctionWebAuth, webDigest } from "../auction-web-auth.mjs";
 import { handleAuctionWebsite } from "../auction-website.mjs";
 import { TavernService } from "../tavern-service.mjs";
 import { TavernAuction } from "../tavern-auction.mjs";
-const root = process.cwd();
+const root = fileURLToPath(new URL("..", import.meta.url));
 function storage() {
   const db = new DatabaseSync(":memory:"),
     map = new Map();
@@ -82,15 +82,15 @@ const env = {
             data
               .toString()
               .replace(
-                "const LIVE='https://discord-holdem.aliceneko.workers.dev'",
-                "const LIVE=location.origin",
+                'const PRIMARY = "https://auction.alicenekoqqq.cc.cd"',
+                "const PRIMARY = location.origin",
               ),
           );
         return new Response(r.method === "HEAD" ? null : data, {
           headers: {
             "Content-Type": path.endsWith(".html")
               ? "text/html"
-              : path.endsWith(".js")
+              : /\.m?js$/.test(path)
                 ? "text/javascript"
                 : path.endsWith(".css")
                   ? "text/css"
