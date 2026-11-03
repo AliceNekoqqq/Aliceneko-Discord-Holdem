@@ -121,7 +121,7 @@ function showItem(id, ownedValue, unit = "竞拍币") {
   if (!x) return;
   const p = x.chance;
   dialog(
-    `<div class="detail-art"><img src="${escape(imageFor(x))}" alt="${escape(x.name)}"></div><p class="eyebrow q${x.quality}">${escape(meta.qualities[x.quality])}品质 · ${escape(x.rarity)} · ${x.width * x.height}格</p><h2 class="detail-title">${escape(x.name)}</h2><p class="detail-flavor">${escape(x.flavor || "")}</p><p class="detail-meta">${escape(x.category)} · ${x.width}×${x.height}<br>${ownedValue === undefined ? escape(meta.tiers[data.tier].name) + "区图鉴价值" : "本局固定价值"}：<strong>${number(ownedValue ?? x.value)} ${escape(unit)}</strong></p>${ownedValue === undefined ? `<div class="detail-odds"><div><small>同色占比</small><strong>${(p.within * 100).toFixed(4)}%</strong></div><div><small>每件平均概率</small><strong>${(p.slot * 100).toFixed(6)}%</strong></div><div><small>每仓出现概率</small><strong>${(p.warehouse * 100).toFixed(5)}%</strong></div></div><p class="mini-note">以上为${escape(meta.tiers[data.tier].name)}区新局概率。每件=期望出现件数/期望藏品数；每仓=至少出现一次，已计入大小仓、件数与大件容量限制。无保底，拍中才入仓。</p>` : ""}`,
+    `<div class="detail-art"><img src="${escape(imageFor(x))}" alt="${escape(x.name)}"></div><p class="eyebrow q${x.quality}">${escape(meta.qualities[x.quality])}品质 · ${escape(x.rarity)} · ${x.width * x.height}格</p><h2 class="detail-title">${escape(x.name)}</h2><p class="detail-flavor">${escape(x.flavor || "")}</p><p class="detail-meta">${escape(x.category)} · ${x.width}×${x.height}<br>${ownedValue === undefined ? escape(meta.tiers[data.tier].name) + "区图鉴价值" : "本局固定价值"}：<strong>${number(ownedValue ?? x.value)} ${escape(unit)}</strong></p>${ownedValue === undefined ? `<div class="detail-odds"><div><small>同色占比</small><strong>${(p.within * 100).toFixed(4)}%</strong></div><div><small>每件平均概率</small><strong>${(p.slot * 100).toFixed(6)}%</strong></div><div><small>每仓出现概率</small><strong>${(p.warehouse * 100).toFixed(5)}%</strong></div></div><p class="mini-note">${escape(meta.tiers[data.tier].name)}区新局概率 · 无保底，拍中才入仓。</p>` : ""}`,
   );
 }
 function renderHome() {
@@ -231,7 +231,7 @@ function renderAccount() {
       cancelled =
         new URLSearchParams(location.search).get("login") === "cancelled";
     $("#login-status").innerHTML =
-      `${unavailable ? '<div class="notice">Discord登录正在准备中。你可以先浏览藏品、了解能力和规则，或查看下方开仓演示。</div>' : cancelled ? '<div class="notice">本次登录已取消，随时可以重新进入。</div>' : ""}<div class="login-panel"><div><p class="eyebrow">从你熟悉的小酒馆，走进来</p><h2>用Discord，打开你的仓库。</h2><p>登录后选择服务器，读取同一个小酒馆钱包、竞拍币和藏品。Discord里开始的拍卖，也可以在这里继续。</p><button class="button primary" data-login>Discord 登录 ↗</button><p class="mini-note">只读取身份与服务器列表，不读取聊天消息。</p></div><div class="login-art"><img src="${LIVE}/art/auction/tavern-5-53-v5.png" alt="装着街道的旅行箱"></div></div>`;
+      `${unavailable ? '<div class="notice">Discord登录正在准备中。你可以先浏览藏品、了解能力和规则，或查看下方开仓演示。</div>' : cancelled ? '<div class="notice">本次登录已取消，随时可以重新进入。</div>' : ""}<div class="login-panel"><div><p class="eyebrow">从你熟悉的小酒馆，走进来</p><h2>用Discord，打开你的仓库。</h2><p>同一个钱包，同一个仓库。Discord 里开的局，这边接着打。</p><button class="button primary" data-login>Discord 登录 ↗</button><p class="mini-note">只读取身份与服务器列表。</p></div><div class="login-art"><img src="${LIVE}/art/auction/tavern-5-53-v5.png" alt="装着街道的旅行箱"></div></div>`;
   }
 }
 function legend() {
@@ -288,7 +288,7 @@ function demo() {
   const xs = ids
     .slice(0, demoCount)
     .map((id) => meta.items.find((x) => x.id === id));
-  return `<div class="panel"><p class="demo-label">开仓演示 · 不读写钱包</p><h2>先看看，仓门后有什么。</h2><p>这是一组展示用藏品。真实拍卖需要登录，藏品与大小仓随机生成。</p><div class="featured-items">${xs.map((x) => card(x)).join("")}${demoCount < ids.length ? '<div class="empty-state"><h2>?</h2><p>下一件尚未揭晓</p></div>' : ""}</div><div class="demo-actions"><button class="button outline" data-demo>${demoCount >= ids.length ? "再看一次" : "揭晓一件演示藏品 →"}</button></div></div>`;
+  return `<div class="panel"><p class="demo-label">开仓演示 · 不读写钱包</p><h2>先看看，仓门后有什么。</h2><p>展示用。真实拍卖需登录。</p><div class="featured-items">${xs.map((x) => card(x)).join("")}${demoCount < ids.length ? '<div class="empty-state"><h2>?</h2><p>下一件尚未揭晓</p></div>' : ""}</div><div class="demo-actions"><button class="button outline" data-demo>${demoCount >= ids.length ? "再看一次" : "揭晓一件演示藏品 →"}</button></div></div>`;
 }
 function summary() {
   return `<div class="wallet-summary"><div><small>可用酒馆币</small><strong>${number(wallet?.tavernBalance)}<span>酒馆币</span></strong></div><div><small>可用竞拍币</small><strong>${number(wallet?.auctionBalance)}<span>竞拍币</span></strong></div></div>`;
@@ -383,7 +383,7 @@ function gameView() {
     subtotal = s.items?.filter(Boolean).reduce((n, x) => n + x.value, 0) || 0;
   return `<div class="play-layout"><div>${seatStrip(s)}<div class="board-heading"><h2>${escape(s.warehouse?.name || "仓库")} · ${s.itemCount}件</h2><p>${s.board.cols}×${s.board.rows}格板<br>${active ? "只展示已知品质与轮廓" : `开仓揭晓 ${s.reveal.count} / ${s.reveal.total}`}</p></div><div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${legend()}${history(s)}</div><aside class="panel">${
     active
-      ? `<span class="auction-stage">第 ${s.round} / 5 轮 · ${meta.roles[s.role].name}</span><p>本局预算 ${gameMoney(s, s.budget)}<br>线索估值约</p><div class="line-value">${number(s.estimate)}</div><p>${s.currency === "tavern" ? "酒馆币" : "竞拍币"} · 参考价不保证盈利<br>剩余 <span data-countdown="${s.expires}"></span> · 同价优先 ${s.priority.map((i) => npc[i]).join(" / ")}</p><div class="bid-presets">${[
+      ? `<span class="auction-stage">第 ${s.round} / 5 轮 · ${meta.roles[s.role].name}</span><p>本局预算 ${gameMoney(s, s.budget)}<br>线索估值约</p><div class="line-value">${number(s.estimate)}</div><p>${s.currency === "tavern" ? "酒馆币" : "竞拍币"} · 剩余 <span data-countdown="${s.expires}"></span> · 同价优先 ${s.priority.map((i) => npc[i]).join(" / ")}</p><div class="bid-presets">${[
           [0.8, "估值80%"],
           [0.95, "估值95%"],
         ]
@@ -394,7 +394,7 @@ function gameView() {
           .join(
             "",
           )}<button data-bid="0">本轮不出价<small>0 ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small></button><button data-bid="${s.budget}">预算上限<small>${gameMoney(s, s.budget)}</small></button></div><form id="bid-form" class="bid-form"><label for="bid-amount">本轮暗标总价（整数）</label><input id="bid-amount" name="bid" type="number" min="0" max="${s.budget}" step="1" placeholder="输入报价" required inputmode="numeric"><button class="button primary wide" type="submit">封存本轮暗标 →</button></form><details class="clue-list"><summary>查看本局线索</summary>${s.info.highCount === null ? "" : `<p>紫 / 金 / 红合计 ${s.info.highCount} 件</p>`}${s.info.highCounts ? `<p>紫${s.info.highCounts[0]} / 金${s.info.highCounts[1]} / 红${s.info.highCounts[2]}</p>` : ""}${s.info.highArea === undefined ? "" : `<p>高品质总占格 ${s.info.highArea} 格</p>`}${s.info.items.map((c, i) => `<p>${i + 1}. ${c.quality === null ? "品质未知" : meta.qualities[c.quality] + "品质"} · ${c.width === null ? "轮廓未知" : `${c.width}×${c.height} / ${c.width * c.height}格`}</p>`).join("")}</details><button class="danger-link" data-leave>放弃余下竞拍</button>`
-      : `<span class="auction-stage">仓门打开，惊喜揭晓。</span><h2>${r.winner === null ? "本局流拍" : `${npc[r.winner]}拍中`}</h2><p>成交价 ${gameMoney(s, r.price)}<br>已揭晓 ${s.reveal.count} / ${s.reveal.total}件</p><div class="line-value">${number(subtotal)}</div><p>已揭晓总值 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}<br>未开齐前不提前公开总值和最终盈亏。</p>${revealControls(s)}<p>资金已结算，开仓不再扣币。拍得的藏品将在揭晓后解锁到个人仓库。</p>`
+      : `<span class="auction-stage">仓门打开，惊喜揭晓。</span><h2>${r.winner === null ? "本局流拍" : `${npc[r.winner]}拍中`}</h2><p>成交价 ${gameMoney(s, r.price)}<br>已揭晓 ${s.reveal.count} / ${s.reveal.total}件</p><div class="line-value">${number(subtotal)}</div><p>已揭晓总值 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</p>${revealControls(s)}`
   }</aside></div>`;
 }
 let seatSweptKey = null;
@@ -441,7 +441,7 @@ function history(s) {
 function resultView(s) {
   const r = s.result,
     won = r.winner === 0;
-  return `${seatStrip(s)}<div class="panel"><p class="eyebrow">${r.winner === null ? "本局流拍" : `${npc[r.winner]}以 ${gameMoney(s, r.price)} 拍中`}</p><h2>这一仓，${r.net > 0 ? "赚到了。" : r.net < 0 ? "留点经验。" : "不赚不亏。"}</h2><div class="result-grid"><div><small>成交价</small><strong>${number(r.price)}</strong></div><div><small>仓库藏品总值</small><strong>${number(r.total)}</strong></div><div><small>本局盈亏 · 含入场费${won ? "与藏品价值" : ""}</small><strong class="${r.net >= 0 ? "profit" : "loss"}">${r.net > 0 ? "+" : ""}${number(r.net)}</strong></div><div><small>现金变化 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small><strong>${r.cashNet > 0 ? "+" : ""}${number(r.cashNet ?? r.net)}</strong></div></div><p>本局入场费 ${gameMoney(s, s.fee)}。${won ? (r.inventory ? "拍得藏品留在个人仓库，手动出售后才计入现金。" : "本局沿用开局时的自动折算规则，藏品已按当时规则结算。") : "未拍中只承担入场费。"} ${s.currency === "tavern" ? "这是旧版酒馆币对局，以上金额仍按当时规则计算。" : ""}</p><div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${history(s)}<button class="text-link" data-view="inventory">到个人仓库看看 →</button></div><br>`;
+  return `${seatStrip(s)}<div class="panel"><p class="eyebrow">${r.winner === null ? "本局流拍" : `${npc[r.winner]}以 ${gameMoney(s, r.price)} 拍中`}</p><h2>这一仓，${r.net > 0 ? "赚到了。" : r.net < 0 ? "留点经验。" : "不赚不亏。"}</h2><div class="result-grid"><div><small>成交价</small><strong>${number(r.price)}</strong></div><div><small>仓库藏品总值</small><strong>${number(r.total)}</strong></div><div><small>本局盈亏 · 含入场费${won ? "与藏品价值" : ""}</small><strong class="${r.net >= 0 ? "profit" : "loss"}">${r.net > 0 ? "+" : ""}${number(r.net)}</strong></div><div><small>现金变化 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small><strong>${r.cashNet > 0 ? "+" : ""}${number(r.cashNet ?? r.net)}</strong></div></div><p>入场费 ${gameMoney(s, s.fee)}。${won ? (r.inventory ? "藏品已入仓，卖出才计现金。" : "藏品已按开局规则结算。") : "未拍中，只付入场费。"}${s.currency === "tavern" ? " 旧版酒馆币对局，按当时规则计算。" : ""}</p><div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${history(s)}<button class="text-link" data-view="inventory">到个人仓库看看 →</button></div><br>`;
 }
 function inventoryView() {
   if (!inventory) return '<p class="loading">正在读取个人仓库…</p>';
@@ -457,10 +457,10 @@ function cabinetView() {
     },
   ).join(
     "",
-  )}</div></div><p class="quiet-note">展示中的藏品会避开批量出售。撤下后回到个人仓库，固定价值保持不变。</p>`;
+  )}</div></div><p class="quiet-note">陈列中不参与批卖，撤下即回仓。</p>`;
 }
 function walletView() {
-  return `${summary()}<div class="panel wallet-panel"><p class="eyebrow">同一间小酒馆，同一个钱包</p><h2>竞拍币双向兑换</h2><div class="exchange-rate"><div>1<small>酒馆币</small></div><span>⇄</span><div>100,000<small>竞拍币</small></div></div><p>双向免手续费，按整数酒馆币兑换。不足100,000的竞拍币会保留。</p><form id="exchange-form"><label>兑换方向<select id="exchange-direction"><option value="buy">酒馆币 → 竞拍币</option><option value="sell">竞拍币 → 酒馆币</option></select></label><label>酒馆币数量（整数）<input id="exchange-amount" type="number" min="1" max="1000000" step="1" required placeholder="例如：100" inputmode="numeric"></label><button class="button primary wide" type="submit">预览本次兑换 →</button></form><p>这是所选服务器的小酒馆钱包。网页与Discord的兑换、入场费、退款和售出记录共通。</p></div>`;
+  return `${summary()}<div class="panel wallet-panel"><p class="eyebrow">同一间小酒馆，同一个钱包</p><h2>竞拍币双向兑换</h2><div class="exchange-rate"><div>1<small>酒馆币</small></div><span>⇄</span><div>100,000<small>竞拍币</small></div></div><p>整数兑换，免手续费。</p><form id="exchange-form"><label>兑换方向<select id="exchange-direction"><option value="buy">酒馆币 → 竞拍币</option><option value="sell">竞拍币 → 酒馆币</option></select></label><label>酒馆币数量（整数）<input id="exchange-amount" type="number" min="1" max="1000000" step="1" required placeholder="例如：100" inputmode="numeric"></label><button class="button primary wide" type="submit">预览兑换 →</button></form><p>与 Discord 同一个钱包。</p></div>`;
 }
 function renderPlay() {
   if (!meta) return;
@@ -545,7 +545,7 @@ async function quoteSale(quality) {
   await mutation("auctionInventoryQuote", fields);
   const q = saleQuote;
   dialog(
-    `<p class="eyebrow">出售前，再看一眼</p><h2 class="detail-title">出售 ${q.count} 件藏品？</h2><p class="detail-flavor">到账 ${money(q.total)}</p><p class="detail-meta">${q.items.map((u) => escape(u.item.name)).join("、")}${q.count > q.items.length ? ` 等${q.count}件` : ""}</p><p class="mini-note">展示中的藏品不会批量出售，每批最多500件。确认后这些藏品将从个人仓库移出。</p><div class="dialog-buttons"><button class="button outline" data-close>先留着</button><button class="button primary" data-confirm-sale>确认出售</button></div>`,
+    `<p class="eyebrow">出售前，再看一眼</p><h2 class="detail-title">出售 ${q.count} 件藏品？</h2><p class="detail-flavor">到账 ${money(q.total)}</p><p class="detail-meta">${q.items.map((u) => escape(u.item.name)).join("、")}${q.count > q.items.length ? ` 等${q.count}件` : ""}</p><p class="mini-note">陈列中不参与批卖 · 每批最多 500 件。</p><div class="dialog-buttons"><button class="button outline" data-close>先留着</button><button class="button primary" data-confirm-sale>确认出售</button></div>`,
   );
 }
 function tick() {
