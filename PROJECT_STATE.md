@@ -994,3 +994,8 @@ PR #73特性7c13389c2dc362c754ef7c02c1f5ef82334257d0，完整PR CI41516569771成
 ## casino.12 个人仓库与六格展示柜本地完成（2026-11-03）
 
 恢复上轮未提交工作，完成入仓、逐件揭晓解锁、单件/多选/按品质批卖、服务端冻结出售确认和六格陈列生命周期；保留旧局自动结算。修正规则说明和测试工作区硬编码。No Refactor / Local Fix Only，同一资产生命周期13文件1800行预算。专项59、完整酒馆311、Worker93通过；真实签名入仓→陈列→7件批卖→重复确认只记账一次，剩1件陈列。真实渲染仓库/满柜/空柜目检、离线esbuild通过，仅既有重复z键警告。GitHub/生产待PR完整CI后发布；合同docs/casino/AUCTION_INVENTORY.md，未动真人资金或发消息。
+
+
+## casino.12 发布及线上核验完成（2026-11-03）
+
+PR #75（671a07fab76fca2d1de7d03ea5f9b7606ed06ed9）完整CI41572358603成功，合并19767b9a34128f5f20534c385dcc3dced8ceddd5，main完整CI/部署41572620392成功。CF部署edf492d6-bc44-4c7e-99af-abedbd87ed45、版本53daf28c-45ab-424c-9f64-896cc6fc086c接收100%。15bindings及settings所有字段前后相同；真实HTTP health确认casino.12、ok/ready与Gateway connected/ready均true，identity1指纹匹配。发布树c340dccf29b85d8cf99ecf21d43e3b2369d2c38f与本地验证树相同；本地功能提交5b3d0aa和GitHub功能提交671a07f同树，后续从main继续。真实仓库/展示柜预览已保存。未操作真实玩家资金或发测试消息，真人Discord手感待试玩，不重复部署。
