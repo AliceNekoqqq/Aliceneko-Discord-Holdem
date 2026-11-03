@@ -3262,3 +3262,314 @@ dialog::backdrop { background:#213e6299; backdrop-filter:blur(5px); }
   .cabinet { border-width:5px; }
 }
 /* End cream-and-mist-blue preview */
+
+/* ==== Aliceneko game-UI refinement (DeepSeek, 2026-11-03) ==== */
+/* Sits on top of the cream-and-mist-blue preview: same palette, but deeper
+   framing, tactile controls and a proper HUD for the four auction seats.
+   No inline styles anywhere - this site's CSP is style-src 'self'. */
+
+:root {
+  --ui-line-strong: #b6cbe0;
+  --ui-line-soft: #dbe7f3;
+  --ui-panel-top: #fffefb;
+  --ui-panel-bottom: #f2f7fd;
+  --ui-hud-top: #e9f2fb;
+  --ui-hud-bottom: #f7fbff;
+  --ui-ring: #5f92c4;
+  --ui-shadow-sm: 0 2px 7px #4d739614;
+  --ui-shadow-md: 0 12px 30px #4d73961f;
+  --ui-shadow-lg: 0 26px 52px #3f628c29;
+  --ui-coral-deep: #d06a54;
+  --ui-numeral: "Iowan Old Style", "Palatino Linotype", "Songti SC", Georgia, serif;
+}
+
+/* A faint table ruling under the existing radial wash. */
+body {
+  background:
+    radial-gradient(ellipse 85% 48% at 90% 0%, #dbeafa 0%, transparent 75%),
+    radial-gradient(ellipse 60% 44% at 3% 12%, #fff9ed 0%, transparent 77%),
+    repeating-linear-gradient(0deg, #ffffff00 0 3px, #cfdff00f 3px 4px),
+    #f5f7fb;
+}
+
+/* ---- windows / cards ---- */
+.panel,
+.role-card,
+.login-panel,
+.account-bar,
+.rules-body article {
+  background: linear-gradient(180deg, var(--ui-panel-top), var(--ui-panel-bottom));
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 18px;
+  box-shadow:
+    inset 0 1px #ffffff,
+    inset 0 0 0 1px #ffffff80,
+    var(--ui-shadow-md);
+}
+
+.collectible {
+  background: linear-gradient(180deg, #fffefb, #fbfdff);
+  border: 1px solid var(--ui-line-soft);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px #ffffff,
+    var(--ui-shadow-sm);
+}
+
+.collectible:before {
+  height: 3px;
+  opacity: 1;
+  box-shadow: 0 0 10px var(--q);
+}
+
+.collectible:hover {
+  transform: translateY(-6px);
+  border-color: var(--q);
+  box-shadow:
+    inset 0 1px #ffffff,
+    0 20px 36px #53799a2e,
+    0 0 0 1px var(--q);
+}
+
+.prop-stage img {
+  transition: transform 0.45s var(--ease), filter 0.45s var(--ease);
+}
+
+.collectible:hover .prop-stage img {
+  transform: scale(1.06) translateY(-2px);
+  filter: drop-shadow(0 16px 12px #33506e26);
+}
+
+.item-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #eaf3fc;
+  border: 1px solid #cfe0f0;
+  color: #39678f;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- controls ---- */
+.button,
+.login-button {
+  transition:
+    transform 0.16s var(--ease),
+    box-shadow 0.16s var(--ease),
+    background 0.2s;
+}
+
+.primary {
+  box-shadow:
+    inset 0 1px #ffffff80,
+    0 3px 0 var(--ui-coral-deep),
+    0 10px 24px #dc846a2e;
+}
+
+.primary:hover {
+  box-shadow:
+    inset 0 1px #ffffff8c,
+    0 4px 0 var(--ui-coral-deep),
+    0 16px 30px #da876e3d;
+}
+
+.primary:active {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 1px #ffffff66,
+    0 0 0 var(--ui-coral-deep),
+    0 6px 14px #dc846a26;
+}
+
+.outline {
+  box-shadow: inset 0 1px #ffffff;
+}
+
+.outline:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+/* ---- auction HUD ---- */
+.seat-strip {
+  background: linear-gradient(180deg, var(--ui-hud-top), var(--ui-hud-bottom));
+  border: 1px solid #bfd6ea;
+  border-top: 3px solid #b3d0e8;
+  border-radius: 18px;
+  box-shadow:
+    inset 0 1px #ffffff,
+    0 10px 26px #6e94b21c;
+}
+
+.seat {
+  background: #fffdfb;
+  border: 1px solid #d2e0ee;
+  border-left: 4px solid #a9c2d9;
+  border-radius: 12px;
+  box-shadow: inset 0 1px #ffffff;
+  transition:
+    transform 0.2s var(--ease),
+    box-shadow 0.2s var(--ease),
+    border-color 0.2s;
+}
+
+.seat.leading {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 20px #6996c230,
+    inset 0 1px #ffffff;
+}
+
+.seat.won {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 24px #d9a25933,
+    inset 0 1px #ffffff;
+}
+
+.seat-bid {
+  font-family: var(--ui-numeral);
+  font-size: 21px;
+  letter-spacing: 0.3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.seat[data-state="sealed"] .seat-bid {
+  letter-spacing: 2px;
+}
+
+/* ---- board frame ---- */
+.board-wrap {
+  border-width: 9px;
+  border-radius: 16px;
+  box-shadow:
+    inset 0 0 0 2px #f7fbff,
+    inset 0 0 0 3px #a9c6de,
+    0 16px 34px #5b82932b;
+}
+
+.board-item {
+  border-width: 1px;
+  box-shadow:
+    inset 0 1px #ffffff,
+    0 3px 9px #57738e29;
+}
+
+.board-item.just-revealed {
+  animation: ui-cell-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+@keyframes ui-cell-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.82) rotate(-1.5deg);
+    box-shadow: 0 0 0 3px #7fb0da66;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- type ---- */
+.line-value {
+  font-family: var(--ui-numeral);
+  font-size: 34px;
+  letter-spacing: 0.4px;
+  color: #2f5d86;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-facts strong {
+  font-family: var(--ui-numeral);
+  font-variant-numeric: tabular-nums;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.eyebrow:after {
+  content: "";
+  width: 34px;
+  height: 1px;
+  background: linear-gradient(90deg, #a9c6de, #ffffff00);
+}
+
+.quality-legend span {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f4f9fe;
+  border: 1px solid var(--ui-line-soft);
+  color: #4f6f8c;
+}
+
+/* ---- reveal progress ---- */
+.reveal-meter {
+  height: 7px;
+  border-radius: 999px;
+  box-shadow: inset 0 1px 2px #3f628c1f;
+}
+
+.reveal-meter::-webkit-progress-value,
+.reveal-meter::-moz-progress-bar {
+  border-radius: 999px;
+}
+
+/* ---- focus + scrollbar ---- */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--ui-ring);
+  outline-offset: 3px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c3d6e8;
+  border-radius: 999px;
+  border: 2px solid #f5f7fb;
+}
+
+::-webkit-scrollbar-track {
+  background: #f5f7fb;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-item.just-revealed {
+    animation: none;
+  }
+  .collectible:hover,
+  .seat.leading,
+  .seat.won {
+    transform: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .seat-bid {
+    font-size: 18px;
+  }
+  .line-value {
+    font-size: 28px;
+  }
+  .panel,
+  .role-card,
+  .login-panel,
+  .account-bar,
+  .rules-body article {
+    border-radius: 14px;
+  }
+}
