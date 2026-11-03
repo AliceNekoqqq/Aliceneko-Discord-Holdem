@@ -186,11 +186,14 @@ function renderRoles() {
     sophie: "先掌握更多品质，逐轮缩小估值范围。",
     gabriella: "同时看见品质与尺寸，更容易识别占格线索。",
     viktor: "从高品质藏品的数量与总占格，判断整仓价值。",
+    zhou: "先确认仓里有没有大件，再慢慢看清其余。",
+    lucia: "前四轮忍手，最后一轮把账本摊开。",
   };
+  const withArt = ["sophie", "gabriella", "viktor"];
   $("#role-cards").innerHTML = Object.entries(meta.roles)
     .map(
       ([key, r], i) =>
-        `<article class="role-card"><div class="role-portrait portrait-${i}" role="img" aria-label="${escape(r.name)}，本作鉴赏师形象"></div><div class="role-info"><small>信息能力 / 0${i + 1}</small><h2>${escape(r.name)}</h2><p>${escape(r.skill)}</p><p class="role-extra">${notes[key]}</p><a class="text-link" href="#play" data-role-pick="${key}">带上这份眼力 →</a></div></article>`,
+        `<article class="role-card">${withArt.includes(key) ? `<div class="role-portrait portrait-${withArt.indexOf(key)}" role="img" aria-label="${escape(r.name)}，本作鉴赏师形象"></div>` : `<div class="role-portrait portrait-fallback" role="img" aria-label="${escape(r.name)}"><span>${escape(r.name.slice(0, 1))}</span></div>`}<div class="role-info"><small>信息能力 / 0${i + 1}</small><h2>${escape(r.name)}</h2><p>${escape(r.skill)}</p><p class="role-extra">${notes[key]}</p><a class="text-link" href="#play" data-role-pick="${key}">带上这份眼力 →</a></div></article>`,
     )
     .join("");
   $("#rules-tiers").innerHTML =
@@ -259,10 +262,11 @@ function legend() {
 function appraiserCard(s) {
   const role = meta.roles?.[s.role];
   if (!role) return "";
-  const key = ["sophie", "gabriella", "viktor"].includes(s.role)
-    ? s.role
-    : "sophie";
-  return `<div class="appraiser-card"><div class="appraiser-portrait ${key}" role="img" aria-label="${escape(role.name)}"></div><div class="appraiser-meta"><strong>${escape(role.name)}</strong><small>${escape(role.skill)}</small></div></div>`;
+  const withArt = ["sophie", "gabriella", "viktor"];
+  const portrait = withArt.includes(s.role)
+    ? `<div class="appraiser-portrait ${s.role}" role="img" aria-label="${escape(role.name)}"></div>`
+    : `<div class="appraiser-portrait fallback" role="img" aria-label="${escape(role.name)}"><span>${escape(role.name.slice(0, 1))}</span></div>`;
+  return `<div class="appraiser-card">${portrait}<div class="appraiser-meta"><strong>${escape(role.name)}</strong><small>${escape(role.skill)}</small></div></div>`;
 }
 // Column letters and row numbers around the warehouse grid. Labels are built
 // from the session's own board size, so 8x4, 8x6 and 10x8 all read correctly.
