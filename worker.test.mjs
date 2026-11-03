@@ -95,7 +95,7 @@ test('signed Discord flow, private cards, stale click, duplicate, modal, timeout
  const call=async(data)=>{const i={application_id:'123',guild_id:'3',channel_id:'2',id:String(++counter),token:'transient-secret',member:{user:{id:'1'},permissions:'0'},...data};const body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');const ctx=context();const r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);await Promise.all(ctx.tasks);return {reply:await r.json(),i};};
  const unsigned=await worker.fetch(new Request('https://test/interactions',{method:'POST',body:'{}'}),env,context());assert.equal(unsigned.status,401);
  const hidden=await worker.fetch(new Request('https://test/.env'),env,context());assert.equal(hidden.status,404);
- const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.13',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity1'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
+ const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.14',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity1'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
  assert.deepEqual((await call({type:1})).reply,{type:1});
  const create={type:2,data:{name:'德州',options:[{name:'创建'}]}};
  let {reply:b}=await call(create);assert.equal(b.type,4);assert(!JSON.stringify(b).includes(env.BOT_TOKEN));
@@ -345,7 +345,7 @@ test('signed single-player slots open privately and settle once through the guil
 test('signed single-player auction opens privately and submits a modal bid once through the guild wallet, without a game table',async t=>{
  const db=new DatabaseSync(':memory:');t.after(()=>db.close());const map=new Map(),names=[],deliveries=[];
  const storage={sql:{exec(q,...a){const s=db.prepare(q);if(s.columns().length)return {toArray:()=>s.all(...a)};s.run(...a);return {toArray:()=>[]};}},transactionSync(fn){db.exec('BEGIN');try{const r=fn();db.exec('COMMIT');return r;}catch(e){db.exec('ROLLBACK');throw e;}},get:async k=>map.get(k),put:async(k,v)=>map.set(k,v)};
- const service=new TavernService(storage);service._auction=new TavernAuction(service,n=>n-1);
+ const service=new TavernService(storage);service._auction=new TavernAuction(service,n=>n===10000?0:n-1);
  const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);
  const env={DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex'),TABLES:{idFromName:n=>n,get:n=>{names.push(n);return {fetch:async(url,o)=>{assert.equal(n,'tavern:3');const p=JSON.parse(o.body);assert.equal(p.op,'tavern');return Response.json(await service.dispatch(p));}};}}};
  t.mock.method(globalThis,'fetch',async(url,o)=>{assert(url.includes('/webhooks/123/'));const data=o.body instanceof FormData?JSON.parse(o.body.get('payload_json')):JSON.parse(o.body);deliveries.push(data);return Response.json({});});
@@ -410,6 +410,16 @@ test('signed single-player auction opens privately and submits a modal bid once 
  await inventoryClick(saleConfirm);assert.equal(service.auctionCurrency.balance('1'),afterSale);assert(deliveries.at(-1).content.includes('没有重复入账'));
  const retained=service.auction.inventory.view({guild:'3',id:'1',channel:'2'});assert.equal(retained.count,1);assert.equal(retained.displayed,1);
 
+ // New regional large warehouses carry 18 items through the signed double-digit reveal path.
+ service.auction.random=n=>n-1;
+ await inventoryClick('t:3:1:auctionTier~collection');
+ await inventoryClick(deliveries.at(-1).components[0].components[0].custom_id);
+ const large=service.auction.view({guild:'3',id:'1',channel:'2'}).session;assert.equal(large.itemCount,18);assert.equal(large.board.rows,8);
+ const largeState=JSON.parse(service.one('SELECT state FROM tavern_auctions WHERE token=?',large.token).state);largeState.committed=[0,0,0];service.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(largeState),large.token);
+ await inventoryClick(`t:3:1:auctionBid~${large.token}~1~1`);
+ for(let step=0;step<17;step++)service.auction.reveal({guild:'3',id:'1',channel:'2',token:large.token,step,all:false});
+ assert.deepEqual(await inventoryClick(`t:3:1:auctionReveal~${large.token}~17~next`),{type:6});assert(deliveries.at(-1).content.includes('18件藏品已存入'));
+ const largeInventory=service.auction.inventory.view({guild:'3',id:'1',channel:'2'});assert.equal(largeInventory.count,19);assert.equal(largeInventory.displayed,1);
  const calls=names.length,bad=await call({...click,member:{user:{id:'4'}}});assert.equal(bad.type,4);assert.equal(names.length,calls);
  assert(names.every(n=>n==='tavern:3'));assert(deliveries.every(d=>d.allowed_mentions.parse.length===0));
 });

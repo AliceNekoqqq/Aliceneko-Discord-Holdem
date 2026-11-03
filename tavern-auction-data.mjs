@@ -41,15 +41,15 @@ export const AUCTION_ITEMS=Object.freeze(AUCTION_ITEMS_V4.map(item=>{
  return Object.freeze({...item,dropWeight:drop.weight,rarity:drop.rarity});
 }));
 export const auctionItemWeight=item=>item.dropWeight??1;
-export function auctionItemChance(item,qualityPercent,catalog=AUCTION_ITEMS){
+export function auctionItemChance(item,qualityPercent,catalog=AUCTION_ITEMS,count=8){
  const total=catalog.filter(x=>x.quality===item.quality).reduce((s,x)=>s+auctionItemWeight(x),0),within=auctionItemWeight(item)/total,slot=qualityPercent/100*within;
- return {within,slot,warehouse:-Math.expm1(8*Math.log1p(-slot))};
+ return {within,slot,warehouse:-Math.expm1(count*Math.log1p(-slot))};
 }
 export const auctionCatalogFor=version=>version===5?AUCTION_ITEMS:version===4?AUCTION_ITEMS_V4:version===3?AUCTION_ITEMS_V3:version===2?AUCTION_ITEMS_V2:AUCTION_ITEMS_LEGACY;
 export const scaleAuctionValue=(value,unit=AUCTION_RATE)=>Math.floor(value*unit/AUCTION_RATE);
-export function auctionCatalogPage(quality,page=0){
+export function auctionCatalogPage(quality,page=0,catalog=AUCTION_ITEMS){
  if(!Number.isInteger(quality)||quality<0||quality>5||!Number.isInteger(page)||page<0)throw Error('无效图鉴页。');
- const pool=AUCTION_ITEMS.filter(x=>x.quality===quality),pages=Math.ceil(pool.length/12);
+ const pool=catalog.filter(x=>x.quality===quality),pages=Math.ceil(pool.length/12);
  if(page>=pages)throw Error('无效图鉴页。');
  return {count:pool.length,pages,items:pool.slice(page*12,(page+1)*12)};
 }

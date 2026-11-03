@@ -9,7 +9,7 @@ const results=[],started=Date.now();
 for(const [model,pool]of [['casino.12',AUCTION_ITEMS_V4],['casino.13',AUCTION_ITEMS]]){
  const skillVersion=2,budget=100*R,fee=R,aggregateCache=new Map();
  const cache=new Map(),estimate=info=>{
-  if(info.highCounts){const key=JSON.stringify([info.highCounts,info.highArea]);if(!aggregateCache.has(key))aggregateCache.set(key,estimateAuction(info,R,pool,weights));return aggregateCache.get(key);}
+  if(info.highCount!==null){const key=JSON.stringify([info.items.length,info.highCount,info.highCounts,info.highArea]);if(!aggregateCache.has(key))aggregateCache.set(key,estimateAuction(info,R,pool,weights));return aggregateCache.get(key);}
   return info.items.reduce((sum,x)=>{const key=[info.highCount,x.quality,x.width,x.height].join(':');if(!cache.has(key))cache.set(key,estimateAuction({highCount:info.highCount,items:[x]},R,pool,weights));return sum+cache.get(key);},0);
  };
  const policies=[['reference80',(r,v)=>Math.min(budget,Math.floor(v*.8))],['reference95',(r,v)=>Math.min(budget,Math.floor(v*.95))],['maximum',()=>budget],['wait3reference95',(r,v)=>r<3?0:Math.min(budget,Math.floor(v*.95))]];

@@ -1,6 +1,6 @@
 import {validId} from './tavern-catalog.mjs';
 export const INVENTORY_PAGE=9,DISPLAY_SLOTS=6,SALE_LIMIT=500,INVENTORY_TTL=15*60_000;
-const TOKEN=/^[a-f0-9]{16}$/,ITEM=/^[a-f0-9]{16}_[0-7]$/;
+const TOKEN=/^[a-f0-9]{16}$/,ITEM=/^[a-f0-9]{16}_(?:[0-9]|1[0-7])$/;
 const token=()=>crypto.randomUUID().replaceAll('-','').slice(0,16);
 export class TavernAuctionInventory {
  constructor(tavern){
@@ -37,7 +37,7 @@ export class TavernAuctionInventory {
  summary(p){
   const x=this.tavern.one('SELECT COUNT(*) count,COALESCE(SUM(CASE WHEN revealed=1 THEN 1 ELSE 0 END),0) visible,COALESCE(SUM(CASE WHEN revealed=1 THEN json_extract(item,\'$.value\') ELSE 0 END),0) value,COALESCE(SUM(CASE WHEN display_slot IS NOT NULL THEN 1 ELSE 0 END),0) displayed FROM tavern_auction_inventory WHERE user_id=? AND sold_at IS NULL',p.id);
   const cabinet=this.tavern.rows('SELECT * FROM tavern_auction_inventory WHERE user_id=? AND sold_at IS NULL AND revealed=1 AND display_slot IS NOT NULL ORDER BY display_slot',p.id).map(r=>({...r,item:JSON.parse(r.item)}));
-  const pending=this.tavern.one("SELECT token,channel,json_extract(state,'$.opened') opened FROM tavern_auctions WHERE user_id=? AND status='settled' AND json_extract(state,'$.inventoryVersion')=1 AND json_extract(state,'$.result.winner')=0 AND json_extract(state,'$.opened')<8 ORDER BY settled_at DESC LIMIT 1",p.id);
+  const pending=this.tavern.one("SELECT token,channel,json_extract(state,'$.opened') opened FROM tavern_auctions WHERE user_id=? AND status='settled' AND json_extract(state,'$.inventoryVersion')=1 AND json_extract(state,'$.result.winner')=0 AND json_extract(state,'$.opened')<json_array_length(state,'$.items') ORDER BY settled_at DESC LIMIT 1",p.id);
   return {balance:this.tavern.auctionCurrency.balance(p.id),count:x.visible,locked:x.count-x.visible,value:x.value,displayed:x.displayed,cabinet,pending};
  }
  page(p,now,existing=null){

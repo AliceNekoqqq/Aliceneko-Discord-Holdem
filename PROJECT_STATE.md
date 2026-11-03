@@ -1009,3 +1009,8 @@ PR #75（671a07fab76fca2d1de7d03ea5f9b7606ed06ed9）完整CI41572358603成功，
 ## casino.13 发布与生产核验（2026-11-03）
 
 PR #76特性b5b9a4a134ff3401e828fbd8f75ec9d7aac817ff，完整PR CI41573614388成功；合并caeb1a16e5b2b606ee4da0a52be6038729195960，main完整CI/部署41573810380成功。CF部署59ac2eab-2831-4af4-b0f5-f475753ec0f8，版本ba90bb3c-9a48-4b92-8297-26f6e7eb6497接收100%；15bindings及settings所有字段保持。真实HTTP health确认casino.13、ok/ready:true、Gateway connected/ready:true、identity1匹配；指令仍casino3 registered:true，failures/missing/pending为空。发布树f2ce5d16703f8b2626a0a290ec71b92bc340898d与本地验证树相同；本地功能提交49ca658对应远端b5b9a4a同树，后续从main续工。功能和发布闭环；未改真实玩家资产、未发测试消息，真人Discord手感待试玩，不重复部署。
+
+
+## casino.14 区域与大小仓本地验收（2026-11-03）
+
+V6/drop3按区红1/1.2/1.5/2%和独立稀有红倍率，大小仓32/48/80格、6～18件保存固定。动态线索/估价/NPC/布局/开仓/统计/入仓编号/图鉴全路径适配；旧8件V5及以前保持。95专项、酒馆324、Worker93全部通过，含签名18件路径，离线构建和真实渲染目检。6万种子/24万策略回放与生产对照，最高非报满同价10.74%<原15%门禁；初始4%红候选未发布，不上调门禁。21文件2600行局部范围，未改原预算/费用/汇率/价格源/依赖/源图/模型/绑定，未动真人资金或发消息；待PR/CI、线上核验。合同AUCTION_REGIONS.md，模拟可复现。

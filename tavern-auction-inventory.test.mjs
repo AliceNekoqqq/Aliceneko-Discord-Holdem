@@ -14,7 +14,7 @@ import {answerTavern,immediateTavernReply,tavernDeferredReply} from './tavern-ui
 const base={guild:'3',id:'1',channel:'2',name:'Alice'},R=100000,now=Date.now();
 function fixture(t){
  const db=new DatabaseSync(':memory:');t.after(()=>db.close());const map=new Map(),storage={get:async key=>map.get(key),put:async(key,value)=>map.set(key,value),sql:{exec(q,...a){const s=db.prepare(q);if(s.columns().length)return {toArray:()=>s.all(...a)};s.run(...a);return {toArray:()=>[]};}},transactionSync(fn){db.exec('BEGIN');try{const x=fn();db.exec('COMMIT');return x;}catch(e){db.exec('ROLLBACK');throw e;}}};
- const tavern=new TavernService(storage),auction=new TavernAuction(tavern,n=>n-1);tavern._auction=auction;
+ const tavern=new TavernService(storage),auction=new TavernAuction(tavern,n=>n===10000?0:n-1);tavern._auction=auction;
  const fx=tavern.auctionCurrency;fx.view(base,now);tavern.sql.exec('UPDATE tavern_members SET balance=? WHERE id=?',20000,base.id);fx.convert({...base,token:fx.view(base,now).token,direction:'buy',amount:20000},now);
  return {db,storage,tavern,auction,inventory:auction.inventory,fx};
 }

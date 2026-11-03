@@ -7,7 +7,7 @@ if(!Number.isSafeInteger(N)||N<100||N>1000000)throw Error('samples must be 100..
 function seeded(seed){let state=seed>>>0;return n=>{let v;const limit=Math.floor(4294967296/n)*n;do{state=(state+0x9e3779b9)>>>0;v=state;v=Math.imul(v^(v>>>16),0x21f0aaad);v=Math.imul(v^(v>>>15),0x735a2d97);v=(v^(v>>>15))>>>0;}while(v>=limit);return v%n;};}
 const results=[],started=Date.now();
 for(const [model,pool,budget,fee]of [['casino.9',AUCTION_ITEMS_V3,200*R,10*R],['casino.10',AUCTION_ITEMS,100*R,R]]){
- const cache=new Map(),estimate=info=>info.items.reduce((sum,x)=>{const key=[info.highCount,x.quality,x.width,x.height].join(':');if(!cache.has(key))cache.set(key,estimateAuction({highCount:info.highCount,items:[x]},R,pool,weights));return sum+cache.get(key);},0);
+ const cache=new Map(),aggregateCache=new Map(),estimate=info=>{if(info.highCount!==null){const key=JSON.stringify([info.items.length,info.highCount]);if(!aggregateCache.has(key))aggregateCache.set(key,estimateAuction(info,R,pool,weights));return aggregateCache.get(key);}return info.items.reduce((sum,x)=>{const key=[info.highCount,x.quality,x.width,x.height].join(':');if(!cache.has(key))cache.set(key,estimateAuction({highCount:info.highCount,items:[x]},R,pool,weights));return sum+cache.get(key);},0);};
  const policies=[['reference80',(r,v)=>Math.min(budget,Math.floor(v*.8))],['reference95',(r,v)=>Math.min(budget,Math.floor(v*.95))],['maximum',()=>budget],['wait3reference95',(r,v)=>r<3?0:Math.min(budget,Math.floor(v*.95))]];
  for(let ri=0;ri<3;ri++){
   const role=['sophie','gabriella','viktor'][ri],bins=policies.map(()=>[]);let totalValue=0,redBoards=0;
