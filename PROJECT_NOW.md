@@ -1,3 +1,13 @@
+## 四席竞拍演出与 NPC 报价呈现（2026-11-03，执行者 DeepSeek，已发布）
+
+- **执行者区分**：本轮同样为 **DeepSeek** 独立完成，分支 `deepseek/auction-seats`、PR #83；上一轮自动揭露为 PR #81。Codex 的 #73–#80 拍卖功能条目未改写。
+- 用户要求：对局页要有四竞拍席，NPC 报价要逐轮呈现，成交者与成交价要有明确反馈。**纯前端**，复用服务端已公开的 `session.history`，未新增动作动词，未改价格／概率／预算／汇率／技能／权限／绑定／Secret／存档字段。
+- 新增 `web/auction/assets/seat-stage.mjs`：把 `history/priority/round/status/result` 转成四席视图模型（sealed／pass／bid／top／won、领先差额、成交者与成交价）；同价按当局抽签 `priority` 排序，非法 priority 回退座位序；无历史时一律「封存」，**不猜测 NPC 报价**。`app.js` 在棋盘上方渲染「拍卖席」四卡（你／阿吉／老猫／掌柜），每轮出价逐个落位、逐轮只播一次；结算时定格成交席，结算结果卡也带四席。`style.css` 加席位卡与领先／成交高亮、720px 以下 2×2，`prefers-reduced-motion` 关闭动效。白名单、构建哈希与 `test:worker` 一并纳入该模块。
+- 测试：`seat-stage.test.mjs` 8 项（无历史全封存／最高价与差额／同价按抽签／非法 priority 回退／成交席与价格／流拍无赢家／多轮取最新／缺名与坏数据降级）。本地 `node --test auction-website.test.mjs reveal-loop.test.mjs seat-stage.test.mjs` **28/28** 通过；PR CI 41629175508 通过（1m21s）。
+- 发布：起始 main `a29f3bb24d50a32610d1b9d93ce0e354600cd3dc`，特性 `24b6f06`，合并 main `33d4abf6d2edae63010576ef5a50e49c70a0f65c`；main CI/部署 41629400671 成功。Cloudflare 部署 `e85cbac4-9fd8-4348-a044-dbebb0520137`、版本 `a2863712-2af8-4960-9d3f-7665a9278666`（#235）100%；16 bindings 未变，DO／D1 原位，线上包含 `seat-stage` 与 `reveal-loop`。
+- **未验收**：本机线路对边缘域名仍是间歇性 SNI 阻断（19:32 前后出现一次「打不开」，经边缘 HTTP 日志确认为 `/auction/` 全 200、无 4xx/5xx，与部署无关）；四席在真人与窄屏的实际观感待试玩，`/health` 仍未直连。
+- 下一步：P3 真人试玩与经济观察；若要继续加演出，建议先确认四席在移动端的排布取舍。
+
 ## 网页逐件自动揭露（2026-11-03，执行者 DeepSeek，已发布）
 
 - **执行者区分**：本轮为 **DeepSeek** 单独完成，分支 `deepseek/auction-autoreveal`、PR #81；此前 #73–#80 的拍卖功能由 Codex 完成，本记录不覆盖也不改写其条目。后续助手请沿用 `codex/`、`deepseek/` 分支前缀区分归属。

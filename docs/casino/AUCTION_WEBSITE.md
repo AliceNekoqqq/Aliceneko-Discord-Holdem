@@ -56,3 +56,14 @@ GitHub Actions仅补一行web/**到PR触发路径，保证今后的纯HTML/CSS/J
 - 发布：起始 main `471fbf59…`，特性 `ebd1d11…`，合并 main `a9be0bed…`；main CI/部署 41627039787 成功；CF 部署 `f1989889-e5f1-4c5e-b6a2-f4b9d5c1c6cd`、版本 `f1602647-4f01-4aec-87d3-43ed39a3b4a4`（#234）100%；16 bindings 未变。
 - 未验收：`/health` 因本机 SNI 阻断未直连（Analytics 0 错误替代）；真人逐件揭露手感与窄屏观感待试玩。
 - 风险：单次揭露仍是一次 POST，服务端每次做 Discord 成员校验，件数多时需观察 429；若超限再提案批量动词，需同步白名单与权限。
+
+
+## 四席竞拍演出（2026-11-03，执行者 DeepSeek）
+
+同一执行者（DeepSeek）的后续一轮，分支 `deepseek/auction-seats`、PR #83；仍不改写 Codex 的 #73–#80 记录。
+
+- 目标：对局页呈现四个竞拍席，NPC 报价逐轮可见，成交者与成交价有明确落点。纯前端，只读服务端已公开的 `session.history`。
+- 实现：`web/auction/assets/seat-stage.mjs` 把 `history/priority/round/status/result` 转成四席模型（sealed／pass／bid／top／won、领先差额、成交者与成交价）；同价按当局 `priority` 抽签排序，非法 priority 回退座位序；**没有历史条目就显示「封存」，不推测 NPC 报价**。`app.js` 在棋盘上方渲染四卡并在结算时定格成交席，结算结果卡同样带四席；`style.css` 加入席位卡、领先/成交高亮、每轮一次的落位动画与 720px 以下 2×2。
+- 测试：`seat-stage.test.mjs` 8 项（封存态、最高价与差额、同价抽签、非法 priority、成交席与价格、流拍、多轮取最新、坏数据降级）。本地 28/28（含既有官网与揭露测试），PR CI 41629175508 通过。
+- 发布：起始 main `a29f3bb…`，特性 `24b6f06`，合并 main `33d4abf…`；main CI/部署 41629400671 成功；CF 部署 `e85cbac4-…`、版本 `a2863712-…`（#235）100%；16 bindings 未变。
+- 未验收：四席在真人与窄屏的实际观感待试玩；本机边缘访问仍间歇性阻断（与部署无关，边缘日志为全 200）。
