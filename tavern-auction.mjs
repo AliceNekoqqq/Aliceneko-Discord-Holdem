@@ -1,3 +1,4 @@
+import {largeCatalog,generateLargeAuction,estimateLargeAuction} from './tavern-auction-large.mjs';
 import {validId} from './tavern-catalog.mjs';
 import {AUCTION_ITEMS,AUCTION_ITEMS_V4,auctionItemWeight,auctionCatalogFor,scaleAuctionValue} from './tavern-auction-data.mjs';
 import {AUCTION_RATE,auctionAmount} from './tavern-auction-currency.mjs';
@@ -21,8 +22,9 @@ export const AUCTION_ROLES=Object.freeze({
 export const auctionRoleSkill=(role,version=2)=>role==='viktor'&&version<2?'开局获知紫、金、红品质藏品的合计件数。':AUCTION_ROLES[role].skill;
 export const AUCTION_QUALITY_WEIGHTS=Object.freeze([30,25,20,13,11,1]);
 export const AUCTION_LEGACY_WEIGHTS=Object.freeze([30,25,20,13,8,4]);
-const sessionCatalog=state=>state.catalogVersion===6?regionCatalog(state.tier):auctionCatalogFor(state.catalogVersion);
-const sessionWeights=state=>state.catalogVersion===6?AUCTION_REGIONS[state.tier].quality:state.dropVersion===2?AUCTION_QUALITY_WEIGHTS:AUCTION_LEGACY_WEIGHTS;
+const sessionCatalog=state=>state.catalogVersion===7?largeCatalog(state.tier):state.catalogVersion===6?regionCatalog(state.tier):auctionCatalogFor(state.catalogVersion);
+const sessionWeights=state=>state.catalogVersion>=6?AUCTION_REGIONS[state.tier].quality:state.dropVersion===2?AUCTION_QUALITY_WEIGHTS:AUCTION_LEGACY_WEIGHTS;
+const sessionEstimate=(state,info)=>state.catalogVersion===7?estimateLargeAuction(info,state.unit,state.tier,state.warehouse):estimateAuction(info,state.unit??(state.currency==='auction'?AUCTION_RATE:1),sessionCatalog(state),sessionWeights(state));
 const TOKEN=/^[a-f0-9]{16}$/;
 export function auctionRandom(n){
  if(!Number.isInteger(n)||n<1||n>0x100000000)throw Error('无效随机范围。');
@@ -99,10 +101,10 @@ export function estimateAuction(info,unit=AUCTION_RATE,catalog=AUCTION_ITEMS,wei
   return sum+(weight?value/weight:0);
  },0);
 }
-export function npcAuctionBid(info,round,style,random=auctionRandom,unit=AUCTION_RATE,catalog=AUCTION_ITEMS,weights=AUCTION_QUALITY_WEIGHTS,budget=(([AUCTION_ITEMS,AUCTION_ITEMS_V4].includes(catalog)||isRegionCatalog(catalog))?100:200)*unit){
+export function npcAuctionBid(info,round,style,random=auctionRandom,unit=AUCTION_RATE,catalog=AUCTION_ITEMS,weights=AUCTION_QUALITY_WEIGHTS,budget=(([AUCTION_ITEMS,AUCTION_ITEMS_V4].includes(catalog)||isRegionCatalog(catalog))?100:200)*unit,estimate=estimateAuction){
  if(random(12)===0)return 0;
  const factor=[0.78,0.94,1.08][style]*(0.64+round*0.06)*(0.90+random(21)/100);
- return Math.min(budget,Math.max(1,Math.floor(estimateAuction(info,unit,catalog,weights)*factor)));
+ return Math.min(budget,Math.max(1,Math.floor(estimate(info,unit,catalog,weights)*factor)));
 }
 export function decideAuction(round,bids,priority,budget=AUCTION_BUDGET){
  if(!Number.isInteger(round)||round<1||round>5||bids.length!==4||bids.some(b=>!Number.isInteger(b)||b<0||b>budget)||priority.length!==4||new Set(priority).size!==4||priority.some(x=>!Number.isInteger(x)||x<0||x>3))throw Error('无效竞拍回合。');
@@ -140,7 +142,7 @@ export class TavernAuction {
   const roles=[state.role,'sophie','gabriella','viktor'];
   roles.forEach((role,i)=>revealAuction(state.items,state.infos[i],role,state.round,this.random,state.skillVersion??1));
   // Commit opponents before receiving the human's sealed offer, then persist with the round.
-  state.committed=state.infos.slice(1).map((info,i)=>npcAuctionBid(info,state.round,i,this.random,state.unit??(state.currency==='auction'?AUCTION_RATE:1),sessionCatalog(state),sessionWeights(state),state.budget??200));
+  state.committed=state.infos.slice(1).map((info,i)=>npcAuctionBid(info,state.round,i,this.random,state.unit??(state.currency==='auction'?AUCTION_RATE:1),sessionCatalog(state),sessionWeights(state),state.budget??200,info=>sessionEstimate(state,info)));
  }
  present(p,row,now,repeated=false){
   const state=row?.state?JSON.parse(row.state):null,settled=row?.status==='settled';
@@ -152,7 +154,7 @@ export class TavernAuction {
   // Whitelist: hidden catalog identities, prices and opponent information never leave the guild DO.
   return {balance:revealing?null:this.tavern.auctionCurrency.balance(p.id),tavernBalance:this.tavern.one('SELECT balance FROM tavern_members WHERE id=?',p.id).balance,stats,repeated,
    offerToken:!state||settled?this.ready(p,now):null,
-   session:state?{currency:state.currency||'tavern',catalogVersion:state.catalogVersion??1,dropVersion:state.dropVersion??1,skillVersion:state.skillVersion??1,inventoryVersion:state.inventoryVersion??0,tier:state.tier||'standard',warehouse:state.warehouse??null,itemCount:state.items.length,catalogSize:sessionCatalog(state).length,estimate:Math.floor(estimateAuction(state.infos[0],state.unit??(state.currency==='auction'?AUCTION_RATE:1),sessionCatalog(state),sessionWeights(state))),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel,status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,history:state.history,result,info:state.infos[0],items,board:auctionBoardView(state,row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
+   session:state?{currency:state.currency||'tavern',catalogVersion:state.catalogVersion??1,dropVersion:state.dropVersion??1,skillVersion:state.skillVersion??1,inventoryVersion:state.inventoryVersion??0,tier:state.tier||'standard',warehouse:state.warehouse??null,itemCount:state.items.length,catalogSize:sessionCatalog(state).length,estimate:Math.floor(sessionEstimate(state,state.infos[0])),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel,status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,history:state.history,result,info:state.infos[0],items,board:auctionBoardView(state,row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
  }
  view(p,now=Date.now()){
   this.validate(p);let answer;
@@ -181,7 +183,7 @@ export class TavernAuction {
    if(row.created_at+AUCTION_READY_TTL<=now)throw Error('开局窗口已过期，请刷新；尚未扣币。');
    if(this.tavern.auctionCurrency.balance(p.id)<budget+fee)throw Error(`需要${auctionAmount((budget+fee)/10000)}万竞拍币：${auctionAmount(budget/10000)}万预算及${auctionAmount(fee/10000)}万入场费，请先用酒馆币兑换。`);
    const warehouse=drawAuctionWarehouse(tier,this.random);
-   const state={currency:'auction',catalogVersion:6,dropVersion:3,skillVersion:2,inventoryVersion:1,tier,warehouse,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateAuction(this.random,AUCTION_RATE*scale,regionCatalog(tier),AUCTION_REGIONS[tier].quality,warehouse.count),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},()=>emptyInfo(warehouse.count)),history:[]};
+   const state={currency:'auction',catalogVersion:7,dropVersion:4,skillVersion:2,inventoryVersion:1,tier,warehouse,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateLargeAuction(this.random,AUCTION_RATE*scale,tier,warehouse,generateAuction),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},()=>emptyInfo(warehouse.count)),history:[]};
    state.board=layoutAuction(state.items,row.token,warehouse);
    if(p.presentation==='warehouse'){state.opened=0;state.revealOrder=state.board.map((_,i)=>i).sort((a,b)=>state.board[a].y-state.board[b].y||state.board[a].x-state.board[b].x);}
    this.stage(state);
