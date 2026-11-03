@@ -3,7 +3,7 @@ import {loadStaticAsset,serveStaticAsset} from './static-art.mjs';
 let pixels=null,loading=null;
 export function serveAuctionArt(request,env){
  const path=new URL(request.url).pathname;
- const record=path===manifest.path?manifest:path===manifest.previousExpandedAtlas?.path?manifest.previousExpandedAtlas:path===manifest.legacyAtlas?.path?manifest.legacyAtlas:path===manifest.previousAtlas?.path?manifest.previousAtlas:[...Object.values(manifest.items),...Object.values(manifest.legacyItems||{}),...Object.values(manifest.previousItems||{})].find(x=>x.path===path);
+ const record=path===manifest.path?manifest:path===manifest.previousLargeAtlas?.path?manifest.previousLargeAtlas:path===manifest.previousExpandedAtlas?.path?manifest.previousExpandedAtlas:path===manifest.legacyAtlas?.path?manifest.legacyAtlas:path===manifest.previousAtlas?.path?manifest.previousAtlas:[...Object.values(manifest.items),...Object.values(manifest.legacyItems||{}),...Object.values(manifest.previousItems||{})].find(x=>x.path===path);
  if(!record)return new Response('Not Found',{status:404});
  return serveStaticAsset(request,env,path,record,path.endsWith('.bin')?'application/octet-stream':'image/png');
 }

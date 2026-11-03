@@ -4,6 +4,7 @@ import additional from './assets/auction-art/expansion-v2.json' with {type:'json
 import prices from './assets/auction-art/prices-v1.json' with {type:'json'};
 import drops from './assets/auction-art/drop-weights-v1.json' with {type:'json'};
 import largeProps from './assets/auction-art/large-props-v1.json' with {type:'json'};
+import newProps from './assets/auction-art/expansion-v3.json' with {type:'json'};
 // Original 24 names: approved Gemini job casino-auction-copy-20261102-v1.
 // Added 48 names and captions: authored directly per the user's no-Gemini request.
 // Original tavern catalog. Values, categories, shapes and drop weights are our adaptation.
@@ -47,6 +48,15 @@ export const AUCTION_LARGE_ITEMS=Object.freeze(largeProps.map(({pack,slot,...ite
 }));
 export const AUCTION_ALL_ITEMS=Object.freeze([...AUCTION_ITEMS,...AUCTION_LARGE_ITEMS]);
 if(new Set(AUCTION_ALL_ITEMS.map(x=>x.id)).size!==AUCTION_ALL_ITEMS.length)throw Error('大件编号重复。');
+// V7 constants above remain frozen. V8 extends the live catalog without rewriting old pools.
+export const AUCTION_NEW_ITEMS=Object.freeze(newProps.map(({pack,slot,sourceIndex,art,...item})=>{
+ if(!Number.isSafeInteger(item.value)||item.value<1||!Number.isSafeInteger(item.dropWeight)||item.dropWeight<1||![1,2,4,6,9,12].includes(item.width*item.height)||!Number.isInteger(item.quality)||item.quality<0||item.quality>5)throw Error('新增藏品配置异常。');
+ return Object.freeze(item);
+}));
+export const AUCTION_EXPANDED_ITEMS=Object.freeze([...AUCTION_ITEMS,...AUCTION_NEW_ITEMS.filter(x=>x.width*x.height<=4)]);
+export const AUCTION_EXPANDED_LARGE_ITEMS=Object.freeze([...AUCTION_LARGE_ITEMS,...AUCTION_NEW_ITEMS.filter(x=>x.width*x.height>4)]);
+export const AUCTION_CURRENT_ITEMS=Object.freeze([...AUCTION_EXPANDED_ITEMS,...AUCTION_EXPANDED_LARGE_ITEMS]);
+if(new Set(AUCTION_CURRENT_ITEMS.map(x=>x.id)).size!==AUCTION_CURRENT_ITEMS.length||new Set(AUCTION_CURRENT_ITEMS.map(x=>x.name)).size!==AUCTION_CURRENT_ITEMS.length)throw Error('新增藏品编号或名称重复。');
 export const auctionItemWeight=item=>item.dropWeight??1;
 export function auctionItemChance(item,qualityPercent,catalog=AUCTION_ITEMS,count=8){
  const total=catalog.filter(x=>x.quality===item.quality).reduce((s,x)=>s+auctionItemWeight(x),0),within=auctionItemWeight(item)/total,slot=qualityPercent/100*within;

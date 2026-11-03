@@ -1,4 +1,4 @@
-import {AUCTION_ITEMS,auctionItemChance} from './tavern-auction-data.mjs';
+import {AUCTION_ITEMS,AUCTION_EXPANDED_ITEMS,auctionItemChance} from './tavern-auction-data.mjs';
 export const AUCTION_MAX_ITEMS=18;
 export const AUCTION_WAREHOUSES=Object.freeze([
  Object.freeze({id:'small',name:'小仓',cols:8,rows:4,min:6,max:8}),
@@ -11,9 +11,10 @@ export const AUCTION_REGIONS=Object.freeze(Object.fromEntries([
  ['high',[220,240,220,160,145,15],[2000,4500,3500],[3,3,5]],
  ['collection',[170,220,230,180,180,20],[1000,3500,5500],[4,6,12]]
 ].map(([id,quality,size,rare])=>[id,Object.freeze({quality:Object.freeze(quality),size:Object.freeze(size),rare:Object.freeze(rare)})])));
-const pools=Object.freeze(Object.fromEntries(Object.entries(AUCTION_REGIONS).map(([tier,r])=>[tier,Object.freeze(AUCTION_ITEMS.map(x=>Object.freeze({...x,dropWeight:x.dropWeight*({'稀有':r.rare[0],'极稀有':r.rare[1],'传世':r.rare[2]}[x.rarity]??1)})))])));
-export function regionCatalog(tier='standard'){if(!Object.hasOwn(pools,tier))throw Error('无效竞拍区域。');return pools[tier];}
-export const isRegionCatalog=pool=>Object.values(pools).includes(pool);
+const makePools=catalog=>Object.freeze(Object.fromEntries(Object.entries(AUCTION_REGIONS).map(([tier,r])=>[tier,Object.freeze(catalog.map(x=>Object.freeze({...x,dropWeight:x.dropWeight*({'稀有':r.rare[0],'极稀有':r.rare[1],'传世':r.rare[2]}[x.rarity]??1)})))])));
+const pools=makePools(AUCTION_ITEMS),expandedPools=makePools(AUCTION_EXPANDED_ITEMS);
+export function regionCatalog(tier='standard',version=6){const source=version>=8?expandedPools:pools;if(!Object.hasOwn(source,tier))throw Error('无效竞拍区域。');return source[tier];}
+export const isRegionCatalog=pool=>[...Object.values(pools),...Object.values(expandedPools)].includes(pool);
 export function drawAuctionWarehouse(tier,random){
  const r=AUCTION_REGIONS[tier];if(!r)throw Error('无效竞拍区域。');
  let ticket=random(10000),index=0;while(ticket>=r.size[index])ticket-=r.size[index++];

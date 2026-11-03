@@ -1,3 +1,10 @@
+## 244件藏品扩充 V8 / casino.17（2026-11-03，Codex，待发布检查）
+
+- 承接DeepSeek main 84e762288ca169cefc05da0f9922a593ebd44fba，新增40件（32普通/8大件，10红含4件1×1），当前总244件。独立自然尾数价格与权重，原创两张真透明素材图集。保留DeepSeek自动揭露、四席、0.85 NPC与美化；未合入先前未发布演出草稿。
+- 新局catalogVersion8/dropVersion5；V7 204件、V6 192件及更早池冻结，后续估价/NPC依本局版本，旧库存价格与图片不变。原V4图集是新V5图集的逐字节相同前缀；新图集19,922,944字节。Discord红图鉴扩为6页，网页244条，四区概率归一化。
+- 本地酒馆340/Worker121及最终美术回归15通过，隔离浏览器“一滴月光”卡片/配图/价格/概率通过。12,000仓/48,000策略模拟最大非报满封顶同价10.6%，各区理论均值升1.89%～1.98%，未宣称真人平衡。docs/casino/AUCTION_V8_EXPANSION.md与AUCTION_V8_SIMULATION.json为记录。
+- 下一步：PR/main完整CI与部署，再核验正式244图鉴、新PNG、casino.17 health和原16bindings/runtime。禁止重复发布或代真人操作资产。
+
 ## NPC 出价激进度下调（2026-11-03，执行者 DeepSeek，已发布）
 
 - **执行者区分**：**DeepSeek**，分支 `deepseek/auction-npc-tuning`、PR #85；承接同一天的 #81、#83。

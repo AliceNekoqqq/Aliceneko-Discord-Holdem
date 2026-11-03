@@ -62,7 +62,7 @@ test('variable-count aggregate clues and hidden-count priors match exhaustive we
  }
 });
 test('18-item opening never truncates inventory or leaks totals at item 8; double-digit assets can sell/display after restart',t=>{
- const e=fixture(t,'collection',2,18),initial=e.started.session;assert.equal(initial.itemCount,18);assert.equal(initial.catalogVersion,7);assert.equal(initial.board.rows,8);assert.equal(initial.info.items.length,18);assert.equal(initial.items,null);const cash=e.fx.balance('1'),calls=e.calls();
+ const e=fixture(t,'collection',2,18),initial=e.started.session;assert.equal(initial.itemCount,18);assert.equal(initial.catalogVersion,8);assert.equal(initial.board.rows,8);assert.equal(initial.info.items.length,18);assert.equal(initial.items,null);const cash=e.fx.balance('1'),calls=e.calls();
  const repeated=e.auction.start({...base,token:e.token,role:'viktor',tier:'collection',presentation:'warehouse'},now);assert(repeated.repeated);assert.equal(e.calls(),calls);assert.equal(repeated.balance,cash);
  win(e);assert.equal(e.inventory.view(base,now).locked,18);
  for(let step=0;step<17;step++){const view=e.auction.reveal({...base,token:e.token,step,all:false},now);assert.equal(view.session.reveal.count,step+1);assert.equal(view.stats.net,0);assert.equal(view.balance,null);assert.equal(view.session.result.total,undefined);bounds(auctionData(view,'3','1'));}

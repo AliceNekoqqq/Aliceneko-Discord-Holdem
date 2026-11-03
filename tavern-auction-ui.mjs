@@ -12,7 +12,7 @@ const mentions={parse:[]},row=(...components)=>({type:1,components});
 const button=(g,id,action,label,style=2,disabled=false)=>({type:2,custom_id:`t:${g}:${id}:${action}`,label,style,disabled});
 const names=['你',...AUCTION_NPCS];
 const tierPattern='(?:small|standard|high|collection)';
-const catalogPattern=new RegExp(`^auctionCatalog(?:~[0-5](?:~[0-4](?:~${tierPattern})?)?)?$`);
+const catalogPattern=new RegExp(`^auctionCatalog(?:~[0-5](?:~(?:0|[1-9][0-9]?)(?:~${tierPattern})?)?)?$`);
 export const auctionCommandOption={type:1,name:'仓库盲拍',description:'单人对战三位NPC，以竞拍币参与五轮仓库暗标'};
 export function auctionInteraction(i){return currencyInteraction(i)||i.type===2&&i.data?.name==='酒馆'&&i.data.options?.[0]?.name==='仓库盲拍'||[3,5].includes(i.type)&&String(i.data?.custom_id||'').startsWith('t:')&&String(i.data.custom_id).split(':')[3]?.startsWith('auction');}
 function parts(i){
@@ -65,6 +65,7 @@ export function auctionData(data,g,id,notice='',selectedTier='standard'){
   if(legacy)content+='\n这是升级前的旧局，以下金额仍为酒馆币。';
   else content+=`${s.catalogVersion<4?'\n本局沿用开局时的旧价格、预算与入场费。':''}\n${AUCTION_TIERS[s.tier]?.name||'常规'}档 · 入场费 ${f(s.fee)}竞拍币 · ${f(s.fee/AUCTION_RATE)}酒馆币等值`;
   if(active){
+   if(s.catalogVersion===7)content+='\n本局沿用升级前的204件藏品池。';
    if(s.catalogVersion===6)content+='\n本局沿用升级前的192件藏品池。';
    if(s.catalogVersion===4)content+='\n本局沿用旧的同品质等概率藏品池。';
    if(s.dropVersion===1)content+='\n本局沿用旧掉率：红4% / 金8%；其余品质不变。';
@@ -109,7 +110,7 @@ export async function answerAuction(env,i){
  const p=parts(i);if(p.action==='auctionRules')return auctionRules(p.guild,p.id);
  if(inventoryAction(p.action))return answerInventory(env,i,p);
  if(catalogPattern.test(p.action)){
-  const [,q,pg,region]=p.action.split('~'),quality=Number(q||0),page=Number(pg||0),tier=region||'standard',view=auctionCatalog(p.guild,p.id,quality,page,tier);try{view._mapScene={bytes:await renderAuctionCatalogImage(env,quality,page,tier),filename:`tavern-auction-catalog-${quality}-${page}.png`,mime:'image/png',description:`192件酒馆藏品图鉴：${AUCTION_QUALITIES[quality]}品质第${page+1}页与${AUCTION_TIERS[tier].name}区价值`};}catch{view.content+='\n藏品配图暂未加载，图鉴文字仍有效。';}return view;
+  const [,q,pg,region]=p.action.split('~'),quality=Number(q||0),page=Number(pg||0),tier=region||'standard',view=auctionCatalog(p.guild,p.id,quality,page,tier);try{view._mapScene={bytes:await renderAuctionCatalogImage(env,quality,page,tier),filename:`tavern-auction-catalog-${quality}-${page}.png`,mime:'image/png',description:`${largeCatalog(tier).length}件酒馆藏品图鉴：${AUCTION_QUALITIES[quality]}品质第${page+1}页与${AUCTION_TIERS[tier].name}区价值`};}catch{view.content+='\n藏品配图暂未加载，图鉴文字仍有效。';}return view;
  }
  const base={guild:p.guild,id:p.id,channel:p.channel,name:i.member.nick||i.member.user.global_name||i.member.user.username||'来客'};
  const [action,token,value,last]=p.action.split('~');let data,notice='';

@@ -216,13 +216,13 @@ async function action(e, s, action, fields = {}) {
   });
 }
 
-test("public 204-item catalog exactly matches four production pools, prices, odds, skills and rules without touching wallets", async (t) => {
+test("public 244-item catalog exactly matches four production pools, prices, odds, skills and rules without touching wallets", async (t) => {
   const e = setup(t);
   for (const tier of ["small", "standard", "high", "collection"]) {
     const r = await e.request("api/catalog?tier=" + tier),
       d = await j(r);
-    assert.equal(d.items.length, 204);
-    assert.equal(d.items.filter((x) => x.width * x.height > 4).length, 12);
+    assert.equal(d.items.length, 244);
+    assert.equal(d.items.filter((x) => x.width * x.height > 4).length, 20);
     assert.equal(r.headers.get("Access-Control-Allow-Origin"), "*");
     assert.match(r.headers.get("Cache-Control"), /public/);
     for (const x of d.items) {
