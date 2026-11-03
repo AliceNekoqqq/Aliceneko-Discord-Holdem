@@ -113,6 +113,8 @@ def main():
         publish(source, f"art/renderer/{name}", "application/octet-stream")
 
     runpy.run_path(str(ROOT / 'scripts/build-auction-art.py'))['build']()
+    import subprocess
+    subprocess.run(['node', str(ROOT / 'scripts/build-auction-web.mjs')], check=True)
     all_public = list(PUBLIC.rglob("*"))
     files = [path for path in all_public if path.is_file()]
     totals["images"] = len(files)

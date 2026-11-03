@@ -1,0 +1,29 @@
+# 仓库盲拍官网与同源网页客户端
+
+2026-11-03，用户要求官网风格的网站、Discord登录、与小酒馆钱包/拍卖/藏品全互通，以及图鉴/人物技能/规则。复用现有GitHub/Cloudflare发布授权，明确新功能而非重构。
+
+本轮：正式入口在原Worker /auction/，后端同源，复用tavern:<guild> Durable Object、TavernAuction、AuctionCurrency、Inventory。Sites另保留本人可预览的官网镜像，进入真实游戏跳转同源正式入口，避免跨站Cookie/第二套钱包。公开主页/204图鉴/四区掉率/三角色技能/完整规则无需登录，资产与操作只在OAuth会话后可访问。
+
+登录：Discord授权码+PKCE；state与HttpOnly/Secure/__Host浏览器随机Cookie绑定，一次消费，短过期；会话为随机不透明Cookie，服务端哈希存储、可注销、有限期限。只使用identify/guilds，不索取消息权限。Discord用户ID由服务端获取，任何传入id/name/channel等身份字段不可信；选择服务器必须为用户和Bot共同服务器，资金/资产动作再检查当前成员身份。所有私有响应no-store；变更只接受同源JSON POST与会话CSRF Token，限制长度和动作白名单。OAuth token不进浏览器/localStorage/日志，服务器完成身份读取后丢弃。
+
+互通：网页使用保留频道0为来源；拥有者的网页可继续Discord局，Discord可继续网页局；其他真实Discord频道既有隔离保留。不复制/重算资产，不改钱币汇率/价格/概率/技能/预算/旧版本；并发由同一DO事务和既有token/round/销售收据去重。网站含真实格板、五轮出价、逐件/全开、单仓盈亏、双向兑换、个人仓库/批卖/展示柜。
+
+边界：最多30功能文件、5500已知文本行；不改模型、人设、旧Secrets、绑定/迁移/Cron、其他游戏。允许新增OAuth Client Secret配置说明，禁止把凭据提交代码；现有生产缺DISCORD_CLIENT_SECRET，回调也需在应用后台注册，真实OAuth待配置/真人授权后验收，不用假账户或假余额代替。
+
+验证：OAuth伪造/过期/state重放/CSRF/越权/退出/拒绝成员/未知动作；真实sqlite钱包/开拍/跨端继续/揭晓/入库/批卖/陈列/重试；公开资料一致性/资产遮罩；桌面手机浏览器QA；相关完整测试、现有PR/main CI、部署后网页/API/老Bot health和配置核验。不操作真人余额、不发测试消息。PROJECT_NOW为当前恢复入口，本文件是本轮范围与验收记录。
+
+
+用户追加“弄得好看点，可以生图”：新增原创仓库环境主视觉与三位鉴赏师形象图。由内置imagegen生成，无第三方人像/官方角色图；源PNG留在生成目录，交付以WebP项目素材存储。官网使用暖铜/胡桃木/深青影调，真实藏品图保持原材质。环境仅作背景，人物图为本作原创视觉演绎，不改变能力。具体尺寸/哈希与最终目检随发布回执记录。
+
+
+生产OAuth配置：现有应用1557397878702346321的OAuth2 Redirects新增 `https://discord-holdem.aliceneko.workers.dev/auction/auth/callback`；在Worker `discord-holdem` 添加加密Secret `DISCORD_CLIENT_SECRET`，值为该应用OAuth2 Client Secret（不是Bot Token）。凭据不经聊天或仓库。网站有配置缺失提示；配置前公开官网/图鉴/技能/规则/演示可用，真实用户登录未验收，不声称已连通真人账户。
+
+GitHub Actions仅补一行web/**到PR触发路径，保证今后的纯HTML/CSS/JS美术修改也跑原有完整CI；其余工作流、运行时依赖与配置保持。所有私有变更实时验证成员；只读查询复用服务端60秒成员证明以减少Discord限流，不复用前端传入身份。前端静态资源构建追加内容哈希查询参数，避免部署后旧JS/CSS缓存。
+
+
+## 本地与视觉验收
+
+- 11项新增测试（OAuth码+S256、state与Cookie绑定/重放/取消/过期/限流/退出、CSRF/同源/超长JSON/伪造身份/未知动作/服务器越权/即时成员检查、读缓存、共享兑换幂等、双向跨端竞拍/冷启/揭晓/陈列/出售），完整Worker104、酒馆333通过。Node检查与esbuild打包通过，仅既有重复z键警告。
+- 浏览器实际检查首页、角色配图、图鉴红+大件+旅行箱组合筛选/概率详情、390px iframe布局（内容375px，无横向溢出）。单独内存SQL隔离QA运行兑换100酒馆币、13件大仓五轮、逐件+全开、单仓盈亏、9格冰箱陈列、批卖12件避开陈列，均成功。QA访客明确命名隔离测试，无真实OAuth或真人资金操作；脚本不被Worker导入，Sites发布前移除了其服务器和临时public资产。
+- 原创图片warehouse-v1.webp：1536×1024 RGB、290908字节，SHA256 814c0cc78380191d4691e4ab14b082165d39e33ad4387d00e2dc391131715a97；appraisers-v1.webp：1536×1024 RGB、309228字节，SHA256 7338de95eb7fcbf318848d4dee211835d965c4418b7d8d65e4f07747cb5906ca。前者暖铜/深青仓库光影、后者三列人物，imagegen原创，使用WebP资产无图片Base64。
+- Sites私人官网镜像已保存并部署成功：appgprj_6ae996f99c208191ae684c2b3aedf3d4，源6aeee45f11be3b3889142c176379533772152ead，部署appgdep_6ae99ea4a6708191afea94b8f189936d，https://tavern-auction.amioalice.chatgpt.site 。此处只保留owner-only预览，不替代正式同源登录入口。

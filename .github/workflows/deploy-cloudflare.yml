@@ -18,6 +18,7 @@ on:
     paths:
       - '**.mjs'
       - 'assets/**'
+      - 'web/**'
       - 'scripts/build-*.py'
       - 'scripts/build-pet-walk-map.mjs'
       - 'package.json'

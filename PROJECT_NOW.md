@@ -1,3 +1,11 @@
+## 拍卖官网与网页互通 casino.16（2026-11-03，已实现待Worker发布，真实OAuth待配置）
+
+- 官网风格同源/auction/客户端：原创仓库主视觉/三位鉴赏师形象、首页、204图鉴（四区/品质/占格/搜索/详情概率）、三技能与完整规则、真实格板/五轮暗标/开仓盈亏/钱包兑换/个人仓库/批卖/六格展示柜。复用tavern:<guild>、钱包和原有事务，不建第二套钱包。保留频道0让本人跨端继续，其他真实频道间原限制保持；价格/概率/预算/汇率/技能保持。
+- OAuth授权码+S256/一次state+浏览器Cookie绑定/服务端随机会话哈希/CSRF/同源/动作参数白名单/即时变更成员检查，只读成员证明60秒缓存。11项新安全/跨端/真实sqlite财务测试、完整Worker104和酒馆333通过；离线esbuild通过（仅既有重复z键警告）。实际桌面/390px iframe无横向溢出；隔离内存服务器跑完兑换/大仓13件/五轮/逐件与全开/盈亏/陈列9格冰箱/批卖12件保留陈列品，未触及真人资产。
+- 正式入口待现有GitHub CI合入部署到 https://discord-holdem.aliceneko.workers.dev/auction/。生产缺DISCORD_CLIENT_SECRET，用户须在现有Discord应用1557397878702346321的OAuth2 Redirects注册 https://discord-holdem.aliceneko.workers.dev/auction/auth/callback 并将OAuth Client Secret存入CF同名加密Secret。未配置前官网/公开资料/演示可用，真实登录与真人钱包联通尚未验收，不能声称全部完成。
+- Sites本人预览已发布 https://tavern-auction.amioalice.chatgpt.site ，ID appgprj_6ae996f99c208191ae684c2b3aedf3d4，源提交6aeee45f11be3b3889142c176379533772152ead，部署appgdep_6ae99ea4a6708191afea94b8f189936d succeeded；保留owner-only。此静态镜像进入真实游戏跳转正式同源入口，防跨站cookie与重复钱包。源目录/workspace/sites/tavern-auction，QA服务器/临时资产已清除，不能把隔离账号当真人登录证据。
+- 当前分支codex/auction-website；范围docs/casino/AUCTION_WEBSITE.md，30文件5500行+2张美术单独核验。仅补工作流web/**触发和静态构建接入，无运行时依赖/模型/人设/旧Secrets/绑定/迁移/Cron/其他游戏改动。下一步：GitHub同步→PR/main CI→线上网页/JSON/登录缺配置回退/老Bot健康/配置核验，写发布回执；OAuth真实授权由配置后再验收。
+
 ## 6/9/12格镇仓大件 casino.15（2026-11-03，已发布）
 
 - 新增12件原创大件，各6/9/12格4件，204件V7/dropVersion4；每仓最多1件。按区15/25/40/55%尝试镇仓位置，再抽原品质票及可容纳大件；所有大小/件数条件平均实际大件率10.28/17.7958/30.1667/44.6875%。小仓满8件或中仓满12件不强塞大件，原区域品质票/费用/预算/汇率保持。旧V6及以前原池、价格、已存仓库/报价/库存/收据保持。
