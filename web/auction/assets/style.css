@@ -1236,6 +1236,64 @@ td {
   color: var(--gold);
   letter-spacing: 2px;
 }
+.reveal-controls {
+  margin: 18px 0 14px;
+  display: grid;
+  gap: 10px;
+}
+.reveal-meter {
+  height: 3px;
+  border-radius: 2px;
+  background: #ffffff14;
+  overflow: hidden;
+}
+.reveal-meter span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), #f1dcae);
+  transition: width 0.35s ease;
+}
+.reveal-note {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+.reveal-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.reveal-buttons .wide {
+  grid-column: 1 / -1;
+}
+.reveal-buttons button[disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+.board-item.just-revealed {
+  animation: auction-reveal-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+@keyframes auction-reveal-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.78);
+    filter: brightness(1.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .board-item.just-revealed {
+    animation: none;
+  }
+  .reveal-meter span {
+    transition: none;
+  }
+}
 .line-value {
   font-size: 30px;
   color: var(--gold);

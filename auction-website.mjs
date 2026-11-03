@@ -459,7 +459,7 @@ export async function handleAuctionWebsite(request, env, ctx, fetcher = fetch) {
     const file =
       path === "/auction/"
         ? "/auction/index.html"
-        : /^\/auction\/assets\/(?:app\.js|style\.css|favicon\.svg|warehouse-v1\.webp|appraisers-v1\.webp)$/.test(
+        : /^\/auction\/assets\/(?:app\.js|reveal-loop\.mjs|style\.css|favicon\.svg|warehouse-v1\.webp|appraisers-v1\.webp)$/.test(
               path,
             )
           ? path

@@ -531,10 +531,43 @@ test("web-started auction can bid on Discord, resume on web, reveal after restar
     )
   ).data;
   assert.equal(won.session.result.total, undefined);
+  // The web auto-reveal loop steps one item at a time using the server's own
+  // count. Replaying a step must stay a no-op and a step ahead must be refused.
+  const firstOpen = (
+    await j(
+      await action(e, s, "auctionReveal", {
+        token: row.token,
+        step: 0,
+        all: false,
+      }),
+    )
+  ).data;
+  assert.equal(firstOpen.session.reveal.count, 1);
+  assert.equal(firstOpen.session.reveal.complete, false);
+  const replay = (
+    await j(
+      await action(e, s, "auctionReveal", {
+        token: row.token,
+        step: 0,
+        all: false,
+      }),
+    )
+  ).data;
+  assert.equal(replay.session.reveal.count, 1);
+  assert.equal(
+    (
+      await action(e, s, "auctionReveal", {
+        token: row.token,
+        step: 5,
+        all: false,
+      })
+    ).status,
+    400,
+  );
   await j(
     await action(e, s, "auctionReveal", {
       token: row.token,
-      step: 0,
+      step: 1,
       all: true,
     }),
   );
@@ -634,6 +667,7 @@ test("served HTML, scripts, styles and original website images have security hea
   for (const path of [
     "",
     "assets/app.js",
+    "assets/reveal-loop.mjs",
     "assets/style.css",
     "assets/warehouse-v1.webp",
     "assets/appraisers-v1.webp",
