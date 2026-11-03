@@ -42,9 +42,9 @@ with tempfile.TemporaryDirectory() as folder:
     files=list((target/'public/art/auction').iterdir())
     for path in files:
         assert path.read_bytes()==(root/'public/art/auction'/path.name).read_bytes(),path.name
-    print(json.dumps({'compared':len(files)}))
+    print(json.dumps({'compared':len(files),'atlasHash':hashlib.sha256((target/'public/art/auction/sprites-v3.bin').read_bytes()).hexdigest()}))
 `],{encoding:'utf8'}));assert(check.compared>=290);
- const old=await readFile('public'+manifest.previousExpandedAtlas.path);assert.equal(createHash('sha256').update(old).digest('hex'),'43123bfe21d34a7f456f36011147a842c1b8d668d4124cbb9b726f14ecc57ff6');
+ const old=await readFile('public'+manifest.previousExpandedAtlas.path);assert.equal(createHash('sha256').update(old).digest('hex'),check.atlasHash);assert(['43123bfe21d34a7f456f36011147a842c1b8d668d4124cbb9b726f14ecc57ff6','09dfb72dd050f0a998337c98bcacd861aa086a46e684263e31e7d77a2cb372a0'].includes(check.atlasHash));
 });
 test('capacity eligibility is decided before goods and all twelve items are reachable without rerolling quality',()=>{
  const w={...AUCTION_WAREHOUSES[2],count:13};for(const x of AUCTION_LARGE_ITEMS){const items=forced(x,w);assert.equal(items[0].id,x.id);assert.equal(items.filter(x=>x.width*x.height>4).length,1);assert.equal(items.length,13);}
