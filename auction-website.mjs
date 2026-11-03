@@ -185,6 +185,7 @@ export function publicAuctionData(tier = "standard") {
     tiers: AUCTION_TIERS,
     warehouses: AUCTION_WAREHOUSES,
     region: AUCTION_REGIONS[tier],
+    regions: AUCTION_REGIONS,
     tier,
     rate: 100000,
     rules: auctionRules("0", "0").content,

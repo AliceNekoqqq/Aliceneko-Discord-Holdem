@@ -202,7 +202,7 @@ function renderRoles() {
     )
       .map(
         ([k, t], i) =>
-          `<tr><td>${escape(t.name)}</td><td>${number(t.budget)}币</td><td>${number(t.fee)}币</td><td>${[1, 1.2, 1.5, 2][i]}%</td></tr>`,
+          `<tr><td>${escape(t.name)}</td><td>${number(t.budget)}币</td><td>${number(t.fee)}币</td><td>${redOdds(k)}%</td></tr>`,
       )
       .join("")}</tbody></table>`;
   $("#full-rules").textContent = meta.rules.replaceAll("**", "");
@@ -249,7 +249,12 @@ function renderAccount() {
       `${unavailable ? '<div class="notice">Discord登录正在准备中。你可以先浏览藏品、了解能力和规则，或查看下方开仓演示。</div>' : cancelled ? '<div class="notice">本次登录已取消，随时可以重新进入。</div>' : ""}<div class="login-panel"><div><p class="eyebrow">从你熟悉的小酒馆，走进来</p><h2>用Discord，打开你的仓库。</h2><p>同一个钱包，同一个仓库。Discord 里开的局，这边接着打。</p><button class="button primary" data-login>Discord 登录 ↗</button><p class="mini-note">只读取身份与服务器列表。</p></div><div class="login-art"><img src="${LIVE}/art/auction/tavern-5-53-v5.png" alt="装着街道的旅行箱"></div></div>`;
   }
 }
-// Opening notice: the warehouse announces only its best quality tier.
+// Red chance per item comes from the live region table, so tuning the odds
+// never leaves stale percentages on the site.
+function redOdds(tier) {
+  const w = meta?.regions?.[tier]?.quality;
+  return Number.isFinite(w?.[5]) ? (w[5] / 10).toFixed(1) : "—";
+}// Opening notice: the warehouse announces only its best quality tier.
 function noticeLine(s) {
   const top = s?.notice?.top;
   if (!Number.isInteger(top) || !meta.qualities?.[top]) return "";
@@ -369,7 +374,7 @@ function setup() {
   )
     .map(
       ([k, t]) =>
-        `<button class="tier-option ${k === playTier ? "active" : ""}" data-play-tier="${k}"><strong>${t.name}区</strong><p>入场费 ${number(t.fee)}</p><p>竞拍预算 ${number(t.budget)}</p><small>红色率 ${[1, 1.2, 1.5, 2][Object.keys(meta.tiers).indexOf(k)]}% / 件</small></button>`,
+        `<button class="tier-option ${k === playTier ? "active" : ""}" data-play-tier="${k}"><strong>${t.name}区</strong><p>入场费 ${number(t.fee)}</p><p>竞拍预算 ${number(t.budget)}</p><small>红色率 ${redOdds(k)}% / 件</small></button>`,
     )
     .join(
       "",
