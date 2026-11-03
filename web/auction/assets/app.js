@@ -400,8 +400,6 @@ const REVEAL_SPIN_MS = [420, 620, 820, 1080, 1340, 1700];
 let revealSuspense = null;
 let settledSoundToken = null;
 let roomState = null;
-// Flip to true once the bidding screen ships (M3): starting a room escrows money.
-const ROOM_BIDDING_READY = false;
 const sleepFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function playSuspense(session) {
   const last = session?.reveal?.last,
@@ -591,9 +589,9 @@ async function roomAction(action, fields = {}) {
   renderPlay();
   return answer;
 }
-function roomSeatView(seat) {
+function roomSeatView(seat, status) {
   const role = meta.roles?.[seat.role];
-  return `<div class="room-seat${seat.you ? " you" : ""}${seat.npc ? " npc" : ""}"><span class="room-seat-name">${escape(seat.name)}${seat.you ? " <i>你</i>" : ""}</span><small>${escape(role?.name ?? "待定")}</small><em>${seat.npc ? "NPC 补位" : seat.ready ? "已就绪" : "还没准备"}</em></div>`;
+  return `<div class="room-seat${seat.you ? " you" : ""}${seat.npc ? " npc" : ""}"><span class="room-seat-name">${escape(seat.name)}${seat.you ? " <i>你</i>" : ""}</span><small>${escape(role?.name ?? "待定")}</small><em>${status === "active" ? (seat.submitted ? (seat.bid == null ? "已封牌" : `已封 ${number(seat.bid)}`) : "还在想") : status === "settled" ? "——" : seat.npc ? "NPC 补位" : seat.ready ? "已就绪" : "还没准备"}</em></div>`;
 }
 
 function renderRoom() {
@@ -610,22 +608,44 @@ function renderRoom() {
 
   const seats = r.seats,
     you = seats.find((s) => s.you),
-    waiting = r.status === "waiting";
+    waiting = r.status === "waiting",
+    live = r.status === "active",
+    settled = r.status === "settled",
+    st = r.started ?? null;
   const head = waiting
     ? `<p class="eyebrow">联机 · 等人中</p><h2>房号 <span class="room-code">${escape(r.code)}</span></h2><p class="room-hint">还剩 ${4 - seats.length} 个位置；开局时空位由 NPC 顶上。</p>`
-    : `<p class="eyebrow">联机 · 已开局</p><h2>${escape(r.started?.warehouse?.name ?? "仓库")} · ${r.started?.itemCount ?? 0} 件</h2><p class="room-hint">${escape(r.started?.warehouse?.cols ?? 0)} × ${escape(r.started?.warehouse?.rows ?? 0)} 格板。竞价回合还在路上，下一版就能出价。</p>`;
+    : `<p class="eyebrow">联机 · ${live ? `第 ${st.round} / ${st.rounds} 轮` : "已结束"} · ${escape(r.code)}</p><h2>${escape(st?.warehouse?.name ?? "仓库")} · ${escape(st?.itemCount ?? 0)} 件</h2>${
+        live
+          ? `<p class="room-hint">还有 <strong data-room-clock="${st.roundEndsAt}">…</strong> 秒自动开牌；四个人都封好牌会立刻开。</p>`
+          : `<p class="room-hint">这一仓已经定了。</p>`
+      }`;
 
-  const seatGrid = `<div class="room-seats">${seats.map(roomSeatView).join("")}${Array.from(
+  const seatGrid = `<div class="room-seats">${seats.map((s) => roomSeatView(s, r.status)).join("")}${Array.from(
     { length: Math.max(0, 4 - seats.length) },
     () => '<div class="room-seat empty"><span class="room-seat-name">空位</span><small>开局后 NPC 顶上</small><em>——</em></div>',
   ).join("")}</div>`;
 
+  // Bids only become public once their round closes.
+  const history = st?.history?.length
+    ? `<div class="room-history"><table><thead><tr><th>轮</th>${seats
+        .map((s) => `<th>${escape(s.name)}</th>`)
+        .join("")}<th>结果</th></tr></thead><tbody>${st.history
+        .map((h) => {
+          const winner =
+            h.winner === null
+              ? "流拍"
+              : `${escape(seats.find((s) => s.index === h.winner)?.name ?? "?")} ${number(h.price)}`;
+          return `<tr><td>${h.round}</td>${h.bids
+            .map((b, i) => `<td${h.winner === i ? ' class="won"' : ""}>${number(b)}</td>`)
+            .join("")}<td>${winner}</td></tr>`;
+        })
+        .join("")}</tbody></table></div>`
+    : "";
+
   let controls = "";
   if (waiting) {
     if (r.host) {
-      controls = ROOM_BIDDING_READY
-        ? `<button class="button primary wide" data-room-start${r.canStart ? "" : " disabled"}>开局${r.canStart ? "" : "（等大家准备）"} →</button>`
-        : `<button class="button primary wide" disabled>竞价界面马上到</button><p class="room-hint">开局就会托管入场费和预算，所以先别急着开。</p>`;
+      controls = `<button class="button primary wide" data-room-start${r.canStart ? "" : " disabled"}>开局${r.canStart ? "" : "（等大家准备）"} →</button>`;
     } else {
       controls = `<button class="button ${you?.ready ? "outline" : "primary"} wide" data-room-ready="${you?.ready ? "0" : "1"}">${you?.ready ? "取消准备" : "准备好了"}</button>`;
     }
@@ -638,9 +658,85 @@ function renderRoom() {
             `<option value="${k}"${you.role === k ? " selected" : ""}>${escape(role.name)} · ${escape(role.skill.slice(0, 14))}…</option>`,
         )
         .join("")}</select></label><button class="button outline" data-room-role>换</button></div>`;
+  } else if (live && you) {
+    const presets = [0, 0.25, 0.5, 0.75, 1]
+      .map(
+        (p) =>
+          `<button type="button" class="chip" data-room-preset="${Math.floor(st.budget * p)}">${p === 0 ? "过牌" : `${p * 100}%`}</button>`,
+      )
+      .join("");
+    controls = `<form id="room-bid-form" class="room-bid"><label>这一轮出价（0 到 ${number(st.budget)}）<input id="room-bid-input" type="number" min="0" max="${st.budget}" step="1" value="${you.bid ?? ""}" inputmode="numeric" placeholder="整数，币"></label><div class="room-presets">${presets}</div><button class="button primary" type="submit">${you.submitted ? "改一下 →" : "封牌 →"}</button></form>`;
   }
-  controls += `<button class="text-link" data-room-leave>${waiting ? "退出房间" : "解散这局"}</button>`;
-  return `<div class="panel room-panel">${head}${seatGrid}${controls}</div>`;
+  if (settled && st?.result) {
+    const won = st.result.winner === you?.index;
+    const spent = (st.fee ?? 0) + (won ? st.result.price : 0);
+    controls = `<div class="room-result"><p class="eyebrow">结算</p><h2>${
+      st.result.winner === null
+        ? "没人接盘，流拍了"
+        : `${escape(st.result.winnerName ?? "?")} 以 ${number(st.result.price)} 拍中`
+    }</h2><p class="room-hint">${
+      won ? "这仓归你了，藏品已经进个人仓库。" : "没拍到，预算整笔退回，只留入场费。"
+    }</p><p class="room-hint">你这一局净支出约 ${number(spent)} 竞拍币。</p></div><button class="button outline wide" data-room-leave>再来一局</button>`;
+  } else if (!settled) {
+    controls += `<button class="text-link" data-room-leave>${waiting ? "退出房间" : "解散这局"}</button>`;
+  }
+  return `<div class="panel room-panel">${head}${seatGrid}${history}${controls}</div>`;
+}
+
+// --- room polling ---------------------------------------------------------
+let roomTimer = null;
+let roomTick = 0;
+let roomSignature = "";
+
+function signatureOf(room) {
+  if (!room) return "none";
+  return [
+    room.status,
+    room.started?.round ?? 0,
+    room.seats.filter((s) => s.submitted).length,
+    room.started?.history?.length ?? 0,
+    room.seats.length,
+  ].join("|");
+}
+
+function tickRoomClock() {
+  const el = document.querySelector("[data-room-clock]");
+  if (!el) return;
+  const deadline = Number(el.dataset.roomClock);
+  if (!Number.isFinite(deadline)) return;
+  el.textContent = String(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+}
+
+async function pollRoom() {
+  if (view !== "room" || !account?.user) return;
+  try {
+    const answer = await api("action", { action: "roomView", guild });
+    if (view !== "room" || answer?.kind !== "room") return;
+    roomState = answer.data;
+    const sig = signatureOf(roomState?.room ?? null);
+    const typing = document.activeElement?.id === "room-bid-input";
+    if (sig !== roomSignature) {
+      roomSignature = sig;
+      if (!(typing && roomState?.room?.status === "active")) renderPlay();
+    }
+  } catch {}
+}
+
+function ensureRoomTimer() {
+  if (roomTimer) return;
+  roomTick = 0;
+  roomSignature = signatureOf(roomState?.room ?? null);
+  roomTimer = setInterval(() => {
+    roomTick++;
+    tickRoomClock();
+    if (roomTick % 3 === 0) pollRoom();
+  }, 1000);
+}
+
+function stopRoomTimer() {
+  if (!roomTimer) return;
+  clearInterval(roomTimer);
+  roomTimer = null;
 }
 
 function renderPlay() {
@@ -688,6 +784,8 @@ function renderPlay() {
             ? inventoryView()
             : `${summary()}${game ? gameView() : '<p class="loading">正在恢复你的拍卖…</p>'}`;
   if (view === "auction" && game?.session) mountBoard(game.session);
+  if (view === "room" && account?.user) ensureRoomTimer();
+  else stopRoomTimer();
   tick();
 }
 async function refreshAll() {
@@ -807,6 +905,11 @@ document.addEventListener("click", (event) => {
   const b = event.target.closest("button,a");
   if (!b) return;
   if (b.matches("button")) play("click");
+  if (b.hasAttribute("data-room-preset")) {
+    const input = $("#room-bid-input");
+    if (input) input.value = b.dataset.roomPreset;
+    return;
+  }
   if (b.hasAttribute("data-room-create")) {
     const tier = $("#room-tier")?.value || "standard";
     perform(async () => {
@@ -1139,6 +1242,18 @@ $("#catalog-search").addEventListener("input", (event) => {
   renderCatalog();
 });
 document.addEventListener("submit", (event) => {
+  if (event.target.id === "room-bid-form") {
+    event.preventDefault();
+    const budget = roomState?.room?.started?.budget ?? 0;
+    const bid = Number($("#room-bid-input").value);
+    if (!Number.isSafeInteger(bid) || bid < 0 || bid > budget)
+      return toast(`报价得是 0 到 ${number(budget)} 之间的整数。`);
+    play("seal");
+    perform(async () => {
+      await roomAction("roomBid", { bid });
+    });
+    return;
+  }
   if (event.target.id === "bid-form") {
     event.preventDefault();
     const bid = Number($("#bid-amount").value);

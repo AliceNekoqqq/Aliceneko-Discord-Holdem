@@ -219,6 +219,7 @@ export class AuctionRooms {
                 rounds: ROOM_ROUNDS,
                 roundEndsAt: live ? state.roundEndsAt : null,
                 budget: state.budget,
+                fee: state.fee,
                 warehouse: state.warehouse,
                 itemCount: state.itemCount,
                 history: state.history ?? [],

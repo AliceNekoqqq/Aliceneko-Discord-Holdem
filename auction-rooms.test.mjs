@@ -162,7 +162,9 @@ test("starting holds fee and budget, and the round only closes once every human 
   assert.equal(history[0].bids.length, 4);
   assert.equal(history[0].bids[0], 1_000_000);
   assert.equal(history[0].bids[1], 500_000);
-  assert(history[0].bids[2] > 0 && history[0].bids[3] > 0);
+  // NPCs sometimes pass on purpose, so only the shape is guaranteed.
+  for (const b of history[0].bids)
+    assert(Number.isInteger(b) && b >= 0 && b <= tier.budget);
 });
 
 test("a round with nobody bidding times out into passes and still settles", (t) => {
