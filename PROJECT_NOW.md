@@ -1,3 +1,14 @@
+## 网页逐件自动揭露（2026-11-03，执行者 DeepSeek，已发布）
+
+- **执行者区分**：本轮为 **DeepSeek** 单独完成，分支 `deepseek/auction-autoreveal`、PR #81；此前 #73–#80 的拍卖功能由 Codex 完成，本记录不覆盖也不改写其条目。后续助手请沿用 `codex/`、`deepseek/` 分支前缀区分归属。
+- 用户要求：官网结算后要能**逐件自动揭露**，可暂停／继续／跳过；切页、开详情、浏览器后台、网络异常时不能乱揭或重复翻牌。契约全部复用既有 `auctionReveal`（token+step+all），**未新增服务端动作动词**，未改价格／概率／预算／汇率／技能／权限／绑定／Secret。
+- 新增 `web/auction/assets/reveal-loop.mjs`：纯调度器，DOM 与定时器可注入；步进值**只取服务端上次返回的 `reveal.count`**，丢失或过期响应只会让循环停下，绝不会跳件或二次解锁。`app.js` 接入后，结算面板改为「自动逐件揭露／暂停／继续＋单件＋全部打开」与进度条，刚揭开的格子加 `just-revealed` 入场动画；离开 `#play`、`web` 视图、标签页转后台或其它操作进行中即停，后台恢复前先重读 `state` 再续播。`auction-website.mjs` 静态白名单加入该模块（CSP 仍 `script-src 'self'`），`scripts/build-auction-web.mjs` 把模块哈希写进 `app.js` 的 import 防止旧模块缓存。
+- 测试：新增 `reveal-loop.test.mjs` 9 项（注入时钟验证只按服务端步进、不推进即停、异常即暂停、可续播、已全开直接完成、dispose 后不再步进）；`auction-website.test.mjs` 增列资源白名单断言与揭露幂等合同（重复 step 为空操作、超前 step 返回 400、`all` 一次全开）。本地 `node --test auction-website.test.mjs reveal-loop.test.mjs` 20/20 通过；PR 完整 CI 41626423367 通过（1m35s）。
+- 基线：起始 main `471fbf59d0f1a47cba9f0c4c4ab6f167164fd375`（生产 casino.16 / 部署 005d415b-907a-45bb-8986-5f7ed317a359）；特性提交 `ebd1d119194c7d8277c018bb2785875f2c2b94ad`，合并后 main `a9be0bed8f3ce8b831ee1feec6a9287304de6b74`。main CI/部署 41627039787 成功。
+- Cloudflare：部署 `f1989889-e5f1-4c5e-b6a2-f4b9d5c1c6cd`、版本 `f1602647-4f01-4aec-87d3-43ed39a3b4a4`（#234）接收 100%；16 bindings 与 settings 全字段保持，DO `4b857505…`、D1 `aliceneko-ai` 均在位；线上包已含 `reveal-loop` 与新版本标记。
+- **未验收**：本机线路对 `*.cc.cd`／`*.workers.dev` 做 SNI 阻断，`/health` 未直连（改用 Analytics：部署前后调用 0 错误）；真人浏览器逐件揭露手感与 390px 观感待试玩。未代用户出价／兑换／揭晓／出售，未操作真实玩家资产。
+- **已知风险**：每次 `auctionReveal` 仍是 POST，服务端每次都做 Discord 成员校验，18 件≈18 次调用；需在真实局观察 429 与延迟，若超限再单独提案批量动词（会动白名单与权限，不在本轮）。下一步 P2：四席竞拍演出与 NPC 逐轮报价动画。
+
 ## 拍卖官网新域名（2026-11-03，已发布并完成真实登录验收）
 
 - 用户要求网址含Aliceneko与拍卖元素，正式主入口改为 https://auction.alicenekoqqq.cc.cd/ （转/auction/），绑定已有discord-holdem Worker；旧workers.dev入口继续可用。Discord原应用已新增并保存新域名回调，未重置密钥。新旧域名各自使用Host Cookie，但钱包/藏品/拍卖共用原数据。
