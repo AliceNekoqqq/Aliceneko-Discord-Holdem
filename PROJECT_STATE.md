@@ -1027,3 +1027,11 @@ PR #77特性cb4b0752e00982bc2a2144dc0396528659512e51，完整PR CI41576105578成
 - CF部署64c7aaf3-2ae5-4072-94d3-02203c630d5d，版本8bdf93c2-741d-49a8-80a6-e98845ccc2fd接收100%；15bindings及settings所有字段前后相同。真实HTTP health：casino.15、ok/ready:true、Gateway connected/ready:true、identity1一致；casino3注册成功，failures/missing/pending空。
 - 实际6/9/12格新PNG线上均256×256 RGBA透明正常。旧v3图集发布前后下载逐字节一致：12582912字节，SHA256 09dfb72dd050f0a998337c98bcacd861aa086a46e684263e31e7d77a2cb372a0；新v4前12582912字节等于旧图集，完整15728640字节SHA256 d098ba68d42fc2a39b0d95fcd4da5ac466c5da4f27455758ee509f954e4a4105。Pillow12.3本地像素指纹与13.0生产不同，测试保留未经修改的上一版构建器，同环境逐文件对比全部旧PNG/三版图集；没有更新图片库/工作流/旧素材算法或跳过兼容检查。
 - 24功能文件、两张1372156字节源图单列；No Refactor / Local Fix Only预算30文件4000已知行内，发布回执文档另计少量。104专项、酒馆333、Worker93本地通过，完整PR/main CI通过；6万仓/24万相关策略回放及生产对照，封顶同价最高11.88%低于15%门禁。图鉴/开仓/展示柜实际目检。未操作真人钱包、未发测试消息，真人Discord手感及全局经济平衡未宣称验收；回滚保留V7与库存识别。功能/发布闭环，后续从main继续，不重复发布。
+
+
+## casino.16 网站发布回执（2026-11-03）
+
+- PR #79特性b9df840b727623e50053ddde930a7d3cb3bf483f，完整PR CI41606023210成功；合并ea2da0fde34d09430dcf26343d6fcbcdb1896b10，main完整CI/部署41606429536成功。功能树70dd529a8eb926a73c6582400824692b13299b0a与本地b64ac44同树；19功能文件5396已知行，2张600136字节WebP单独核验，30文件5500行预算内（回执文档另计少量）。
+- CF部署cd2ca2a9-c614-45b4-b73d-83633a3c3923，版本6fadea2e-e67a-4e15-927b-f37363b542dc接收100%。15bindings和settings所有字段与发布前一致。真实HTTP health：casino.16、ok/ready:true、Gateway ready:true、identity1指纹匹配；casino3 registered:true，failures/missing/pending空。
+- https://discord-holdem.aliceneko.workers.dev/auction/ 正式HTML200，浏览器实际首页/登录配置提示通过，无本站CSP错误；典藏图鉴204条，两张新配图线上哈希与本地一致；无会话私有API401/no-store，无登录凭据时auth/login明确303回未开放提示，me.user:null、loginConfigured:false。未绕过OAuth、未部署QA访客、未操作真实玩家资产；真实登录与钱包读取须待用户完成回调注册及DISCORD_CLIENT_SECRET后验收，不能标记整体100%。
+- Sites本人官网镜像保持owner-only：appgprj_6ae996f99c208191ae684c2b3aedf3d4，源6aeee45f11be3b3889142c176379533772152ead，部署appgdep_6ae99ea4a6708191afea94b8f189936d succeeded，https://tavern-auction.amioalice.chatgpt.site 。其中进入实际游戏跳转正式同源入口。网页前端/后端/发布已完成，不重复发布；下一步仅用户配置与真人OAuth验收。不要回退丢失网页会话/资产识别的旧代码，不更改模型/人设/旧Secrets/绑定/迁移/Cron或其他游戏。

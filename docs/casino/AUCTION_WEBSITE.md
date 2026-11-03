@@ -27,3 +27,11 @@ GitHub Actions仅补一行web/**到PR触发路径，保证今后的纯HTML/CSS/J
 - 浏览器实际检查首页、角色配图、图鉴红+大件+旅行箱组合筛选/概率详情、390px iframe布局（内容375px，无横向溢出）。单独内存SQL隔离QA运行兑换100酒馆币、13件大仓五轮、逐件+全开、单仓盈亏、9格冰箱陈列、批卖12件避开陈列，均成功。QA访客明确命名隔离测试，无真实OAuth或真人资金操作；脚本不被Worker导入，Sites发布前移除了其服务器和临时public资产。
 - 原创图片warehouse-v1.webp：1536×1024 RGB、290908字节，SHA256 814c0cc78380191d4691e4ab14b082165d39e33ad4387d00e2dc391131715a97；appraisers-v1.webp：1536×1024 RGB、309228字节，SHA256 7338de95eb7fcbf318848d4dee211835d965c4418b7d8d65e4f07747cb5906ca。前者暖铜/深青仓库光影、后者三列人物，imagegen原创，使用WebP资产无图片Base64。
 - Sites私人官网镜像已保存并部署成功：appgprj_6ae996f99c208191ae684c2b3aedf3d4，源6aeee45f11be3b3889142c176379533772152ead，部署appgdep_6ae99ea4a6708191afea94b8f189936d，https://tavern-auction.amioalice.chatgpt.site 。此处只保留owner-only预览，不替代正式同源登录入口。
+
+
+## casino.16 网站发布回执（2026-11-03）
+
+- PR #79特性b9df840b727623e50053ddde930a7d3cb3bf483f，完整PR CI41606023210成功；合并ea2da0fde34d09430dcf26343d6fcbcdb1896b10，main完整CI/部署41606429536成功。功能树70dd529a8eb926a73c6582400824692b13299b0a与本地b64ac44同树；19功能文件5396已知行，2张600136字节WebP单独核验，30文件5500行预算内（回执文档另计少量）。
+- CF部署cd2ca2a9-c614-45b4-b73d-83633a3c3923，版本6fadea2e-e67a-4e15-927b-f37363b542dc接收100%。15bindings和settings所有字段与发布前一致。真实HTTP health：casino.16、ok/ready:true、Gateway ready:true、identity1指纹匹配；casino3 registered:true，failures/missing/pending空。
+- https://discord-holdem.aliceneko.workers.dev/auction/ 正式HTML200，浏览器实际首页/登录配置提示通过，无本站CSP错误；典藏图鉴204条，两张新配图线上哈希与本地一致；无会话私有API401/no-store，无登录凭据时auth/login明确303回未开放提示，me.user:null、loginConfigured:false。未绕过OAuth、未部署QA访客、未操作真实玩家资产；真实登录与钱包读取须待用户完成回调注册及DISCORD_CLIENT_SECRET后验收，不能标记整体100%。
+- Sites本人官网镜像保持owner-only：appgprj_6ae996f99c208191ae684c2b3aedf3d4，源6aeee45f11be3b3889142c176379533772152ead，部署appgdep_6ae99ea4a6708191afea94b8f189936d succeeded，https://tavern-auction.amioalice.chatgpt.site 。其中进入实际游戏跳转正式同源入口。网页前端/后端/发布已完成，不重复发布；下一步仅用户配置与真人OAuth验收。不要回退丢失网页会话/资产识别的旧代码，不更改模型/人设/旧Secrets/绑定/迁移/Cron或其他游戏。
