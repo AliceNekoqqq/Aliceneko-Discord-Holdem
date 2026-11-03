@@ -1,6 +1,6 @@
 // Pure, fixed-seed replay; no wallets, accounts, network calls or live messages.
 import {writeFileSync} from 'node:fs';
-import {AUCTION_ITEMS,AUCTION_ITEMS_V3} from '../tavern-auction-data.mjs';
+import {AUCTION_ITEMS_V4 as AUCTION_ITEMS,AUCTION_ITEMS_V3} from '../tavern-auction-data.mjs';
 import {generateAuction,revealAuction,shuffleAuction,estimateAuction,npcAuctionBid,decideAuction,AUCTION_QUALITY_WEIGHTS as weights} from '../tavern-auction.mjs';
 const R=100000,N=Number(process.argv[2]||10000),output=process.argv[3];
 if(!Number.isSafeInteger(N)||N<100||N>1000000)throw Error('samples must be 100..1000000');
