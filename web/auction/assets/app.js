@@ -319,8 +319,11 @@ function mountBoard(s, selector = "#warehouse-board") {
         : `${i + 1}. ${quality === null ? "未知品质" : meta.qualities[quality] + "品质"}，${p.width ? `${p.width}×${p.height}格` : "轮廓未知"}`,
     );
     el.innerHTML = item
-      ? `<img src="${escape(imageFor(item))}" alt="${escape(item.name)}"><span>${i + 1}</span>`
+      ? revealSuspense === i
+        ? '<span class="spin-ring" role="status" aria-label="正在揭晓"></span>'
+        : `<img src="${escape(imageFor(item))}" alt="${escape(item.name)}"><span>${i + 1}</span>`
       : `?<span>${i + 1}</span>`;
+    if (item && revealSuspense === i) el.classList.add("spinning");
     if (item)
       el.addEventListener("click", () =>
         showItem(
@@ -375,6 +378,20 @@ const gameMoney = (s, value) =>
 // One click moves the sealed offer by 1% of this session's budget, so the
 // stepper feels the same in 小额 (2.5M) and 典藏 (100M).
 const bidStep = (s) => Math.max(1, Math.round((s?.budget ?? 0) / 100));
+// The suspense ring before an item is shown. Rarer goods spin longer so a red
+// pull actually lands as a moment instead of appearing instantly.
+const REVEAL_SPIN_MS = [420, 620, 820, 1080, 1340, 1700];
+let revealSuspense = null;
+const sleepFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+async function playSuspense(session) {
+  const last = session?.reveal?.last,
+    item = Number.isInteger(last) ? session.items?.[last] : null;
+  if (!item) return;
+  revealSuspense = last;
+  renderPlay();
+  await sleepFor(REVEAL_SPIN_MS[item.quality] ?? 700);
+  revealSuspense = null;
+}
 async function unlockAfterReveal(g = guild, token = game?.session?.token) {
   if (!g) return;
   const e = epoch;
@@ -414,6 +431,7 @@ function buildRevealLoop(token) {
       });
       if (!answer || !current()) return;
       if (game.session.reveal?.complete) await unlockAfterReveal(g, token);
+      await playSuspense(game.session);
       if (current()) renderPlay();
     },
     onChange: () => renderPlay(),
@@ -868,6 +886,7 @@ document.addEventListener("click", (event) => {
         all: b.dataset.reveal === "all",
       });
       if (game.session.reveal.complete) await unlockAfterReveal();
+      if (b.dataset.reveal !== "all") await playSuspense(game.session);
       renderPlay();
       return;
     }
