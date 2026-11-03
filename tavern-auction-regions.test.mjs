@@ -62,7 +62,7 @@ test('variable-count aggregate clues and hidden-count priors match exhaustive we
  }
 });
 test('18-item opening never truncates inventory or leaks totals at item 8; double-digit assets can sell/display after restart',t=>{
- const e=fixture(t,'collection',2,18),initial=e.started.session;assert.equal(initial.itemCount,18);assert.equal(initial.catalogVersion,6);assert.equal(initial.board.rows,8);assert.equal(initial.info.items.length,18);assert.equal(initial.items,null);const cash=e.fx.balance('1'),calls=e.calls();
+ const e=fixture(t,'collection',2,18),initial=e.started.session;assert.equal(initial.itemCount,18);assert.equal(initial.catalogVersion,7);assert.equal(initial.board.rows,8);assert.equal(initial.info.items.length,18);assert.equal(initial.items,null);const cash=e.fx.balance('1'),calls=e.calls();
  const repeated=e.auction.start({...base,token:e.token,role:'viktor',tier:'collection',presentation:'warehouse'},now);assert(repeated.repeated);assert.equal(e.calls(),calls);assert.equal(repeated.balance,cash);
  win(e);assert.equal(e.inventory.view(base,now).locked,18);
  for(let step=0;step<17;step++){const view=e.auction.reveal({...base,token:e.token,step,all:false},now);assert.equal(view.session.reveal.count,step+1);assert.equal(view.stats.net,0);assert.equal(view.balance,null);assert.equal(view.session.result.total,undefined);bounds(auctionData(view,'3','1'));}
@@ -87,7 +87,7 @@ test('casino.13 sessions continue their frozen eight-item pool, layout and futur
  }
 });
 test('regional catalog and 18-item private UI controls fit Discord, validate region switches and restore the last opening',async t=>{
- bounds(auctionRules('3','1'));for(const tier of Object.keys(AUCTION_REGIONS))for(let q=0;q<6;q++)for(let page=0;page<Math.ceil(regionCatalog(tier).filter(x=>x.quality===q).length/12);page++){const view=auctionCatalog('3','1',q,page,tier);bounds(view);assert.equal(view.components.length,5);assert(view.content.includes('大小仓分布'));}
+ bounds(auctionRules('3','1'));for(const tier of Object.keys(AUCTION_REGIONS))for(let q=0;q<6;q++)for(let page=0;page<Math.ceil(regionCatalog(tier).filter(x=>x.quality===q).length/12);page++){const view=auctionCatalog('3','1',q,page,tier);bounds(view);assert.equal(view.components.length,5);assert(view.content.includes('大件容量限制'));}
  const e=fixture(t,'collection',2,18),env=envFor(e);let view=await answerTavern(env,click('auctionCatalog~5~1~collection'));bounds(view);assert(view.content.includes('典藏区'));assert(view._mapScene.bytes.length>1000);
  for(const action of ['auctionCatalog~5~1~evil','auctionReveal~'+e.token+'~19~all'])assert.equal(immediateTavernReply(click(action)).type,4);
  win(e);for(let step=0;step<17;step++)e.auction.reveal({...base,token:e.token,step,all:false},now);

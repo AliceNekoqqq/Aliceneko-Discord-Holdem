@@ -3,6 +3,7 @@ import expansion from './assets/auction-art/expansion-v1.json' with {type:'json'
 import additional from './assets/auction-art/expansion-v2.json' with {type:'json'};
 import prices from './assets/auction-art/prices-v1.json' with {type:'json'};
 import drops from './assets/auction-art/drop-weights-v1.json' with {type:'json'};
+import largeProps from './assets/auction-art/large-props-v1.json' with {type:'json'};
 // Original 24 names: approved Gemini job casino-auction-copy-20261102-v1.
 // Added 48 names and captions: authored directly per the user's no-Gemini request.
 // Original tavern catalog. Values, categories, shapes and drop weights are our adaptation.
@@ -40,6 +41,12 @@ export const AUCTION_ITEMS=Object.freeze(AUCTION_ITEMS_V4.map(item=>{
  if(!drop||!Number.isSafeInteger(drop.weight)||drop.weight<1||drop.weight>1000000||!['常见','少见','稀有','极稀有','传世'].includes(drop.rarity))throw Error('藏品掉落权重异常。');
  return Object.freeze({...item,dropWeight:drop.weight,rarity:drop.rarity});
 }));
+export const AUCTION_LARGE_ITEMS=Object.freeze(largeProps.map(({pack,slot,...item})=>{
+ if(![6,9,12].includes(item.width*item.height)||!Number.isSafeInteger(item.value)||item.value<1||!Number.isInteger(item.dropWeight)||item.dropWeight<1)throw Error('大件藏品配置异常。');
+ return Object.freeze(item);
+}));
+export const AUCTION_ALL_ITEMS=Object.freeze([...AUCTION_ITEMS,...AUCTION_LARGE_ITEMS]);
+if(new Set(AUCTION_ALL_ITEMS.map(x=>x.id)).size!==AUCTION_ALL_ITEMS.length)throw Error('大件编号重复。');
 export const auctionItemWeight=item=>item.dropWeight??1;
 export function auctionItemChance(item,qualityPercent,catalog=AUCTION_ITEMS,count=8){
  const total=catalog.filter(x=>x.quality===item.quality).reduce((s,x)=>s+auctionItemWeight(x),0),within=auctionItemWeight(item)/total,slot=qualityPercent/100*within;

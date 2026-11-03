@@ -1,10 +1,10 @@
-import {Canvas,encodePNG} from './card-image.mjs';
+import {Canvas,encodePNG,textWidth} from './card-image.mjs';
 import {prepareNicknameFont} from './nickname-font.mjs';
 import {AUCTION_QUALITIES,AUCTION_ROLES,AUCTION_TIERS} from './tavern-auction.mjs';
 import {auctionCatalogPage} from './tavern-auction-data.mjs';
-import {regionCatalog} from './tavern-auction-regions.mjs';
+import {largeCatalog} from './tavern-auction-large.mjs';
 import {prepareAuctionArt,drawAuctionItem} from './tavern-auction-art.mjs';
-const f=n=>String(n);
+const f=n=>String(n),fitName=(name,size,width)=>Math.min(size,width/Math.max(1,textWidth(name,1)));
 export const AUCTION_COLORS=[[203,198,193],[116,182,139],[106,172,214],[182,135,214],[237,192,102],[245,91,127]];
 const C={bg:[19,22,24],panel:[34,38,40],inner:[25,29,32],gold:[233,194,128],cream:[246,239,221],muted:[158,164,167],fog:[39,44,48]};
 const mix=(a,b,t)=>a.map((v,i)=>Math.round(v*(1-t)+b[i]*t));
@@ -82,7 +82,7 @@ export async function renderAuctionInventoryImage(data,env,cabinet=false){
     if(item){
      drawAuctionItem(c,item.id,x+21,top+39,170,170,art);
      c.rect(x+19,top+244,174,2,AUCTION_COLORS[item.quality]);
-     c.text(item.name,x+106,top+254,18,C.cream,true);c.text(`${item.width*item.height}格 · ${AUCTION_QUALITIES[item.quality]}品质`,x+106,top+281,15,AUCTION_COLORS[item.quality],true);
+     c.text(item.name,x+106,top+254,fitName(item.name,18,192),C.cream,true);c.text(`${item.width*item.height}格 · ${AUCTION_QUALITIES[item.quality]}品质`,x+106,top+281,15,AUCTION_COLORS[item.quality],true);
      c.text(f(item.value),x+106,top+297,14,C.gold,true);
     }else{c.text('待陈列',x+106,top+114,22,C.muted,true);c.text('空位',x+106,top+267,19,C.muted,true);}
     c.rect(x+9,top+10,31,25,[77,62,42],3);c.text(String(index+1),x+24,top+12,17,C.gold,true);
@@ -94,7 +94,7 @@ export async function renderAuctionInventoryImage(data,env,cabinet=false){
    const item=unit.item,x=20+i%3*244,y=153+Math.floor(i/3)*285,selected=data.selected?.includes(unit.id);
    frame(c,x,y,232,263,item.quality,selected);drawAuctionItem(c,item.id,x+31,y+32,170,151,art);
    c.text(`${i+1} · ${item.width}×${item.height} · ${item.width*item.height}格`,x+12,y+10,14,C.muted);
-   c.text(item.name,x+116,y+186,20,C.cream,true);c.text(f(item.value),x+116,y+216,18,AUCTION_COLORS[item.quality],true);
+   c.text(item.name,x+116,y+186,fitName(item.name,20,214),C.cream,true);c.text(f(item.value),x+116,y+216,18,AUCTION_COLORS[item.quality],true);
    c.text(selected?'已选':unit.display_slot!==null?'展示中':AUCTION_QUALITIES[item.quality]+'品质',x+116,y+245,14,selected?C.gold:C.muted,true);
   });
   if(!units.length){c.text('藏品尚未入库',380,424,29,C.cream,true);c.text('拍中并开仓后可在这里收藏',380,474,21,C.muted,true);}
@@ -104,7 +104,7 @@ export async function renderAuctionInventoryImage(data,env,cabinet=false){
  return png(c);
 }
 export async function renderAuctionCatalogImage(env,quality=0,page=0,tier='standard'){
- const {items,count,pages}=auctionCatalogPage(quality,page,regionCatalog(tier)),heading=`${AUCTION_QUALITIES[quality]}品质 · ${page+1}/${pages}页 · 本档${count}件`;
+ const {items,count,pages}=auctionCatalogPage(quality,page,largeCatalog(tier)),heading=`${AUCTION_QUALITIES[quality]}品质 · ${page+1}/${pages}页 · 本档${count}件`;
  await prepareNicknameFont(['酒馆藏品图鉴','格',`${AUCTION_TIERS[tier].name}区竞拍币价值`,'小额 ×0.25 / 高额 ×3 / 典藏 ×10',heading,...items.flatMap(x=>[x.name,caption(x),x.rarity])],env);
  const art=await prepareAuctionArt(env),height=200+Math.ceil(items.length/3)*260,c=new Canvas(760,height);c.rect(0,0,760,height,C.bg);
  c.text('酒馆藏品图鉴',380,26,36,C.cream,true);c.text(heading,380,75,21,AUCTION_COLORS[quality],true);c.text(`${AUCTION_TIERS[tier].name}区竞拍币价值`,380,106,17,C.muted,true);
@@ -112,7 +112,7 @@ export async function renderAuctionCatalogImage(env,quality=0,page=0,tier='stand
   const x=20+i%3*244,y=146+Math.floor(i/3)*260;
   frame(c,x,y,232,248,item.quality);drawAuctionItem(c,item.id,x+29,y+22,174,136,art);
   c.text(`${item.width}×${item.height} · ${item.width*item.height}格`,x+10,y+7,13,C.muted);c.text(item.rarity,x+163,y+7,13,C.gold);
-  c.text(item.name,x+116,y+164,20,C.cream,true);c.text(f(Math.floor(item.value*AUCTION_TIERS[tier].scale)),x+116,y+194,18,AUCTION_COLORS[item.quality],true);
+  c.text(item.name,x+116,y+164,fitName(item.name,20,214),C.cream,true);c.text(f(Math.floor(item.value*AUCTION_TIERS[tier].scale)),x+116,y+194,18,AUCTION_COLORS[item.quality],true);
   if(item.flavor){const chars=[...caption(item)];for(let line=0;line<2;line++)c.text(chars.slice(line*14,(line+1)*14).join(''),x+116,y+216+line*16,14,C.muted,true);}
  });
  c.text('小额 ×0.25 / 高额 ×3 / 典藏 ×10',380,height-35,19,C.muted,true);
