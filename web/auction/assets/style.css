@@ -1129,6 +1129,133 @@ td {
   color: var(--muted);
   margin-left: 7px;
 }
+.seat-strip {
+  margin: 0 0 22px;
+  padding: 16px 18px 14px;
+  background: linear-gradient(180deg, #2e2721, #262019);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.seat-strip-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.seat-strip-head small {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+}
+.seat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.seat {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  background: #241f1b;
+  border: 1px solid #3a322b;
+  border-left: 2px solid #4a4038;
+  border-radius: 2px;
+  transition:
+    border-color 0.3s ease,
+    background 0.3s ease;
+}
+.seat-name {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+.seat-bid {
+  font-family: Georgia, serif;
+  font-size: 19px;
+  color: #e8dcc6;
+  font-variant-numeric: tabular-nums;
+}
+.seat-state {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #8d7f70;
+}
+.seat.you {
+  background: #2a231c;
+  border-left-color: var(--gold);
+}
+.seat[data-state="sealed"] .seat-bid {
+  color: #6d6055;
+}
+.seat[data-state="pass"] .seat-bid {
+  color: #7a6d60;
+}
+.seat.leading {
+  border-color: #8a6b3d;
+  background: #322820;
+}
+.seat.leading .seat-state {
+  color: var(--gold);
+}
+.seat.won {
+  border-color: var(--gold);
+  background: linear-gradient(180deg, #3a2f21, #2b241b);
+  box-shadow: inset 0 0 0 1px #8a6b3d55;
+}
+.seat.won .seat-bid,
+.seat.won .seat-state {
+  color: #f0d9a8;
+}
+.seat-margin {
+  margin: 12px 0 0;
+  font-size: 11px;
+  color: #8d7f70;
+  letter-spacing: 0.5px;
+}
+@media (max-width: 720px) {
+  .seat-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .seat-bid {
+    font-size: 17px;
+  }
+}
+/* Only the round that just opened replays; later re-renders stay still. */
+.seat-strip.sweep .seat {
+  animation: seat-drop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  animation-delay: calc(var(--i) * 90ms);
+}
+@keyframes seat-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.seat-strip.final .seat.won {
+  animation: seat-hammer 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+@keyframes seat-hammer {
+  0% {
+    box-shadow: 0 0 0 0 #f0d9a855;
+  }
+  60% {
+    box-shadow: 0 0 0 6px #f0d9a800;
+  }
+  100% {
+    box-shadow: inset 0 0 0 1px #8a6b3d55;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seat-strip.sweep .seat,
+  .seat-strip.final .seat.won {
+    animation: none;
+  }
+}
 .play-layout {
   display: grid;
   grid-template-columns: 1.35fr 1fr;
