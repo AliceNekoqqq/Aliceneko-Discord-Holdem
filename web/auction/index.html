@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#211d1b" />
+    <meta
+      name="description"
+      content="红豆粉小酒馆仓库盲拍官方网站。与三位NPC竞拍未知仓库，收集204件奇趣藏品，Discord账户与小酒馆钱包共通。"
+    />
+    <title>仓库盲拍 · 红豆粉小酒馆</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./assets/style.css" />
+    <script type="module" src="./assets/app.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">跳到主要内容</a>
+    <header class="site-header">
+      <a class="brand" href="#home" aria-label="仓库盲拍首页"
+        ><span class="brand-mark">仓</span
+        ><span>仓库盲拍<small>红豆粉小酒馆</small></span></a
+      >
+      <nav aria-label="主导航">
+        <a href="#home">首页</a><a href="#play">拍卖大厅</a
+        ><a href="#catalog">藏品图鉴</a><a href="#roles">人物技能</a
+        ><a href="#rules">玩法指南</a>
+      </nav>
+      <button class="login-button" data-login>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M19.7 5.1a18.5 18.5 0 0 0-4.5-1.4l-.6 1.2a17 17 0 0 0-5.2 0l-.6-1.2a18.5 18.5 0 0 0-4.5 1.4C1.5 9.3.8 13.4 1.2 17.4A18 18 0 0 0 6.7 20l1.1-1.8-1.7-.8.4-.3a12.8 12.8 0 0 0 11 0l.4.3-1.7.8 1.1 1.8a18 18 0 0 0 5.5-2.6c.5-4.7-.8-8.8-3.1-12.3ZM8.5 14.8c-1.1 0-1.9-1-1.9-2.2s.8-2.2 1.9-2.2 1.9 1 1.9 2.2-.8 2.2-1.9 2.2Zm7 0c-1.1 0-1.9-1-1.9-2.2s.8-2.2 1.9-2.2 1.9 1 1.9 2.2-.8 2.2-1.9 2.2Z"
+          /></svg
+        ><span>Discord 登录</span>
+      </button>
+    </header>
+    <main id="main">
+      <section id="page-home" class="page">
+        <div class="hero wrap">
+          <div class="hero-copy">
+            <p class="eyebrow"><span></span> 红豆粉小酒馆 · 仓库拍卖游戏</p>
+            <h1>一扇仓门，<br />千种<span>可能。</span></h1>
+            <p class="hero-description">
+              没人知道，下一件是旧货还是珍藏。<br />看线索、藏底牌，把惊喜留到开仓那一刻。
+            </p>
+            <div class="hero-actions">
+              <a class="button primary" href="#play"
+                >进入拍卖大厅 <span>↗</span></a
+              ><a class="text-link" href="#catalog"
+                >先逛逛藏品图鉴 <span>→</span></a
+              >
+            </div>
+            <div class="hero-facts">
+              <div>
+                <strong>204<span>件</span></strong>
+                <p>各有故事的藏品</p>
+              </div>
+              <div>
+                <strong>4<span>个</span></strong>
+                <p>不同入场费区域</p>
+              </div>
+              <div>
+                <strong>5<span>轮</span></strong>
+                <p>暗标与信息博弈</p>
+              </div>
+            </div>
+          </div>
+          <div
+            class="hero-art"
+            aria-label="奇趣藏品：夏夜海岸冰箱与装着故乡的旅行箱"
+          >
+            <div class="warehouse-lines"></div>
+            <span class="warehouse-number">仓库 / 007</span>
+            <div class="art-caption">仓门之后，另有天地。</div>
+            <div class="art-circle"></div>
+            <img
+              class="hero-fridge"
+              src="https://discord-holdem.aliceneko.workers.dev/art/auction/tavern-5-52-v5.png"
+              alt="旧冰箱里藏着夏夜海岸"
+            /><img
+              class="hero-case"
+              src="https://discord-holdem.aliceneko.workers.dev/art/auction/tavern-5-53-v5.png"
+              alt="旅行箱装着整条故乡街道"
+            />
+            <div class="art-tag">
+              <span class="red-dot"></span> 传世藏品
+              <strong>背着整条街的旅行箱</strong
+              ><small>“打包的是故乡，不是行李。”</small>
+            </div>
+            <span class="round-seal">未知<br />待开仓</span>
+            <div class="art-footer">
+              <span>真实占格 · 独立造型</span><span>收进你的珍藏 ↗</span>
+            </div>
+          </div>
+        </div>
+        <div class="connection-strip">
+          <div class="wrap">
+            <span class="connection-icon">↔</span
+            ><strong>同一个你，同一间小酒馆。</strong>
+            <p>Discord 登录 · 钱包、拍卖进度与藏品共通</p>
+            <a href="#rules">了解玩法 →</a>
+          </div>
+        </div>
+        <section class="wrap home-collection">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">每件旧物，都有自己的脾气</p>
+              <h2>把意想不到，收进仓库。</h2>
+            </div>
+            <a class="text-link" href="#catalog">查看全部藏品 ↗</a>
+          </div>
+          <div id="featured-items" class="featured-items">
+            <p class="loading">正在打开藏品册…</p>
+          </div>
+        </section>
+        <section class="wrap home-how">
+          <div>
+            <p class="eyebrow">从第一眼，到最后一锤</p>
+            <h2>你看到的，<br />只是线索的一部分。</h2>
+            <a class="text-link" href="#roles">找到适合你的信息能力 →</a>
+          </div>
+          <ol>
+            <li>
+              <span>01</span>
+              <div>
+                <h3>选区域，带上你的眼力</h3>
+                <p>小额到典藏，选择入场费和一种信息能力，随机遇见大小仓。</p>
+              </div>
+            </li>
+            <li>
+              <span>02</span>
+              <div>
+                <h3>五轮暗标，慢慢拼起真相</h3>
+                <p>每轮只报一个总价。三位NPC先封存报价，再与你同时亮标。</p>
+              </div>
+            </li>
+            <li>
+              <span>03</span>
+              <div>
+                <h3>开仓，把惊喜留在身边</h3>
+                <p>揭晓货值与单仓盈亏，藏品手动出售，也能留在六格展示柜。</p>
+              </div>
+            </li>
+          </ol>
+        </section>
+      </section>
+      <section id="page-play" class="page wrap inner-page" hidden>
+        <div class="page-heading">
+          <p class="eyebrow">仓门已备好</p>
+          <h1>拍卖大厅</h1>
+          <p>选择你的服务器，在网页继续同一局拍卖。</p>
+        </div>
+        <div id="login-status"></div>
+        <div id="account-bar" class="account-bar" hidden></div>
+        <div class="game-tabs" id="game-tabs" hidden>
+          <button data-view="auction" class="active">正在竞拍</button
+          ><button data-view="inventory">个人仓库</button
+          ><button data-view="cabinet">六格展示柜</button
+          ><button data-view="wallet">钱包兑换</button
+          ><button data-refresh class="refresh-button">刷新资产 ↻</button>
+        </div>
+        <div id="game-content"></div>
+      </section>
+      <section id="page-catalog" class="page wrap inner-page" hidden>
+        <div class="page-heading split-heading">
+          <div>
+            <p class="eyebrow">旧物有价，惊喜无定数</p>
+            <h1>藏品图鉴</h1>
+            <p>204 件藏品，各有造型、故事与出现概率。</p>
+          </div>
+          <label class="search-box"
+            ><span>⌕</span
+            ><input
+              id="catalog-search"
+              type="search"
+              placeholder="寻找名称、类别或故事"
+              aria-label="搜索藏品"
+          /></label>
+        </div>
+        <div
+          id="catalog-regions"
+          class="region-switch"
+          aria-label="图鉴区域"
+        ></div>
+        <div class="catalog-toolbar">
+          <div
+            id="quality-filters"
+            class="quality-filters"
+            aria-label="品质筛选"
+          ></div>
+          <label class="size-filter"
+            >占格
+            <select id="size-filter">
+              <option value="all">全部尺寸</option>
+              <option value="large">镇仓大件</option>
+              <option value="6">6格</option>
+              <option value="9">9格</option>
+              <option value="12">12格</option>
+            </select></label
+          >
+        </div>
+        <div class="catalog-summary">
+          <span id="catalog-count"></span
+          ><span>价格与掉率随区域切换 · 点击查看详情</span>
+        </div>
+        <div id="catalog-grid" class="catalog-grid"></div>
+        <div id="catalog-more" class="load-more"></div>
+        <aside class="quiet-note">
+          镇仓大件占6、9或12格，每仓最多一件，能否出现还取决于仓库容量。普通藏品可以重复，无保底。图鉴公开的每仓概率已计入大小仓、件数和容量限制。
+        </aside>
+      </section>
+      <section id="page-roles" class="page wrap inner-page" hidden>
+        <div class="page-heading">
+          <p class="eyebrow">同一扇仓门，不同的看法</p>
+          <h1>你会相信哪种眼力？</h1>
+          <p>选择一种信息能力。NPC也使用这些能力，根据各自线索出价。</p>
+        </div>
+        <div id="role-cards" class="role-cards"></div>
+        <div class="guide-callout">
+          <span>!</span>
+          <div>
+            <h3>看见线索，也要留住分寸。</h3>
+            <p>
+              线索估值是参考，不能保证盈利。未知品质的大奖会按保守价值折计，确认红品质或红档件数后才按完整价格估价。
+            </p>
+          </div>
+          <a class="button outline" href="#play">选好能力，去竞拍 ↗</a>
+        </div>
+      </section>
+      <section id="page-rules" class="page wrap inner-page" hidden>
+        <div class="page-heading">
+          <p class="eyebrow">出价之前，先读这一本</p>
+          <h1>拍卖指南</h1>
+          <p>从第一枚竞拍币，到第一件柜中珍藏。</p>
+        </div>
+        <div class="rules-layout">
+          <nav class="rules-nav" aria-label="规则目录">
+            <a href="#rule-start">01 入场与钱包</a
+            ><a href="#rule-bid">02 五轮暗标</a
+            ><a href="#rule-info">03 线索与大小仓</a
+            ><a href="#rule-open">04 开仓与盈亏</a
+            ><a href="#rule-collect">05 仓库与展示柜</a
+            ><a href="#rule-sync">06 跨端继续</a>
+          </nav>
+          <div class="rules-body">
+            <article id="rule-start">
+              <span>01</span>
+              <h2>带多少，去哪里。</h2>
+              <p>
+                1 酒馆币 ⇄ 100,000
+                竞拍币，双向兑换免手续费，按整数酒馆币兑换。选择服务器后，使用的是该服务器里同一个小酒馆钱包。
+              </p>
+              <div id="rules-tiers"></div>
+              <p>
+                开局暂存竞拍预算并扣除入场费。报价不另扣款；拍中后从暂存预算中支付成交价，剩余预算退回。未拍中只承担入场费。
+              </p>
+            </article>
+            <article id="rule-bid">
+              <span>02</span>
+              <h2>只报总价，不叠加。</h2>
+              <p>
+                你与三位NPC最多竞拍五轮。每轮报一个总价，可以上调、下调，0表示本轮不出价。NPC先封存，再同时公开四人报价。
+              </p>
+              <div class="round-ratios">
+                <div>第1轮<strong>2倍</strong></div>
+                <div>第2轮<strong>1.6倍</strong></div>
+                <div>第3轮<strong>1.3倍</strong></div>
+                <div>第4轮<strong>1.1倍</strong></div>
+              </div>
+              <p>
+                前四轮最高价须<strong>严格大于</strong>第二名的相应倍数才提前成交。第五轮最高正价成交，同价按开局公布的抽签顺序优先；全部为0则流拍。
+              </p>
+            </article>
+            <article id="rule-info">
+              <span>03</span>
+              <h2>仓有大小，线索有先后。</h2>
+              <p>
+                小仓32格、6～8件；中仓48格、9～12件；大仓80格、13～18件。先抽仓型和件数，再按区域概率抽取藏品。
+              </p>
+              <p>
+                品质、轮廓、占格和身份分开揭示。白、绿、蓝、紫、金、红六种品质，大件也有不同品质。高档区域的红色、稀有红和大仓概率更高。
+              </p>
+              <a class="text-link" href="#roles">了解三种信息能力 →</a>
+            </article>
+            <article id="rule-open">
+              <span>04</span>
+              <h2>落锤之后，才是真相。</h2>
+              <p>
+                成交后可逐件或全部揭晓。未开齐前不提前展示总值；全部开仓后，展示成交价、仓库总值和包含入场费的本局盈亏。
+              </p>
+              <div class="formula">本局盈亏 = 藏品总值 − 成交价 − 入场费</div>
+              <p>
+                拍得藏品不会自动卖出。含藏品价值的盈亏与现金变化分别显示；藏品卖出后才增加现金。没拍中时，本局净支出为入场费。
+              </p>
+            </article>
+            <article id="rule-collect">
+              <span>05</span>
+              <h2>喜欢的，留一件。</h2>
+              <p>
+                个人仓库支持单件、多选和按品质批量出售，每批最多500件。出售前会显示准确件数和总价，再由你确认。
+              </p>
+              <p>
+                六格展示柜可以指定位置陈列，替换时原藏品回仓。展示中的藏品要先撤下才能出售；陈列不额外产生收益。未揭晓藏品仍锁定，不能提前查看或出售。
+              </p>
+            </article>
+            <article id="rule-sync">
+              <span>06</span>
+              <h2>从Discord，到这扇仓门。</h2>
+              <p>
+                Discord身份与服务器决定你的钱包和藏品。网页与Discord共用拍卖记录、余额和库存；同一服务器同一人同时只开一局，切换入口不会重抽藏品。
+              </p>
+              <p>
+                开局后30分钟内可继续。离场或超时后，余下轮次按不出价处理，恢复时结算并退回未用预算。历史版本对局保留开局时的价格和规则。
+              </p>
+            </article>
+            <details class="full-rules">
+              <summary>查看完整现行规则</summary>
+              <pre id="full-rules"></pre>
+            </details>
+            <p class="quiet-note">
+              本游戏为参考《竞拍之王》的酒馆单人改编，藏品、概率、NPC与结算采用小酒馆规则。仅使用游戏内虚拟货币。
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer wrap">
+      <a class="brand" href="#home"
+        ><span class="brand-mark">仓</span
+        ><span>仓库盲拍<small>红豆粉小酒馆</small></span></a
+      >
+      <p>把未知留给仓门，把喜欢留在柜里。</p>
+      <a href="#rules">游戏规则 ↗</a>
+    </footer>
+    <dialog id="detail-dialog">
+      <button class="dialog-close" aria-label="关闭弹窗">×</button>
+      <div id="dialog-content"></div>
+    </dialog>
+    <div id="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>

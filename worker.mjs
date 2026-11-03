@@ -1,3 +1,4 @@
+import {handleAuctionWebsite,AuctionWebAuth} from './auction-website.mjs';
 import {UGCSharedCatalog,syncSharedUgc} from './tavern-ugc-sharing.mjs';
 import {DuelRouletteController,matches as duelRouletteInteraction} from './duel-roulette-controller.mjs';
 import {DuelRoulettePenalties} from './duel-roulette-penalties.mjs';
@@ -127,6 +128,7 @@ export class PokerTable extends DurableObject {
   }
   async fetch(request){
     const payload=await request.json();
+    if(payload.op==='auctionWebAuth'){try{return json(await (this.auctionWebAuth??=new AuctionWebAuth(this.ctx.storage)).dispatch(payload));}catch(e){return json({error:e.message},400);}}
     if(['ugcCatalog','ugcCatalogStatus','ugcCatalogBootstrap','ugcShareExport','ugcRestoreStatus'].includes(payload.op)){
       try{
         if(payload.op==='ugcRestoreStatus'){const u=this.tavern.ugc;return json({restored:u.one("SELECT value FROM tavern_ugc_share_meta WHERE key='restore-withdrawn-20261016'")?.value??null,withdrawn:u.one("SELECT COUNT(*) AS n FROM tavern_ugc_dishes WHERE status='withdrawn'").n,afterCutoff:u.one("SELECT COUNT(*) AS n FROM tavern_ugc_dishes d WHERE status='withdrawn' AND (created_at>? OR EXISTS(SELECT 1 FROM tavern_ugc_events e WHERE e.dish_id=d.id AND e.event_type='withdraw' AND e.at>?))",Date.parse('2026-10-16T12:57:35Z'),Date.parse('2026-10-16T12:57:35Z')).n});}
@@ -265,7 +267,7 @@ export class PokerTable extends DurableObject {
       if(payload.op==='ghostService'){try{return json(await this.ghostService.dispatch(payload));}catch(e){return json({error:e.message});}}
       if(payload.op==='appEmojis')return json(await (this.applicationEmojis??=new AppEmojis(this.ctx.storage,this.env)).get());
       if(payload.op==='unoRank'){try{return json(await this.rankings.dispatch(payload));}catch(e){return json({error:e.message});}}
-      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.15',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
+      if(payload.op==='health'){this.ctx.storage.sql.exec('SELECT 1 AS ok').one();return json({ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.16',roguelike:{rulesVersion:CURRENT_RULE_VERSION,entry:'灯下迷城',professions:Object.keys(PROFESSIONS).length,cards:Object.keys(CATALOG.cards).length,relics:Object.keys(CATALOG.relics).length,enemies:Object.keys(CATALOG.enemies).length,items:Object.keys(ITEMS).length,events:EVENTS.length,difficulties:DIFFICULTIES.length,stations:15,visuals:{map:true,battle:true,private:true},guidance:{cardTypes:true,risks:true,contextHints:true},lore:{world:true,professions:8}}});}
       if(payload.op==='registrationDiagnostics')return json(await this.ctx.storage.get('commandDiagnostics')||{registered:false,unchecked:true});
       if(payload.op==='register'){
         try{return json(await registerCommands(this.env,this.ctx.storage,[command,unoCommand,ghostCommand,liarCommand,duelCommand,devilCommand,aiCommand,tavernCommand,rogueCommand,cityCommand,marriageCommand],COMMAND_VERSION));}catch{return json({registered:false});}
@@ -425,6 +427,7 @@ async function finishRogue(env,i){
 }
 async function handle(request,env,ctx){
   const path=new URL(request.url).pathname;
+  const website=await handleAuctionWebsite(request,env,ctx);if(website)return website;
   if(/^\/art\/ugc\/[A-Za-z0-9_/-]+\.(?:png|jpg|webp)$/.test(path)&&!path.includes('..'))return env.ASSETS?env.ASSETS.fetch(request):new Response('Not found',{status:404});
   if(/^\/art\/flowers\/(rose|sunflower|gypsophila|mixed|shop-background)\.jpg$/.test(path))return env.ASSETS?env.ASSETS.fetch(request):new Response('Not found',{status:404});
   if(path.startsWith('/art/pet-walk/'))return servePetWalkArt(request,env);

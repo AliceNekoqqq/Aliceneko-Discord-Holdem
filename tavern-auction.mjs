@@ -128,7 +128,7 @@ export class TavernAuction {
  load(p){
   this.validate(p);if(!TOKEN.test(p.token||''))throw Error('竞拍窗口无效，请重新打开。');
   const row=this.tavern.one('SELECT * FROM tavern_auctions WHERE token=?',p.token);
-  if(!row||row.user_id!==p.id||row.channel!==p.channel)throw Error('这不是你在本频道的竞拍窗口。');
+  if(!row||row.user_id!==p.id||row.channel!==p.channel&&row.channel!=='0'&&p.channel!=='0')throw Error('这不是你在本频道的竞拍窗口。');
   return row;
  }
  ready(p,now){
@@ -154,15 +154,15 @@ export class TavernAuction {
   // Whitelist: hidden catalog identities, prices and opponent information never leave the guild DO.
   return {balance:revealing?null:this.tavern.auctionCurrency.balance(p.id),tavernBalance:this.tavern.one('SELECT balance FROM tavern_members WHERE id=?',p.id).balance,stats,repeated,
    offerToken:!state||settled?this.ready(p,now):null,
-   session:state?{currency:state.currency||'tavern',catalogVersion:state.catalogVersion??1,dropVersion:state.dropVersion??1,skillVersion:state.skillVersion??1,inventoryVersion:state.inventoryVersion??0,tier:state.tier||'standard',warehouse:state.warehouse??null,itemCount:state.items.length,catalogSize:sessionCatalog(state).length,estimate:Math.floor(sessionEstimate(state,state.infos[0])),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel,status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,history:state.history,result,info:state.infos[0],items,board:auctionBoardView(state,row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
+   session:state?{currency:state.currency||'tavern',catalogVersion:state.catalogVersion??1,dropVersion:state.dropVersion??1,skillVersion:state.skillVersion??1,inventoryVersion:state.inventoryVersion??0,tier:state.tier||'standard',warehouse:state.warehouse??null,itemCount:state.items.length,catalogSize:sessionCatalog(state).length,estimate:Math.floor(sessionEstimate(state,state.infos[0])),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel&&row.channel!=='0'&&p.channel!=='0',status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,history:state.history,result,info:state.infos[0],items,board:auctionBoardView(state,row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
  }
  view(p,now=Date.now()){
   this.validate(p);let answer;
   this.storage.transactionSync(()=>{
    this.tavern.member(p.id,p.name,now,true);
-   let row=this.tavern.one("SELECT * FROM tavern_auctions WHERE user_id=? AND status='active'",p.id);
-   if(row&&JSON.parse(row.state).expires<=now)this.forfeit(row,JSON.parse(row.state),now,'expired');
-   if(!row)row=this.tavern.one("SELECT * FROM tavern_auctions WHERE user_id=? AND channel=? AND status='settled' ORDER BY settled_at DESC LIMIT 1",p.id,p.channel);
+   let row=p.channel==='0'&&p.token?this.load(p):this.tavern.one("SELECT * FROM tavern_auctions WHERE user_id=? AND status='active'",p.id);
+   if(row?.status==='active'&&JSON.parse(row.state).expires<=now)this.forfeit(row,JSON.parse(row.state),now,'expired');
+   if(!row)row=this.tavern.one("SELECT * FROM tavern_auctions WHERE user_id=? AND (?='0' OR channel=? OR channel='0') AND status='settled' ORDER BY settled_at DESC LIMIT 1",p.id,p.channel,p.channel);
    answer=this.present(p,row,now);
   });return answer;
  }
