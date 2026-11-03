@@ -17,7 +17,9 @@ export const AUCTION_QUALITIES=Object.freeze(['白','绿','蓝','紫','金','红
 export const AUCTION_ROLES=Object.freeze({
  sophie:{name:'索菲',skill:'首轮随机获知5件品质，此后每轮再获知2件未知品质。'},
  gabriella:{name:'加布里埃拉',skill:'每轮随机获知2件完全未知藏品的品质与轮廓。'},
- viktor:{name:'维克托',skill:'首轮获知紫/金/红合计件数，第2轮分辨各档件数，第4轮获知这些藏品的总占格。'}
+ viktor:{name:'维克托',skill:'首轮获知紫/金/红合计件数，第2轮分辨各档件数，第4轮获知这些藏品的总占格。'},
+ zhou:{name:'老周',skill:'首轮认出镇仓大件的轮廓，此后每轮再获知1件未知品质。'},
+ lucia:{name:'露西娅',skill:'前四轮每轮获知1件未知品质，第五轮一次公开剩余全部品质。'}
 });
 export const auctionRoleSkill=(role,version=2)=>role==='viktor'&&version<2?'开局获知紫、金、红品质藏品的合计件数。':AUCTION_ROLES[role].skill;
 export const AUCTION_QUALITY_WEIGHTS=Object.freeze([30,25,20,13,11,1]);
@@ -45,6 +47,23 @@ export function generateAuction(random=auctionRandom,unit=AUCTION_RATE,catalog=A
  });
 }
 export function revealAuction(items,info,role,round,random=auctionRandom,skillVersion=1){
+ if(role==='zhou'){
+  // First round: the warehouse keeper recognises the shape of a sealed large prop.
+  if(round===1){
+   const big=items.findIndex(x=>x.width*x.height>4);
+   if(big>=0&&info.items[big]){info.items[big].width=items[big].width;info.items[big].height=items[big].height;}
+  }
+  const open=info.items.map((x,i)=>({x,i})).filter(({x})=>x.quality===null);
+  for(const {x,i}of shuffleAuction(open,random).slice(0,1))x.quality=items[i].quality;
+  return;
+ }
+ if(role==='lucia'){
+  // Slow start, then the settlement clerk opens the books on the last round.
+  const open=info.items.map((x,i)=>({x,i})).filter(({x})=>x.quality===null);
+  const take=round>=5?open.length:1;
+  for(const {x,i}of shuffleAuction(open,random).slice(0,take))x.quality=items[i].quality;
+  return;
+ }
  if(role==='viktor'){
   const high=items.filter(x=>x.quality>=3);info.highCount=high.length;
   if(skillVersion>=2&&round>=2)info.highCounts=[3,4,5].map(q=>high.filter(x=>x.quality===q).length);

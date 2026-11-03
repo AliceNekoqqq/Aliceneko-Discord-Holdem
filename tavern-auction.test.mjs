@@ -715,3 +715,31 @@ test("opening notice publishes only the best quality tier and never the goods", 
  e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
  assert.equal(e.auction.view(base).session.notice,null);
 });
+test("new appraisers pace their clues differently from the original three", () => {
+ const items=[
+  {quality:3,width:3,height:3},{quality:1,width:1,height:1},{quality:0,width:1,height:1},
+  {quality:2,width:2,height:2},{quality:4,width:1,height:2},{quality:5,width:1,height:1}
+ ];
+ const empty=()=>({highCount:null,items:items.map(()=>({quality:null,width:null,height:null}))});
+ const seq=n=>{let s=n;return x=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s%x;};};
+
+ // 老周: first round reveals the sealed large prop's footprint plus one quality.
+ const zhou=empty();
+ revealAuction(items,zhou,'zhou',1,seq(7));
+ assert.equal(zhou.items[0].width,3);
+ assert.equal(zhou.items[0].height,3);
+ assert.equal(zhou.items[0].quality,null);
+ assert.equal(zhou.items.filter(x=>x.quality!==null).length,1);
+
+ // 露西娅: one quality per round until the last round, then the whole book.
+ const lucia=empty();
+ for(let r=1;r<5;r++)revealAuction(items,lucia,'lucia',r,seq(11+r));
+ assert.equal(lucia.items.filter(x=>x.quality!==null).length,4);
+ revealAuction(items,lucia,'lucia',5,seq(31));
+ assert(lucia.items.every(x=>x.quality!==null));
+
+ // 索菲 keeps her 5-then-2 rhythm so the originals are untouched.
+ const sophie=empty();
+ revealAuction(items,sophie,'sophie',1,seq(3));
+ assert.equal(sophie.items.filter(x=>x.quality!==null).length,5);
+});
