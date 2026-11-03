@@ -11,6 +11,9 @@
   --dark: #29211c;
   --red: #dd7a86;
   --q: #bbb5a9;
+  --shadow: 0 18px 44px #00000059;
+  --radius: 4px;
+  --ease: cubic-bezier(0.2, 0.8, 0.25, 1);
   color-scheme: dark;
   font-family:
     Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui,
@@ -26,8 +29,16 @@ html {
 }
 body {
   margin: 0;
-  background: var(--bg);
+  background:
+    radial-gradient(1100px 620px at 76% -8%, #3d2d1f33, transparent 68%),
+    radial-gradient(820px 520px at 4% 6%, #26343d2e, transparent 70%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--ink);
+}
+::selection {
+  background: #d4ad7440;
+  color: #fff7e9;
 }
 body:before {
   content: "";
@@ -260,17 +271,40 @@ h1 {
 .button:hover {
   transform: translateY(-2px);
 }
+.button:focus-visible,
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
 .primary {
   color: #251d15;
-  background: var(--gold);
+  background: linear-gradient(160deg, #e3bf88, #c9a066);
+  box-shadow:
+    0 10px 26px #c9a06626,
+    inset 0 1px 0 #ffffff4d;
 }
 .primary:hover {
-  background: #e4c18b;
+  background: linear-gradient(160deg, #efca93, #d8ac73);
+  box-shadow:
+    0 16px 34px #c9a0663d,
+    inset 0 1px 0 #ffffff5c;
 }
 .outline {
   border: 1px solid #997b57;
-  background: none;
+  background: #00000000;
   color: var(--gold);
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+.outline:hover {
+  border-color: var(--gold);
+  background: #d4ad7412;
 }
 .text-link {
   font-size: 13px;
@@ -487,7 +521,8 @@ h1 {
 }
 h2 {
   font-size: 34px;
-  line-height: 1.5;
+  line-height: 1.38;
+  letter-spacing: 0.2px;
 }
 .featured-items {
   display: grid;
@@ -503,12 +538,14 @@ h2 {
   padding: 0;
   overflow: hidden;
   transition:
-    transform 0.2s,
-    border-color 0.2s;
+    transform 0.25s var(--ease),
+    border-color 0.25s,
+    box-shadow 0.25s;
 }
 .collectible:hover {
-  transform: translateY(-5px);
+  transform: translateY(-6px);
   border-color: var(--q);
+  box-shadow: var(--shadow);
 }
 .collectible:before {
   content: "";
@@ -1267,6 +1304,7 @@ td {
   background: #2c2520;
   border: 1px solid var(--line);
   border-radius: 3px;
+  box-shadow: 0 12px 32px #0000002e;
 }
 .panel h2 {
   font-size: 26px;
