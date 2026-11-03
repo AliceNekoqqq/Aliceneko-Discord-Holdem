@@ -3715,3 +3715,119 @@ summary:focus-visible {
     font-size: 19px;
   }
 }
+/* ==== status bar + appraiser portrait (DeepSeek, 2026-11-04) ==== */
+.game-statusbar {
+  display: none;
+}
+
+body.game-route .game-statusbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 22px;
+  border-top: 1px solid #c8dbea;
+  background: linear-gradient(180deg, #f7fbffF2, #e9f3fcf7);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 -6px 20px #4b6f9020;
+  font-size: 12px;
+  color: #4f6d88;
+}
+
+body.game-route {
+  padding-bottom: 44px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #b9c8d6;
+  box-shadow: 0 0 0 3px #b9c8d61f;
+}
+
+.status-dot.on {
+  background: #4fb286;
+  box-shadow: 0 0 0 3px #4fb28626;
+}
+
+.status-version {
+  margin-left: auto;
+  font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #86a0b8;
+  letter-spacing: 0.4px;
+}
+
+/* The appraiser card sits at the top of the bid panel. */
+.appraiser-card {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  margin: -4px 0 18px;
+  padding: 12px;
+  border: 1px solid #cfe0ef;
+  border-radius: 14px;
+  background: linear-gradient(150deg, #f4faff, #ffffff);
+  box-shadow: inset 0 1px #ffffff, 0 6px 16px #50779a16;
+}
+
+.appraiser-portrait {
+  width: 84px;
+  height: 84px;
+  border-radius: 12px;
+  background-image: url("./appraisers-v1.webp");
+  background-repeat: no-repeat;
+  background-size: 300% auto;
+  background-position: 0% 6%;
+  box-shadow: inset 0 0 0 1px #ffffff80;
+}
+
+.appraiser-portrait.gabriella {
+  background-position: 50% 6%;
+}
+
+.appraiser-portrait.viktor {
+  background-position: 100% 6%;
+}
+
+.appraiser-meta {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.appraiser-meta strong {
+  font-size: 16px;
+  color: #2f5d86;
+  letter-spacing: 0.5px;
+}
+
+.appraiser-meta small {
+  font-size: 11px;
+  line-height: 1.7;
+  color: #7a91a8;
+}
+
+@media (max-width: 900px) {
+  .appraiser-card {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 10px;
+  }
+  .appraiser-portrait {
+    width: 64px;
+    height: 64px;
+    border-radius: 10px;
+  }
+  .appraiser-meta strong {
+    font-size: 14px;
+  }
+  body.game-route .game-statusbar {
+    padding: 8px 14px;
+    font-size: 11px;
+  }
+}

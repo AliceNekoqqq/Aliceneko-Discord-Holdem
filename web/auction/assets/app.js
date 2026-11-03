@@ -219,6 +219,7 @@ function route() {
     a.setAttribute("aria-current", "page"),
   );
   document.title = `${{ home: "仓库盲拍", play: "拍卖大厅", catalog: "藏品图鉴", roles: "人物技能", rules: "拍卖指南" }[name]} · 红豆粉小酒馆`;
+  document.body.classList.toggle("game-route", name === "play");
   if (name === "play") renderPlay();
   if (!hash.startsWith("rule-"))
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -246,6 +247,15 @@ function renderAccount() {
 }
 function legend() {
   return `<div class="quality-legend">${meta.qualities.map((q, i) => `<span class="q${i}">${q}品质</span>`).join("")}</div>`;
+}
+// Portrait card for the appraiser the player brought into this session.
+function appraiserCard(s) {
+  const role = meta.roles?.[s.role];
+  if (!role) return "";
+  const key = ["sophie", "gabriella", "viktor"].includes(s.role)
+    ? s.role
+    : "sophie";
+  return `<div class="appraiser-card"><div class="appraiser-portrait ${key}" role="img" aria-label="${escape(role.name)}"></div><div class="appraiser-meta"><strong>${escape(role.name)}</strong><small>${escape(role.skill)}</small></div></div>`;
 }
 // Column letters and row numbers around the warehouse grid. Labels are built
 // from the session's own board size, so 8x4, 8x6 and 10x8 all read correctly.
@@ -450,7 +460,7 @@ function gameView() {
     subtotal = s.items?.filter(Boolean).reduce((n, x) => n + x.value, 0) || 0;
   return `<div class="play-layout"><div>${seatStrip(s)}<div class="board-heading"><h2>${escape(s.warehouse?.name || "仓库")} · ${s.itemCount}件</h2><p>${s.board.cols}×${s.board.rows}格板<br>${active ? "只展示已知品质与轮廓" : `开仓揭晓 ${s.reveal.count} / ${s.reveal.total}`}</p></div><div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${legend()}${history(s)}</div><aside class="panel">${
     active
-      ? `<span class="auction-stage">第 ${s.round} / 5 轮 · ${meta.roles[s.role].name}</span><p>本局预算 ${gameMoney(s, s.budget)}<br>线索估值约</p><div class="line-value">${number(s.estimate)}</div><p>${s.currency === "tavern" ? "酒馆币" : "竞拍币"} · 剩余 <span data-countdown="${s.expires}"></span> · 同价优先 ${s.priority.map((i) => npc[i]).join(" / ")}</p><div class="bid-presets">${[
+      ? `${appraiserCard(s)}<span class="auction-stage">第 ${s.round} / 5 轮 · ${meta.roles[s.role].name}</span><p>本局预算 ${gameMoney(s, s.budget)}<br>线索估值约</p><div class="line-value">${number(s.estimate)}</div><p>${s.currency === "tavern" ? "酒馆币" : "竞拍币"} · 剩余 <span data-countdown="${s.expires}"></span> · 同价优先 ${s.priority.map((i) => npc[i]).join(" / ")}</p><div class="bid-presets">${[
           [0.8, "估值80%"],
           [0.95, "估值95%"],
         ]
@@ -534,6 +544,15 @@ function walletView() {
 function renderPlay() {
   if (!meta) return;
   $("#game-tabs").hidden = !account?.user || !guild;
+  const bar = $("#game-statusbar");
+  if (bar) {
+    const guildName = account?.guilds?.find((g) => g.id === guild)?.name;
+    bar.innerHTML = `<span class="status-dot${account?.user ? " on" : ""}"></span><span class="status-text">${
+      account?.user
+        ? `Discord 已连接 · ${escape(guildName || "未选择服务器")}`
+        : "未登录 · 仅可浏览"
+    }</span><span class="status-version">${escape(meta.version || "auction-web")}</span>`;
+  }
   $$("[data-view]").forEach((b) =>
     b.classList.toggle("active", b.dataset.view === view),
   );
