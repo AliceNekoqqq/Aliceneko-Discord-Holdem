@@ -3210,12 +3210,12 @@ dialog::backdrop { background:#213e6299; backdrop-filter:blur(5px); }
   #page-play:has(#game-tabs:not([hidden])) {
     display:grid;
     grid-template-columns:188px minmax(0,1fr);
-    grid-template-areas:"heading heading" "account account" "tabs content";
+    grid-template-areas:"heading heading" "status status" "account account" "tabs content";
     column-gap:22px;
     align-items:start;
   }
   #page-play > .page-heading { grid-area:heading; }
-  #page-play > #login-status { grid-column:1/-1; }
+  #page-play > #login-status { grid-area:status; }
   #page-play > #account-bar { grid-area:account; }
   #page-play > .game-tabs {
     grid-area:tabs;
