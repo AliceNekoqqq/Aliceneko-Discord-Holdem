@@ -8,18 +8,16 @@ const root = fileURLToPath(new URL("..", import.meta.url)),
   target = resolve(process.argv[2] || resolve(root, "public/auction"));
 await mkdir(target, { recursive: true });
 await cp(resolve(root, "web/auction"), target, { recursive: true });
-// The reveal scheduler is its own module, so its import inside app.js carries
-// the module hash too; otherwise a deploy could serve a stale scheduler.
-const scheduler = resolve(target, "assets/reveal-loop.mjs");
+// The page splits its logic into small modules, so every import inside app.js
+// carries that module's hash; otherwise a deploy could serve a stale module.
 let app = await readFile(resolve(target, "assets/app.js"), "utf8");
-const schedulerHash = createHash("sha256")
-  .update(await readFile(scheduler))
-  .digest("hex")
-  .slice(0, 12);
-app = app.replace(
-  '"./reveal-loop.mjs"',
-  `"./reveal-loop.mjs?v=${schedulerHash}"`,
-);
+for (const name of ["reveal-loop.mjs", "seat-stage.mjs"]) {
+  const hash = createHash("sha256")
+    .update(await readFile(resolve(target, "assets", name)))
+    .digest("hex")
+    .slice(0, 12);
+  app = app.replace(`"./${name}"`, `"./${name}?v=${hash}"`);
+}
 await writeFile(resolve(target, "assets/app.js"), app);
 let html = await readFile(resolve(target, "index.html"), "utf8");
 for (const file of ["style.css", "app.js"]) {

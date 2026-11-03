@@ -1,4 +1,5 @@
 import { createRevealLoop } from "./reveal-loop.mjs";
+import { buildSeatStage } from "./seat-stage.mjs";
 const PRIMARY = "https://auction.alicenekoqqq.cc.cd",
   sameOrigin = [PRIMARY, "https://discord-holdem.aliceneko.workers.dev"].includes(
     location.origin,
@@ -380,7 +381,7 @@ function gameView() {
   const active = s.status === "active",
     r = s.result,
     subtotal = s.items?.filter(Boolean).reduce((n, x) => n + x.value, 0) || 0;
-  return `<div class="play-layout"><div><div class="board-heading"><h2>${escape(s.warehouse?.name || "仓库")} · ${s.itemCount}件</h2><p>${s.board.cols}×${s.board.rows}格板<br>${active ? "只展示已知品质与轮廓" : `开仓揭晓 ${s.reveal.count} / ${s.reveal.total}`}</p></div><div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${legend()}${history(s)}</div><aside class="panel">${
+  return `<div class="play-layout"><div>${seatStrip(s)}<div class="board-heading"><h2>${escape(s.warehouse?.name || "仓库")} · ${s.itemCount}件</h2><p>${s.board.cols}×${s.board.rows}格板<br>${active ? "只展示已知品质与轮廓" : `开仓揭晓 ${s.reveal.count} / ${s.reveal.total}`}</p></div><div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${legend()}${history(s)}</div><aside class="panel">${
     active
       ? `<span class="auction-stage">第 ${s.round} / 5 轮 · ${meta.roles[s.role].name}</span><p>本局预算 ${gameMoney(s, s.budget)}<br>线索估值约</p><div class="line-value">${number(s.estimate)}</div><p>${s.currency === "tavern" ? "酒馆币" : "竞拍币"} · 参考价不保证盈利<br>剩余 <span data-countdown="${s.expires}"></span> · 同价优先 ${s.priority.map((i) => npc[i]).join(" / ")}</p><div class="bid-presets">${[
           [0.8, "估值80%"],
@@ -396,6 +397,43 @@ function gameView() {
       : `<span class="auction-stage">仓门打开，惊喜揭晓。</span><h2>${r.winner === null ? "本局流拍" : `${npc[r.winner]}拍中`}</h2><p>成交价 ${gameMoney(s, r.price)}<br>已揭晓 ${s.reveal.count} / ${s.reveal.total}件</p><div class="line-value">${number(subtotal)}</div><p>已揭晓总值 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}<br>未开齐前不提前公开总值和最终盈亏。</p>${revealControls(s)}<p>资金已结算，开仓不再扣币。拍得的藏品将在揭晓后解锁到个人仓库。</p>`
   }</aside></div>`;
 }
+let seatSweptKey = null;
+function seatStrip(s) {
+  const stage = buildSeatStage({
+      history: s.history,
+      priority: s.priority,
+      round: s.round,
+      status: s.status,
+      result: s.result,
+      names: npc,
+    }),
+    key = `${s.token}:${stage.open ? stage.round : 0}`,
+    sweep = key !== seatSweptKey,
+    unit = s.currency === "tavern" ? "酒馆币" : "竞拍币";
+  if (sweep) seatSweptKey = key;
+  const labels = {
+      sealed: "封存",
+      pass: "不出价",
+      top: stage.settled ? "已成交" : "最高",
+      bid: "出价",
+      won: "成交",
+    },
+    note = stage.settled
+      ? stage.winner === null
+        ? "本局流拍"
+        : `${npc[stage.winner]} 以 ${number(stage.price)} ${unit} 成交`
+      : stage.open
+        ? stage.decided
+          ? "本轮提前成交"
+          : `第 ${stage.round} / ${stage.total} 轮已开价`
+        : `第 ${stage.round} / ${stage.total} 轮 · 四位封存中`;
+  return `<div class="seat-strip${sweep ? " sweep" : ""}${stage.settled ? " final" : ""}" data-round="${stage.round}"><div class="seat-strip-head"><span class="auction-stage">拍卖席</span><small>${note}</small></div><div class="seat-row">${stage.seats
+    .map(
+      (seat) =>
+        `<div class="seat${seat.you ? " you" : ""}${seat.leader ? " leading" : ""}${seat.winner ? " won" : ""}" data-state="${seat.state}" style="--i:${seat.index}"><span class="seat-name">${escape(seat.name)}</span><strong class="seat-bid">${seat.bid === null ? "—" : number(seat.bid)}</strong><small class="seat-state">${labels[seat.state] || "—"}</small></div>`,
+    )
+    .join("")}</div>${stage.open && !stage.settled && stage.margin > 0 ? `<p class="seat-margin">领先 ${number(stage.margin)} ${unit} · 同价优先 ${s.priority.map((i) => npc[i]).join(" → ")}</p>` : ""}</div>`;
+}
 function history(s) {
   if (!s.history.length) return "";
   return `<div class="history"><table><thead><tr><th>轮次</th>${npc.map((x) => `<th>${x}</th>`).join("")}</tr></thead><tbody>${s.history.map((h) => `<tr><td>第${h.round}轮${h.done ? " · 落锤" : ""}</td>${h.bids.map((b) => `<td>${number(b)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
@@ -403,7 +441,7 @@ function history(s) {
 function resultView(s) {
   const r = s.result,
     won = r.winner === 0;
-  return `<div class="panel"><p class="eyebrow">${r.winner === null ? "本局流拍" : `${npc[r.winner]}以 ${gameMoney(s, r.price)} 拍中`}</p><h2>这一仓，${r.net > 0 ? "赚到了。" : r.net < 0 ? "留点经验。" : "不赚不亏。"}</h2><div class="result-grid"><div><small>成交价</small><strong>${number(r.price)}</strong></div><div><small>仓库藏品总值</small><strong>${number(r.total)}</strong></div><div><small>本局盈亏 · 含入场费${won ? "与藏品价值" : ""}</small><strong class="${r.net >= 0 ? "profit" : "loss"}">${r.net > 0 ? "+" : ""}${number(r.net)}</strong></div><div><small>现金变化 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small><strong>${r.cashNet > 0 ? "+" : ""}${number(r.cashNet ?? r.net)}</strong></div></div><p>本局入场费 ${gameMoney(s, s.fee)}。${won ? (r.inventory ? "拍得藏品留在个人仓库，手动出售后才计入现金。" : "本局沿用开局时的自动折算规则，藏品已按当时规则结算。") : "未拍中只承担入场费。"} ${s.currency === "tavern" ? "这是旧版酒馆币对局，以上金额仍按当时规则计算。" : ""}</p><div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${history(s)}<button class="text-link" data-view="inventory">到个人仓库看看 →</button></div><br>`;
+  return `${seatStrip(s)}<div class="panel"><p class="eyebrow">${r.winner === null ? "本局流拍" : `${npc[r.winner]}以 ${gameMoney(s, r.price)} 拍中`}</p><h2>这一仓，${r.net > 0 ? "赚到了。" : r.net < 0 ? "留点经验。" : "不赚不亏。"}</h2><div class="result-grid"><div><small>成交价</small><strong>${number(r.price)}</strong></div><div><small>仓库藏品总值</small><strong>${number(r.total)}</strong></div><div><small>本局盈亏 · 含入场费${won ? "与藏品价值" : ""}</small><strong class="${r.net >= 0 ? "profit" : "loss"}">${r.net > 0 ? "+" : ""}${number(r.net)}</strong></div><div><small>现金变化 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small><strong>${r.cashNet > 0 ? "+" : ""}${number(r.cashNet ?? r.net)}</strong></div></div><p>本局入场费 ${gameMoney(s, s.fee)}。${won ? (r.inventory ? "拍得藏品留在个人仓库，手动出售后才计入现金。" : "本局沿用开局时的自动折算规则，藏品已按当时规则结算。") : "未拍中只承担入场费。"} ${s.currency === "tavern" ? "这是旧版酒馆币对局，以上金额仍按当时规则计算。" : ""}</p><div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${history(s)}<button class="text-link" data-view="inventory">到个人仓库看看 →</button></div><br>`;
 }
 function inventoryView() {
   if (!inventory) return '<p class="loading">正在读取个人仓库…</p>';
