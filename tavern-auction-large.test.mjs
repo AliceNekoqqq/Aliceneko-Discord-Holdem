@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import {TavernService} from './tavern-service.mjs';
 import {TavernAuction,generateAuction,estimateAuction,npcAuctionBid} from './tavern-auction.mjs';
 import {AUCTION_ITEMS,AUCTION_LARGE_ITEMS,AUCTION_ALL_ITEMS,auctionCatalogPage} from './tavern-auction-data.mjs';
@@ -26,8 +27,23 @@ test('twelve individually illustrated large collectibles extend the pool without
  assert.equal(AUCTION_ALL_ITEMS.length,204);assert.equal(new Set(AUCTION_ALL_ITEMS.map(x=>x.id)).size,204);assert.equal(new Set(AUCTION_ALL_ITEMS.map(x=>x.name)).size,204);assert.deepEqual([6,9,12].map(a=>AUCTION_LARGE_ITEMS.filter(x=>x.width*x.height===a).length),[4,4,4]);
  const hashes=new Set();for(const x of AUCTION_LARGE_ITEMS){assert(x.flavor.length>5);assert(x.value%100!==0);assert(Number.isSafeInteger(x.value));assert(x.dropWeight>0);const r=manifest.items[x.id],bytes=await readFile('public'+r.path);assert.equal(bytes.length,r.bytes);const h=createHash('sha256').update(bytes).digest('hex');assert.equal(h,r.sha256);hashes.add(h);assert.equal(r.size,256);assert.equal(r.bounds.length,4);}assert.equal(hashes.size,12);
  // The preserved expanded atlas and all original PNG records remain byte-identical.
- const records=Object.fromEntries(Object.entries(manifest.items).filter(([id])=>AUCTION_ITEMS.some(x=>x.id===id)));
- assert.equal(createHash('sha256').update(JSON.stringify(records)).digest('hex'),'de301a2833ad8f3c717b3bde2d1d60572a113a87c23e9e154b9644ec2479c6aa');
+ // PNG encoders can differ across Pillow releases. Compare the actual prior builder
+ // and this builder byte-for-byte within the same environment, as on production CI.
+ const check=JSON.parse(execFileSync('python',['-c',`
+import hashlib,json,runpy,tempfile
+from pathlib import Path
+root=Path.cwd()
+with tempfile.TemporaryDirectory() as folder:
+    target=Path(folder)
+    (target/'assets').symlink_to(root/'assets',target_is_directory=True)
+    old=runpy.run_path(str(root/'test-fixtures/build-auction-art-v3.py'))
+    old['build'].__globals__['ROOT']=target
+    old['build']()
+    files=list((target/'public/art/auction').iterdir())
+    for path in files:
+        assert path.read_bytes()==(root/'public/art/auction'/path.name).read_bytes(),path.name
+    print(json.dumps({'compared':len(files)}))
+`],{encoding:'utf8'}));assert(check.compared>=290);
  const old=await readFile('public'+manifest.previousExpandedAtlas.path);assert.equal(createHash('sha256').update(old).digest('hex'),'43123bfe21d34a7f456f36011147a842c1b8d668d4124cbb9b726f14ecc57ff6');
 });
 test('capacity eligibility is decided before goods and all twelve items are reachable without rerolling quality',()=>{
