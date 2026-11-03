@@ -11,7 +11,7 @@ import {
 } from "./auction-web-auth.mjs";
 import { handleAuctionWebsite, publicAuctionData } from "./auction-website.mjs";
 import { TavernService } from "./tavern-service.mjs";
-import { TavernAuction } from "./tavern-auction.mjs";
+import { TavernAuction, AUCTION_ROLES } from "./tavern-auction.mjs";
 import { largeCatalog } from "./tavern-auction-large.mjs";
 const ROOT = "https://auction.alicenekoqqq.cc.cd",
   B = { guild: "3", id: "1", channel: "2", name: "Alice" };
@@ -230,7 +230,14 @@ test("public 244-item catalog exactly matches four production pools, prices, odd
       assert.equal(x.value, Math.floor(p.value * d.tiers[tier].scale));
       assert(x.image.startsWith("/art/auction/"));
     }
-    assert.equal(Object.keys(d.roles).length, 3);
+    const roleKeys = Object.keys(d.roles);
+    assert.equal(roleKeys.length, Object.keys(AUCTION_ROLES).length);
+    for (const key of ["sophie", "gabriella", "viktor", "zhou", "lucia"])
+      assert(roleKeys.includes(key), key);
+    for (const [key, role] of Object.entries(d.roles)) {
+      assert.equal(role.name, AUCTION_ROLES[key].name);
+      assert(typeof role.skill === "string" && role.skill.length > 0);
+    }
     assert(d.rules.includes("2 / 1.6 / 1.3 / 1.1倍"));
   }
   assert.equal(e.stores.size, 0);
