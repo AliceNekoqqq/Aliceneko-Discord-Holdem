@@ -426,6 +426,9 @@ function buildRevealLoop(token) {
   const g = guild;
   const current = () => guild === g && game?.session?.token === token;
   const loop = createRevealLoop({
+    // The suspense ring already paces each item, so the next one starts as soon
+    // as the previous cell has painted instead of waiting out a fixed gap.
+    interval: 120,
     getStep: () => game?.session?.reveal?.count ?? 0,
     isComplete: () => current() && Boolean(game?.session?.reveal?.complete),
     canRun: () =>
