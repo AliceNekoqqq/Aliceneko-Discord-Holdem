@@ -1,3 +1,8 @@
+## 拍卖官网新域名（2026-11-03，已发布并完成真实登录验收）
+
+- 用户要求网址含Aliceneko与拍卖元素，正式主入口改为 https://auction.alicenekoqqq.cc.cd/ （转/auction/），绑定已有discord-holdem Worker；旧workers.dev入口继续可用。Discord原应用已新增并保存新域名回调，未重置密钥。新旧域名各自使用Host Cookie，但钱包/藏品/拍卖共用原数据。
+- 本地Worker104通过；PR #80完整CI41614814017及main CI/部署41615186423成功，合并cb9cec8a4ce0fd7958dfb6469f294c7f4be03939。生产CF部署005d415b-907a-45bb-8986-5f7ed317a359、版本cb3e3b3a-cfde-4128-a5f5-cf8e5615c4fb接收100%。16bindings和版本运行时配置与此前已配置OAuth版本一致；health casino.16 ready/Gateway ready:true。真实新域名登录、原双币钱包、同一局进度与个人仓库读取通过，未代用户操作资产。本人预览镜像也已同步跳往新入口。详见docs/casino/AUCTION_DOMAIN.md。闭环，不重复部署。
+
 ## 拍卖官网与网页互通 casino.16（2026-11-03，已发布，真人OAuth与共享资产读取通过）
 
 - 官网风格同源/auction/客户端：原创仓库主视觉/三位鉴赏师形象、首页、204图鉴（四区/品质/占格/搜索/详情概率）、三技能与完整规则、真实格板/五轮暗标/开仓盈亏/钱包兑换/个人仓库/批卖/六格展示柜。复用tavern:<guild>、钱包和原有事务，不建第二套钱包。保留频道0让本人跨端继续，其他真实频道间原限制保持；价格/概率/预算/汇率/技能保持。
