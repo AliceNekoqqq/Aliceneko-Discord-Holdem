@@ -1049,3 +1049,9 @@ PR #77特性cb4b0752e00982bc2a2144dc0396528659512e51，完整PR CI41576105578成
 
 - 主入口 https://auction.alicenekoqqq.cc.cd/ ，原Worker与共享数据不变，旧入口保留；Discord新回调已保存，无密钥重置。PR80/完整CI41614814017与main部署41615186423成功，合并cb9cec8a4ce0fd7958dfb6469f294c7f4be03939；CF部署005d415b-907a-45bb-8986-5f7ed317a359/版本cb3e3b3a-cfde-4128-a5f5-cf8e5615c4fb为100%，16bindings/script_runtime与此前OAuth配置版本一致。health casino.16、ready/Gateway ready:true。
 - 实际新域名OAuth成功，真实钱包/同局拍卖/个人仓库只读读取与旧入口相同；本人预览镜像已同步且保持owner-only。未代用户变更资产；不重复部署。完整回执docs/casino/AUCTION_DOMAIN.md，PROJECT_NOW更新恢复入口。
+
+
+## V8新增40件藏品 / casino.17（2026-11-03，Codex，已发布）
+
+- 承接DeepSeek main84e7622，40件新物件接入，共244件（224普通/20大件），含10红和4件1×1红。新局V8/drop5，V7/V6及更早冻结；独立价格/权重、原创透明图片、四区容量感知概率、库存/出售/展示柜均已适配。保留DeepSeek自动揭露/四席/0.85 NPC/美化。
+- 酒馆340/Worker121、最终美术回归15通过；12,000仓/48,000策略最大非报满封顶同价10.6%。PR90、完整PR CI41645160895、main发布41645756401成功，合并981c15805237307d3562d113d4d8e46709001022；CF部署f3f97f3f-96a8-44ee-9e71-307df6e8963c/版本a54007fe-64b2-4028-bfa9-2131820a0b7e接收100%，16bindings/runtime保持，health casino.17与Gateway ready。正式244图鉴/40新ID/新PNG及旧生产图集前缀比对通过。镜像owner-only同步，未操作真人资产；闭环不重复发布。详见docs/casino/AUCTION_V8_EXPANSION.md与AUCTION_V8_SIMULATION.json。
