@@ -151,11 +151,26 @@
         </div>        <div id="login-status"></div>
         <div id="account-bar" class="account-bar" hidden></div>
         <div class="game-tabs" id="game-tabs" hidden>
-          <button data-view="auction" class="active">正在竞拍</button
-          ><button data-view="inventory">个人仓库</button
-          ><button data-view="cabinet">六格展示柜</button
-          ><button data-view="wallet">钱包兑换</button
-          ><button data-refresh class="refresh-button">刷新资产 ↻</button>
+          <button data-view="auction" class="active" aria-label="拍卖大厅">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19h9"/><path d="M9 15l5-5"/><path d="M12.5 4.5l7 7-3 3-7-7z"/></svg>
+            <span class="tab-label">正在竞拍</span>
+          </button>
+          <button data-view="inventory" aria-label="个人仓库">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4"/><path d="M12 12v8"/></svg>
+            <span class="tab-label">个人仓库</span>
+          </button>
+          <button data-view="cabinet" aria-label="六格展示柜">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"/><path d="M5 10h14M5 15h14"/><path d="M12 4v16"/></svg>
+            <span class="tab-label">六格展示柜</span>
+          </button>
+          <button data-view="wallet" aria-label="钱包兑换">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 8v8M9.5 10h5"/></svg>
+            <span class="tab-label">钱包兑换</span>
+          </button>
+          <button data-refresh class="refresh-button" aria-label="刷新资产">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 10-3 6.2"/><path d="M20 5v7h-7"/></svg>
+            <span class="tab-label">刷新资产</span>
+          </button>
         </div>
         <div id="game-content"></div>
       </section>
