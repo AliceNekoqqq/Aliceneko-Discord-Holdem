@@ -170,7 +170,8 @@ export class TavernService {
   if(!validId(p.guild))throw Error('无效服务器。');
   const bound=await this.storage.get('tavernGuild');if(bound&&bound!==p.guild)throw Error('服务器不匹配。');if(!bound)await this.storage.put('tavernGuild',p.guild);
   if(p.action?.startsWith('auctionExchange'))return this.auctionCurrency.dispatch(p);
-  if(p.action?.startsWith('auction'))return this.auction.dispatch(p);
+  if(p.action?.startsWith('room'))return this.auction.rooms.dispatch(p);
+if(p.action?.startsWith('auction'))return this.auction.dispatch(p);
   if(p.action?.startsWith('slots'))return this.slots.dispatch(p);
   if(p.action?.startsWith('flower'))return (this.flowerShop??=new FlowerShop(this)).dispatch(p);
   if(p.action?.startsWith('ugc'))return this.ugc.dispatch(p);

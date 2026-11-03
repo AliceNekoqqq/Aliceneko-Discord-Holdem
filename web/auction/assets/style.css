@@ -3926,3 +3926,92 @@ body.game-route {
 .appraiser-portrait.fallback span {
   font-size: 34px;
 }
+/* Multiplayer lobby. */
+.room-panel .room-code {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  letter-spacing: 3px;
+  color: #3f6285;
+}
+
+.room-hint {
+  color: #6b849b;
+  font-size: 13px;
+}
+
+.room-boot,
+.room-role {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  margin: 14px 0;
+  flex-wrap: wrap;
+}
+
+.room-boot label,
+.room-role label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: #64809a;
+  flex: 1 1 220px;
+}
+
+.room-boot input,
+.room-boot select,
+.room-role select {
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #c8dbec;
+  border-radius: 9px;
+  background: #fff;
+  color: #2f4a63;
+  font-size: 13px;
+}
+
+.room-seats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.room-seat {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid #d7e6f3;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.room-seat.you {
+  border-color: #e0a08a;
+  background: #fff8f4;
+}
+
+.room-seat.npc {
+  border-style: dashed;
+  color: #7d93a8;
+}
+
+.room-seat.empty {
+  border-style: dashed;
+  color: #9db2c4;
+  opacity: 0.8;
+}
+
+.room-seat small,
+.room-seat em {
+  font-size: 11px;
+  font-style: normal;
+  color: #7a90a5;
+}
+
+.room-seat i {
+  font-style: normal;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: #ffe6dc;
+  color: #b45f43;
+}

@@ -29,6 +29,13 @@ const allowedActions = {
   auctionBid: ["token", "round", "bid"],
   auctionLeave: ["token", "round"],
   auctionReveal: ["token", "step", "all"],
+  roomView: [],
+  roomCreate: ["tier"],
+  roomJoin: ["code"],
+  roomLeave: [],
+  roomRole: ["role"],
+  roomReady: ["ready"],
+  roomStart: [],
   auctionExchangeConvert: ["token", "direction", "amount"],
   auctionInventorySelect: ["token", "selected"],
   auctionInventoryQuote: ["token", "quality"],
@@ -442,11 +449,13 @@ export async function handleAuctionWebsite(request, env, ctx, fetcher = fetch) {
         for (const key of fields)
           if (Object.hasOwn(body, key)) p[key] = body[key];
         if (action === "auctionStart") p.presentation = "warehouse";
-        kind = action.startsWith("auctionExchange")
-          ? "wallet"
-          : action.startsWith("auctionInventory")
-            ? "inventory"
-            : "game";
+        kind = action.startsWith("room")
+          ? "room"
+          : action.startsWith("auctionExchange")
+            ? "wallet"
+            : action.startsWith("auctionInventory")
+              ? "inventory"
+              : "game";
       } else throw new WebsiteError(404, "页面不存在。");
       try {
         return reply({
