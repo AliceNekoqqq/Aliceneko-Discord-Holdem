@@ -84,7 +84,11 @@ export function createRevealLoop(options = {}) {
       onStall(before);
       return;
     }
-    if (state !== "running") return;
+    if (state !== "running") {
+      // Publish the cleared busy flag even if pause happened during the request.
+      onChange(state);
+      return;
+    }
     handle = schedule(() => {
       handle = null;
       step();
@@ -99,8 +103,9 @@ export function createRevealLoop(options = {}) {
       return inFlight;
     },
     start() {
-      if (disposed || state === "done" || state === "running" || inFlight) return;
+      if (disposed || state === "done" || state === "running") return;
       clearTimer();
+      // An outstanding step owns the request; its completion schedules the next.
       enter("running");
       step();
     },

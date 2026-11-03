@@ -31,8 +31,7 @@ body {
   margin: 0;
   background:
     radial-gradient(1100px 620px at 76% -8%, #3d2d1f33, transparent 68%),
-    radial-gradient(820px 520px at 4% 6%, #26343d2e, transparent 70%),
-    var(--bg);
+    radial-gradient(820px 520px at 4% 6%, #26343d2e, transparent 70%), var(--bg);
   background-attachment: fixed;
   color: var(--ink);
 }
@@ -1261,7 +1260,16 @@ td {
 /* Only the round that just opened replays; later re-renders stay still. */
 .seat-strip.sweep .seat {
   animation: seat-drop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1) both;
-  animation-delay: calc(var(--i) * 90ms);
+  animation-delay: 0ms;
+}
+.seat-strip.sweep .seat:nth-child(2) {
+  animation-delay: 90ms;
+}
+.seat-strip.sweep .seat:nth-child(3) {
+  animation-delay: 180ms;
+}
+.seat-strip.sweep .seat:nth-child(4) {
+  animation-delay: 270ms;
 }
 @keyframes seat-drop {
   from {
@@ -1407,16 +1415,23 @@ td {
   gap: 10px;
 }
 .reveal-meter {
+  display: block;
+  appearance: none;
+  width: 100%;
   height: 3px;
+  border: 0;
   border-radius: 2px;
   background: #ffffff14;
   overflow: hidden;
 }
-.reveal-meter span {
-  display: block;
-  height: 100%;
+.reveal-meter::-webkit-progress-bar {
+  background: #ffffff14;
+}
+.reveal-meter::-webkit-progress-value {
   background: linear-gradient(90deg, var(--gold), #f1dcae);
-  transition: width 0.35s ease;
+}
+.reveal-meter::-moz-progress-bar {
+  background: linear-gradient(90deg, var(--gold), #f1dcae);
 }
 .reveal-note {
   margin: 0;
@@ -1454,9 +1469,6 @@ td {
 @media (prefers-reduced-motion: reduce) {
   .board-item.just-revealed {
     animation: none;
-  }
-  .reveal-meter span {
-    transition: none;
   }
 }
 .line-value {

@@ -1,9 +1,10 @@
 import { createRevealLoop } from "./reveal-loop.mjs";
 import { buildSeatStage } from "./seat-stage.mjs";
 const PRIMARY = "https://auction.alicenekoqqq.cc.cd",
-  sameOrigin = [PRIMARY, "https://discord-holdem.aliceneko.workers.dev"].includes(
-    location.origin,
-  ),
+  sameOrigin = [
+    PRIMARY,
+    "https://discord-holdem.aliceneko.workers.dev",
+  ].includes(location.origin),
   LIVE = sameOrigin ? location.origin : PRIMARY;
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)],
@@ -43,7 +44,8 @@ let meta,
   pendingExchange = null,
   demoCount = 0,
   revealLoop = null,
-  revealPausedByHidden = false;
+  revealPausedByHidden = false,
+  revealResumeEpoch = 0;
 const catalogs = new Map(),
   images = new Map(),
   npc = ["你", "阿吉", "老猫", "掌柜"];
@@ -56,7 +58,13 @@ function toast(text) {
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => (t.hidden = true), 6500);
 }
+function pauseReveal() {
+  revealResumeEpoch++;
+  revealPausedByHidden = false;
+  revealLoop?.pause();
+}
 function dialog(html) {
+  pauseReveal();
   $("#dialog-content").innerHTML = html;
   $("#detail-dialog").showModal();
 }
@@ -64,6 +72,7 @@ function closeDialog() {
   $("#detail-dialog").close();
 }
 function setBusy(value) {
+  if (value) pauseReveal();
   busy = value;
   document.body.classList.toggle("busy", value);
   $("#game-content").setAttribute("aria-busy", String(value));
@@ -195,6 +204,7 @@ function renderRoles() {
   $("#full-rules").textContent = meta.rules.replaceAll("**", "");
 }
 function route() {
+  if (location.hash !== "#play") pauseReveal();
   const hash = location.hash.slice(1) || "home",
     name = hash.startsWith("rule-")
       ? "rules"
@@ -316,35 +326,53 @@ function setup() {
 }
 const gameMoney = (s, value) =>
   `${number(value)} ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}`;
-async function unlockAfterReveal() {
-  if (!guild) return;
-  wallet = (await api(`wallet?guild=${guild}`)).data;
-  inventory = (await api(`inventory?guild=${guild}`)).data;
-  toast("开仓完成，藏品已解锁到个人仓库。");
+async function unlockAfterReveal(g = guild, token = game?.session?.token) {
+  if (!g) return;
+  const e = epoch;
+  const [w, i] = await Promise.all([
+    api(`wallet?guild=${g}`),
+    api(`inventory?guild=${g}`),
+  ]);
+  if (g !== guild || e !== epoch || token !== game?.session?.token) return;
+  wallet = w.data;
+  inventory = i.data;
+  toast(
+    game.session.result?.winner === 0
+      ? "开仓完成，藏品已解锁到个人仓库。"
+      : "开仓完成，可以查看本仓结果。",
+  );
 }
 function buildRevealLoop(token) {
+  const g = guild;
+  const current = () => guild === g && game?.session?.token === token;
   const loop = createRevealLoop({
     getStep: () => game?.session?.reveal?.count ?? 0,
-    isComplete: () => Boolean(game?.session?.reveal?.complete),
+    isComplete: () => current() && Boolean(game?.session?.reveal?.complete),
     canRun: () =>
-      game?.session?.token === token &&
+      current() &&
       game.session.status !== "active" &&
       view === "auction" &&
       location.hash === "#play" &&
       !document.hidden &&
+      !$("#detail-dialog").open &&
       !busy,
     reveal: async (step) => {
-      // `step` comes from the loop and is always the server's own count.
-      await mutation("auctionReveal", { token, step, all: false });
-      if (game?.session?.reveal?.complete) await unlockAfterReveal();
-      renderPlay();
+      // Only the server's last confirmed count is sent; never guess progress.
+      const answer = await mutation("auctionReveal", {
+        token,
+        step,
+        all: false,
+      });
+      if (!answer || !current()) return;
+      if (game.session.reveal?.complete) await unlockAfterReveal(g, token);
+      if (current()) renderPlay();
     },
     onChange: () => renderPlay(),
     onStall: () => toast("开仓进度没有推进，已暂停。请刷新后继续。"),
-    onError: (error) =>
-      toast(error?.message || "自动揭露中断，请刷新后继续。"),
+    onError: (error) => toast(error?.message || "自动揭露中断，请刷新后继续。"),
   });
   loop.token = token;
+  loop.guild = g;
   return loop;
 }
 function ensureRevealLoop() {
@@ -356,7 +384,8 @@ function ensureRevealLoop() {
     revealPausedByHidden = false;
     return null;
   }
-  if (revealLoop?.token === token) return revealLoop;
+  if (revealLoop?.token === token && revealLoop.guild === guild)
+    return revealLoop;
   if (revealLoop) revealLoop.dispose();
   revealPausedByHidden = false;
   revealLoop = buildRevealLoop(token);
@@ -367,9 +396,8 @@ function revealControls(s) {
     state = loop?.state || "idle",
     running = state === "running",
     paused = state === "paused",
-    total = s.reveal.total || 1,
-    pct = Math.min(100, Math.round((s.reveal.count / total) * 100));
-  return `<div class="reveal-controls" data-reveal-state="${state}"><div class="reveal-meter" role="progressbar" aria-valuemin="0" aria-valuemax="${s.reveal.total}" aria-valuenow="${s.reveal.count}"><span style="width:${pct}%"></span></div><p class="reveal-note">${running ? "逐件揭露中" : paused ? "已暂停，可继续逐件揭露" : "仓门已开，可以逐件揭露"} · ${s.reveal.count} / ${s.reveal.total}</p><div class="reveal-buttons"><button class="button primary wide" data-reveal="auto">${running ? "暂停揭露" : paused ? "继续揭露 →" : "自动逐件揭露 →"}</button><button class="button outline" data-reveal="next"${running ? " disabled" : ""}>单件</button><button class="button outline" data-reveal="all"${running ? " disabled" : ""}>全部打开</button></div></div>`;
+    pending = loop?.busy;
+  return `<div class="reveal-controls" data-reveal-state="${state}"><progress class="reveal-meter" aria-label="开仓揭露进度" max="${s.reveal.total || 1}" value="${s.reveal.count}"></progress><p class="reveal-note">${running ? "逐件揭露中" : paused ? "已暂停，可继续逐件揭露" : "仓门已开，可以逐件揭露"} · ${s.reveal.count} / ${s.reveal.total}</p><div class="reveal-buttons"><button class="button primary wide" data-reveal="auto">${running ? "暂停揭露" : paused ? "继续揭露 →" : "自动逐件揭露 →"}</button><button class="button outline" data-reveal="next"${running || pending ? " disabled" : ""}>单件</button><button class="button outline" data-reveal="all"${running || pending ? " disabled" : ""}>全部打开</button></div></div>`;
 }
 function gameView() {
   const s = game?.session;
@@ -394,7 +422,7 @@ function gameView() {
           .join(
             "",
           )}<button data-bid="0">本轮不出价<small>0 ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small></button><button data-bid="${s.budget}">预算上限<small>${gameMoney(s, s.budget)}</small></button></div><form id="bid-form" class="bid-form"><label for="bid-amount">本轮暗标总价（整数）</label><input id="bid-amount" name="bid" type="number" min="0" max="${s.budget}" step="1" placeholder="输入报价" required inputmode="numeric"><button class="button primary wide" type="submit">封存本轮暗标 →</button></form><details class="clue-list"><summary>查看本局线索</summary>${s.info.highCount === null ? "" : `<p>紫 / 金 / 红合计 ${s.info.highCount} 件</p>`}${s.info.highCounts ? `<p>紫${s.info.highCounts[0]} / 金${s.info.highCounts[1]} / 红${s.info.highCounts[2]}</p>` : ""}${s.info.highArea === undefined ? "" : `<p>高品质总占格 ${s.info.highArea} 格</p>`}${s.info.items.map((c, i) => `<p>${i + 1}. ${c.quality === null ? "品质未知" : meta.qualities[c.quality] + "品质"} · ${c.width === null ? "轮廓未知" : `${c.width}×${c.height} / ${c.width * c.height}格`}</p>`).join("")}</details><button class="danger-link" data-leave>放弃余下竞拍</button>`
-      : `<span class="auction-stage">仓门打开，惊喜揭晓。</span><h2>${r.winner === null ? "本局流拍" : `${npc[r.winner]}拍中`}</h2><p>成交价 ${gameMoney(s, r.price)}<br>已揭晓 ${s.reveal.count} / ${s.reveal.total}件</p><div class="line-value">${number(subtotal)}</div><p>已揭晓总值 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</p>${revealControls(s)}`
+      : `<span class="auction-stage">仓门打开，惊喜揭晓。</span><h2>${r.winner === null ? "本局流拍" : r.winner === 0 ? "竞拍成功！" : `${npc[r.winner]}拍中`}</h2><p>成交价 ${gameMoney(s, r.price)}<br>已揭晓 ${s.reveal.count} / ${s.reveal.total}件</p><div class="line-value">${number(subtotal)}</div><p>已揭晓总值 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</p>${revealControls(s)}`
   }</aside></div>`;
 }
 let seatSweptKey = null;
@@ -430,9 +458,11 @@ function seatStrip(s) {
   return `<div class="seat-strip${sweep ? " sweep" : ""}${stage.settled ? " final" : ""}" data-round="${stage.round}"><div class="seat-strip-head"><span class="auction-stage">拍卖席</span><small>${note}</small></div><div class="seat-row">${stage.seats
     .map(
       (seat) =>
-        `<div class="seat${seat.you ? " you" : ""}${seat.leader ? " leading" : ""}${seat.winner ? " won" : ""}" data-state="${seat.state}" style="--i:${seat.index}"><span class="seat-name">${escape(seat.name)}</span><strong class="seat-bid">${seat.bid === null ? "—" : number(seat.bid)}</strong><small class="seat-state">${labels[seat.state] || "—"}</small></div>`,
+        `<div class="seat${seat.you ? " you" : ""}${seat.leader ? " leading" : ""}${seat.winner ? " won" : ""}" data-state="${seat.state}"><span class="seat-name">${escape(seat.name)}</span><strong class="seat-bid">${seat.bid === null ? "—" : number(seat.bid)}</strong><small class="seat-state">${labels[seat.state] || "—"}</small></div>`,
     )
-    .join("")}</div>${stage.open && !stage.settled && stage.margin > 0 ? `<p class="seat-margin">领先 ${number(stage.margin)} ${unit} · 同价优先 ${s.priority.map((i) => npc[i]).join(" → ")}</p>` : ""}</div>`;
+    .join(
+      "",
+    )}</div>${stage.open && !stage.settled && stage.margin > 0 ? `<p class="seat-margin">领先 ${number(stage.margin)} ${unit} · 同价优先 ${s.priority.map((i) => npc[i]).join(" → ")}</p>` : ""}</div>`;
 }
 function history(s) {
   if (!s.history.length) return "";
@@ -660,6 +690,7 @@ document.addEventListener("click", (event) => {
   }
   if (!account?.user) return;
   if (b.hasAttribute("data-view")) {
+    pauseReveal();
     view = b.dataset.view;
     renderPlay();
     perform(async () => {
@@ -700,6 +731,8 @@ document.addEventListener("click", (event) => {
   if (b.hasAttribute("data-reveal") && b.dataset.reveal === "auto") {
     const loop = ensureRevealLoop();
     if (!loop) return;
+    revealResumeEpoch++;
+    revealPausedByHidden = false;
     if (loop.state === "running") loop.pause();
     else loop.start();
     renderPlay();
@@ -747,6 +780,10 @@ document.addEventListener("click", (event) => {
       return;
     }
     if (b.hasAttribute("data-reveal")) {
+      if (revealLoop?.busy) {
+        toast("正在确认上一件藏品，请稍候。");
+        return;
+      }
       if (revealLoop) {
         revealLoop.dispose();
         revealLoop = null;
@@ -914,11 +951,41 @@ document.addEventListener("visibilitychange", () => {
   }
   if (!revealPausedByHidden || !revealLoop || !guild) return;
   revealPausedByHidden = false;
-  const loop = revealLoop;
+  const loop = revealLoop,
+    g = guild,
+    e = epoch,
+    resume = revealResumeEpoch;
   (async () => {
     try {
-      game = (await api(`state?guild=${guild}`)).data;
-      if (revealLoop === loop && loop.state === "paused") {
+      // A step already in flight will finish naturally; keep its server answer.
+      if (loop.busy) {
+        if (
+          view === "auction" &&
+          location.hash === "#play" &&
+          !document.hidden &&
+          !$("#detail-dialog").open &&
+          !busy
+        )
+          loop.start();
+        return;
+      }
+      const answer = await api(`state?guild=${g}`);
+      if (
+        guild !== g ||
+        epoch !== e ||
+        revealLoop !== loop ||
+        resume !== revealResumeEpoch
+      )
+        return;
+      game = answer.data;
+      if (
+        loop.state === "paused" &&
+        view === "auction" &&
+        location.hash === "#play" &&
+        !document.hidden &&
+        !$("#detail-dialog").open &&
+        !busy
+      ) {
         renderPlay();
         loop.start();
       } else renderPlay();
