@@ -700,3 +700,18 @@ test("npc offers stay under their own valuation after the aggression tuning", ()
  // a reasonable player win only about a third of the rounds.
  assert.ok(Math.floor(value*1.08*0.94*1.1)>value*0.95);
 });
+test("opening notice publishes only the best quality tier and never the goods", t => {
+ const e=setup(t),s=open(e.auction);
+ const token=s.session.token;
+ const state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
+ const top=Math.max(...state.items.map(x=>x.quality));
+ assert.deepEqual(Object.keys(s.session.notice),['top']);
+ assert.equal(s.session.notice.top,top);
+ const raw=JSON.stringify(s.session.notice);
+ assert(!raw.includes(state.items[0].name));
+ assert(!/[a-z]+-/i.test(raw));
+ // Sessions stored before the notice existed keep working and simply report none.
+ state.notice=undefined;
+ e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
+ assert.equal(e.auction.view(base).session.notice,null);
+});
