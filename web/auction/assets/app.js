@@ -400,6 +400,8 @@ const REVEAL_SPIN_MS = [420, 620, 820, 1080, 1340, 1700];
 let revealSuspense = null;
 let settledSoundToken = null;
 let roomState = null;
+// Flip to true once the bidding screen ships (M3): starting a room escrows money.
+const ROOM_BIDDING_READY = false;
 const sleepFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function playSuspense(session) {
   const last = session?.reveal?.last,
@@ -621,7 +623,9 @@ function renderRoom() {
   let controls = "";
   if (waiting) {
     if (r.host) {
-      controls = `<button class="button primary wide" data-room-start${r.canStart ? "" : " disabled"}>开局${r.canStart ? "" : "（等大家准备）"} →</button>`;
+      controls = ROOM_BIDDING_READY
+        ? `<button class="button primary wide" data-room-start${r.canStart ? "" : " disabled"}>开局${r.canStart ? "" : "（等大家准备）"} →</button>`
+        : `<button class="button primary wide" disabled>竞价界面马上到</button><p class="room-hint">开局就会托管入场费和预算，所以先别急着开。</p>`;
     } else {
       controls = `<button class="button ${you?.ready ? "outline" : "primary"} wide" data-room-ready="${you?.ready ? "0" : "1"}">${you?.ready ? "取消准备" : "准备好了"}</button>`;
     }

@@ -36,6 +36,7 @@ const allowedActions = {
   roomRole: ["role"],
   roomReady: ["ready"],
   roomStart: [],
+  roomBid: ["bid"],
   auctionExchangeConvert: ["token", "direction", "amount"],
   auctionInventorySelect: ["token", "selected"],
   auctionInventoryQuote: ["token", "quality"],
