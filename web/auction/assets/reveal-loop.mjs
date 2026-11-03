@@ -84,7 +84,11 @@ export function createRevealLoop(options = {}) {
       onStall(before);
       return;
     }
-    if (state !== "running") return;
+    if (state !== "running") {
+      // Publish the cleared busy flag even if pause happened during the request.
+      onChange(state);
+      return;
+    }
     handle = schedule(() => {
       handle = null;
       step();

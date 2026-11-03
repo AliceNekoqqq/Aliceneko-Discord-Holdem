@@ -410,3 +410,18 @@ test("a deliberate pause cancels a pending visibility resume", async () => {
   assert.equal(loop.state, "paused");
   loop.dispose();
 });
+
+
+test("finishing a paused request republishes idle controls without another reveal", async () => {
+  let count = 0, finish;
+  const states = [];
+  const loop = createRevealLoop({
+    getStep: () => count, isComplete: () => false,
+    reveal: () => new Promise((resolve) => { finish = () => { count++; resolve(); }; }),
+    onChange: (state) => states.push({ state, busy: loop.busy }),
+    schedule: () => { throw Error("paused request scheduled another step"); },
+  });
+  loop.start(); loop.pause(); finish(); await settle();
+  assert.equal(loop.state, "paused"); assert.equal(loop.busy, false);
+  assert.deepEqual(states.at(-1), { state: "paused", busy: false }); loop.dispose();
+});
