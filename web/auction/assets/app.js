@@ -1,5 +1,8 @@
-const LIVE = "https://discord-holdem.aliceneko.workers.dev",
-  sameOrigin = location.origin === LIVE;
+const PRIMARY = "https://auction.alicenekoqqq.cc.cd",
+  sameOrigin = [PRIMARY, "https://discord-holdem.aliceneko.workers.dev"].includes(
+    location.origin,
+  ),
+  LIVE = sameOrigin ? location.origin : PRIMARY;
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)],
   escape = (x) =>

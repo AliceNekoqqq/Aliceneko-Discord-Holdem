@@ -44,7 +44,7 @@ const baseHeaders = {
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
 };
 const csp =
-  "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://cdn.discordapp.com https://discord-holdem.aliceneko.workers.dev; connect-src 'self' https://discord-holdem.aliceneko.workers.dev; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
+  "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://cdn.discordapp.com https://discord-holdem.aliceneko.workers.dev https://auction.alicenekoqqq.cc.cd; connect-src 'self' https://discord-holdem.aliceneko.workers.dev; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
 class WebsiteError extends Error {
   constructor(status, message) {
     super(message);
