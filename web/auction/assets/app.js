@@ -247,10 +247,46 @@ function renderAccount() {
 function legend() {
   return `<div class="quality-legend">${meta.qualities.map((q, i) => `<span class="q${i}">${q}品质</span>`).join("")}</div>`;
 }
+// Column letters and row numbers around the warehouse grid. Labels are built
+// from the session's own board size, so 8x4, 8x6 and 10x8 all read correctly.
+function frameBoard(board, b) {
+  const host = board.parentElement;
+  if (!host) return;
+  let frame = host.querySelector(":scope > .board-frame");
+  if (!frame) {
+    frame = document.createElement("div");
+    frame.className = "board-frame";
+    const cols = document.createElement("div");
+    cols.className = "board-col-labels";
+    cols.setAttribute("aria-hidden", "true");
+    const rows = document.createElement("div");
+    rows.className = "board-row-labels";
+    rows.setAttribute("aria-hidden", "true");
+    board.replaceWith(frame);
+    frame.append(cols, rows, board);
+  }
+  const cols = frame.querySelector(".board-col-labels"),
+    rows = frame.querySelector(".board-row-labels");
+  cols.replaceChildren(
+    ...Array.from({ length: b.cols }, (_, i) => {
+      const n = document.createElement("span");
+      n.textContent = String.fromCharCode(65 + i);
+      return n;
+    }),
+  );
+  rows.replaceChildren(
+    ...Array.from({ length: b.rows }, (_, i) => {
+      const n = document.createElement("span");
+      n.textContent = String(i + 1);
+      return n;
+    }),
+  );
+}
 function mountBoard(s, selector = "#warehouse-board") {
   const board = $(selector);
   if (!board) return;
   const b = s.board;
+  frameBoard(board, b);
   board.style.aspectRatio = `${b.cols} / ${b.rows}`;
   board.style.backgroundSize = `${100 / b.cols}% 100%, 100% ${100 / b.rows}%`;
   board.innerHTML = "";

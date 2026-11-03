@@ -3573,3 +3573,90 @@ summary:focus-visible {
     border-radius: 14px;
   }
 }
+
+/* ==== rail icons + board coordinates (DeepSeek, 2026-11-04) ==== */
+.game-tabs > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.game-tabs > button svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+
+.game-tabs > button:hover svg,
+.game-tabs > button.active svg {
+  opacity: 1;
+}
+
+.game-tabs > .refresh-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Board reads like a coordinate grid: A-H across, 1-8 down. */
+.board-frame {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-rows: 16px minmax(0, 1fr);
+  gap: 4px;
+}
+
+.board-col-labels {
+  grid-area: 1 / 2;
+  display: flex;
+}
+
+.board-row-labels {
+  grid-area: 2 / 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.board-frame > .warehouse-board {
+  grid-area: 2 / 2;
+}
+
+.board-col-labels span,
+.board-row-labels span {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  font: 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #7d97b0;
+  letter-spacing: 0.5px;
+}
+
+@media (max-width: 900px) {
+  .game-tabs > button {
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+  }
+  .game-tabs > button svg {
+    width: 17px;
+    height: 17px;
+  }
+  .game-tabs > button .tab-label {
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+  .board-frame {
+    grid-template-columns: 14px minmax(0, 1fr);
+    grid-template-rows: 13px minmax(0, 1fr);
+    gap: 3px;
+  }
+  .board-col-labels span,
+  .board-row-labels span {
+    font-size: 9px;
+  }
+}
