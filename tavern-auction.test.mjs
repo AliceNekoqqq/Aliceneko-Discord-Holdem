@@ -5,7 +5,7 @@ import {writeFile} from 'node:fs/promises';
 import {TavernService} from './tavern-service.mjs';
 import {TavernAuction,AUCTION_QUALITY_WEIGHTS,AUCTION_LEGACY_WEIGHTS,AUCTION_TIERS,AUCTION_MAX_BUDGET,AUCTION_TTL,AUCTION_READY_TTL,auctionRandom,generateAuction,revealAuction,estimateAuction,npcAuctionBid,decideAuction} from './tavern-auction.mjs';
 import {AUCTION_RATE as R,auctionAmount as formatAuctionAmount,EXCHANGE_TTL,EXCHANGE_MAX,TavernAuctionCurrency} from './tavern-auction-currency.mjs';
-import {AUCTION_ITEMS,AUCTION_ITEMS_V3,scaleAuctionValue,AUCTION_ITEMS_V2,AUCTION_ITEMS_LEGACY,auctionCatalogPage,auctionCatalogFor} from './tavern-auction-data.mjs';
+import {AUCTION_ITEMS,AUCTION_ITEMS_V4,auctionItemWeight,auctionItemChance,AUCTION_ITEMS_V3,scaleAuctionValue,AUCTION_ITEMS_V2,AUCTION_ITEMS_LEGACY,auctionCatalogPage,auctionCatalogFor} from './tavern-auction-data.mjs';
 import {createHash} from 'node:crypto';
 import {auctionData,auctionRules,auctionCatalog} from './tavern-auction-ui.mjs';
 import {currencyData} from './tavern-auction-currency-ui.mjs';
@@ -498,10 +498,10 @@ test('warehouse UI next/all controls stay private, do not spoil results and prod
 });
 
 test('repriced catalog preserves all identities, has natural tails and increases average value with occupied area',async()=>{
- assert.equal(auctionCatalogFor(4),AUCTION_ITEMS);assert.equal(auctionCatalogFor(3),AUCTION_ITEMS_V3);
+ assert.equal(auctionCatalogFor(4),AUCTION_ITEMS_V4);assert.equal(auctionCatalogFor(5),AUCTION_ITEMS);assert.equal(auctionCatalogFor(3),AUCTION_ITEMS_V3);
  const priceFile=JSON.parse(await readFile(new URL('./assets/auction-art/prices-v1.json',import.meta.url)));
  assert.equal(priceFile.items.length,192);assert.equal(new Set(priceFile.items.map(x=>x.id)).size,192);
- for(let i=0;i<192;i++){const {value,...identity}=AUCTION_ITEMS[i],{value:oldValue,...oldIdentity}=AUCTION_ITEMS_V3[i];assert.deepEqual(identity,oldIdentity);assert(Number.isSafeInteger(value)&&value>0);assert.equal(value,priceFile.items[i].value);}
+ for(let i=0;i<192;i++){const {value,dropWeight,rarity,...identity}=AUCTION_ITEMS[i],{value:oldValue,...oldIdentity}=AUCTION_ITEMS_V3[i];assert.deepEqual(identity,oldIdentity);assert(Number.isSafeInteger(value)&&value>0);assert.equal(value,priceFile.items[i].value);}
  assert(AUCTION_ITEMS.filter(x=>x.value%100000!==0).length>185);assert.equal(formatAuctionAmount(0.00001),'0.00001');
  for(let q=0;q<6;q++){
   const means=[1,2,4].map(area=>{const xs=AUCTION_ITEMS.filter(x=>x.quality===q&&x.width*x.height===area);return xs.reduce((s,x)=>s+x.value,0)/xs.length;});
@@ -514,27 +514,27 @@ test('every repriced item scales to whole coins and disclosed shape estimates us
  for(const config of Object.values(AUCTION_TIERS))for(let q=0;q<6;q++){
   const pool=AUCTION_ITEMS.filter(x=>x.quality===q);
   for(let j=0;j<pool.length;j++){
-   let call=0;const item=generateAuction(()=>call++%2?j:tickets[q],R*config.scale)[0];
+   let call=0;const start=pool.slice(0,j).reduce((s,x)=>s+x.dropWeight,0),item=generateAuction(()=>call++%2?start:tickets[q],R*config.scale)[0];
    assert.equal(item.id,pool[j].id);assert.equal(item.value,Math.floor(pool[j].value*config.scale));assert(Number.isSafeInteger(item.value));
   }
   for(const [width,height]of [[1,1],[1,2],[2,2]]){
    const xs=pool.filter(x=>x.width===width&&x.height===height),info={highCount:null,items:[{quality:q,width,height}]};
-   assert(Math.abs(estimateAuction(info,R*config.scale)-xs.reduce((s,x)=>s+Math.floor(x.value*config.scale),0)/xs.length)<.001);
+   assert(Math.abs(estimateAuction(info,R*config.scale)-xs.reduce((s,x)=>s+Math.floor(x.value*config.scale)*x.dropWeight,0)/xs.reduce((s,x)=>s+x.dropWeight,0))<.001);
   }
  }
 });
-test('unconfirmed jackpot risk is discounted for both sides only in version 4, without reading hidden objects',()=>{
+test('unconfirmed jackpot risk is discounted in priced catalogs without reading hidden objects',()=>{
  const info={highCount:null,items:Array.from({length:8},()=>({quality:null,width:null,height:null}))};
- const arithmetic=AUCTION_ITEMS.reduce((sum,x)=>sum+x.value*AUCTION_QUALITY_WEIGHTS[x.quality]/AUCTION_ITEMS.filter(y=>y.quality===x.quality).length/100,0)*8;
+ const arithmetic=AUCTION_ITEMS.reduce((sum,x)=>sum+x.value*auctionItemChance(x,AUCTION_QUALITY_WEIGHTS[x.quality]).slot,0)*8;
  assert(estimateAuction(info)<arithmetic);assert(Math.abs(estimateAuction(info,R,AUCTION_ITEMS_V3)-208.4*R)<.001);
  const red={highCount:null,items:[{quality:5,width:null,height:null}]},xs=AUCTION_ITEMS.filter(x=>x.quality===5);
- assert(Math.abs(estimateAuction(red)-xs.reduce((s,x)=>s+x.value,0)/xs.length)<.001);
+ assert(Math.abs(estimateAuction(red)-xs.reduce((s,x)=>s+x.value*x.dropWeight,0)/xs.reduce((s,x)=>s+x.dropWeight,0))<.001);
  const poisoned={...info,get actualItems(){throw Error('secret');},get bid(){throw Error('secret');}};
  assert.equal(estimateAuction(poisoned),estimateAuction(info));
  assert.equal(npcAuctionBid({...red,items:Array(8).fill(red.items[0])},5,2,n=>n-1),AUCTION_TIERS.standard.budget);
 });
 test('casino.9 sessions retain old prices, escrow limits, future NPC quotes and receipts after repricing',t=>{
- const e=setup(t),started=open(e.auction),token=started.session.token;assert.equal(started.session.catalogVersion,4);
+ const e=setup(t),started=open(e.auction),token=started.session.token;assert.equal(started.session.catalogVersion,5);
  const state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
  delete state.inventoryVersion;delete state.skillVersion;state.catalogVersion=3;state.budget=200*R;state.fee=10*R;state.items=generateAuction(n=>n-1,R,AUCTION_ITEMS_V3);state.committed=[100*R,100*R,100*R];
  e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
@@ -609,7 +609,7 @@ test('aggregate area valuation matches exhaustive conditional pricing after per-
 test('aggregate clues handle zero and eight high items and reject impossible count or area states',()=>{
  const info={highCount:0,highCounts:[0,0,0],highArea:0,items:Array.from({length:8},()=>({quality:null,width:null,height:null}))};
  assert(Number.isFinite(estimateAuction(info)));
- const red=AUCTION_ITEMS.filter(x=>x.quality===5&&x.width*x.height===4),expected=8*red.reduce((s,x)=>s+x.value,0)/red.length;
+ const red=AUCTION_ITEMS.filter(x=>x.quality===5&&x.width*x.height===4),expected=8*red.reduce((s,x)=>s+x.value*x.dropWeight,0)/red.reduce((s,x)=>s+x.dropWeight,0);
  assert(Math.abs(estimateAuction({...info,highCount:8,highCounts:[0,0,8],highArea:32})-expected)<.001);
  for(const extra of [{highCounts:[-1,1,0]},{highCounts:[0,0,9],highCount:9},{highCounts:[0,0,1]},{highArea:1},{highCounts:[1,0,0],highCount:1,highArea:3},{highArea:0.5},{highCounts:[0,0]}])assert.throws(()=>estimateAuction({...info,...extra}),/线索/);
 });
@@ -636,4 +636,52 @@ test('new players and NPCs share progressive skills while unversioned saved game
    force(e,token,[BUDGET,BUDGET,BUDGET]);e.auction.bid({...base,token,round,bid:BUDGET},1020+round);
   }
  }
+});
+
+
+test('independent item weights cover every quality ticket, every object boundary and both legacy uniform and new weighted draws',()=>{
+ const tickets=[0,30,55,75,88,99];
+ for(let q=0;q<6;q++){
+  const pool=AUCTION_ITEMS.filter(x=>x.quality===q),sum=pool.reduce((s,x)=>s+x.dropWeight,0);let offset=0;
+  assert(new Set(pool.map(x=>x.dropWeight)).size>pool.length*.8);
+  assert(Math.abs(pool.reduce((s,x)=>s+auctionItemChance(x,AUCTION_QUALITY_WEIGHTS[q]).within,0)-1)<1e-12);
+  assert(Math.abs(pool.reduce((s,x)=>s+auctionItemChance(x,AUCTION_QUALITY_WEIGHTS[q]).slot,0)-AUCTION_QUALITY_WEIGHTS[q]/100)<1e-12);
+  for(const item of pool){
+   assert(Number.isSafeInteger(item.dropWeight)&&item.dropWeight>0);
+   for(const ticket of [offset,offset+item.dropWeight-1]){let k=0;const drawn=generateAuction(n=>k++%2===0?tickets[q]:(assert.equal(n,sum),ticket));assert(drawn.every(x=>x.id===item.id));}
+   offset+=item.dropWeight;
+  }
+  for(let j=0;j<pool.length;j++){let k=0;assert(generateAuction(n=>k++%2===0?tickets[q]:(assert.equal(n,pool.length),j),R,AUCTION_ITEMS_V4).every(x=>x.id===pool[j].id));}
+ }
+ const miniature=Array.from({length:6},(_,quality)=>[2,5,9].map((dropWeight,j)=>({id:`${quality}-${j}`,quality,width:1,height:1,value:100,dropWeight}))).flat();
+ for(let q=0;q<6;q++){const counts=[0,0,0];for(let ticket=0;ticket<16;ticket++){let k=0;const x=generateAuction(()=>k++%2===0?tickets[q]:ticket,R,miniature)[0];counts[Number(x.id.split('-')[1])]++;}assert.deepEqual(counts,[2,5,9]);}
+});
+test('transcendent collectibles have reachable low odds without hidden pity, price changes or footprint-based rarity',()=>{
+ const cup=AUCTION_ITEMS.find(x=>x.id==='tavern-5-12'),butterfly=AUCTION_ITEMS.find(x=>x.id==='tavern-5-34'),ordinary=AUCTION_ITEMS.find(x=>x.id==='tavern-5-28');
+ assert(cup.dropWeight<butterfly.dropWeight&&butterfly.dropWeight<ordinary.dropWeight/10);assert.equal(cup.rarity,'传世');assert.equal(butterfly.rarity,'传世');
+ const p=auctionItemChance(cup,1);assert(p.within>0&&p.within<.001);assert(Math.abs(p.slot-p.within*.01)<1e-15);assert(Math.abs(p.warehouse-(1-(1-p.slot)**8))<1e-14);
+ const cheap=AUCTION_ITEMS.find(x=>x.id==='tavern-4-14'),large=AUCTION_ITEMS.find(x=>x.id==='tavern-4-27');assert(cheap.value<large.value&&cheap.dropWeight<large.dropWeight);
+ assert.deepEqual(AUCTION_ITEMS.map(({dropWeight,rarity,...x})=>x),AUCTION_ITEMS_V4);assert(AUCTION_ITEMS_V4.every(x=>!Object.hasOwn(x,'dropWeight')));
+ const text=auctionCatalog('3','1',5,1).content;assert(text.includes('传世'));assert(text.includes('同色'));assert(text.includes('每件'));assert(!text.includes('同品质内各件等概率'));
+});
+test('weighted aggregate-area valuation matches exhaustive ordered draws rather than uniform category means',()=>{
+ const pool=Array.from({length:6},(_,quality)=>[1,2,4,4].map((area,j)=>({quality,width:area===4?2:1,height:area===1?1:2,value:103+quality*131+j*71,dropWeight:[2,3,5,11][j]}))).flat();
+ for(const {scale}of Object.values(AUCTION_TIERS)){
+  const unit=R*scale,totals=new Map(),mean=q=>pool.filter(x=>x.quality===q).reduce((s,x)=>s+scaleAuctionValue(x.value,unit)*x.dropWeight,0)/21,low=5*[0,1,2].reduce((s,q)=>s+AUCTION_QUALITY_WEIGHTS[q]/75*mean(q),0);
+  for(const a of pool.filter(x=>x.quality===3))for(const b of pool.filter(x=>x.quality===4))for(const c of pool.filter(x=>x.quality===5)){
+   const xs=[a,b,c],area=xs.reduce((s,x)=>s+x.width*x.height,0),weight=a.dropWeight*b.dropWeight*c.dropWeight,d=totals.get(area)||{sum:0,weight:0};d.sum+=weight*xs.reduce((s,x)=>s+scaleAuctionValue(x.value,unit),0);d.weight+=weight;totals.set(area,d);
+  }
+  const info={highCount:3,highCounts:[1,1,1],items:Array.from({length:8},()=>({quality:null,width:null,height:null}))};
+  assert(Math.abs(estimateAuction(info,unit,pool)-low-mean(3)-mean(4)-mean(5))<1e-9);
+  for(const [highArea,d]of totals)assert(Math.abs(estimateAuction({...info,highArea},unit,pool)-low-d.sum/d.weight)<1e-9);
+ }
+});
+test('casino.12 active sessions keep uniform posterior estimates, sealed quotes and future NPC bids after weighting',t=>{
+ const e=setup(t),opened=open(e.auction,'viktor'),token=opened.session.token,state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
+ state.catalogVersion=4;state.items=generateAuction(n=>n-1,R,AUCTION_ITEMS_V4);state.committed=[40*R,40*R,40*R];state.infos=Array.from({length:4},()=>({highCount:8,items:Array.from({length:8},()=>({quality:null,width:null,height:null}))}));
+ e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);const before=e.auction.view(base,1004),balance=before.balance;
+ assert.equal(before.session.estimate,Math.floor(estimateAuction(state.infos[0],R,AUCTION_ITEMS_V4)));assert.notEqual(before.session.estimate,Math.floor(estimateAuction(state.infos[0])));assert(auctionData(before,'3','1').content.includes('同品质等概率'));
+ e.auction.bid({...base,token,round:1,bid:40*R},1005);const after=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
+ assert.deepEqual(after.history[0].bids,[40*R,40*R,40*R,40*R]);assert.deepEqual(after.items,state.items);assert.equal(e.fx.balance('1'),balance);
+ assert.deepEqual(after.committed,after.infos.slice(1).map((info,j)=>npcAuctionBid(info,2,j,n=>n-1,R,AUCTION_ITEMS_V4,AUCTION_QUALITY_WEIGHTS,state.budget)));
 });

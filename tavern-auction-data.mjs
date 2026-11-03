@@ -2,6 +2,7 @@ import {AUCTION_RATE} from './tavern-auction-currency.mjs';
 import expansion from './assets/auction-art/expansion-v1.json' with {type:'json'};
 import additional from './assets/auction-art/expansion-v2.json' with {type:'json'};
 import prices from './assets/auction-art/prices-v1.json' with {type:'json'};
+import drops from './assets/auction-art/drop-weights-v1.json' with {type:'json'};
 // Original 24 names: approved Gemini job casino-auction-copy-20261102-v1.
 // Added 48 names and captions: authored directly per the user's no-Gemini request.
 // Original tavern catalog. Values, categories, shapes and drop weights are our adaptation.
@@ -28,11 +29,23 @@ export const AUCTION_ITEMS_V3=Object.freeze([...AUCTION_ITEMS_V2,...additional.m
  id:x.id,name:x.name,flavor:x.flavor,quality:x.quality,category:x.category,width:x.width,height:x.height,value:x.valueT*AUCTION_RATE
 }))]);
 const priceById=new Map(prices.items.map(x=>[x.id,x.value]));
-export const AUCTION_ITEMS=Object.freeze(AUCTION_ITEMS_V3.map(item=>{
+export const AUCTION_ITEMS_V4=Object.freeze(AUCTION_ITEMS_V3.map(item=>{
  const value=priceById.get(item.id);if(!Number.isSafeInteger(value)||value<1)throw Error('藏品价格表不完整。');
  return Object.freeze({...item,value});
 }));
-export const auctionCatalogFor=version=>version===4?AUCTION_ITEMS:version===3?AUCTION_ITEMS_V3:version===2?AUCTION_ITEMS_V2:AUCTION_ITEMS_LEGACY;
+const dropById=new Map(drops.items.map(x=>[x.id,x]));
+if(drops.version!==1||dropById.size!==AUCTION_ITEMS_V4.length||drops.items.length!==dropById.size)throw Error('藏品掉落表不完整。');
+export const AUCTION_ITEMS=Object.freeze(AUCTION_ITEMS_V4.map(item=>{
+ const drop=dropById.get(item.id);
+ if(!drop||!Number.isSafeInteger(drop.weight)||drop.weight<1||drop.weight>1000000||!['常见','少见','稀有','极稀有','传世'].includes(drop.rarity))throw Error('藏品掉落权重异常。');
+ return Object.freeze({...item,dropWeight:drop.weight,rarity:drop.rarity});
+}));
+export const auctionItemWeight=item=>item.dropWeight??1;
+export function auctionItemChance(item,qualityPercent,catalog=AUCTION_ITEMS){
+ const total=catalog.filter(x=>x.quality===item.quality).reduce((s,x)=>s+auctionItemWeight(x),0),within=auctionItemWeight(item)/total,slot=qualityPercent/100*within;
+ return {within,slot,warehouse:-Math.expm1(8*Math.log1p(-slot))};
+}
+export const auctionCatalogFor=version=>version===5?AUCTION_ITEMS:version===4?AUCTION_ITEMS_V4:version===3?AUCTION_ITEMS_V3:version===2?AUCTION_ITEMS_V2:AUCTION_ITEMS_LEGACY;
 export const scaleAuctionValue=(value,unit=AUCTION_RATE)=>Math.floor(value*unit/AUCTION_RATE);
 export function auctionCatalogPage(quality,page=0){
  if(!Number.isInteger(quality)||quality<0||quality>5||!Number.isInteger(page)||page<0)throw Error('无效图鉴页。');

@@ -103,13 +103,13 @@ export async function renderAuctionInventoryImage(data,env,cabinet=false){
 }
 export async function renderAuctionCatalogImage(env,quality=0,page=0){
  const {items,count,pages}=auctionCatalogPage(quality,page),heading=`${AUCTION_QUALITIES[quality]}品质 · ${page+1}/${pages}页 · 本档${count}件`;
- await prepareNicknameFont(['酒馆藏品图鉴','格','常规档竞拍币价值','小额 ×0.25 / 高额 ×3 / 典藏 ×10',heading,...items.flatMap(x=>[x.name,caption(x)])],env);
+ await prepareNicknameFont(['酒馆藏品图鉴','格','常规档竞拍币价值','小额 ×0.25 / 高额 ×3 / 典藏 ×10',heading,...items.flatMap(x=>[x.name,caption(x),x.rarity])],env);
  const art=await prepareAuctionArt(env),height=200+Math.ceil(items.length/3)*260,c=new Canvas(760,height);c.rect(0,0,760,height,C.bg);
  c.text('酒馆藏品图鉴',380,26,36,C.cream,true);c.text(heading,380,75,21,AUCTION_COLORS[quality],true);c.text('常规档竞拍币价值',380,106,17,C.muted,true);
  items.forEach((item,i)=>{
   const x=20+i%3*244,y=146+Math.floor(i/3)*260;
   frame(c,x,y,232,248,item.quality);drawAuctionItem(c,item.id,x+29,y+22,174,136,art);
-  c.text(`${item.width}×${item.height} · ${item.width*item.height}格`,x+10,y+7,13,C.muted);
+  c.text(`${item.width}×${item.height} · ${item.width*item.height}格`,x+10,y+7,13,C.muted);c.text(item.rarity,x+163,y+7,13,C.gold);
   c.text(item.name,x+116,y+164,20,C.cream,true);c.text(f(item.value),x+116,y+194,18,AUCTION_COLORS[item.quality],true);
   if(item.flavor){const chars=[...caption(item)];for(let line=0;line<2;line++)c.text(chars.slice(line*14,(line+1)*14).join(''),x+116,y+216+line*16,14,C.muted,true);}
  });
