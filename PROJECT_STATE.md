@@ -1004,3 +1004,8 @@ PR #75（671a07fab76fca2d1de7d03ea5f9b7606ed06ed9）完整CI41572358603成功，
 ## casino.13 逐件权重本地验收（2026-11-03）
 
 用户要求同色内不同概率，新增192条独立正整数权重和5档稀有标签，红1%等六档总概率保持。新局V5，历史V4及以前均匀池冻结；估价、NPC及按总格的条件期望均按本局权重，图鉴公开三个口径概率。86专项、315酒馆、93Worker通过，离线构建/真实图鉴目检通过。3万种子组/6万新旧实例/24万策略回放含生产对照；常规仓理论均值下降13.4034%，盈利与全局平衡局限明确保留，无暗调价/费用。合同与模拟见AUCTION_ITEM_DROPS文档。16文件1400行No Refactor，待PR/CI和生产验收；未操作真人资金或发测试消息。
+
+
+## casino.13 发布与生产核验（2026-11-03）
+
+PR #76特性b5b9a4a134ff3401e828fbd8f75ec9d7aac817ff，完整PR CI41573614388成功；合并caeb1a16e5b2b606ee4da0a52be6038729195960，main完整CI/部署41573810380成功。CF部署59ac2eab-2831-4af4-b0f5-f475753ec0f8，版本ba90bb3c-9a48-4b92-8297-26f6e7eb6497接收100%；15bindings及settings所有字段保持。真实HTTP health确认casino.13、ok/ready:true、Gateway connected/ready:true、identity1匹配；指令仍casino3 registered:true，failures/missing/pending为空。发布树f2ce5d16703f8b2626a0a290ec71b92bc340898d与本地验证树相同；本地功能提交49ca658对应远端b5b9a4a同树，后续从main续工。功能和发布闭环；未改真实玩家资产、未发测试消息，真人Discord手感待试玩，不重复部署。
