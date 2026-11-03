@@ -14,8 +14,9 @@ export const AUCTION_QUALITIES=Object.freeze(['白','绿','蓝','紫','金','红
 export const AUCTION_ROLES=Object.freeze({
  sophie:{name:'索菲',skill:'首轮随机获知5件品质，此后每轮再获知2件未知品质。'},
  gabriella:{name:'加布里埃拉',skill:'每轮随机获知2件完全未知藏品的品质与轮廓。'},
- viktor:{name:'维克托',skill:'开局获知紫、金、红品质藏品的合计件数。'}
+ viktor:{name:'维克托',skill:'首轮获知紫/金/红合计件数，第2轮分辨各档件数，第4轮获知这些藏品的总占格。'}
 });
+export const auctionRoleSkill=(role,version=2)=>role==='viktor'&&version<2?'开局获知紫、金、红品质藏品的合计件数。':AUCTION_ROLES[role].skill;
 export const AUCTION_QUALITY_WEIGHTS=Object.freeze([30,25,20,13,11,1]);
 export const AUCTION_LEGACY_WEIGHTS=Object.freeze([30,25,20,13,8,4]);
 const sessionWeights=state=>state.dropVersion===2?AUCTION_QUALITY_WEIGHTS:AUCTION_LEGACY_WEIGHTS;
@@ -36,8 +37,13 @@ export function generateAuction(random=auctionRandom,unit=AUCTION_RATE,catalog=A
   const pool=catalog.filter(x=>x.quality===quality),item=pool[random(pool.length)];return {...item,value:scaleAuctionValue(item.value,unit)};
  });
 }
-export function revealAuction(items,info,role,round,random=auctionRandom){
- if(role==='viktor'){info.highCount=items.filter(x=>x.quality>=3).length;return;}
+export function revealAuction(items,info,role,round,random=auctionRandom,skillVersion=1){
+ if(role==='viktor'){
+  const high=items.filter(x=>x.quality>=3);info.highCount=high.length;
+  if(skillVersion>=2&&round>=2)info.highCounts=[3,4,5].map(q=>high.filter(x=>x.quality===q).length);
+  if(skillVersion>=2&&round>=4)info.highArea=high.reduce((s,x)=>s+x.width*x.height,0);
+  return;
+ }
  const candidates=info.items.map((x,i)=>({x,i})).filter(({x})=>x.quality===null&&(role==='sophie'||x.width===null));
  const count=role==='sophie'&&round===1?5:2;
  for(const {x,i}of shuffleAuction(candidates,random).slice(0,count)){
@@ -46,8 +52,35 @@ export function revealAuction(items,info,role,round,random=auctionRandom){
  }
 }
 const emptyInfo=()=>({highCount:null,items:Array.from({length:8},()=>({quality:null,width:null,height:null}))});
+// Aggregate clues have no slot association. Condition on total area rather than guessing identities.
+function estimateHighCounts(info,unit,catalog,weights){
+ const counts=info.highCounts,n=Array.isArray(counts)?counts.reduce((s,c)=>s+c,0):NaN;
+ if(counts?.length!==3||counts.some(c=>!Number.isInteger(c)||c<0)||n>8||n!==info.highCount||info.items.length!==8||info.items.some(x=>x.quality!==null||x.width!==null||x.height!==null))throw Error('无效品质数量线索。');
+ const pools=Array.from({length:6},(_,q)=>catalog.filter(x=>x.quality===q)),mean=xs=>xs.reduce((s,x)=>s+scaleAuctionValue(x.value,unit),0)/xs.length;
+ if(pools.some(xs=>!xs.length))throw Error('藏品品质分布不完整。');
+ const lowWeight=weights.slice(0,3).reduce((s,w)=>s+w,0),low=(8-n)*pools.slice(0,3).reduce((s,xs,q)=>s+mean(xs)*weights[q]/lowWeight,0);
+ if(info.highArea===undefined)return low+counts.reduce((s,c,i)=>s+c*mean(pools[i+3]),0);
+ if(!Number.isInteger(info.highArea)||info.highArea<n||info.highArea>n*4)throw Error('无效高品质占格线索。');
+ let dp=new Map([[0,{p:1,v:0}]]);
+ counts.forEach((count,i)=>{
+  const pool=pools[i+3],groups=[...new Set(pool.map(x=>x.width*x.height))].map(area=>{
+   const xs=pool.filter(x=>x.width*x.height===area);return {area,p:xs.length/pool.length,value:mean(xs)};
+  });
+  for(let k=0;k<count;k++){
+   const next=new Map();
+   for(const [area,d]of dp)for(const g of groups){
+    const at=area+g.area;if(at>info.highArea)continue;
+    const target=next.get(at)||{p:0,v:0};target.p+=d.p*g.p;target.v+=(d.v+d.p*g.value)*g.p;next.set(at,target);
+   }
+   dp=next;
+  }
+ });
+ const observed=dp.get(info.highArea);if(!observed?.p)throw Error('高品质占格线索不匹配。');
+ return low+observed.v/observed.p;
+}
 // This function accepts ONLY an actor's disclosed information. No warehouse/state argument.
 export function estimateAuction(info,unit=AUCTION_RATE,catalog=AUCTION_ITEMS,weights=AUCTION_QUALITY_WEIGHTS){
+ if(info.highCounts!==undefined)return estimateHighCounts(info,unit,catalog,weights);
  const counts=Array.from({length:6},(_,q)=>catalog.filter(x=>x.quality===q).length);
  return info.items.reduce((sum,x)=>{
   const options=catalog.filter(c=>(x.quality===null||c.quality===x.quality)&&(x.width===null||c.width===x.width&&c.height===x.height));
@@ -99,7 +132,7 @@ export class TavernAuction {
  save(row,state){row.state=JSON.stringify(state);this.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',row.state,row.token);}
  stage(state){
   const roles=[state.role,'sophie','gabriella','viktor'];
-  roles.forEach((role,i)=>revealAuction(state.items,state.infos[i],role,state.round,this.random));
+  roles.forEach((role,i)=>revealAuction(state.items,state.infos[i],role,state.round,this.random,state.skillVersion??1));
   // Commit opponents before receiving the human's sealed offer, then persist with the round.
   state.committed=state.infos.slice(1).map((info,i)=>npcAuctionBid(info,state.round,i,this.random,state.unit??(state.currency==='auction'?AUCTION_RATE:1),auctionCatalogFor(state.catalogVersion),sessionWeights(state),state.budget??200));
  }
@@ -114,7 +147,7 @@ export class TavernAuction {
   // Whitelist: hidden catalog identities, prices and opponent information never leave the guild DO.
   return {balance:revealing?null:this.tavern.auctionCurrency.balance(p.id),tavernBalance:this.tavern.one('SELECT balance FROM tavern_members WHERE id=?',p.id).balance,stats,repeated,
    offerToken:!state||settled?this.ready(p,now):null,
-   session:state?{currency:state.currency||'tavern',catalogVersion:state.catalogVersion??1,dropVersion:state.dropVersion??1,tier:state.tier||'standard',catalogSize:auctionCatalogFor(state.catalogVersion).length,estimate:Math.floor(estimateAuction(state.infos[0],state.unit??(state.currency==='auction'?AUCTION_RATE:1),auctionCatalogFor(state.catalogVersion),sessionWeights(state))),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel,status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,history:state.history,result,info:state.infos[0],items,board:auctionBoardView(state,row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
+   session:state?{currency:state.currency||'tavern',catalogVersion:state.catalogVersion??1,dropVersion:state.dropVersion??1,skillVersion:state.skillVersion??1,tier:state.tier||'standard',catalogSize:auctionCatalogFor(state.catalogVersion).length,estimate:Math.floor(estimateAuction(state.infos[0],state.unit??(state.currency==='auction'?AUCTION_RATE:1),auctionCatalogFor(state.catalogVersion),sessionWeights(state))),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel,status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,history:state.history,result,info:state.infos[0],items,board:auctionBoardView(state,row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
  }
  view(p,now=Date.now()){
   this.validate(p);let answer;
@@ -142,7 +175,7 @@ export class TavernAuction {
    if(active){if(JSON.parse(active.state).expires<=now)this.forfeit(active,JSON.parse(active.state),now,'expired');else throw Error('你已有一局竞拍，请先恢复或结束该局。');}
    if(row.created_at+AUCTION_READY_TTL<=now)throw Error('开局窗口已过期，请刷新；尚未扣币。');
    if(this.tavern.auctionCurrency.balance(p.id)<budget+fee)throw Error(`需要${auctionAmount((budget+fee)/10000)}万竞拍币：${auctionAmount(budget/10000)}万预算及${auctionAmount(fee/10000)}万入场费，请先用酒馆币兑换。`);
-   const state={currency:'auction',catalogVersion:4,dropVersion:2,tier,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateAuction(this.random,AUCTION_RATE*scale),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},emptyInfo),history:[]};
+   const state={currency:'auction',catalogVersion:4,dropVersion:2,skillVersion:2,tier,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateAuction(this.random,AUCTION_RATE*scale),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},emptyInfo),history:[]};
    state.board=layoutAuction(state.items,row.token);
    if(p.presentation==='warehouse'){state.opened=0;state.revealOrder=state.board.map((_,i)=>i).sort((a,b)=>state.board[a].y-state.board[b].y||state.board[a].x-state.board[b].x);}
    this.stage(state);

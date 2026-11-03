@@ -1,6 +1,6 @@
 import {tavernRequest} from './tavern-service.mjs';
 import {validId} from './tavern-catalog.mjs';
-import {AUCTION_BUDGET,AUCTION_MAX_BUDGET,AUCTION_TIERS,AUCTION_ROLES,AUCTION_QUALITIES} from './tavern-auction.mjs';
+import {AUCTION_BUDGET,AUCTION_MAX_BUDGET,AUCTION_TIERS,AUCTION_ROLES,auctionRoleSkill,AUCTION_QUALITIES} from './tavern-auction.mjs';
 import {AUCTION_ITEMS,AUCTION_NPCS,auctionCatalogPage} from './tavern-auction-data.mjs';
 import {renderAuctionImage,renderAuctionCatalogImage} from './tavern-auction-image.mjs';
 import {AUCTION_RATE,auctionAmount as f} from './tavern-auction-currency.mjs';
@@ -44,7 +44,7 @@ export function auctionDeferredReply(i){
  return (i.type===3&&!p.publicEntry||i.type===5&&i.message)?{type:6}:{type:5,data:{flags:64}};
 }
 const nav=(g,id)=>row(button(g,id,'auction','刷新 / 恢复'),button(g,id,'auctionExchange','竞拍币双向兑换',1),button(g,id,'auctionRules','玩法规则'),button(g,id,'auctionCatalog','藏品图鉴'),button(g,id,'wallet','酒馆钱包'));
-export function auctionRules(g,id){return {content:`📦 **仓库盲拍 · 酒馆单人改编**\n你与3位NPC竞拍同一仓库，每库8件藏品，共5轮。每轮报一个**总价**，不累加，可下调；0表示本轮不出价。NPC先封存报价，提交后同时公开当轮4人出价。\n\n**提前成交**：最高价须严格大于第二名的2 / 1.6 / 1.3 / 1.1倍（第1至4轮）。第5轮由最高正价成交；同价按开局公布的抽签顺序优先，全部为0则流拍。\n\n**竞拍币钱包**：先用酒馆币兑换，**1酒馆币 ⇄ 100,000竞拍币**，双向免手续费。兑换按整数酒馆币计算，不足100,000的竞拍币保留。\n开局前可选小额/常规/高额/典藏档，预算250万/1000万/3000万/1亿，入场费2.5万/10万/30万/100万；货值和NPC报价同比缩放。常规档暂存1000万预算并扣10万费用；报价不另扣款。你拍中时从预算付成交价，藏品按本局固定价值自动折算竞拍币；剩余预算退回竞拍币钱包。没拍中则退回1000万，净支出10万竞拍币。\n例：150万拍中总值180万的仓库，退850万预算并结算180万，净赚20万竞拍币，可换回2酒馆币。小额档逐件向下取整至1竞拍币。无分红，无动态市场价。\n\n**线索**：品质、轮廓、占格、类别和名称分别记录。\n${Object.values(AUCTION_ROLES).map(r=>`• ${r.name}：${r.skill}`).join('\n')}\nNPC分别使用上述能力及不同出价风格，根据自己的线索估价。未知品质的大奖按保守参考价折计；确认红品质后再按完整红档价格估价。\n\n30分钟内可继续；离场或超时后，余轮按不出价处理，下次恢复时结算并退预算。每人每服同时一局，在开局频道操作。\n升级前的旧局继续按原酒馆币金额结算，不自动兑换；新局全部使用竞拍币。\n这是参考《竞拍之王》的单人改编；预算、费用、汇率、NPC、物品、平局与结算均为酒馆规则。`,components:[nav(g,id)],allowed_mentions:mentions};}
+export function auctionRules(g,id){return {content:`📦 **仓库盲拍 · 酒馆单人改编**\n你与3位NPC竞拍同一仓库，每库8件藏品，共5轮。每轮报一个**总价**，不累加，可下调；0表示本轮不出价。NPC先封存报价，提交后同时公开当轮4人出价。\n\n**提前成交**：最高价须严格大于第二名的2 / 1.6 / 1.3 / 1.1倍（第1至4轮）。第5轮由最高正价成交；同价按开局公布的抽签顺序优先，全部为0则流拍。\n\n**竞拍币钱包**：先用酒馆币兑换，**1酒馆币 ⇄ 100,000竞拍币**，双向免手续费。兑换按整数酒馆币计算，不足100,000的竞拍币保留。\n开局前可选小额/常规/高额/典藏档，预算250万/1000万/3000万/1亿，入场费2.5万/10万/30万/100万；货值和NPC报价同比缩放。常规档暂存1000万预算并扣10万费用；报价不另扣款。你拍中时从预算付成交价，藏品按本局固定价值自动折算竞拍币；剩余预算退回竞拍币钱包。没拍中则退回1000万，净支出10万竞拍币。\n例：150万拍中总值180万的仓库，退850万预算并结算180万，净赚20万竞拍币，可换回2酒馆币。小额档逐件向下取整至1竞拍币。无分红，无动态市场价。\n\n**线索**：品质、轮廓、占格、类别和名称分别记录。\n${Object.values(AUCTION_ROLES).map(r=>`• ${r.name}：${r.skill}`).join('\n')}\nNPC分别使用上述能力及不同出价风格，根据自己的线索估价。未知品质的大奖按保守参考价折计；确认红品质或红档件数后再按完整红档价格估价。\n\n30分钟内可继续；离场或超时后，余轮按不出价处理，下次恢复时结算并退预算。每人每服同时一局，在开局频道操作。\n升级前的旧局继续按原酒馆币金额结算，不自动兑换；新局全部使用竞拍币。\n这是参考《竞拍之王》的单人改编；预算、费用、汇率、NPC、物品、平局与结算均为酒馆规则。`,components:[nav(g,id)],allowed_mentions:mentions};}
 export function auctionCatalog(g,id,quality=0,page=0){
  const {items,count,pages}=auctionCatalogPage(quality,page),tabs=AUCTION_QUALITIES.map((q,n)=>button(g,id,`auctionCatalog~${n}~0`,`${q}品质 · ${AUCTION_ITEMS.filter(x=>x.quality===n).length}件`,quality===n?1:2));
  const pager=row(button(g,id,`auctionCatalog~${quality}~${Math.max(0,page-1)}`,'上一页',2,page===0),button(g,id,`auctionCatalog~${quality}~${page}`,`${page+1}/${pages}`,2,true),button(g,id,`auctionCatalog~${quality}~${Math.min(pages-1,page+1)}`,'下一页',2,page===pages-1),button(g,id,`auctionCatalog~${quality}~1`,'本档新增藏品',page===1?1:2));
@@ -59,7 +59,7 @@ export function auctionData(data,g,id,notice='',selectedTier='standard'){
   else content+=`${s.catalogVersion<4?'\n本局沿用开局时的旧价格、预算与入场费。':''}\n${AUCTION_TIERS[s.tier]?.name||'常规'}档 · 入场费 ${f(s.fee)}竞拍币 · ${f(s.fee/AUCTION_RATE)}酒馆币等值`;
   if(active){
    if(s.dropVersion===1)content+='\n本局沿用旧掉率：红4% / 金8%；其余品质不变。';
-   content+=`\n${AUCTION_ROLES[s.role].skill}\n${s.info.highCount===null?'':`紫、金、红品质合计 **${s.info.highCount}件**\n`}\n**你的仓库线索**\n${s.info.items.map((x,i)=>`${i+1}. ${x.quality===null?'品质未知':AUCTION_QUALITIES[x.quality]+'品质'} · ${x.width===null?'轮廓未知':`${x.width}×${x.height} / ${x.width*x.height}格`}`).join('\n')}`;
+   content+=`\n${auctionRoleSkill(s.role,s.skillVersion??1)}\n${s.info.highCount===null?'':`紫、金、红品质合计 **${s.info.highCount}件**\n`}${s.info.highCounts?`紫 **${s.info.highCounts[0]}件** · 金 **${s.info.highCounts[1]}件** · 红 **${s.info.highCounts[2]}件**\n`:''}${s.info.highArea===undefined?'':`这些高品质藏品合计 **${s.info.highArea}格**\n`}\n**你的仓库线索**\n${s.info.items.map((x,i)=>`${i+1}. ${x.quality===null?'品质未知':AUCTION_QUALITIES[x.quality]+'品质'} · ${x.width===null?'轮廓未知':`${x.width}×${x.height} / ${x.width*x.height}格`}`).join('\n')}`;
    content+=`\n\n${s.readOnly?`请回到 <#${s.channel}> 继续本局。`:`${s.catalogVersion>=4?'未知大奖已折计风险 · ':''}本轮报价单位：${unit}，0表示不出价。截止 <t:${Math.floor(s.expires/1000)}:R>`}`;
    const a=`${s.token}~${s.round}`;
    const estimate=s.estimate,reference=Number.isSafeInteger(estimate)?estimate:0;

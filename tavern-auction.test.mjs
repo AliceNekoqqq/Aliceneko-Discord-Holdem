@@ -83,7 +83,7 @@ test('pre-rarity 72-item sessions preserve their original prior, committed quote
  const e=setup(t),opened=open(e.auction),token=opened.session.token;
  assert.equal(opened.session.dropVersion,2);
  const state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
- delete state.dropVersion;state.catalogVersion=2;state.budget=200*R;state.items=Array.from({length:8},()=>({...AUCTION_ITEMS[0]}));
+ delete state.skillVersion;delete state.dropVersion;state.catalogVersion=2;state.budget=200*R;state.items=Array.from({length:8},()=>({...AUCTION_ITEMS[0]}));
  const clues=(count,shape=false)=>({highCount:null,items:state.items.map((_,i)=>({quality:i<count?0:null,width:shape&&i<count?1:null,height:shape&&i<count?1:null}))});
  state.infos=[clues(5),clues(5),clues(2,true),{...clues(0),highCount:0}];state.committed=[100*R,100*R,100*R];
  e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
@@ -120,7 +120,7 @@ test('the 192-item pool follows the inspected source proportions and preserves q
 test('casino.8 games with red 1 percent retain the 72-item footprint prior and future sealed bids',t=>{
  const e=setup(t),s=open(e.auction,'gabriella'),token=s.session.token;
  const state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state),item=AUCTION_ITEMS_V2.find(x=>x.quality===2&&x.width===1&&x.height===2);
- state.catalogVersion=2;state.budget=200*R;state.items=Array.from({length:8},()=>({...item}));state.infos=Array.from({length:4},()=>({highCount:null,items:state.items.map(x=>({quality:x.quality,width:x.width,height:x.height}))}));state.committed=[100*R,100*R,100*R];
+ delete state.skillVersion;state.catalogVersion=2;state.budget=200*R;state.items=Array.from({length:8},()=>({...item}));state.infos=Array.from({length:4},()=>({highCount:null,items:state.items.map(x=>({quality:x.quality,width:x.width,height:x.height}))}));state.committed=[100*R,100*R,100*R];
  e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
  const before=e.auction.view(base,1004);assert.equal(before.session.catalogSize,72);assert.equal(before.session.dropVersion,2);assert.equal(before.session.estimate,176*R);
  assert.notEqual(before.session.estimate,Math.floor(estimateAuction(state.infos[0])));
@@ -410,7 +410,7 @@ test('tier selection is free, large modals accept nine digits and references use
 });
 test('pre-tier auction-coin sessions retain standard prices, limits, later-round NPC bids and old controls',async t=>{
  const e=setup(t),s=open(e.auction),token=s.session.token,state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
- delete state.tier;delete state.unit;delete state.catalogVersion;state.budget=200*R;state.fee=10*R;delete state.dropVersion;state.items=generateAuction(n=>n-1,R,AUCTION_ITEMS_LEGACY);e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
+ delete state.skillVersion;delete state.tier;delete state.unit;delete state.catalogVersion;state.budget=200*R;state.fee=10*R;delete state.dropVersion;state.items=generateAuction(n=>n-1,R,AUCTION_ITEMS_LEGACY);e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
  const before=e.auction.view(base,1004).session,restored=new TavernAuction(e.tavern,n=>n-1);
  assert.equal(before.catalogSize,24);assert.deepEqual(JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state).committed,state.committed);
  assert.equal(restored.start({...base,token,role:'sophie'},1005).session.estimate,before.estimate);
@@ -536,7 +536,7 @@ test('unconfirmed jackpot risk is discounted for both sides only in version 4, w
 test('casino.9 sessions retain old prices, escrow limits, future NPC quotes and receipts after repricing',t=>{
  const e=setup(t),started=open(e.auction),token=started.session.token;assert.equal(started.session.catalogVersion,4);
  const state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
- state.catalogVersion=3;state.budget=200*R;state.fee=10*R;state.items=generateAuction(n=>n-1,R,AUCTION_ITEMS_V3);state.committed=[100*R,100*R,100*R];
+ delete state.skillVersion;state.catalogVersion=3;state.budget=200*R;state.fee=10*R;state.items=generateAuction(n=>n-1,R,AUCTION_ITEMS_V3);state.committed=[100*R,100*R,100*R];
  e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
  e.tavern.sql.exec('UPDATE tavern_auction_wallets SET balance=balance+? WHERE user_id=?',BUDGET+FEE-210*R,base.id);
  e.tavern.sql.exec('UPDATE tavern_auction_ledger SET amount=? WHERE id=?',-200*R,`auction:hold:${token}`);
@@ -563,11 +563,76 @@ test('new collection quotes stop at 100M while historical 200M games still accep
  const e=funded(t,5000),v=e.auction.view(base,1002),opened=e.auction.start({...base,token:v.offerToken,role:'sophie',tier:'collection'},1003),token=opened.session.token;
  const state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state),oldBudget=2000*R,oldFee=100*R;
  e.tavern.sql.exec('UPDATE tavern_auction_wallets SET balance=balance+? WHERE user_id=?',state.budget+state.fee-oldBudget-oldFee,base.id);
- state.catalogVersion=3;state.budget=oldBudget;state.fee=oldFee;state.items=generateAuction(n=>n-1,10*R,AUCTION_ITEMS_V3);
+ delete state.skillVersion;state.catalogVersion=3;state.budget=oldBudget;state.fee=oldFee;state.items=generateAuction(n=>n-1,10*R,AUCTION_ITEMS_V3);
  e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
  e.tavern.sql.exec('UPDATE tavern_auction_ledger SET amount=? WHERE id=?',-oldBudget,`auction:hold:${token}`);e.tavern.sql.exec('UPDATE tavern_auction_ledger SET amount=? WHERE id=?',-oldFee,`auction:fee:${token}`);
  const modal=immediateTavernReply(i(`auctionOffer~${token}~1~200000000`));assert.equal(modal.type,9);assert.equal(modal.data.components[0].components[0].max_length,9);
  const submitOld=submit(modal.data.custom_id.split(':')[3],'bid','200000000');assert.equal(immediateTavernReply(submitOld),null);
  let done;for(let round=1;round<=5;round++){force(e,token,[oldBudget,oldBudget,oldBudget],[0,1,2,3]);done=e.auction.bid({...base,token,round,bid:oldBudget},1004+round);}
  assert.equal(done.session.result.total,12000*R);assert.equal(done.balance,14900*R);const bid={...base,token,round:5,bid:oldBudget};assert.deepEqual(e.auction.bid(bid,1010).session.result,done.session.result);
+});
+
+test('versioned Viktor clues unlock only aggregate counts on round 2 and aggregate area on round 4',()=>{
+ const items=[0,1,2,3,3,4,4,5].map((q,i)=>({...AUCTION_ITEMS.find(x=>x.quality===q&&x.width*x.height===[1,2,4][i%3]),name:`hidden-${i}`,value:987654321+i}));
+ const info={highCount:null,items:items.map(()=>({quality:null,width:null,height:null}))},old=structuredClone(info);
+ for(let round=1;round<=5;round++){
+  revealAuction(items,info,'viktor',round,()=>{throw Error('aggregate skill must not draw randomness');},2);
+  revealAuction(items,old,'viktor',round);
+  assert.equal(info.highCount,5);assert.deepEqual(Object.keys(old).sort(),['highCount','items']);
+  assert.deepEqual(Object.keys(info).sort(),round===1?['highCount','items']:round<4?['highCount','highCounts','items']:['highArea','highCount','highCounts','items']);
+  if(round>=2)assert.deepEqual(info.highCounts,[2,2,1]);
+  if(round>=4)assert.equal(info.highArea,items.slice(3).reduce((s,x)=>s+x.width*x.height,0));
+  assert(info.items.every(x=>x.quality===null&&x.width===null&&x.height===null));
+  assert(!JSON.stringify(info).includes('hidden-'));assert(!JSON.stringify(info).includes('987654'));
+ }
+});
+test('aggregate area valuation matches exhaustive conditional pricing after per-item rounding in every tier',()=>{
+ const pool=Array.from({length:6},(_,quality)=>[1,2,4,4].map((area,j)=>({quality,width:area===4?2:1,height:area===1?1:2,value:101+quality*137+j*59}))).flat();
+ const empty=()=>Array.from({length:8},()=>({quality:null,width:null,height:null}));
+ for(const {scale}of Object.values(AUCTION_TIERS)){
+  const unit=R*scale,counts=[1,1,1],totals=new Map();
+  for(const purple of pool.filter(x=>x.quality===3))for(const gold of pool.filter(x=>x.quality===4))for(const red of pool.filter(x=>x.quality===5)){
+   const xs=[purple,gold,red],area=xs.reduce((s,x)=>s+x.width*x.height,0),d=totals.get(area)||{sum:0,count:0};
+   d.sum+=xs.reduce((s,x)=>s+scaleAuctionValue(x.value,unit),0);d.count++;totals.set(area,d);
+  }
+  const low=5*[0,1,2].reduce((s,q)=>s+AUCTION_QUALITY_WEIGHTS[q]/75*pool.filter(x=>x.quality===q).reduce((v,x)=>v+scaleAuctionValue(x.value,unit),0)/4,0);
+  for(const [highArea,d]of totals){
+   const info={highCount:3,highCounts:counts,highArea,items:empty()};
+   assert(Math.abs(estimateAuction(info,unit,pool)-low-d.sum/d.count)<1e-8);
+   assert.equal(estimateAuction({...info,hiddenWarehouse:[{value:999999999}]},unit,pool),estimateAuction(info,unit,pool));
+  }
+  const split={highCount:3,highCounts:counts,items:empty()},highMean=pool.filter(x=>x.quality>=3).reduce((s,x)=>s+scaleAuctionValue(x.value,unit),0)/4;
+  assert(Math.abs(estimateAuction(split,unit,pool)-low-highMean)<1e-8);
+ }
+});
+test('aggregate clues handle zero and eight high items and reject impossible count or area states',()=>{
+ const info={highCount:0,highCounts:[0,0,0],highArea:0,items:Array.from({length:8},()=>({quality:null,width:null,height:null}))};
+ assert(Number.isFinite(estimateAuction(info)));
+ const red=AUCTION_ITEMS.filter(x=>x.quality===5&&x.width*x.height===4),expected=8*red.reduce((s,x)=>s+x.value,0)/red.length;
+ assert(Math.abs(estimateAuction({...info,highCount:8,highCounts:[0,0,8],highArea:32})-expected)<.001);
+ for(const extra of [{highCounts:[-1,1,0]},{highCounts:[0,0,9],highCount:9},{highCounts:[0,0,1]},{highArea:1},{highCounts:[1,0,0],highCount:1,highArea:3},{highArea:0.5},{highCounts:[0,0]}])assert.throws(()=>estimateAuction({...info,...extra}),/线索/);
+});
+test('new players and NPCs share progressive skills while unversioned saved games keep old future quotes and text',t=>{
+ for(const old of [false,true]){
+  const e=setup(t),opened=open(e.auction,'viktor'),token=opened.session.token;
+  let state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
+  assert.equal(opened.session.skillVersion,2);if(old)delete state.skillVersion;
+  // A zero-high warehouse makes area 0 explicit, not an absent clue; force equal bids to reach each round.
+  state.items=state.items.map(()=>({...AUCTION_ITEMS.find(x=>x.quality===0)}));state.infos.forEach(x=>x.highCount=null);
+  e.auction.stage(state);e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
+  const before=e.auction.view(base,1004);assert.equal(before.session.skillVersion,old?1:2);
+  const savedQuotes=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state).committed;
+  e.auction.view(base,1005);assert.deepEqual(JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state).committed,savedQuotes);
+  for(let round=1;round<=5;round++){
+   const view=e.auction.view(base,1010+round),info=view.session.info,text=auctionData(view,'3','1');bounds(text);
+   assert.equal(view.session.skillVersion,old?1:2);assert.equal(text.content.includes('第2轮分辨'),!old);
+   assert.equal('highCounts'in info,!old&&round>=2);assert.equal('highArea'in info,!old&&round>=4);
+   if(!old&&round>=2)assert(text.content.includes('紫 **0件** · 金 **0件** · 红 **0件**'));
+   if(!old&&round>=4)assert(text.content.includes('合计 **0格**'));
+   state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
+   assert.deepEqual(state.infos[0],state.infos[3]);assert.equal(view.session.items,null);assert.equal(view.session.committed,undefined);
+   assert.deepEqual(state.committed,state.infos.slice(1).map((info,j)=>npcAuctionBid(info,round,j,n=>n-1,R,AUCTION_ITEMS,AUCTION_QUALITY_WEIGHTS,BUDGET)));
+   force(e,token,[BUDGET,BUDGET,BUDGET]);e.auction.bid({...base,token,round,bid:BUDGET},1020+round);
+  }
+ }
 });
