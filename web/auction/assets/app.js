@@ -1,5 +1,6 @@
 import { createRevealLoop } from "./reveal-loop.mjs";
 import { buildSeatStage } from "./seat-stage.mjs";
+import { initSound, play, soundEnabled, setSoundEnabled } from "./sound.mjs";
 const PRIMARY = "https://auction.alicenekoqqq.cc.cd",
   sameOrigin = [
     PRIMARY,
@@ -382,6 +383,7 @@ const bidStep = (s) => Math.max(1, Math.round((s?.budget ?? 0) / 100));
 // pull actually lands as a moment instead of appearing instantly.
 const REVEAL_SPIN_MS = [420, 620, 820, 1080, 1340, 1700];
 let revealSuspense = null;
+let settledSoundToken = null;
 const sleepFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function playSuspense(session) {
   const last = session?.reveal?.last,
@@ -389,8 +391,10 @@ async function playSuspense(session) {
   if (!item) return;
   revealSuspense = last;
   renderPlay();
+  play("spin");
   await sleepFor(REVEAL_SPIN_MS[item.quality] ?? 700);
   revealSuspense = null;
+  play("reveal", { quality: item.quality });
 }
 async function unlockAfterReveal(g = guild, token = game?.session?.token) {
   if (!g) return;
@@ -569,11 +573,21 @@ function renderPlay() {
       account?.user
         ? `Discord 已连接 · ${escape(guildName || "未选择服务器")}`
         : "未登录 · 仅可浏览"
-    }</span><span class="status-version">${escape(meta.version || "auction-web")}</span>`;
+    }</span><button class="sound-toggle" data-sound aria-pressed="${soundEnabled() ? "false" : "true"}">音效：${soundEnabled() ? "开" : "关"}</button><span class="status-version">${escape(meta.version || "auction-web")}</span>`;
   }
   $$("[data-view]").forEach((b) =>
     b.classList.toggle("active", b.dataset.view === view),
   );
+  const settledNow = game?.session;
+  if (
+    settledNow &&
+    settledNow.status !== "active" &&
+    settledNow.result &&
+    settledSoundToken !== settledNow.token
+  ) {
+    settledSoundToken = settledNow.token;
+    play(settledNow.result.winner === 0 ? "win" : "lose");
+  }
   if (!account?.user) {
     $("#game-content").innerHTML = demo();
     return;
@@ -710,6 +724,12 @@ function login() {
 document.addEventListener("click", (event) => {
   const b = event.target.closest("button,a");
   if (!b) return;
+  if (b.matches("button")) play("click");
+  if (b.hasAttribute("data-sound")) {
+    setSoundEnabled(!soundEnabled());
+    renderPlay();
+    return;
+  }
   if (b.matches(".dialog-close,[data-close]")) {
     closeDialog();
     return;
@@ -916,6 +936,7 @@ document.addEventListener("click", (event) => {
       await mutation("auctionInventorySell", { token: saleQuote.token });
       closeDialog();
       wallet = (await api(`wallet?guild=${guild}`)).data;
+      play("coin");
       renderPlay();
       toast("藏品已售出，竞拍币已到账。");
       return;
@@ -997,6 +1018,7 @@ document.addEventListener("submit", (event) => {
     const bid = Number($("#bid-amount").value);
     if (!Number.isSafeInteger(bid) || bid < 0 || bid > game.session.budget)
       return toast("请输入预算内的整数报价。");
+    play("seal");
     perform(async () => {
       const s = game.session;
       await mutation("auctionBid", { token: s.token, round: s.round, bid });
@@ -1088,6 +1110,7 @@ document.addEventListener("visibilitychange", () => {
 });
 async function boot() {
   try {
+    initSound();
     meta = await loadCatalog("standard");
     renderHome();
     renderCatalog();
