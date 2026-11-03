@@ -143,60 +143,21 @@
           </ol>
         </section>
       </section>
-      <section id="page-play" class="page game-page" hidden>
-        <div class="game-shell">
-          <aside class="game-rail" aria-label="游戏导航">
-            <div class="game-tabs" id="game-tabs" hidden>
-              <button data-view="auction" class="active">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19h9"/><path d="M9 15l5-5"/><path d="M12.5 4.5l7 7-3 3-7-7z"/></svg>
-                <span>拍卖大厅</span>
-              </button>
-              <button data-view="inventory">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4"/><path d="M12 12v8"/></svg>
-                <span>个人仓库</span>
-              </button>
-              <button data-view="cabinet">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"/><path d="M5 10h14M5 15h14"/><path d="M12 4v16"/></svg>
-                <span>展示柜</span>
-              </button>
-              <button data-view="wallet">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 8v8M9.5 10h5"/></svg>
-                <span>钱包</span>
-              </button>
-              <button data-refresh class="refresh-button">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 10-3 6.2"/><path d="M20 5v7h-7"/></svg>
-                <span>刷新</span>
-              </button>
-            </div>
-            <nav class="rail-links" aria-label="站内导航">
-              <a href="#home">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6 8 6"/><path d="M6 10v9h12v-9"/></svg>
-                <span>首页</span>
-              </a>
-              <a href="#catalog">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h6a3 3 0 013 3v11a2 2 0 00-2-2H5z"/><path d="M19 5h-5a3 3 0 00-3 3v11a2 2 0 012-2h6z"/></svg>
-                <span>图鉴</span>
-              </a>
-              <a href="#roles">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></svg>
-                <span>人物</span>
-              </a>
-              <a href="#rules">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M15 9l-2 5-4 2 2-5z"/></svg>
-                <span>指南</span>
-              </a>
-            </nav>
-          </aside>
-          <div class="game-stage">
-            <div class="game-hud">
-              <a class="hud-brand" href="#home"><span class="brand-mark">仓</span><strong>仓库盲拍</strong></a>
-              <div id="account-bar" class="account-bar" hidden></div>
-              <div id="hud-wallet" class="hud-wallet" aria-live="polite"></div>
-            </div>
-            <div id="login-status"></div>
-            <div id="game-content"></div>
-          </div>
+      <section id="page-play" class="page wrap inner-page" hidden>
+        <div class="page-heading">
+          <p class="eyebrow">仓门已备好</p>
+          <h1>拍卖大厅</h1>
+          <p>选服务器，接着打。</p>
+        </div>        <div id="login-status"></div>
+        <div id="account-bar" class="account-bar" hidden></div>
+        <div class="game-tabs" id="game-tabs" hidden>
+          <button data-view="auction" class="active">正在竞拍</button
+          ><button data-view="inventory">个人仓库</button
+          ><button data-view="cabinet">六格展示柜</button
+          ><button data-view="wallet">钱包兑换</button
+          ><button data-refresh class="refresh-button">刷新资产 ↻</button>
         </div>
+        <div id="game-content"></div>
       </section>
       <section id="page-catalog" class="page wrap inner-page" hidden>
         <div class="page-heading split-heading">
