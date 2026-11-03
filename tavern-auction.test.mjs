@@ -83,7 +83,7 @@ test('pre-rarity 72-item sessions preserve their original prior, committed quote
  const e=setup(t),opened=open(e.auction),token=opened.session.token;
  assert.equal(opened.session.dropVersion,2);
  const state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
- delete state.skillVersion;delete state.dropVersion;state.catalogVersion=2;state.budget=200*R;state.items=Array.from({length:8},()=>({...AUCTION_ITEMS[0]}));
+ delete state.inventoryVersion;delete state.skillVersion;delete state.dropVersion;state.catalogVersion=2;state.budget=200*R;state.items=Array.from({length:8},()=>({...AUCTION_ITEMS[0]}));
  const clues=(count,shape=false)=>({highCount:null,items:state.items.map((_,i)=>({quality:i<count?0:null,width:shape&&i<count?1:null,height:shape&&i<count?1:null}))});
  state.infos=[clues(5),clues(5),clues(2,true),{...clues(0),highCount:0}];state.committed=[100*R,100*R,100*R];
  e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
@@ -120,7 +120,7 @@ test('the 192-item pool follows the inspected source proportions and preserves q
 test('casino.8 games with red 1 percent retain the 72-item footprint prior and future sealed bids',t=>{
  const e=setup(t),s=open(e.auction,'gabriella'),token=s.session.token;
  const state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state),item=AUCTION_ITEMS_V2.find(x=>x.quality===2&&x.width===1&&x.height===2);
- delete state.skillVersion;state.catalogVersion=2;state.budget=200*R;state.items=Array.from({length:8},()=>({...item}));state.infos=Array.from({length:4},()=>({highCount:null,items:state.items.map(x=>({quality:x.quality,width:x.width,height:x.height}))}));state.committed=[100*R,100*R,100*R];
+ delete state.inventoryVersion;delete state.skillVersion;state.catalogVersion=2;state.budget=200*R;state.items=Array.from({length:8},()=>({...item}));state.infos=Array.from({length:4},()=>({highCount:null,items:state.items.map(x=>({quality:x.quality,width:x.width,height:x.height}))}));state.committed=[100*R,100*R,100*R];
  e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
  const before=e.auction.view(base,1004);assert.equal(before.session.catalogSize,72);assert.equal(before.session.dropVersion,2);assert.equal(before.session.estimate,176*R);
  assert.notEqual(before.session.estimate,Math.floor(estimateAuction(state.infos[0])));
@@ -186,19 +186,19 @@ test('new wallets start at zero; opening never converts or spends tavern coins i
  const s=e.auction.start({...base,token:v.offerToken,role:'sophie'},1006);assert.equal(s.balance,0);assert.equal(s.tavernBalance,399);assert.equal(s.session.currency,'auction');
  assert.equal(e.auction.leave({...base,token:s.session.token,round:1},1007).balance,(100*R));assert.equal(e.tavern.member('1').balance,399);
 });
-test('auction-coin fees, escrow, resale and receipts settle once across replay and reconstruction',t=>{
+test('auction-coin fees, escrow, retained inventory and receipts settle once across replay and reconstruction',t=>{
  const e=setup(t),a=e.auction,v=a.view(base,1002),p={...base,token:v.offerToken,role:'sophie'},s=a.start(p,1003),token=s.session.token;
  assert.equal(s.balance,(FUND-BUDGET-FEE));assert.equal(s.tavernBalance,0);assert.equal(s.session.items,null);const count=e.calls();assert.equal(a.start(p,1004).balance,(FUND-BUDGET-FEE));assert.equal(e.calls(),count);
- force(e,token,[(4*R),(5*R),(6*R)]);const bid={...base,token,round:1,bid:(15*R)},r=a.bid(bid,1005);assert.equal(r.balance,(FUND+TOTAL-16*R));assert.equal(r.session.result.net,(TOTAL-16*R));assert.equal(r.session.result.refund,(BUDGET-15*R));assert.equal(r.session.result.resale,TOTAL);
+ force(e,token,[(4*R),(5*R),(6*R)]);const bid={...base,token,round:1,bid:(15*R)},r=a.bid(bid,1005);assert.equal(r.balance,(FUND-16*R));assert.equal(r.session.result.net,(TOTAL-16*R));assert.equal(r.session.result.refund,(BUDGET-15*R));assert.equal(r.session.result.resale,0);
  const restored=new TavernAuction(new TavernService(e.storage),()=>{throw Error('rerolled');}),again=restored.bid(bid,2000);assert(again.repeated);assert.deepEqual(again.session.result,r.session.result);assert.equal(again.balance,r.balance);
- assert.equal(e.tavern.one("SELECT COUNT(*) n FROM tavern_auction_ledger WHERE kind LIKE 'auction_%'").n,4);assert.equal(e.tavern.member('1').balance,0);assert.equal(e.tavern.one('SELECT COUNT(*) n FROM tavern_daily').n,0);assert.equal(e.tavern.one('SELECT COUNT(*) n FROM tavern_orders').n,0);assert.throws(()=>restored.bid({...bid,bid:(15*R-1)}),/另一报价/);
+ assert.equal(e.tavern.one("SELECT COUNT(*) n FROM tavern_auction_ledger WHERE kind LIKE 'auction_%'").n,3);assert.equal(e.tavern.member('1').balance,0);assert.equal(e.tavern.one('SELECT COUNT(*) n FROM tavern_daily').n,0);assert.equal(e.tavern.one('SELECT COUNT(*) n FROM tavern_orders').n,0);assert.throws(()=>restored.bid({...bid,bid:(15*R-1)}),/另一报价/);
 });
 test('five-round bids may decrease and include single auction coins; settlement preserves the exact remainder',t=>{
  const e=setup(t),s=open(e.auction),token=s.session.token;let r;
  for(let round=1;round<=5;round++){force(e,token,[(10*R),(10*R),(10*R)],[0,1,2,3]);r=e.auction.bid({...base,token,round,bid:round===1?(15*R):(10*R+1)},1010+round);}
- assert.equal(r.session.result.price,(10*R+1));assert.equal(r.balance,(FUND+TOTAL-11*R-1));assert.equal(r.session.history.length,5);
+ assert.equal(r.session.result.price,(10*R+1));assert.equal(r.balance,(FUND-11*R-1));assert.equal(r.session.history.length,5);
  assert(e.auction.bid({...base,token,round:1,bid:(15*R)},2000).repeated);
- const v=e.fx.view(base,2001),out=e.fx.convert({...base,token:v.token,direction:'sell',amount:Math.floor((FUND+TOTAL-11*R-1)/R)},2002);assert.equal(out.tavernBalance,Math.floor((FUND+TOTAL-11*R-1)/R));assert.equal(out.auctionBalance,(FUND+TOTAL-11*R-1)%R);
+ const v=e.fx.view(base,2001),out=e.fx.convert({...base,token:v.token,direction:'sell',amount:Math.floor((FUND-11*R-1)/R)},2002);assert.equal(out.tavernBalance,Math.floor((FUND-11*R-1)/R));assert.equal(out.auctionBalance,(FUND-11*R-1)%R);
 });
 test('loss, all-pass, leaving and expiry return escrow to auction coins only',t=>{
  for(const mode of ['loss','pass','leave','expired']){
@@ -225,8 +225,8 @@ test('auction entry and settlement failures roll back both state and currency le
  const e=setup(t),a=e.auction,v=a.view(base,1002),p={...base,token:v.offerToken,role:'sophie'},exec=e.storage.sql.exec;
  e.storage.sql.exec=(q,...args)=>{if(args[3]==='auction_hold')throw Error('disk');return exec(q,...args);};assert.throws(()=>a.start(p,1003),/disk/);e.storage.sql.exec=exec;assert.equal(a.view(base,1004).balance,FUND);
  const s=a.start(p,1005),token=s.session.token;force(e,token,[(4*R),(5*R),(6*R)]);const before=e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state;
- e.storage.sql.exec=(q,...args)=>{if(args[3]==='auction_sale')throw Error('disk');return exec(q,...args);};assert.throws(()=>a.bid({...base,token,round:1,bid:(15*R)},1006),/disk/);e.storage.sql.exec=exec;
- assert.equal(a.view(base,1007).balance,(FUND-BUDGET-FEE));assert.equal(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state,before);assert.equal(a.bid({...base,token,round:1,bid:(15*R)},1008).balance,(FUND+TOTAL-16*R));
+ e.storage.sql.exec=(q,...args)=>{if(q.startsWith('INSERT INTO tavern_auction_inventory('))throw Error('disk');return exec(q,...args);};assert.throws(()=>a.bid({...base,token,round:1,bid:(15*R)},1006),/disk/);e.storage.sql.exec=exec;
+ assert.equal(a.view(base,1007).balance,(FUND-BUDGET-FEE));assert.equal(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state,before);assert.equal(a.bid({...base,token,round:1,bid:(15*R)},1008).balance,(FUND-16*R));
 });
 test('legacy sessions retain tavern-coin escrow, original values, NPC scale, receipts and separate statistics',t=>{
  const e=setup(t,0),token=legacy(e);force(e,token,[100,100,100]);let r=e.auction.bid({...base,token,round:1,bid:100},1001);
@@ -241,7 +241,7 @@ test('legacy expiry refunds only the original tavern escrow; retry cannot inflat
 });
 test('new-currency full-budget purchase and expired duplicate requests settle once',t=>{
  const e=setup(t),s=open(e.auction),token=s.session.token,state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);state.items=Array.from({length:8},()=>({...AUCTION_ITEMS[0]}));state.committed=[(4*R),(5*R),(6*R)];e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
- const r=e.auction.bid({...base,token,round:1,bid:BUDGET},1004);assert.equal(r.balance,(FUND-BUDGET-FEE+8*AUCTION_ITEMS[0].value));assert.equal(r.session.result.refund,0);assert.equal(r.session.result.net,(8*AUCTION_ITEMS[0].value-BUDGET-FEE));
+ const r=e.auction.bid({...base,token,round:1,bid:BUDGET},1004);assert.equal(r.balance,(FUND-BUDGET-FEE));assert.equal(r.session.result.refund,0);assert.equal(r.session.result.net,(8*AUCTION_ITEMS[0].value-BUDGET-FEE));
  const e2=setup(t),v=e2.auction.view(base,1002),p={...base,token:v.offerToken,role:'sophie'},s2=e2.auction.start(p,1003);force(e2,s2.session.token,[(10*R),(10*R),(10*R)]);const b={...base,token:s2.session.token,round:1,bid:(10*R)};e2.auction.bid(b,1004);assert.equal(e2.auction.bid(b,1003+AUCTION_TTL).balance,(FUND-FEE));assert.equal(e2.auction.start(p,1004+AUCTION_TTL).balance,(FUND-FEE));
 });
 test('two-way fixed-rate exchanges conserve value exactly, leave dust, survive restarts and are idempotent',t=>{
@@ -355,7 +355,7 @@ test('new maximum-value collections settle above 32-bit amounts and cash out exa
  const top=AUCTION_ITEMS.reduce((a,b)=>a.value>b.value?a:b);state.items=Array.from({length:8},()=>({...top,value:top.value*10}));state.board=layoutAuction(state.items,p.token);state.committed=[0,0,0];
  e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),p.token);
  const bid={...base,token:p.token,round:1,bid:1},end=e.auction.bid(bid,1004),ledger=e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n;
- assert.equal(end.session.result.total,top.value*80);assert.equal(end.balance,20000*R-AUCTION_TIERS.collection.fee-1+top.value*80);bounds(auctionData(end,'3','1'));
+ assert.equal(end.session.result.total,top.value*80);assert.equal(end.balance,20000*R-AUCTION_TIERS.collection.fee-1);bounds(auctionData(end,'3','1'));
  const restored=new TavernAuction(new TavernService(e.storage),()=>{throw Error('rerolled');});assert.deepEqual(restored.bid(bid,1005).session.result,end.session.result);
  assert.equal(e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n,ledger);
  const fx=e.fx.view(base,1006),out=e.fx.convert({...base,token:fx.token,direction:'sell',amount:Math.floor(end.balance/R)},1007);
@@ -367,7 +367,7 @@ test('large-stake settlement, service restart, retries and bidirectional cashout
   const e=funded(t,20000),v=e.auction.view(base,1002),s=e.auction.start({...base,token:v.offerToken,role:'sophie',tier},1003),token=s.session.token;
   const restored=new TavernAuction(new TavernService(e.storage),()=>{throw Error('unexpected reroll');});
   force(e,token,[0,0,0]);const p={...base,token,round:1,bid:config.budget-1},r=restored.bid(p,1004);
-  const expected=20000*R-config.fee-config.budget+1+8*scaleAuctionValue(TERMINAL,R*config.scale);
+  const expected=20000*R-config.fee-config.budget+1;
   assert.equal(r.balance,expected);assert.equal(r.session.result.refund,1);assert.equal(r.session.result.net,8*scaleAuctionValue(TERMINAL,R*config.scale)-config.fee-config.budget+1);
   assert.deepEqual(restored.bid(p,1005).session.result,r.session.result);
   const fx=e.fx.view(base,1006),amount=Math.floor(expected/R),out=e.fx.convert({...base,token:fx.token,direction:'sell',amount},1007);
@@ -410,7 +410,7 @@ test('tier selection is free, large modals accept nine digits and references use
 });
 test('pre-tier auction-coin sessions retain standard prices, limits, later-round NPC bids and old controls',async t=>{
  const e=setup(t),s=open(e.auction),token=s.session.token,state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
- delete state.skillVersion;delete state.tier;delete state.unit;delete state.catalogVersion;state.budget=200*R;state.fee=10*R;delete state.dropVersion;state.items=generateAuction(n=>n-1,R,AUCTION_ITEMS_LEGACY);e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
+ delete state.inventoryVersion;delete state.skillVersion;delete state.tier;delete state.unit;delete state.catalogVersion;state.budget=200*R;state.fee=10*R;delete state.dropVersion;state.items=generateAuction(n=>n-1,R,AUCTION_ITEMS_LEGACY);e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
  const before=e.auction.view(base,1004).session,restored=new TavernAuction(e.tavern,n=>n-1);
  assert.equal(before.catalogSize,24);assert.deepEqual(JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state).committed,state.committed);
  assert.equal(restored.start({...base,token,role:'sophie'},1005).session.estimate,before.estimate);
@@ -450,7 +450,7 @@ test('opening settles funds once, progressively discloses only opened objects an
  const e=setup(t),s=cinematic(e),token=s.session.token;force(e,token,[4*R,5*R,6*R]);
  assert.equal(s.session.catalogSize,192);assert(!JSON.stringify(s).includes('flavor'));
  const end=e.auction.bid({...base,token,round:1,bid:15*R},1004),wallet=e.fx.balance(base.id),ledger=e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n;
- assert.equal(wallet,FUND+TOTAL-16*R);assert.equal(end.balance,null);assert.equal(end.session.reveal.count,0);assert(end.session.items.every(x=>x===null));
+ assert.equal(wallet,FUND-16*R);assert.equal(end.balance,null);assert.equal(end.session.reveal.count,0);assert(end.session.items.every(x=>x===null));
  for(const key of ['total','resale','net','balanceAfter'])assert(!Object.hasOwn(end.session.result,key));
  assert.equal(end.stats.net,0);const raw=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
  const positions=s.session.board.slots;const opened=e.auction.reveal({...base,token,step:0,all:false},1005);
@@ -536,7 +536,7 @@ test('unconfirmed jackpot risk is discounted for both sides only in version 4, w
 test('casino.9 sessions retain old prices, escrow limits, future NPC quotes and receipts after repricing',t=>{
  const e=setup(t),started=open(e.auction),token=started.session.token;assert.equal(started.session.catalogVersion,4);
  const state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
- delete state.skillVersion;state.catalogVersion=3;state.budget=200*R;state.fee=10*R;state.items=generateAuction(n=>n-1,R,AUCTION_ITEMS_V3);state.committed=[100*R,100*R,100*R];
+ delete state.inventoryVersion;delete state.skillVersion;state.catalogVersion=3;state.budget=200*R;state.fee=10*R;state.items=generateAuction(n=>n-1,R,AUCTION_ITEMS_V3);state.committed=[100*R,100*R,100*R];
  e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
  e.tavern.sql.exec('UPDATE tavern_auction_wallets SET balance=balance+? WHERE user_id=?',BUDGET+FEE-210*R,base.id);
  e.tavern.sql.exec('UPDATE tavern_auction_ledger SET amount=? WHERE id=?',-200*R,`auction:hold:${token}`);
@@ -552,7 +552,8 @@ test('odd small-tier item prices settle, replay and exchange with exact retained
  const e=funded(t,26),v=e.auction.view(base,1002);e.auction.random=()=>0;const s=e.auction.start({...base,token:v.offerToken,role:'sophie',tier:'small'},1003),token=s.session.token;
  const row=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);assert.equal(row.items[0].value,Math.floor(AUCTION_ITEMS[0].value/4));assert.notEqual(AUCTION_ITEMS[0].value%4,0);
  force(e,token,[0,0,0]);const bid={...base,token,round:1,bid:1},done=e.auction.bid(bid,1004),expected=26*R-.25*R-1+8*Math.floor(AUCTION_ITEMS[0].value/4);
- assert.equal(done.balance,expected);assert(Number.isSafeInteger(done.balance));assert.deepEqual(e.auction.bid(bid,1005).session.result,done.session.result);
+ assert.equal(done.balance,26*R-.25*R-1);assert.deepEqual(e.auction.bid(bid,1005).session.result,done.session.result);
+ const inventory=e.auction.inventory,owned=inventory.view(base,1005),quote=inventory.quote({...base,token:owned.token,quality:6},1005),sale=inventory.sell({...base,token:quote.token},1005);assert.equal(sale.balance,expected);assert(Number.isSafeInteger(sale.balance));
  const fx=e.fx.view(base,1006),out=e.fx.convert({...base,token:fx.token,direction:'sell',amount:Math.floor(expected/R)},1007);assert.equal(out.auctionBalance,expected%R);
 });
 
@@ -563,7 +564,7 @@ test('new collection quotes stop at 100M while historical 200M games still accep
  const e=funded(t,5000),v=e.auction.view(base,1002),opened=e.auction.start({...base,token:v.offerToken,role:'sophie',tier:'collection'},1003),token=opened.session.token;
  const state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state),oldBudget=2000*R,oldFee=100*R;
  e.tavern.sql.exec('UPDATE tavern_auction_wallets SET balance=balance+? WHERE user_id=?',state.budget+state.fee-oldBudget-oldFee,base.id);
- delete state.skillVersion;state.catalogVersion=3;state.budget=oldBudget;state.fee=oldFee;state.items=generateAuction(n=>n-1,10*R,AUCTION_ITEMS_V3);
+ delete state.inventoryVersion;delete state.skillVersion;state.catalogVersion=3;state.budget=oldBudget;state.fee=oldFee;state.items=generateAuction(n=>n-1,10*R,AUCTION_ITEMS_V3);
  e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
  e.tavern.sql.exec('UPDATE tavern_auction_ledger SET amount=? WHERE id=?',-oldBudget,`auction:hold:${token}`);e.tavern.sql.exec('UPDATE tavern_auction_ledger SET amount=? WHERE id=?',-oldFee,`auction:fee:${token}`);
  const modal=immediateTavernReply(i(`auctionOffer~${token}~1~200000000`));assert.equal(modal.type,9);assert.equal(modal.data.components[0].components[0].max_length,9);
@@ -616,7 +617,7 @@ test('new players and NPCs share progressive skills while unversioned saved game
  for(const old of [false,true]){
   const e=setup(t),opened=open(e.auction,'viktor'),token=opened.session.token;
   let state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
-  assert.equal(opened.session.skillVersion,2);if(old)delete state.skillVersion;
+  assert.equal(opened.session.skillVersion,2);if(old){delete state.inventoryVersion;delete state.skillVersion;}
   // A zero-high warehouse makes area 0 explicit, not an absent clue; force equal bids to reach each round.
   state.items=state.items.map(()=>({...AUCTION_ITEMS.find(x=>x.quality===0)}));state.infos.forEach(x=>x.highCount=null);
   e.auction.stage(state);e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);

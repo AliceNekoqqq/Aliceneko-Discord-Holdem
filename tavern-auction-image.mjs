@@ -21,7 +21,7 @@ export async function renderAuctionImage(session,env){
  const items=ended?session.items.map((item,i)=>!session.reveal||session.reveal.indices.includes(i)?item:null):null,shown=(items||[]).filter(Boolean),info=session.info,unit=session.currency==='tavern'?'酒馆币':'竞拍币';
  const title='酒馆仓库盲拍',subtitle=ended?revealing?`开仓揭晓 ${session.reveal.count} / 8`:'开仓结果':`第${session.round}轮 / 共5轮`,role=AUCTION_ROLES[session.role].name;
  const last=items?.[session.reveal?.last]||shown.at(-1),subtotal=shown.reduce((n,x)=>n+x.value,0);
- await prepareNicknameFont([title,subtitle,role,unit,'仓库','你的线索','仅显示已知品质与轮廓','轮廓未知','品质未知','白绿蓝紫金红','刚刚揭晓','已揭晓总值','开仓总值','本局净变化','等待开仓','图片与真实价格将在开仓时逐件揭晓','轮廓未知的藏品不显示实际占格','继续揭晓，或一次揭晓全部藏品','品质色与轮廓分别揭示 · 未知区域保持迷雾',...shown.flatMap(x=>[x.name,x.category,caption(x)]),...AUCTION_QUALITIES],env);
+ await prepareNicknameFont([title,subtitle,role,unit,'仓库','你的线索','仅显示已知品质与轮廓','轮廓未知','品质未知','白绿蓝紫金红','刚刚揭晓','已揭晓总值','开仓总值','本局净变化','本局盈亏 · 含藏品价值','等待开仓','图片与真实价格将在开仓时逐件揭晓','轮廓未知的藏品不显示实际占格','继续揭晓，或一次揭晓全部藏品','品质色与轮廓分别揭示 · 未知区域保持迷雾',...shown.flatMap(x=>[x.name,x.category,caption(x)]),...AUCTION_QUALITIES],env);
  const art=shown.length?await prepareAuctionArt(env):null,c=new Canvas(760,1000);
  c.rect(0,0,760,1000,C.bg);c.rect(24,24,712,4,C.gold);
  c.text(title,380,48,39,C.cream,true);c.text(`${subtitle}  /  ${role}`,380,103,24,C.gold,true);
@@ -55,7 +55,50 @@ export async function renderAuctionImage(session,env){
   c.text('?',380,836,30,C.gold,true);
  }
  c.text(ended?`${revealing?'已揭晓总值':'开仓总值'} ${f(subtotal)}${unit}`:'轮廓未知的藏品不显示实际占格',380,925,24,C.gold,true);
- c.text(ended&&!revealing?`本局净变化 ${session.result.net>0?'+':''}${f(session.result.net)}${unit}`:ended?'继续揭晓，或一次揭晓全部藏品':'品质色与轮廓分别揭示 · 未知区域保持迷雾',380,968,17,C.muted,true);
+ c.text(ended&&!revealing?`${session.result.inventory?'本局盈亏 · 含藏品价值':'本局净变化'} ${session.result.net>0?'+':''}${f(session.result.net)}${unit}`:ended?'继续揭晓，或一次揭晓全部藏品':'品质色与轮廓分别揭示 · 未知区域保持迷雾',380,968,17,C.muted,true);
+ return png(c);
+}
+export async function renderAuctionInventoryImage(data,env,cabinet=false){
+ const units=cabinet?Array.from({length:6},(_,slot)=>data.cabinet.find(x=>x.display_slot===slot)||null):data.items;
+ const title=cabinet?'我的藏品展示柜':'个人藏品仓库',sub=cabinet?'六格珍藏 · 留住喜欢的藏品':`第${(data.page??0)+1}页 · 拍得时价值`,foot=cabinet?'藏品陈列中 · 先撤下再出售':'多选出售 / 按品质批卖 / 收藏陈列';
+ await prepareNicknameFont([title,sub,foot,'竞拍币','空位','待陈列','格','已选','展示中','已开仓','藏品尚未入库','拍中并开仓后可在这里收藏','陈列总值','本页藏品总值',...units.filter(Boolean).flatMap(x=>[x.item.name,caption(x.item)]),...AUCTION_QUALITIES],env);
+ const art=units.some(Boolean)?await prepareAuctionArt(env):null,height=cabinet?1000:1120,c=new Canvas(760,height);
+ c.rect(0,0,760,height,[24,22,23]);
+ for(let y=0;y<height;y+=13)c.rect(0,y,760,1,[29,26,26]);
+ c.rect(26,24,708,3,C.gold);c.text(title,380,44,36,C.cream,true);c.text(sub,380,94,20,C.gold,true);
+ if(cabinet){
+  // A wooden outer case, individual glass bays, brass labels and lit plinths.
+  c.rect(25,145,710,742,[88,61,44],10);c.rect(36,156,688,720,[47,38,33],6);
+  for(let r=0;r<2;r++){
+   const top=172+r*344;
+   for(let col=0;col<3;col++){
+    const index=r*3+col,unit=units[index],x=50+col*224,item=unit?.item;
+    c.rect(x,top,212,317,[144,106,67],6);c.rect(x+3,top+3,206,311,[24,29,31],3);
+    c.rect(x+8,top+8,196,3,[233,203,138]);c.rect(x+12,top+18,188,220,[35,39,40],3);
+    for(let h=0;h<20;h++)c.rect(x+18+h,top+29+h,2,74,[48,53,55]);
+    c.rect(x+16,top+216,180,13,[75,64,49],3);c.rect(x+16,top+229,180,4,[164,126,77]);
+    if(item){
+     drawAuctionItem(c,item.id,x+21,top+39,170,170,art);
+     c.rect(x+19,top+244,174,2,AUCTION_COLORS[item.quality]);
+     c.text(item.name,x+106,top+254,18,C.cream,true);c.text(`${item.width*item.height}格 · ${AUCTION_QUALITIES[item.quality]}品质`,x+106,top+281,15,AUCTION_COLORS[item.quality],true);
+     c.text(f(item.value),x+106,top+297,14,C.gold,true);
+    }else{c.text('待陈列',x+106,top+114,22,C.muted,true);c.text('空位',x+106,top+267,19,C.muted,true);}
+    c.rect(x+9,top+10,31,25,[77,62,42],3);c.text(String(index+1),x+24,top+12,17,C.gold,true);
+   }
+   c.rect(41,top+321,678,10,[133,92,53],2);c.rect(41,top+331,678,3,[197,150,91]);
+  }
+ }else{
+  units.forEach((unit,i)=>{
+   const item=unit.item,x=20+i%3*244,y=153+Math.floor(i/3)*285,selected=data.selected?.includes(unit.id);
+   frame(c,x,y,232,263,item.quality,selected);drawAuctionItem(c,item.id,x+31,y+32,170,151,art);
+   c.text(`${i+1} · ${item.width}×${item.height} · ${item.width*item.height}格`,x+12,y+10,14,C.muted);
+   c.text(item.name,x+116,y+186,20,C.cream,true);c.text(f(item.value),x+116,y+216,18,AUCTION_COLORS[item.quality],true);
+   c.text(selected?'已选':unit.display_slot!==null?'展示中':AUCTION_QUALITIES[item.quality]+'品质',x+116,y+245,14,selected?C.gold:C.muted,true);
+  });
+  if(!units.length){c.text('藏品尚未入库',380,424,29,C.cream,true);c.text('拍中并开仓后可在这里收藏',380,474,21,C.muted,true);}
+ }
+ const total=units.filter(Boolean).reduce((s,x)=>s+x.item.value,0);
+ c.text(`${cabinet?'陈列总值':'本页藏品总值'} ${f(total)}竞拍币`,380,height-72,22,C.gold,true);c.text(foot,380,height-29,18,C.muted,true);
  return png(c);
 }
 export async function renderAuctionCatalogImage(env,quality=0,page=0){
