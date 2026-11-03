@@ -6,10 +6,10 @@ export const AUCTION_WAREHOUSES=Object.freeze([
  Object.freeze({id:'large',name:'大仓',cols:10,rows:8,min:13,max:18})
 ]);
 export const AUCTION_REGIONS=Object.freeze(Object.fromEntries([
- ['small',[350,280,200,100,60,10],[6000,3000,1000],[1,1,1]],
- ['standard',[270,255,215,140,108,12],[3500,4500,2000],[2,2,2]],
- ['high',[220,240,220,160,145,15],[2000,4500,3500],[3,3,5]],
- ['collection',[170,220,230,180,180,20],[1000,3500,5500],[4,6,12]]
+ ['small',[345,280,200,100,60,15],[6000,3000,1000],[1,1,1]],
+ ['standard',[264,255,215,140,108,18],[3500,4500,2000],[2,2,2]],
+ ['high',[212,240,220,160,145,23],[2000,4500,3500],[3,3,5]],
+ ['collection',[160,220,230,180,180,30],[1000,3500,5500],[4,6,12]]
 ].map(([id,quality,size,rare])=>[id,Object.freeze({quality:Object.freeze(quality),size:Object.freeze(size),rare:Object.freeze(rare)})])));
 const makePools=catalog=>Object.freeze(Object.fromEntries(Object.entries(AUCTION_REGIONS).map(([tier,r])=>[tier,Object.freeze(catalog.map(x=>Object.freeze({...x,dropWeight:x.dropWeight*({'稀有':r.rare[0],'极稀有':r.rare[1],'传世':r.rare[2]}[x.rarity]??1)})))])));
 const pools=makePools(AUCTION_ITEMS),expandedPools=makePools(AUCTION_EXPANDED_ITEMS);
