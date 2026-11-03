@@ -163,3 +163,250 @@ test("reveal loop exposes the documented states and default interval", () => {
   h.loop.start();
   assert.equal(h.loop.state, "running");
 });
+
+// Run the actual application wiring with a minimal DOM and deferred responses.
+// This catches lifecycle races that the DOM-free scheduler cannot see.
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+const appSource = readFileSync(
+  new URL("./web/auction/assets/app.js", import.meta.url),
+  "utf8",
+)
+  .replace(/^import .*;\n/gm, "")
+  .replace(/boot\(\);\s*$/, "");
+function appHarness() {
+  const listeners = new Map();
+  const modal = {
+    addEventListener() {},
+    open: false,
+    showModal() {
+      this.open = true;
+    },
+    close() {
+      this.open = false;
+    },
+  };
+  const node = {
+    addEventListener() {},
+    setAttribute() {},
+    classList: { toggle() {} },
+  };
+  const doc = {
+    hidden: false,
+    body: node,
+    querySelector: (s) => (s === "#detail-dialog" ? modal : node),
+    querySelectorAll: () => [],
+    addEventListener: (event, fn) => listeners.set(event, fn),
+  };
+  const context = vm.createContext({
+    createRevealLoop,
+    buildSeatStage: () => ({}),
+    document: doc,
+    location: { hash: "#play", origin: "https://auction.alicenekoqqq.cc.cd" },
+    window: { addEventListener() {}, scrollTo() {} },
+    setInterval() {},
+    setTimeout,
+    clearTimeout,
+    URLSearchParams,
+    console,
+  });
+  vm.runInContext(
+    appSource +
+      `
+    renderPlay = () => {};
+    toast = () => {};
+    globalThis.h = {
+      init() { guild = "3"; game = { session: { token: "one", status: "settled", reveal: { count: 0, total: 3, complete: false } } }; },
+      setApi(fn) { api = fn; },
+      setGuild(g) { guild = g; epoch++; },
+      get game() { return game; },
+      get wallet() { return wallet; },
+      loop() { return ensureRevealLoop(); },
+      dialog, closeDialog, pauseReveal, unlockAfterReveal, revealControls, route,
+    };`,
+    context,
+  );
+  context.h.init();
+  return {
+    h: context.h,
+    doc,
+    modal,
+    context,
+    visibility: () => listeners.get("visibilitychange")(),
+  };
+}
+const settle = () => new Promise((resolve) => setImmediate(resolve));
+test("opening collectible details pauses the real app loop immediately", async (t) => {
+  const { h, modal } = appHarness();
+  h.setApi(async () => ({
+    kind: "game",
+    data: {
+      session: {
+        token: "one",
+        status: "settled",
+        reveal: { count: 1, total: 3, complete: false },
+      },
+    },
+  }));
+  const loop = h.loop();
+  t.after(() => loop.dispose());
+  loop.start();
+  await settle();
+  h.dialog("details");
+  assert.equal(modal.open, true);
+  assert.equal(loop.state, "paused");
+  h.closeDialog();
+  assert.equal(loop.state, "paused");
+  modal.open = true;
+  loop.start();
+  await settle();
+  assert.equal(loop.state, "paused");
+  assert.equal(h.game.session.reveal.count, 1);
+});
+test("leaving play pauses immediately during an outstanding reveal", () => {
+  const { h, context } = appHarness();
+  const loop = h.loop();
+  // Pause an already running request: its response may finish, but no next item.
+  h.setApi(() => new Promise(() => {}));
+  loop.start();
+  context.location.hash = "#catalog";
+  h.route();
+  assert.equal(loop.state, "paused");
+  loop.dispose();
+});
+test("an old guild reveal loop cannot start a request in a new guild", async () => {
+  const { h } = appHarness();
+  let calls = 0;
+  h.setApi(async () => {
+    calls++;
+  });
+  const loop = h.loop();
+  h.setGuild("4");
+  loop.start();
+  await settle();
+  assert.equal(calls, 0);
+  assert.equal(loop.state, "paused");
+  assert.notEqual(h.loop(), loop);
+  loop.dispose();
+  h.loop().dispose();
+});
+test("wallet unlock responses are discarded after switching guild", async () => {
+  const { h } = appHarness();
+  const responses = [];
+  h.setApi(() => new Promise((resolve) => responses.push(resolve)));
+  const pending = h.unlockAfterReveal();
+  h.setGuild("4");
+  responses.forEach((resolve) => resolve({ data: { from: "old guild" } }));
+  await pending;
+  assert.equal(h.wallet, null);
+});
+test("returning from a hidden tab cannot overwrite a newer guild session", async () => {
+  const { h, doc, visibility } = appHarness();
+  const old = h.game;
+  h.setApi(async () => ({
+    kind: "game",
+    data: {
+      session: {
+        ...old.session,
+        reveal: { count: 1, total: 3, complete: false },
+      },
+    },
+  }));
+  const loop = h.loop();
+  loop.start();
+  await settle();
+  doc.hidden = true;
+  visibility();
+  let resolve;
+  h.setApi(
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  );
+  doc.hidden = false;
+  visibility();
+  h.setGuild("4");
+  resolve({ data: { session: { token: "stale" } } });
+  await settle();
+  assert.equal(h.game.session.token, "one");
+  assert.equal(loop.state, "paused");
+  loop.dispose();
+});
+test("progress uses native progress values under the production CSP", () => {
+  const { h } = appHarness();
+  const html = h.revealControls(h.game.session);
+  assert.match(html, /<progress[^>]+max="3" value="0"/);
+  assert.doesNotMatch(html, /style=/);
+  h.loop().dispose();
+});
+
+test("resuming during a slow request queues one continuation without duplicate steps", async () => {
+  let count = 0,
+    finish;
+  const steps = [],
+    timers = [];
+  const loop = createRevealLoop({
+    getStep: () => count,
+    isComplete: () => count === 2,
+    reveal: (step) => {
+      steps.push(step);
+      return new Promise((resolve) => {
+        finish = () => {
+          count++;
+          resolve();
+        };
+      });
+    },
+    schedule: (fn) => {
+      timers.push(fn);
+      return 1;
+    },
+    cancel() {},
+  });
+  loop.start();
+  loop.pause();
+  loop.start();
+  loop.start();
+  assert.deepEqual(steps, [0]);
+  finish();
+  await settle();
+  assert.equal(timers.length, 1);
+  timers.shift()();
+  assert.deepEqual(steps, [0, 1]);
+  finish();
+  await settle();
+  assert.equal(loop.state, "done");
+  loop.dispose();
+});
+test("a deliberate pause cancels a pending visibility resume", async () => {
+  const { h, doc, visibility } = appHarness();
+  h.setApi(async () => ({
+    kind: "game",
+    data: {
+      session: {
+        ...h.game.session,
+        reveal: { count: 1, total: 3, complete: false },
+      },
+    },
+  }));
+  const loop = h.loop();
+  loop.start();
+  await settle();
+  doc.hidden = true;
+  visibility();
+  let resolve;
+  h.setApi(
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  );
+  doc.hidden = false;
+  visibility();
+  h.pauseReveal();
+  resolve({ data: h.game });
+  await settle();
+  assert.equal(loop.state, "paused");
+  loop.dispose();
+});

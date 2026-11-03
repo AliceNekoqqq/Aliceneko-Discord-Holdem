@@ -99,8 +99,9 @@ export function createRevealLoop(options = {}) {
       return inFlight;
     },
     start() {
-      if (disposed || state === "done" || state === "running" || inFlight) return;
+      if (disposed || state === "done" || state === "running") return;
       clearTimer();
+      // An outstanding step owns the request; its completion schedules the next.
       enter("running");
       step();
     },
