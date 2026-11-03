@@ -669,6 +669,8 @@ test("served HTML, scripts, styles and original website images have security hea
     "assets/app.js",
     "assets/reveal-loop.mjs",
     "assets/seat-stage.mjs",
+    "assets/sound.mjs",
+    "assets/sfx/seal.wav",
     "assets/style.css",
     "assets/warehouse-v1.webp",
     "assets/appraisers-v1.webp",

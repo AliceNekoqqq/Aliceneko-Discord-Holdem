@@ -3866,3 +3866,28 @@ body.game-route {
     animation-duration: 1.6s;
   }
 }
+/* Sound toggle in the game status bar. */
+.sound-toggle {
+  margin-left: 14px;
+  padding: 3px 10px;
+  border: 1px solid #c6d9ea;
+  border-radius: 999px;
+  background: #ffffffcc;
+  color: #4f6d88;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition:
+    background 0.16s var(--ease),
+    border-color 0.16s var(--ease);
+}
+
+.sound-toggle:hover {
+  background: #e8f2fb;
+  border-color: #9dc0dd;
+}
+
+.sound-toggle[aria-pressed="true"] {
+  color: #8fa4b8;
+  border-style: dashed;
+}
