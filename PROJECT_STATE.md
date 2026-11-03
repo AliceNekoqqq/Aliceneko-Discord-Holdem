@@ -1035,3 +1035,11 @@ PR #77特性cb4b0752e00982bc2a2144dc0396528659512e51，完整PR CI41576105578成
 - CF部署cd2ca2a9-c614-45b4-b73d-83633a3c3923，版本6fadea2e-e67a-4e15-927b-f37363b542dc接收100%。15bindings和settings所有字段与发布前一致。真实HTTP health：casino.16、ok/ready:true、Gateway ready:true、identity1指纹匹配；casino3 registered:true，failures/missing/pending空。
 - https://discord-holdem.aliceneko.workers.dev/auction/ 正式HTML200，浏览器实际首页/登录配置提示通过，无本站CSP错误；典藏图鉴204条，两张新配图线上哈希与本地一致；无会话私有API401/no-store，无登录凭据时auth/login明确303回未开放提示，me.user:null、loginConfigured:false。未绕过OAuth、未部署QA访客、未操作真实玩家资产；真实登录与钱包读取须待用户完成回调注册及DISCORD_CLIENT_SECRET后验收，不能标记整体100%。
 - Sites本人官网镜像保持owner-only：appgprj_6ae996f99c208191ae684c2b3aedf3d4，源6aeee45f11be3b3889142c176379533772152ead，部署appgdep_6ae99ea4a6708191afea94b8f189936d succeeded，https://tavern-auction.amioalice.chatgpt.site 。其中进入实际游戏跳转正式同源入口。网页前端/后端/发布已完成，不重复发布；下一步仅用户配置与真人OAuth验收。不要回退丢失网页会话/资产识别的旧代码，不更改模型/人设/旧Secrets/绑定/迁移/Cron或其他游戏。
+
+
+## 真人OAuth与共享资产只读验收（2026-11-03）
+
+- 用户完成现有应用的OAuth回调与加密DISCORD_CLIENT_SECRET配置；公开me.loginConfigured:true，登录跳转使用原应用ID、正确同源回调与S256。health仍为casino.16，ready/Gateway ready:true。未读取、输出或代用户重置密钥。
+- 用户在安全登录流程中完成Discord登录、人机验证与授权，实际返回正式/auction/#play。新鲜浏览器页面显示真实已登录身份和共同服务器，并成功读取所选服务器双币钱包、已有中仓12件拍卖及8/12揭晓进度、个人仓库17件/4件待开仓、六格展示柜、钱包双向兑换说明。只记录功能证据，不存用户身份、余额、Cookie、state、授权码或私人截图。
+- 真人OAuth码交换、服务端会话及同一小酒馆资产读取通过；本次代理只切换只读页面，没有代用户兑换、出价、揭晓、出售或陈列。生产写入动作仍以既有隔离SQL/浏览器端到端和104/333完整测试为证据，真人游戏手感继续收集反馈。
+- 仅补验收文档，不修改功能、不提高版本、不重复部署。此前发布回执中的配置缺失属于初次发布时状态，以本节为准。
