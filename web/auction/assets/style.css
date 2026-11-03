@@ -3831,3 +3831,38 @@ body.game-route {
     font-size: 11px;
   }
 }
+/* Suspense ring while an item is being unveiled; rarity sets the duration. */
+.board-item.spinning {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(160deg, #f4faff, #ddebf8);
+  border-color: var(--q);
+  box-shadow: inset 0 0 0 1px #ffffff, 0 0 0 2px #ffffffcc;
+}
+
+.spin-ring {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid #c3d8ea;
+  border-top-color: #5f92c4;
+  animation: auction-spin 0.75s linear infinite;
+}
+
+.board-item.spinning > span:last-child {
+  position: absolute;
+  left: 2px;
+  top: 0;
+}
+
+@keyframes auction-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin-ring {
+    animation-duration: 1.6s;
+  }
+}
