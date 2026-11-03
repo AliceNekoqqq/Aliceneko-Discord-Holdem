@@ -237,3 +237,21 @@ test("settlement takes the winning bid, moves goods to the winner and happens on
   // Dismissing a finished room just clears it off the lobby.
   assert.equal(act(A, "roomLeave", { now: 5000 }).room, null);
 });
+test("an abandoned running room returns the held budgets instead of eating them", (t) => {
+  const { tavern, A, B, act } = setup(t);
+  const tier = AUCTION_TIERS.small;
+  const code = act(A, "roomCreate", { tier: "small", now: 1000 }).room.code;
+  act(B, "roomJoin", { code, now: 1000 });
+  act(B, "roomReady", { ready: true, now: 1000 });
+  act(A, "roomStart", { now: 1000 });
+  assert.equal(tavern.auctionCurrency.balance("a"), 50_000_000 - tier.fee - tier.budget);
+
+  // Two hours later the sweep closes it; the fee is gone, the budget is not.
+  const late = 1000 + 2 * 60 * 60_000 + 1;
+  assert.equal(act(A, "roomView", { now: late }).room, null);
+  assert.equal(tavern.auctionCurrency.balance("a"), 50_000_000 - tier.fee);
+  assert.equal(tavern.auctionCurrency.balance("b"), 50_000_000 - tier.fee);
+  // Sweeping twice must not refund twice.
+  assert.equal(act(B, "roomView", { now: late + 1000 }).room, null);
+  assert.equal(tavern.auctionCurrency.balance("a"), 50_000_000 - tier.fee);
+});

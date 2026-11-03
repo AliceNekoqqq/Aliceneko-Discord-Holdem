@@ -152,6 +152,21 @@ export class AuctionRooms {
   }
 
   drop(code) {
+    // An abandoned running room still holds its players' budgets: give the
+    // money back before the row disappears. The entry fee stays spent.
+    const room = this.row(code);
+    if (room?.status === "active" && Array.isArray(room.data?.seats))
+      for (const seat of room.data.seats) {
+        if (seat.npc) continue;
+        this.tavern.auctionCurrency.adjust(
+          seat.id,
+          room.data.budget,
+          `room:${code}:expire:${seat.id}`,
+          "auction_room_expire",
+          `房间 ${code} 超时退回`,
+          Date.now(),
+        );
+      }
     this.sql.exec("DELETE FROM auction_room_seats WHERE code=?", code);
     this.sql.exec("DELETE FROM auction_rooms WHERE code=?", code);
   }
