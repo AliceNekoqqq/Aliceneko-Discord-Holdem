@@ -4015,3 +4015,13 @@ body.game-route {
   background: #ffe6dc;
   color: #b45f43;
 }
+/* Welcome stake callouts. */
+.rule-gift,
+.wallet-gift {
+  padding: 10px 14px;
+  border: 1px dashed #e3b9a4;
+  border-radius: 10px;
+  background: #fff6f1;
+  color: #9a5b41;
+  font-size: 13px;
+}

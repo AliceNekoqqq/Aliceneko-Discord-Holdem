@@ -2,6 +2,9 @@ import {readFile} from 'node:fs/promises';
 import {extname,resolve,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {setStaticAssetTestBinding} from './static-art.mjs';
+// The welcome grant is product policy: unit tests exercise the wallet engine
+// without it, and the dedicated grant test sets tavern.welcomeGrant = true.
+globalThis.__TAVERN_NO_WELCOME_GRANT__ = true;
 
 const root=fileURLToPath(new URL('.',import.meta.url));
 const publicRoot=resolve(root,'public');

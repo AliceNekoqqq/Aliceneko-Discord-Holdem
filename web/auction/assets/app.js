@@ -580,7 +580,7 @@ function cabinetView() {
   )}</div></div><p class="quiet-note">陈列中不参与批卖，撤下即回仓。</p>`;
 }
 function walletView() {
-  return `${summary()}<div class="panel wallet-panel"><p class="eyebrow">同一间小酒馆，同一个钱包</p><h2>竞拍币双向兑换</h2><div class="exchange-rate"><div>1<small>酒馆币</small></div><span>⇄</span><div>100,000<small>竞拍币</small></div></div><p>整数兑换，免手续费。</p><form id="exchange-form"><label>兑换方向<select id="exchange-direction"><option value="buy">酒馆币 → 竞拍币</option><option value="sell">竞拍币 → 酒馆币</option></select></label><label>酒馆币数量（整数）<input id="exchange-amount" type="number" min="1" max="1000000" step="1" required placeholder="例如：100" inputmode="numeric"></label><button class="button primary wide" type="submit">预览兑换 →</button></form><p>与 Discord 同一个钱包。</p></div>`;
+  return `${summary()}<div class="panel wallet-panel"><p class="eyebrow">同一间小酒馆，同一个钱包</p><h2>竞拍币双向兑换</h2><div class="exchange-rate"><div>1<small>酒馆币</small></div><span>⇄</span><div>100,000<small>竞拍币</small></div></div><p>整数兑换，免手续费。</p><p class="wallet-gift">新玩家见面礼：开局送 2,000 万竞拍币，不用先换。</p><form id="exchange-form"><label>兑换方向<select id="exchange-direction"><option value="buy">酒馆币 → 竞拍币</option><option value="sell">竞拍币 → 酒馆币</option></select></label><label>酒馆币数量（整数）<input id="exchange-amount" type="number" min="1" max="1000000" step="1" required placeholder="例如：100" inputmode="numeric"></label><button class="button primary wide" type="submit">预览兑换 →</button></form><p>与 Discord 同一个钱包。</p></div>`;
 }
 // Room actions all return the same payload shape: the caller's room, or null.
 async function roomAction(action, fields = {}) {

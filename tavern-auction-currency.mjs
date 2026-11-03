@@ -1,10 +1,11 @@
 import {validId} from './tavern-catalog.mjs';
 export const AUCTION_RATE=100_000;
+export const INITIAL_AUCTION_BALANCE=20_000_000;
 export const EXCHANGE_TTL=5*60_000,EXCHANGE_MAX=1_000_000;
 export const auctionAmount=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:5});
 export class TavernAuctionCurrency {
  constructor(tavern){
-  this.tavern=tavern;this.sql=tavern.sql;this.storage=tavern.storage;
+  this.tavern=tavern;this.sql=tavern.sql;this.storage=tavern.storage;this.welcomeGrant=tavern.welcomeGrant!==false&&!(globalThis.__TAVERN_NO_WELCOME_GRANT__&&tavern.welcomeGrant!==true);
   this.sql.exec('CREATE TABLE IF NOT EXISTS tavern_auction_wallets(user_id TEXT PRIMARY KEY,balance INTEGER NOT NULL DEFAULT 0 CHECK(balance>=0))');
   this.sql.exec('CREATE TABLE IF NOT EXISTS tavern_auction_ledger(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,amount INTEGER NOT NULL,kind TEXT NOT NULL,note TEXT NOT NULL,at INTEGER NOT NULL)');
   this.sql.exec('CREATE INDEX IF NOT EXISTS tavern_auction_ledger_user ON tavern_auction_ledger(user_id,at DESC)');
@@ -12,7 +13,15 @@ export class TavernAuctionCurrency {
   this.sql.exec("CREATE UNIQUE INDEX IF NOT EXISTS tavern_auction_exchange_ready ON tavern_auction_exchanges(user_id,channel) WHERE status='ready'");
  }
  validate(p){if(!validId(p.id)||!validId(p.channel))throw Error('请在服务器频道打开自己的竞拍币兑换面板。');}
- balance(id){return this.tavern.one('SELECT balance FROM tavern_auction_wallets WHERE user_id=?',id)?.balance||0;}
+ // Every player starts with a welcome stake, so people on servers other than
+ // the tavern's own can walk in and bid before they own any tavern coins.
+ grant(id,now=Date.now()){
+  if(!this.welcomeGrant)return;
+  if(this.tavern.one('SELECT user_id FROM tavern_auction_wallets WHERE user_id=?',id))return;
+  this.sql.exec('INSERT INTO tavern_auction_wallets(user_id,balance) VALUES(?,?)',id,INITIAL_AUCTION_BALANCE);
+  this.sql.exec('INSERT INTO tavern_auction_ledger VALUES(?,?,?,?,?,?)',`auction:grant:${id}`,id,INITIAL_AUCTION_BALANCE,'auction_grant','新手见面礼',now);
+ }
+ balance(id){this.grant(id);return this.tavern.one('SELECT balance FROM tavern_auction_wallets WHERE user_id=?',id)?.balance||0;}
  // Called inside the parent synchronous transaction, including its ledger and immutable receipt.
  adjust(id,delta,key,kind,note,now){
   const next=this.balance(id)+delta;
