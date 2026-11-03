@@ -246,7 +246,7 @@ function renderAccount() {
       cancelled =
         new URLSearchParams(location.search).get("login") === "cancelled";
     $("#login-status").innerHTML =
-      `${unavailable ? '<div class="notice">Discord登录正在准备中。你可以先浏览藏品、了解能力和规则，或查看下方开仓演示。</div>' : cancelled ? '<div class="notice">本次登录已取消，随时可以重新进入。</div>' : ""}<div class="login-panel"><div><p class="eyebrow">从你熟悉的小酒馆，走进来</p><h2>用Discord，打开你的仓库。</h2><p>同一个钱包，同一个仓库。Discord 里开的局，这边接着打。</p><button class="button primary" data-login>Discord 登录 ↗</button><p class="mini-note">只读取身份与服务器列表。</p></div><div class="login-art"><img src="${LIVE}/art/auction/tavern-5-53-v5.png" alt="装着街道的旅行箱"></div></div>`;
+      `${unavailable ? '<div class="notice">Discord登录正在准备中。你可以先浏览藏品、了解能力和规则，或查看下方开仓演示。</div>' : cancelled ? '<div class="notice">本次登录已取消，随时可以重新进入。</div>' : ""}<div class="login-panel"><div><p class="eyebrow">从你熟悉的小酒馆，走进来</p><h2>用Discord，打开你的仓库。</h2><p>同一个钱包，同一个仓库。这边开的局，Discord 里也能接着打。</p><button class="button primary" data-login>Discord 登录 ↗</button><p class="mini-note">只读取身份与服务器列表。</p></div><div class="login-art"><img src="${LIVE}/art/auction/tavern-5-53-v5.png" alt="装着街道的旅行箱"></div></div>`;
   }
 }
 // Red chance per item comes from the live region table, so tuning the odds
@@ -363,7 +363,7 @@ function demo() {
   const xs = ids
     .slice(0, demoCount)
     .map((id) => meta.items.find((x) => x.id === id));
-  return `<div class="panel"><p class="demo-label">开仓演示 · 不读写钱包</p><h2>先看看，仓门后有什么。</h2><p>展示用。真实拍卖需登录。</p><div class="featured-items">${xs.map((x) => card(x)).join("")}${demoCount < ids.length ? '<div class="empty-state"><h2>?</h2><p>下一件尚未揭晓</p></div>' : ""}</div><div class="demo-actions"><button class="button outline" data-demo>${demoCount >= ids.length ? "再看一次" : "揭晓一件演示藏品 →"}</button></div></div>`;
+  return `<div class="panel"><p class="demo-label">开仓演示 · 不碰你的钱包</p><h2>先开一个，看看里面有什么。</h2><p>纯展示，不碰钱包；想真拍得先登录。</p><div class="featured-items">${xs.map((x) => card(x)).join("")}${demoCount < ids.length ? '<div class="empty-state"><h2>?</h2><p>下一件尚未揭晓</p></div>' : ""}</div><div class="demo-actions"><button class="button outline" data-demo>${demoCount >= ids.length ? "再看一次" : "揭晓一件演示藏品 →"}</button></div></div>`;
 }
 function summary() {
   return `<div class="wallet-summary"><div><small>可用酒馆币</small><strong>${number(wallet?.tavernBalance)}<span>酒馆币</span></strong></div><div><small>可用竞拍币</small><strong>${number(wallet?.auctionBalance)}<span>竞拍币</span></strong></div></div>`;
@@ -457,7 +457,7 @@ function buildRevealLoop(token) {
       if (current()) renderPlay();
     },
     onChange: () => renderPlay(),
-    onStall: () => toast("开仓进度没有推进，已暂停。请刷新后继续。"),
+    onStall: () => toast("开仓卡住了，先停下；刷新一下再继续。"),
     onError: (error) => toast(error?.message || "自动揭露中断，请刷新后继续。"),
   });
   loop.token = token;
@@ -486,7 +486,7 @@ function revealControls(s) {
     running = state === "running",
     paused = state === "paused",
     pending = loop?.busy;
-  return `<div class="reveal-controls" data-reveal-state="${state}"><progress class="reveal-meter" aria-label="开仓揭露进度" max="${s.reveal.total || 1}" value="${s.reveal.count}"></progress><p class="reveal-note">${running ? "逐件揭露中" : paused ? "已暂停，可继续逐件揭露" : "仓门已开，可以逐件揭露"} · ${s.reveal.count} / ${s.reveal.total}</p><div class="reveal-buttons"><button class="button primary wide" data-reveal="auto">${running ? "暂停揭露" : paused ? "继续揭露 →" : "自动逐件揭露 →"}</button><button class="button outline" data-reveal="next"${running || pending ? " disabled" : ""}>单件</button><button class="button outline" data-reveal="all"${running || pending ? " disabled" : ""}>全部打开</button></div></div>`;
+  return `<div class="reveal-controls" data-reveal-state="${state}"><progress class="reveal-meter" aria-label="开仓揭露进度" max="${s.reveal.total || 1}" value="${s.reveal.count}"></progress><p class="reveal-note">${running ? "正在一件件翻" : paused ? "暂停了，随时可以继续" : "仓门开着，慢慢翻"} · ${s.reveal.count} / ${s.reveal.total}</p><div class="reveal-buttons"><button class="button primary wide" data-reveal="auto">${running ? "暂停揭露" : paused ? "继续揭露 →" : "自动逐件揭露 →"}</button><button class="button outline" data-reveal="next"${running || pending ? " disabled" : ""}>单件</button><button class="button outline" data-reveal="all"${running || pending ? " disabled" : ""}>全部打开</button></div></div>`;
 }
 function gameView() {
   const s = game?.session;
@@ -510,8 +510,8 @@ function gameView() {
           })
           .join(
             "",
-          )}<button data-bid="0">本轮不出价<small>0 ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small></button><button data-bid="${s.budget}">预算上限<small>${gameMoney(s, s.budget)}</small></button></div><form id="bid-form" class="bid-form"><label for="bid-amount">本轮暗标总价（整数）</label><div class="bid-stepper"><button type="button" class="step-button" data-bid-step="-1" aria-label="减少报价">−</button><input id="bid-amount" name="bid" type="number" min="0" max="${s.budget}" step="1" placeholder="输入报价" required inputmode="numeric"><button type="button" class="step-button" data-bid-step="1" aria-label="增加报价">+</button></div><small class="step-hint">每次 ±${number(bidStep(s))}，上限 ${gameMoney(s, s.budget)}</small><button class="button primary wide" type="submit">封存本轮暗标 →</button></form><details class="clue-list"><summary>查看本局线索</summary>${s.info.highCount === null ? "" : `<p>紫 / 金 / 红合计 ${s.info.highCount} 件</p>`}${s.info.highCounts ? `<p>紫${s.info.highCounts[0]} / 金${s.info.highCounts[1]} / 红${s.info.highCounts[2]}</p>` : ""}${s.info.highArea === undefined ? "" : `<p>高品质总占格 ${s.info.highArea} 格</p>`}${s.info.items.map((c, i) => `<p>${i + 1}. ${c.quality === null ? "品质未知" : meta.qualities[c.quality] + "品质"} · ${c.width === null ? "轮廓未知" : `${c.width}×${c.height} / ${c.width * c.height}格`}</p>`).join("")}</details><button class="danger-link" data-leave>放弃余下竞拍</button>`
-      : `<span class="auction-stage">仓门打开，惊喜揭晓。</span><h2>${r.winner === null ? "本局流拍" : r.winner === 0 ? "竞拍成功！" : `${npc[r.winner]}拍中`}</h2><p>成交价 ${gameMoney(s, r.price)}<br>已揭晓 ${s.reveal.count} / ${s.reveal.total}件</p><div class="line-value">${number(subtotal)}</div><p>已揭晓总值 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</p>${revealControls(s)}`
+          )}<button data-bid="0">本轮不出价<small>0 ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small></button><button data-bid="${s.budget}">预算上限<small>${gameMoney(s, s.budget)}</small></button></div><form id="bid-form" class="bid-form"><label for="bid-amount">本轮暗标总价（整数）</label><div class="bid-stepper"><button type="button" class="step-button" data-bid-step="-1" aria-label="减少报价">−</button><input id="bid-amount" name="bid" type="number" min="0" max="${s.budget}" step="1" placeholder="输入报价" required inputmode="numeric"><button type="button" class="step-button" data-bid-step="1" aria-label="增加报价">+</button></div><small class="step-hint">每次 ±${number(bidStep(s))}，上限 ${gameMoney(s, s.budget)}</small><button class="button primary wide" type="submit">封牌，压上这一轮 →</button></form><details class="clue-list"><summary>翻翻这局的线索</summary>${s.info.highCount === null ? "" : `<p>紫 / 金 / 红合计 ${s.info.highCount} 件</p>`}${s.info.highCounts ? `<p>紫${s.info.highCounts[0]} / 金${s.info.highCounts[1]} / 红${s.info.highCounts[2]}</p>` : ""}${s.info.highArea === undefined ? "" : `<p>高品质总占格 ${s.info.highArea} 格</p>`}${s.info.items.map((c, i) => `<p>${i + 1}. ${c.quality === null ? "品质未知" : meta.qualities[c.quality] + "品质"} · ${c.width === null ? "轮廓未知" : `${c.width}×${c.height} / ${c.width * c.height}格`}</p>`).join("")}</details><button class="danger-link" data-leave>放弃余下竞拍</button>`
+      : `<span class="auction-stage">仓门开了，看看里面有什么。</span><h2>${r.winner === null ? "没人接盘，流拍了" : r.winner === 0 ? "竞拍成功！" : `${npc[r.winner]}拍中`}</h2><p>成交价 ${gameMoney(s, r.price)}<br>已揭晓 ${s.reveal.count} / ${s.reveal.total}件</p><div class="line-value">${number(subtotal)}</div><p>已揭晓总值 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</p>${revealControls(s)}`
   }</aside></div>`;
 }
 let seatSweptKey = null;
@@ -537,13 +537,13 @@ function seatStrip(s) {
     },
     note = stage.settled
       ? stage.winner === null
-        ? "本局流拍"
+        ? "没人接盘，流拍了"
         : `${npc[stage.winner]} 以 ${number(stage.price)} ${unit} 成交`
       : stage.open
         ? stage.decided
-          ? "本轮提前成交"
-          : `第 ${stage.round} / ${stage.total} 轮已开价`
-        : `第 ${stage.round} / ${stage.total} 轮 · 四位封存中`;
+          ? "这轮直接落锤"
+          : `第 ${stage.round} / ${stage.total} 轮已亮牌`
+        : `第 ${stage.round} / ${stage.total} 轮 · 四个人都在憋`;
   return `<div class="seat-strip${sweep ? " sweep" : ""}${stage.settled ? " final" : ""}" data-round="${stage.round}"><div class="seat-strip-head"><span class="auction-stage">拍卖席</span><small>${note}</small></div><div class="seat-row">${stage.seats
     .map(
       (seat) =>
@@ -560,7 +560,7 @@ function history(s) {
 function resultView(s) {
   const r = s.result,
     won = r.winner === 0;
-  return `${seatStrip(s)}<div class="panel"><p class="eyebrow">${r.winner === null ? "本局流拍" : `${npc[r.winner]}以 ${gameMoney(s, r.price)} 拍中`}</p><h2>这一仓，${r.net > 0 ? "赚到了。" : r.net < 0 ? "留点经验。" : "不赚不亏。"}</h2><div class="result-grid"><div><small>成交价</small><strong>${number(r.price)}</strong></div><div><small>仓库藏品总值</small><strong>${number(r.total)}</strong></div><div><small>本局盈亏 · 含入场费${won ? "与藏品价值" : ""}</small><strong class="${r.net >= 0 ? "profit" : "loss"}">${r.net > 0 ? "+" : ""}${number(r.net)}</strong></div><div><small>现金变化 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small><strong>${r.cashNet > 0 ? "+" : ""}${number(r.cashNet ?? r.net)}</strong></div></div><p>入场费 ${gameMoney(s, s.fee)}。${won ? (r.inventory ? "藏品已入仓，卖出才计现金。" : "藏品已按开局规则结算。") : "未拍中，只付入场费。"}${s.currency === "tavern" ? " 旧版酒馆币对局，按当时规则计算。" : ""}</p><div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${history(s)}<button class="text-link" data-view="inventory">到个人仓库看看 →</button></div><br>`;
+  return `${seatStrip(s)}<div class="panel"><p class="eyebrow">${r.winner === null ? "没人接盘，流拍了" : `${npc[r.winner]}以 ${gameMoney(s, r.price)} 拍中`}</p><h2>这一仓，${r.net > 0 ? "赚到了，手气不错。" : r.net < 0 ? "亏了，当交学费。" : "不赚不亏，白忙一场。"}</h2><div class="result-grid"><div><small>成交价</small><strong>${number(r.price)}</strong></div><div><small>仓库藏品总值</small><strong>${number(r.total)}</strong></div><div><small>本局盈亏 · 含入场费${won ? "与藏品价值" : ""}</small><strong class="${r.net >= 0 ? "profit" : "loss"}">${r.net > 0 ? "+" : ""}${number(r.net)}</strong></div><div><small>现金变化 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small><strong>${r.cashNet > 0 ? "+" : ""}${number(r.cashNet ?? r.net)}</strong></div></div><p>入场费 ${gameMoney(s, s.fee)}。${won ? (r.inventory ? "藏品已入仓，卖出才计现金。" : "藏品已按开局规则结算。") : "未拍中，只付入场费。"}${s.currency === "tavern" ? " 旧版酒馆币对局，按当时规则计算。" : ""}</p><div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${history(s)}<button class="text-link" data-view="inventory">到个人仓库看看 →</button></div><br>`;
 }
 function inventoryView() {
   if (!inventory) return '<p class="loading">正在读取个人仓库…</p>';
@@ -590,7 +590,7 @@ function renderPlay() {
     bar.innerHTML = `<span class="status-dot${account?.user ? " on" : ""}"></span><span class="status-text">${
       account?.user
         ? `Discord 已连接 · ${escape(guildName || "未选择服务器")}`
-        : "未登录 · 仅可浏览"
+        : "还没登录 · 先随便逛逛"
     }</span><button class="sound-toggle" data-sound aria-pressed="${soundEnabled() ? "false" : "true"}">音效：${soundEnabled() ? "开" : "关"}</button><span class="status-version">${escape(meta.version || "auction-web")}</span>`;
   }
   $$("[data-view]").forEach((b) =>
@@ -683,7 +683,7 @@ async function quoteSale(quality) {
   await mutation("auctionInventoryQuote", fields);
   const q = saleQuote;
   dialog(
-    `<p class="eyebrow">出售前，再看一眼</p><h2 class="detail-title">出售 ${q.count} 件藏品？</h2><p class="detail-flavor">到账 ${money(q.total)}</p><p class="detail-meta">${q.items.map((u) => escape(u.item.name)).join("、")}${q.count > q.items.length ? ` 等${q.count}件` : ""}</p><p class="mini-note">陈列中不参与批卖 · 每批最多 500 件。</p><div class="dialog-buttons"><button class="button outline" data-close>先留着</button><button class="button primary" data-confirm-sale>确认出售</button></div>`,
+    `<p class="eyebrow">卖之前，再确认一眼</p><h2 class="detail-title">出售 ${q.count} 件藏品？</h2><p class="detail-flavor">到账 ${money(q.total)}</p><p class="detail-meta">${q.items.map((u) => escape(u.item.name)).join("、")}${q.count > q.items.length ? ` 等${q.count}件` : ""}</p><p class="mini-note">陈列中不参与批卖 · 每批最多 500 件。</p><div class="dialog-buttons"><button class="button outline" data-close>先留着</button><button class="button primary" data-confirm-sale>确认出售</button></div>`,
   );
 }
 function tick() {
@@ -880,7 +880,7 @@ document.addEventListener("click", (event) => {
     }
     if (b.hasAttribute("data-refresh")) {
       await refreshAll();
-      toast("资产和拍卖进度已刷新。");
+      toast("都刷新过了，钱包和进度都是最新的。");
       return;
     }
     if (b.hasAttribute("data-start")) {
@@ -910,7 +910,7 @@ document.addEventListener("click", (event) => {
     }
     if (b.hasAttribute("data-reveal")) {
       if (revealLoop?.busy) {
-        toast("正在确认上一件藏品，请稍候。");
+        toast("上一件还在确认，马上好。");
         return;
       }
       if (revealLoop) {
@@ -956,7 +956,7 @@ document.addEventListener("click", (event) => {
       wallet = (await api(`wallet?guild=${guild}`)).data;
       play("coin");
       renderPlay();
-      toast("藏品已售出，竞拍币已到账。");
+      toast("卖掉了，钱已经进了竞拍币钱包。");
       return;
     }
     if (b.hasAttribute("data-display-selected")) {
@@ -996,7 +996,7 @@ document.addEventListener("click", (event) => {
       closeDialog();
       game = (await api(`state?guild=${guild}`)).data;
       renderPlay();
-      toast("兑换完成，钱包已同步。");
+      toast("换好了，两个钱包都同步了。");
     }
   });
 });
@@ -1035,7 +1035,7 @@ document.addEventListener("submit", (event) => {
     event.preventDefault();
     const bid = Number($("#bid-amount").value);
     if (!Number.isSafeInteger(bid) || bid < 0 || bid > game.session.budget)
-      return toast("请输入预算内的整数报价。");
+      return toast("报价得是整数，也别超过本局预算。");
     play("seal");
     perform(async () => {
       const s = game.session;
@@ -1051,7 +1051,7 @@ document.addEventListener("submit", (event) => {
     const amount = Number($("#exchange-amount").value),
       direction = $("#exchange-direction").value;
     if (!Number.isSafeInteger(amount) || amount < 1 || amount > 1000000)
-      return toast("请输入1至1,000,000的整数酒馆币数量。");
+      return toast("酒馆币要填 1 到 1,000,000 之间的整数。");
     pendingExchange = { token: wallet.token, direction, amount };
     dialog(
       `<p class="eyebrow">确认双向兑换</p><h2 class="detail-title">${direction === "buy" ? "换入竞拍币" : "换回酒馆币"}</h2><p class="detail-meta">${direction === "buy" ? `扣除 ${number(amount)} 酒馆币，获得 ${number(amount * 100000)} 竞拍币。` : `扣除 ${number(amount * 100000)} 竞拍币，获得 ${number(amount)} 酒馆币。`}<br>手续费：0</p><div class="dialog-buttons"><button class="button outline" data-close>取消</button><button class="button primary" data-confirm-exchange>确认兑换</button></div>`,
