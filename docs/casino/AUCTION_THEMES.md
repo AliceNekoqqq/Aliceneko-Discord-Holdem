@@ -57,3 +57,8 @@ V8及更早版本继续旧池与旧估值；旧Discord开局按钮继续有效�
 基线为 main b63132ae0ad53c36e21a4a9b4091863769a1a22f / casino.20。通过PR完整检查后合并，按现有main工作流部署 casino.21；实际CI、版本和线上健康状态在完成后补记，不能以本地通过代替上线。
 
 回滚只关闭新局主题入口/退回新局生成，必须保留对已保存V9仓库的主题模型、公共情报与库存识别；不能直接部署不识别V9的旧Worker，也不能重抽或回写历史资产。
+
+
+## 发布回执
+
+2026-11-04 发布完成：PR #117 CI 41783612263 与 main CI/部署 41783817447 全部成功（assets120、lantern387、tavern379、chat133、UGC3、Worker144，共1166项，无失败）。合并提交19e83a680123d126b44c4c4f72869a5da6ec67c4；Cloudflare部署e8def8b9-3087-4fb7-bddd-c36b86fbec3a / 版本cd5bc949-41db-4beb-94aa-456971964eda接收100%流量，16项绑定（含公开变量值）、兼容设置与observability核对一致，wrangler/Cron/迁移未改。线上health确认casino.21、ready/Gateway ready为true，聊天指纹保持。正式浏览器确认四主题/五轮公共情报规则及藏品详情四主题概率；app 908150c9b654、CSS 638070be82db与本地构建完全一致。生产仅做只读核验，未登录或操作真人钱包。
