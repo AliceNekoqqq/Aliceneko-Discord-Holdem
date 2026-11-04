@@ -12,7 +12,7 @@ import {AUCTION_OPPONENTS,AUCTION_NPC_STYLES} from './tavern-auction-opponents.m
 const source=readFileSync(new URL('./web/auction/assets/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/boot\(\);\s*$/,'');
 function harness(search=''){
  const nodes=new Map(),events=new Map(),saved=new Map(),copies=[],messages=[],presentationTimers=new Map(),sounds=[];let timerId=0;
- const node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',dataset:{},value:'',addEventListener(){},setAttribute(){},classList:{toggle(){}},showModal(){},close(){}});return nodes.get(id);};
+ const node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',dataset:{},value:'',addEventListener(){},setAttribute(){},classList:{values:new Set(),toggle(k,on){on??=!this.values.has(k);on?this.values.add(k):this.values.delete(k);return on;},contains(k){return this.values.has(k);}},showModal(){},close(){}});return nodes.get(id);};
  const location={origin:'https://auction.alicenekoqqq.cc.cd',search,hash:'#play',href:'https://auction.alicenekoqqq.cc.cd/auction/'+search+'#play'};
  const context=vm.createContext({document:{hidden:false,body:node('body'),querySelector:node,querySelectorAll:()=>[],addEventListener:(name,fn)=>events.set('doc:'+name,fn)},
   location,window:{addEventListener:(name,fn)=>events.set(name,fn),scrollTo(){},history:{replaceState(a,b,url){location.href=url.href;location.search=url.search;location.hash=url.hash;}}},
@@ -26,7 +26,7 @@ function harness(search=''){
    setApi(fn){api=fn;},setRoom(room){roomState={room};},get room(){return roomState?.room;},get connection(){return roomConnection;},
    switchGuild(){guild='4';epoch++;},get pending(){return pendingRoomInvite;},setPending(code){pendingRoomInvite=code;},
    readRoomInvite,clearRoomInvite,roomInviteURL,copyRoomInvite,acceptRoom,renderRoom,renderActual,roomAction,pollRoom,setRoomConnection,
-   appraiserCard,roomClues,rareMomentView,playSuspense,gameView,demo,pauseReveal,get presentation(){return revealPresentation?.state;},setGame(value){game=value;view="auction";},setPublicDemo(items){account=null;guild="";view="auction";meta.items=items;},seatStrip,roomSeatView,opponentMoment,renderOpponents,setMeta(value){meta=value;},
+   syncPlayLayout,matchToolbar,openMatchPanel,appraiserCard,roomClues,rareMomentView,playSuspense,gameView,demo,pauseReveal,get presentation(){return revealPresentation?.state;},setGame(value){game=value;view="auction";},setPublicDemo(items){account=null;guild="";view="auction";meta.items=items;},seatStrip,roomSeatView,opponentMoment,renderOpponents,setMeta(value){meta=value;},
    route,renderTutorial,tutorialDispatch,get tutorial(){return tutorial;},get game(){return game;},get view(){return view;},themeScene,themeGuide,setup,renderCatalog,setCatalog(items){meta.items=items;meta.tiers.standard=meta.tiers.small;catalogs.set('standard',{items});},get themes(){return {playTheme,roomTheme,guideTheme,catalogTheme};},
   };`,Object.assign(context,{messages,AUCTION_THEMES,AUCTION_OPPONENTS,AUCTION_NPC_STYLES}));
  context.h.init();return {h:context.h,context,nodes,saved,copies,messages,events,sounds,presentationTimers,flushPresentation(){const [id,t]=presentationTimers.entries().next().value;presentationTimers.delete(id);t.fn();}};
@@ -47,7 +47,7 @@ test('actual solo presentation masks the last reveal result, uses receipt value,
  const x=harness(),before=soloReveal([null],0),next=soloReveal([revealedArtifact('red',5,7654321)],1);
  x.h.setGame({session:next});const pending=x.h.playSuspense(next,before);
  assert.equal(x.h.presentation.phase,'spin');assert.equal(x.h.rareMomentView(),'');
- assert(!x.h.gameView().includes('本局盈亏'));assert(!x.h.gameView().includes('999,999'));
+ assert(!x.h.gameView().includes('本局盈亏'));assert(!x.h.gameView().includes('999,999'));assert(!x.h.gameView().includes('7,654,321'));
  x.flushPresentation();const html=x.h.rareMomentView();
  assert(html.includes('rare-red'));assert(html.includes('&lt;red&amp;&gt;'));assert(html.includes('7,654,321'));assert(html.includes('rare-enter'));
  assert(!x.h.rareMomentView().includes('rare-enter'));assert(x.h.gameView().includes('本局盈亏'));
@@ -251,4 +251,24 @@ test('actual tutorial entry, bidding and completion never call private APIs or r
 test('room capital display uses frozen server terms rather than the current catalogue budget',()=>{
  const {h}=harness(),r=room([],'waiting');r.terms={budget:7000000,fee:100000};h.setRoom(r);
  const html=h.renderRoom();assert(html.includes('托管预算 7,000,000'));assert(!html.includes('托管预算 4,000,000'));
+});
+
+
+test('phone layout defaults on for a match, respects manual expansion and clears on navigation without any API',()=>{
+ const x=harness();let requests=0;x.h.setApi(()=>{requests++;throw Error('no request expected');});
+ x.context.window.matchMedia=q=>({matches:q.includes('max-width')});
+ const classes=x.context.document.body.classList;
+ x.h.syncPlayLayout(true);assert(classes.contains('compact-match'));
+ const b={matches:()=>true,hasAttribute:k=>k==='data-compact'};
+ x.events.get('doc:click')({target:{closest:()=>b}});assert(!classes.contains('compact-match'));
+ x.events.get('resize')();assert(!classes.contains('compact-match'));
+ x.events.get('doc:click')({target:{closest:()=>b}});assert(classes.contains('compact-match'));
+ x.h.syncPlayLayout(false);assert(!classes.contains('compact-match'));assert.equal(requests,0);
+});
+test('compact match header keeps exact budget, disclosed clue and deadline but never hidden warehouse totals',()=>{
+ const x=harness(),s={status:'active',role:'sophie',round:3,budget:18000000,estimate:9345187,expires:12345,
+  publicInfo:{clues:[{text:'<红品质&>'}]},result:{total:99887766}};
+ const html=x.h.matchToolbar(s);assert(html.includes('18,000,000'));assert(html.includes('9,345,187'));
+ assert(html.includes('data-countdown="12345"'));assert(html.includes('&lt;红品质&amp;&gt;'));assert(!html.includes('99,887,766'));
+ assert(html.includes('data-match-info'));assert(html.includes('data-match-menu'));
 });

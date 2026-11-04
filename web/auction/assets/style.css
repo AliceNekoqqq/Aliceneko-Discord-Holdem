@@ -4391,3 +4391,144 @@ body.game-route {
 
 .tutorial-board .board-item { border:2px solid var(--q,#a4baca); }
 @media(max-width:800px) { .site-header nav .nav-tutorial { order:-1; } .tutorial-coach h2 { scroll-margin-top:140px; } }
+
+/* Phone match: the board and the bid controls share the available viewport.
+   Large print / keyboard / very short windows can scroll rather than clip. */
+.compact-layout-label { display:none; }
+.match-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:10px 0; }
+.match-title { display:flex; align-items:center; gap:10px; min-width:0; margin-right:auto; }
+.match-title strong { color:#315b7a; }
+.match-title>span { color:#6c849a; font-size:12px; }
+.match-tools { display:flex; gap:6px; }
+.match-tools button { min-height:44px; padding:6px 10px; border:1px solid #c8dbea; border-radius:10px; background:#f6fbff; color:#365c7b; font-size:12px; }
+.match-amounts,.match-latest { display:none; }
+.match-menu { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.match-menu a { padding:12px; }
+body.compact-match { padding:0; overflow-x:hidden; }
+body.compact-match>.site-header,body.compact-match>footer,body.compact-match>.game-statusbar { display:none; }
+body.compact-match #page-play>.page-heading,
+body.compact-match #page-play>.tutorial-entry,
+body.compact-match #page-play>#account-bar,
+body.compact-match #page-play>#login-status,
+body.compact-match #page-play>#game-tabs,
+body.compact-match #page-tutorial>.page-heading { display:none; }
+body.compact-match #page-play,body.compact-match #page-tutorial {
+  width:100%; max-width:480px; margin:0 auto; padding:6px 8px;
+  padding-top:max(6px,env(safe-area-inset-top));
+  padding-bottom:max(8px,env(safe-area-inset-bottom));
+  height:100svh; height:100dvh; min-height:540px;
+}
+body.compact-match #page-play:not([hidden]),body.compact-match #page-tutorial:not([hidden]) { display:flex; flex-direction:column; }
+body.compact-match #game-content,body.compact-match #tutorial-content { flex:1; min-height:0; display:flex; flex-direction:column; }
+body.compact-match .match-toolbar { flex:none; margin:0 0 4px; gap:3px 6px; }
+body.compact-match .match-title { flex-direction:column; align-items:flex-start; gap:0; font-size:13px; }
+body.compact-match .match-title>span { font-size:11px; }
+body.compact-match .match-tools { gap:4px; }
+body.compact-match .match-tools button { padding:4px 8px; min-height:44px; font-size:12px; }
+body.compact-match .full-layout-label { display:none; }
+body.compact-match .compact-layout-label { display:inline; }
+body.compact-match .match-amounts { display:flex; justify-content:space-between; align-items:baseline; width:100%; gap:8px; font-size:11px; color:#637e94; }
+body.compact-match .match-amounts strong { font:700 20px/1.2 ui-monospace,monospace; color:#335d7b; }
+body.compact-match .match-latest { display:block; width:100%; margin:2px 0; font-size:11px; line-height:1.4; color:#4d6c86; overflow-wrap:anywhere; }
+body.compact-match #game-content>.wallet-summary { display:none; }
+body.compact-match .play-layout { flex:1; min-height:0; display:flex; flex-direction:column; gap:5px; padding:0; }
+body.compact-match .board-column { flex:1; min-height:140px; display:flex; flex-direction:column; position:relative; }
+body.compact-match .board-column>.theme-scene,
+body.compact-match .board-column>.quality-legend,
+body.compact-match .board-column>.history { display:none; }
+body.compact-match .board-heading { flex:none; display:flex; align-items:center; justify-content:space-between; gap:8px; margin:3px 0; }
+body.compact-match .board-heading h2 { font-size:13px; margin:0; }
+body.compact-match .board-heading p { font-size:10px; line-height:1.3; margin:0; text-align:right; }
+body.compact-match .board-wrap { flex:1; min-height:100px; margin:3px 0; padding:0; display:grid; place-items:center; container-type:size; border:0; background:none; box-shadow:none; }
+body.compact-match .board-frame { width:100%; max-width:100%; }
+@supports(width:1cqh) {
+  body.compact-match .board-frame { width:min(100%,calc((100cqh - 20px)*var(--board-ratio,2) + 22px)); }
+}
+body.compact-match .board-item { padding:1px; }
+body.compact-match .board-item>span { font-size:9px; }
+body.compact-match .bid-panel { flex:none; padding:8px; border-radius:12px; }
+body.compact-match .bid-panel>.appraiser-card,
+body.compact-match .bid-panel>.auction-stage,
+body.compact-match .bid-panel>.warehouse-intel,
+body.compact-match .bid-panel>.clue-list,
+body.compact-match .bid-panel>.danger-link,
+body.compact-match .bid-panel>.line-value,
+body.compact-match .bid-panel>p { display:none; }
+body.compact-match .bid-panel>h2 { font-size:16px; margin:0 0 5px; }
+body.compact-match .bid-presets { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; margin:0 0 6px; }
+body.compact-match .bid-presets button { min-height:44px; padding:4px 2px; font-size:11px; min-width:0; }
+body.compact-match .bid-presets small { font-size:9px; white-space:nowrap; }
+body.compact-match .bid-form { display:grid; grid-template-columns:minmax(0,1fr) 82px; align-items:center; gap:5px; margin:0; }
+body.compact-match .bid-form>label { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+body.compact-match .step-hint { display:none; }
+body.compact-match .bid-stepper { display:flex; gap:3px; margin:0; min-width:0; }
+body.compact-match .bid-stepper input { width:0; min-width:0; flex:1; height:44px; padding:5px 3px; font-size:16px; }
+body.compact-match .bid-stepper .step-button { flex:none; width:38px; height:44px; min-height:44px; }
+body.compact-match .bid-form>.button { margin:0; min-height:44px; padding:8px 4px; font-size:13px; }
+body.compact-match .seat-strip { margin:0; padding:5px; flex:none; border-radius:10px; }
+body.compact-match .seat-strip-head { margin:0 0 3px; }
+body.compact-match .seat-strip-head .auction-stage { display:none; }
+body.compact-match .seat-strip-head small { font-size:10px; }
+body.compact-match .seat-row,body.compact-match .room-seats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; }
+body.compact-match .seat,body.compact-match .room-seat { min-width:0; padding:4px; border-radius:7px; }
+body.compact-match .opponent-identity { min-height:22px; gap:3px; }
+body.compact-match .opponent-avatar { width:22px; height:22px; border-radius:6px; }
+body.compact-match .opponent-identity .seat-name { font-size:10px; white-space:nowrap; }
+body.compact-match .opponent-style,body.compact-match .opponent-moment,body.compact-match .seat-margin { display:none; }
+body.compact-match .seat-bid { font-size:11px; line-height:1.4; margin:2px 0 0; overflow-wrap:anywhere; }
+body.compact-match .seat-state { font-size:9px; }
+body.compact-match .board-column>.rare-reveal { position:absolute; inset:auto 0 0; z-index:8; grid-template-columns:70px minmax(0,1fr); gap:8px; padding:10px; max-height:80%; overflow:auto; }
+body.compact-match .rare-reveal-art { min-height:70px; }
+body.compact-match .rare-reveal-art img { width:70px; height:70px; }
+body.compact-match .rare-reveal-copy h3 { font-size:16px; }
+body.compact-match .rare-reveal-meta { margin:3px 0; }
+body.compact-match .rare-reveal-actions .button { min-height:40px; padding:7px; }
+body.compact-match .reveal-controls { margin:0; }
+body.compact-match .reveal-controls p { margin:3px 0; font-size:11px; }
+body.compact-match .reveal-buttons { gap:4px; }
+body.compact-match .reveal-buttons .button { min-height:44px; padding:8px 5px; font-size:12px; }
+body.compact-match .room-panel { padding:5px; margin:0 0 4px; flex:none; }
+body.compact-match .room-panel>p,body.compact-match .room-panel>h2 { display:none; }
+body.compact-match .room-seat .room-seat-role,body.compact-match .room-seat .opponent-style { display:none; }
+body.compact-match .room-seat-offer { font-size:11px; overflow-wrap:anywhere; }
+body.compact-match .room-connection { margin:0 0 3px; padding:3px 6px; font-size:10px; }
+body.compact-match .room-bid { display:grid; grid-template-columns:minmax(0,1fr) 82px; gap:5px; margin:0; }
+body.compact-match .room-bid>label { grid-column:1; grid-row:2; font-size:10px; margin:0; }
+body.compact-match .room-bid input { height:44px; width:100%; margin:0; font-size:16px; }
+body.compact-match .room-presets { grid-column:1/-1; grid-row:1; display:flex; gap:5px; margin:0; }
+body.compact-match .room-presets button { flex:1; min-height:44px; padding:4px; }
+body.compact-match .room-bid>.button { grid-column:2; grid-row:2; align-self:end; min-height:44px; padding:6px; font-size:13px; }
+body.compact-match .room-result>p,body.compact-match .room-result>h2 { margin:3px 0; font-size:12px; }
+body.compact-match .tutorial-shell { flex:1; min-height:0; display:flex; flex-direction:column; padding:10px; }
+body.compact-match .tutorial-topline { margin-bottom:5px; font-size:10px; gap:8px; }
+body.compact-match .tutorial-steps { gap:3px; margin:0 0 6px; }
+body.compact-match .tutorial-steps li { padding:7px 1px; font-size:10px; }
+body.compact-match .tutorial-coach { padding:8px; gap:7px; margin-bottom:5px; }
+body.compact-match .tutorial-coach h2 { font-size:18px; margin:0; }
+body.compact-match .tutorial-coach p { font-size:12px; margin:4px 0 0; }
+body.compact-match .tutorial-coach-mark { display:none; }
+body.compact-match .tutorial-lesson { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-bottom:5px; }
+body.compact-match .tutorial-lesson .button { min-height:44px; padding:9px; font-size:12px; }
+body.compact-match .tutorial-layout { grid-template-columns:1fr; gap:8px; }
+body.compact-match .tutorial-bid { padding:8px; }
+body.compact-match .tutorial-bid input { font-size:16px; }
+@media(max-width:360px) {
+  body.compact-match .match-title>span { font-size:10px; }
+  body.compact-match .match-tools button { padding-inline:6px; font-size:11px; }
+}
+body.compact-match .opponent-identity>div { min-width:0; }
+body.compact-match .opponent-identity .seat-name { display:block; overflow:hidden; text-overflow:ellipsis; }
+body.compact-match .room-sync { flex:none; padding:2px 5px; margin:0 0 3px; font-size:10px; }
+body.compact-match .room-seat>small,body.compact-match .room-seat>em { font-size:9px; margin:0; line-height:1.2; }
+body.compact-match .room-seat-offer { margin-top:2px; }
+body.compact-match .room-seat-offer small { font-size:9px; line-height:1.2; }
+body.compact-match .room-seat-offer strong { font-size:11px; }
+body.compact-match #page-play:has(#game-tabs):not([hidden]) { display:flex; }
+body.compact-match #detail-dialog .opponent-style,
+body.compact-match #detail-dialog .opponent-moment,
+body.compact-match #detail-dialog .seat-margin { display:block; }
+body.compact-match #detail-dialog .seat-row,body.compact-match #detail-dialog .room-seats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+body.compact-match .room-seats { margin:2px 0; }
+body.compact-match .room-seat { gap:2px; }
+
+body.compact-match .match-amounts { flex-wrap:wrap; }

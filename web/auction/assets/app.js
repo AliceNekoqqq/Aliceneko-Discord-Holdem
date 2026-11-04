@@ -223,9 +223,10 @@ function renderRoles() {
 let tutorial=null;
 function renderTutorial(focus=false) {
   if(!meta)return;
+  syncPlayLayout(location.hash==="#tutorial");
   try {
     tutorial??=createAuctionTutorial(meta);
-    $("#tutorial-content").innerHTML=tutorialView(tutorial.view,meta);
+    $("#tutorial-content").innerHTML=matchToolbar({},{tutorial:true})+tutorialView(tutorial.view,meta);
     if(focus){const heading=$("#tutorial-step-title");heading?.focus?.({preventScroll:true});heading?.scrollIntoView?.({block:"start",behavior:"instant"});}
   }catch(error){$("#tutorial-content").textContent=error.message;}
 }
@@ -256,6 +257,7 @@ function route() {
   );
   document.title = `${{ home: "仓库盲拍", play: "拍卖大厅", catalog: "藏品图鉴", roles: "人物技能", rules: "拍卖指南", tutorial:"新手教程" }[name]} · 红豆粉小酒馆`;
   document.body.classList.toggle("game-route", name === "play");
+  if (name !== "play" && name !== "tutorial") syncPlayLayout(false);
   if (name === "play") renderPlay();
   if (name === "tutorial") renderTutorial();
   if (!hash.startsWith("rule-"))
@@ -373,6 +375,7 @@ function mountBoard(s, selector = "#warehouse-board") {
   if (!board) return;
   const b = s.board;
   frameBoard(board, b);
+  board.parentElement.style.setProperty("--board-ratio",b.cols/b.rows);
   board.style.aspectRatio = `${b.cols} / ${b.rows}`;
   board.style.backgroundSize = `${100 / b.cols}% 100%, 100% ${100 / b.rows}%`;
   board.innerHTML = "";
@@ -620,6 +623,32 @@ function revealControls(s) {
     pending = loop?.busy;
   return `<div class="reveal-controls" data-reveal-state="${state}"><progress class="reveal-meter" aria-label="开仓揭露进度" max="${s.reveal.total || 1}" value="${s.reveal.count}"></progress><p class="reveal-note">${running ? "正在一件件翻" : paused ? "暂停了，随时可以继续" : "仓门开着，慢慢翻"} · ${s.reveal.count} / ${s.reveal.total}</p><div class="reveal-buttons"><button class="button primary wide" data-reveal="auto">${running ? "暂停揭露" : paused ? "继续揭露 →" : "自动逐件揭露 →"}</button><button class="button outline" data-reveal="next"${running || pending ? " disabled" : ""}>单件</button><button class="button outline" data-reveal="all"${running || pending ? " disabled" : ""}>全部打开</button></div></div>`;
 }
+// One layout preference, independent of the auction state or financial actions.
+let compactChoice=null,layoutEligible=false;
+function syncPlayLayout(eligible) {
+  layoutEligible=eligible;
+  document.body.classList.toggle("compact-match",Boolean(eligible&&(compactChoice??window.matchMedia?.("(max-width: 700px)").matches)));
+}
+function matchToolbar(s,{room=false,tutorial=false}={}) {
+  const live=s.status==="active",clock=room?s.roundEndsAt:s.expires,
+    subtotal=(s.items||[]).reduce((n,x,i)=>n+(i===spinningIndex()?0:x?.value||0),0),
+    latest=live?s.publicInfo?.clues?.at(-1):null;
+  return `<div class="match-toolbar">
+    <div class="match-title"><strong>${tutorial?'新手练习':live?`第 ${s.round} / 5 轮`:'开仓揭晓'}</strong><span>${escape(meta.roles?.[s.role]?.name||'')}${clock?` · <span ${room?'data-room-clock':'data-countdown'}="${clock}"></span>`:''}</span></div>
+    <div class="match-tools">${tutorial?'':'<button data-match-info>情报 / 报价</button>'}<button data-match-menu>菜单</button><button data-compact><span class="full-layout-label">一屏模式</span><span class="compact-layout-label">展开</span></button></div>
+    ${tutorial?'':`<div class="match-amounts"><span>${live?'线索估值':'已揭晓'} <strong>${number(live?s.estimate:subtotal)}</strong></span><span>预算 ${gameMoney(s,s.budget)}</span></div>`}
+    ${latest?`<p class="match-latest">公共情报 · ${escape(latest.text)}</p>`:''}
+  </div>`;
+}
+function openMatchPanel(menu=false) {
+  if(menu){
+    dialog(`<h2>对局菜单</h2><div class="match-menu">${[['auction','继续竞拍'],['inventory','个人仓库'],['cabinet','展示柜'],['wallet','钱包 / 服务器'],['room','联机房间']].map(([v,label])=>`<button class="button outline" data-match-nav data-view="${v}">${label}</button>`).join('')}<a data-match-nav href="#tutorial">新手教程</a><a data-match-nav href="#rules">玩法指南</a><a data-match-nav href="#home">网站首页</a><button class="sound-toggle" data-sound>音效：${soundEnabled()?'开':'关'}</button></div>`);
+    return;
+  }
+  const html=Array.from($("#game-content").querySelectorAll(".warehouse-intel,.clue-list,.history,.appraiser-card,.match-meta,.seat-strip,.room-seats"))
+    .map(n=>n.outerHTML.replace('<details class="clue-list"','<details open class="clue-list"')).join('');
+  dialog(`<h2>本局情报与公开报价</h2>${html||'<p>尚无追加情报。</p>'}`);
+}
 function gameView() {
   const s = game?.session;
   if (!s || (s.status !== "active" && (!s.reveal || s.reveal.complete) && spinningIndex()===null)) {
@@ -630,9 +659,9 @@ function gameView() {
   const active = s.status === "active",
     r = s.result,
     subtotal = s.items?.reduce((n,x,i)=>n+(x&&i!==spinningIndex()?x.value:0),0)||0;
-  return `<div class="play-layout"><div>${seatStrip(s)}${themeScene(s.theme?.id)}<div class="board-heading"><h2>${escape(s.warehouse?.name || "仓库")} · ${s.itemCount}件</h2><p>${s.board.cols}×${s.board.rows}格板<br>${active ? "只展示已知品质与轮廓" : `开仓揭晓 ${s.reveal.count} / ${s.reveal.total}`}</p></div>${rareMomentView()}<div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${legend()}${history(s)}</div><aside class="panel">${
+  return `${matchToolbar(s)}<div class="play-layout"><div class="board-column">${seatStrip(s)}${themeScene(s.theme?.id)}<div class="board-heading"><h2>${escape(s.warehouse?.name || "仓库")} · ${s.itemCount}件</h2><p>${s.board.cols}×${s.board.rows}格板<br>${active ? "只展示已知品质与轮廓" : `开仓揭晓 ${s.reveal.count} / ${s.reveal.total}`}</p></div>${rareMomentView()}<div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${legend()}${history(s)}</div><aside class="panel bid-panel">${
     active
-      ? `${appraiserCard(s)}<span class="auction-stage">第 ${s.round} / 5 轮 · ${meta.roles[s.role].name}</span><p>本局预算 ${gameMoney(s, s.budget)}<br>线索估值约</p><div class="line-value">${number(s.estimate)}</div><p>${s.currency === "tavern" ? "酒馆币" : "竞拍币"} · 剩余 <span data-countdown="${s.expires}"></span> · 同价优先 ${s.priority.map((i) => npc[i]).join(" / ")}</p>${warehouseIntel(s)}<div class="bid-presets">${[
+      ? `${appraiserCard(s)}<span class="auction-stage">第 ${s.round} / 5 轮 · ${meta.roles[s.role].name}</span><p>本局预算 ${gameMoney(s, s.budget)}<br>线索估值约</p><div class="line-value">${number(s.estimate)}</div><p class="match-meta">${s.currency === "tavern" ? "酒馆币" : "竞拍币"} · 剩余 <span data-countdown="${s.expires}"></span> · 同价优先 ${s.priority.map((i) => npc[i]).join(" / ")}</p>${warehouseIntel(s)}<div class="bid-presets">${[
           [0.8, "估值80%"],
           [0.95, "估值95%"],
         ]
@@ -642,7 +671,7 @@ function gameView() {
           })
           .join(
             "",
-          )}<button data-bid="0">本轮不出价<small>0 ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small></button><button data-bid="${s.budget}">预算上限<small>${gameMoney(s, s.budget)}</small></button></div><form id="bid-form" class="bid-form"><label for="bid-amount">本轮暗标总价（整数）</label><div class="bid-stepper"><button type="button" class="step-button" data-bid-step="-1" aria-label="减少报价">−</button><input id="bid-amount" name="bid" type="number" min="0" max="${s.budget}" step="1" placeholder="输入报价" required inputmode="numeric"><button type="button" class="step-button" data-bid-step="1" aria-label="增加报价">+</button></div><small class="step-hint">每次 ±${number(bidStep(s))}，上限 ${gameMoney(s, s.budget)}</small><button class="button primary wide" type="submit">封牌，压上这一轮 →</button></form><details class="clue-list"><summary>翻翻这局的线索</summary>${focusClue(s.info)}${s.info.highCount === null ? "" : `<p>紫 / 金 / 红合计 ${s.info.highCount} 件</p>`}${s.info.highCounts ? `<p>紫${s.info.highCounts[0]} / 金${s.info.highCounts[1]} / 红${s.info.highCounts[2]}</p>` : ""}${s.info.highArea === undefined ? "" : `<p>高品质总占格 ${s.info.highArea} 格</p>`}${s.info.items.map((c, i) => `<p>${i + 1}. ${c.quality === null ? "品质未知" : meta.qualities[c.quality] + "品质"} · ${c.width === null ? "轮廓未知" : `${c.width}×${c.height} / ${c.width * c.height}格`}${c.category?` · 类别：${escape(c.category)}`:""}</p>`).join("")}</details><button class="danger-link" data-leave>放弃余下竞拍</button>`
+          )}<button data-bid="0">本轮不出价<small>0 ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small></button><button data-bid="${s.budget}">预算上限<small>${gameMoney(s, s.budget)}</small></button></div><form id="bid-form" class="bid-form"><label for="bid-amount">本轮暗标总价（整数）</label><div class="bid-stepper"><button type="button" class="step-button" data-bid-step="-1" aria-label="减少报价">−</button><input id="bid-amount" name="bid" type="number" min="0" max="${s.budget}" step="1" placeholder="输入报价" required inputmode="numeric"><button type="button" class="step-button" data-bid-step="1" aria-label="增加报价">+</button></div><small class="step-hint">每次 ±${number(bidStep(s))}，上限 ${gameMoney(s, s.budget)}</small><button class="button primary wide" type="submit"><span class="full-layout-label">封牌，压上这一轮 →</span><span class="compact-layout-label">封牌 →</span></button></form><details class="clue-list"><summary>翻翻这局的线索</summary>${focusClue(s.info)}${s.info.highCount === null ? "" : `<p>紫 / 金 / 红合计 ${s.info.highCount} 件</p>`}${s.info.highCounts ? `<p>紫${s.info.highCounts[0]} / 金${s.info.highCounts[1]} / 红${s.info.highCounts[2]}</p>` : ""}${s.info.highArea === undefined ? "" : `<p>高品质总占格 ${s.info.highArea} 格</p>`}${s.info.items.map((c, i) => `<p>${i + 1}. ${c.quality === null ? "品质未知" : meta.qualities[c.quality] + "品质"} · ${c.width === null ? "轮廓未知" : `${c.width}×${c.height} / ${c.width * c.height}格`}${c.category?` · 类别：${escape(c.category)}`:""}</p>`).join("")}</details><button class="danger-link" data-leave>放弃余下竞拍</button>`
       : `<span class="auction-stage">仓门开了，看看里面有什么。</span><h2>${r.winner === null ? "没人接盘，流拍了" : r.winner === 0 ? "竞拍成功！" : `${npc[r.winner]}拍中`}</h2><p>成交价 ${gameMoney(s, r.price)}<br>已揭晓 ${s.reveal.count} / ${s.reveal.total}件</p><div class="line-value">${number(subtotal)}</div><p>已揭晓总值 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</p>${s.reveal.complete?'<p class="reveal-note">最后一件正在揭晓…</p>':revealControls(s)}`
   }</aside></div>`;
 }
@@ -652,7 +681,7 @@ function opponentProfile(key) {
 }
 function opponentIdentity(profile,style,name,you=false) {
   const tone=meta.opponentStyles?.[style],image=profile?`<img class="opponent-avatar" src="${escape(profile.portrait)}" alt="${escape(profile.title)}" width="56" height="56">`:`<span class="opponent-avatar opponent-player" aria-hidden="true">${escape(Array.from(String(name))[0]||'客')}</span>`;
-  return `<div class="opponent-identity">${image}<div><span class="seat-name">${escape(name)}${you?' <i>你</i>':''}</span>${profile&&tone?`<small class="opponent-style" title="${escape(tone.description)}">${escape(tone.label)}</small>`:''}</div></div>`;
+  return `<div class="opponent-identity">${image}<div><span class="seat-name" title="${escape(name)}">${escape(name)}${you?' <i>你</i>':''}</span>${profile&&tone?`<small class="opponent-style" title="${escape(tone.description)}">${escape(tone.label)}</small>`:''}</div></div>`;
 }
 function opponentMoment(stage,history,index) {
   const m=buildOpponentReaction({stage,history,index});
@@ -879,8 +908,8 @@ function renderRoom() {
     }
   } else if(waiting) controls+='<button class="text-link" data-room-leave>退出房间</button>';
   if(waiting) return `${summary()}${roomConnectionView()}<div class="panel room-panel">${head}${seatGrid}${controls}</div>`;
-  const ownInfo=live && st.info ? `${appraiserCard({...st,role:you.role})}${warehouseIntel(st)}<span class="auction-stage">只属于你的判断</span><p>线索估值约</p><div class="line-value">${number(st.estimate)}</div><p>竞拍币 · 预算 ${number(st.budget)}</p><p class="mini-note">同价优先：${(st.priority??[]).map(i=>escape(seats.find(x=>x.index===i)?.name??"?")).join(" → ")}</p>` : "";
-  return `${summary()}${roomConnectionView()}<div class="panel room-panel">${head}${seatGrid}</div><div class="play-layout room-match"><div>${themeScene(st.theme?.id)}<div class="board-heading"><h2>${live?"你的仓库视野":"全桌共享开仓"}</h2><p>${st.board?`${st.board.cols}×${st.board.rows}格`:""} · ${live?"展示公共情报与技能已知信息":"同一仓库，同一揭晓进度"}</p></div>${rareMomentView()}${st.board?'<div class="board-wrap"><div id="room-warehouse-board" class="warehouse-board"></div></div>':""}${legend()}${history}</div><aside class="panel">${ownInfo}${controls}${live?roomClues(st.info):""}</aside></div>`;
+  const ownInfo=live && st.info ? `${appraiserCard({...st,role:you.role})}${warehouseIntel(st)}<span class="auction-stage">只属于你的判断</span><p>线索估值约</p><div class="line-value">${number(st.estimate)}</div><p>竞拍币 · 预算 ${number(st.budget)}</p><p class="mini-note match-meta">同价优先：${(st.priority??[]).map(i=>escape(seats.find(x=>x.index===i)?.name??"?")).join(" → ")}</p>` : "";
+  return `${matchToolbar({...st,role:you?.role,status:live?"active":"settled"},{room:true})}${summary()}${roomConnectionView()}<div class="panel room-panel">${head}${seatGrid}</div><div class="play-layout room-match"><div class="board-column">${themeScene(st.theme?.id)}<div class="board-heading"><h2>${live?"你的仓库视野":"全桌共享开仓"}</h2><p>${st.board?`${st.board.cols}×${st.board.rows}格`:""} · ${live?"展示公共情报与技能已知信息":"同一仓库，同一揭晓进度"}</p></div>${rareMomentView()}${st.board?'<div class="board-wrap"><div id="room-warehouse-board" class="warehouse-board"></div></div>':""}${legend()}${history}</div><aside class="panel bid-panel">${ownInfo}${controls}${live?roomClues(st.info):""}</aside></div>`;
 }
 
 // --- room polling ---------------------------------------------------------
@@ -932,6 +961,10 @@ function stopRoomTimer() {
 
 function renderPlay() {
   if (!meta) return;
+  const solo=game?.session,room=roomState?.room;
+  syncPlayLayout(location.hash==="#play"&&Boolean(account?.user&&guild&&(
+    view==="auction"&&solo&&(solo.status==="active"||solo.reveal&&!solo.reveal.complete||spinningIndex()!==null)||
+    view==="room"&&room?.started?.board&&(room.status==="active"||room.started.reveal&&!room.started.reveal.complete))));
   const focused=document.activeElement,oldForm=$("#room-bid-form"),oldBid=$("#room-bid-input"),
     draft=oldBid && oldForm ? {
       value:oldBid.value,id:oldForm.dataset.roomId,round:Number(oldForm.dataset.round),focused:focused===oldBid,
@@ -1112,6 +1145,10 @@ document.addEventListener("click", (event) => {
   const b = event.target.closest("button,a");
   if (!b) return;
   if (b.matches("button")) play("click");
+  if(b.hasAttribute("data-compact")){compactChoice=!document.body.classList.contains("compact-match");syncPlayLayout(layoutEligible);return;}
+  if(b.hasAttribute("data-match-info")){openMatchPanel();return;}
+  if(b.hasAttribute("data-match-menu")){openMatchPanel(true);return;}
+  if(b.hasAttribute("data-match-nav")){closeDialog();if(b.hasAttribute("data-view"))location.hash="#play";}
   if(b.hasAttribute("data-tutorial")){tutorialDispatch(b.dataset.tutorial,b.dataset.index);return;}
   if(b.hasAttribute("data-rare-skip")){revealPresentation?.skip();return;}
   if(b.hasAttribute("data-rare-dismiss")){revealPresentation?.clear();return;}
@@ -1188,6 +1225,8 @@ document.addEventListener("click", (event) => {
   }
   if (b.hasAttribute("data-sound")) {
     setSoundEnabled(!soundEnabled());
+    b.textContent=`音效：${soundEnabled()?"开":"关"}`;
+    b.setAttribute("aria-pressed",String(!soundEnabled()));
     renderPlay();
     return;
   }
@@ -1648,3 +1687,5 @@ async function boot() {
   }
 }
 boot();
+
+window.addEventListener("resize",()=>syncPlayLayout(layoutEligible));
