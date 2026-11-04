@@ -255,3 +255,9 @@ test("an abandoned running room returns the held budgets instead of eating them"
   assert.equal(act(B, "roomView", { now: late + 1000 }).room, null);
   assert.equal(tavern.auctionCurrency.balance("a"), 50_000_000 - tier.fee);
 });
+test("a lone host cannot start: a second human is required", (t) => {
+  const { A, act } = setup(t);
+  act(A, "roomCreate", { tier: "small", now: 1000 });
+  assert.equal(act(A, "roomView", { now: 1000 }).room.canStart, false);
+  assert.throws(() => act(A, "roomStart", { now: 1000 }), /两个真人/);
+});

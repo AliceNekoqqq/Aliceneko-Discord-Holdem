@@ -645,7 +645,7 @@ function renderRoom() {
   let controls = "";
   if (waiting) {
     if (r.host) {
-      controls = `<button class="button primary wide" data-room-start${r.canStart ? "" : " disabled"}>开局${r.canStart ? "" : "（等大家准备）"} →</button>`;
+      controls = `<button class="button primary wide" data-room-start${r.canStart ? "" : " disabled"}>开局${r.canStart ? "" : (r.humans ?? 1) < 2 ? "（还差一个真人）" : "（等大家准备）"} →</button>`;
     } else {
       controls = `<button class="button ${you?.ready ? "outline" : "primary"} wide" data-room-ready="${you?.ready ? "0" : "1"}">${you?.ready ? "取消准备" : "准备好了"}</button>`;
     }
