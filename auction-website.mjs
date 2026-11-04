@@ -29,14 +29,15 @@ const allowedActions = {
   auctionBid: ["token", "round", "bid"],
   auctionLeave: ["token", "round"],
   auctionReveal: ["token", "step", "all"],
-  roomView: [],
+  roomView: ["roomId"],
   roomCreate: ["tier"],
   roomJoin: ["code"],
-  roomLeave: [],
-  roomRole: ["role"],
-  roomReady: ["ready"],
-  roomStart: [],
-  roomBid: ["bid"],
+  roomLeave: ["roomId"],
+  roomRole: ["roomId", "role"],
+  roomReady: ["roomId", "ready"],
+  roomStart: ["roomId"],
+  roomBid: ["roomId", "round", "requestId", "bid"],
+  roomReveal: ["roomId", "mode", "step"],
   auctionExchangeConvert: ["token", "direction", "amount"],
   auctionInventorySelect: ["token", "selected"],
   auctionInventoryQuote: ["token", "quality"],
@@ -420,7 +421,11 @@ export async function handleAuctionWebsite(request, env, ctx, fetcher = fetch) {
       }
       const p = { guild, id: s.user.id, name: s.user.name, channel: "0" };
       let kind, action;
-      if (path === "/auction/api/state") {
+      if (path === "/auction/api/room") {
+        kind = "room";
+        action = "roomView";
+        if (url.searchParams.has("roomId")) p.roomId = url.searchParams.get("roomId");
+      } else if (path === "/auction/api/state") {
         kind = "game";
         action = "auctionView";
         if (url.searchParams.has("token"))

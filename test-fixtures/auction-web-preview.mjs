@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { AuctionWebAuth, webDigest } from "../auction-web-auth.mjs";
+import { AuctionWebAuth } from "../auction-web-auth.mjs";
 import { handleAuctionWebsite } from "../auction-website.mjs";
 import { TavernService } from "../tavern-service.mjs";
 import { TavernAuction } from "../tavern-auction.mjs";
@@ -38,19 +38,15 @@ function storage() {
 }
 const auth = new AuctionWebAuth(storage()),
   tavern = new TavernService(storage());
-let calls = 0;
-const tape = [9999, 0, 0, 0, 999, 0],
-  random = (n) => {
-    const i = calls++;
-    return i < tape.length ? tape[i] : i < 30 ? 0 : n - 1;
-  };
-tavern._auction = new TavernAuction(tavern, random);
-const s = await auth.dispatch({
-  kind: "sessionCreate",
-  user: { id: "1", name: "隔离测试访客", avatar: null },
-  guilds: [{ id: "3", name: "网页隔离测试服", icon: null }],
-  expires: Date.now() + 3600000,
-});
+globalThis.__TAVERN_NO_WELCOME_GRANT__=true;
+let seed=7;
+tavern._auction=new TavernAuction(tavern,n=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed%n;});
+const sessions=new Map();
+for(const [id,name] of [["101","隔离测试甲"],["102","隔离测试乙"]]){
+  sessions.set(id,await auth.dispatch({kind:"sessionCreate",user:{id,name,avatar:null},
+    guilds:[{id:"3",name:"网页隔离测试服",icon:null}],expires:Date.now()+3600000}));
+  tavern.auctionCurrency.adjust(id,50_000_000,`qa:fund:${id}`,"test","isolated QA",Date.now());
+}
 const env = {
   DISCORD_CLIENT_SECRET: "test-only",
   DISCORD_APPLICATION_ID: "123456789012345678",
@@ -79,7 +75,10 @@ const env = {
         let data = await readFile(resolve(root, "public", "." + path));
         if (path.endsWith("/app.js"))
           data = Buffer.from(
-            data
+            `const qaUser=new URLSearchParams(location.search).get("qa_user")||"101";
+const nativeFetch=globalThis.fetch.bind(globalThis);
+globalThis.fetch=(url,options={})=>nativeFetch(url,{...options,headers:{...Object.fromEntries(new Headers(options.headers)),"X-QA-User":qaUser}});
+`+data
               .toString()
               .replace(
                 'const PRIMARY = "https://auction.alicenekoqqq.cc.cd"',
@@ -107,13 +106,15 @@ const env = {
     },
   },
 };
-const fetcher = async () =>
-  Response.json({ user: { id: "1" }, pending: false });
+const fetcher = async url => Response.json({user:{id:new URL(url).pathname.split("/").at(-1)},pending:false});
 createServer(async (req, res) => {
   try {
     const url = "http://" + req.headers.host + req.url,
       headers = new Headers(req.headers);
-    headers.set("Cookie", "__Host-auction_session=" + s.token);
+    const identity=new URL(url).searchParams.get("qa_user")||req.headers["x-qa-user"]||"101";
+    const selected=sessions.get(identity);
+    if(!selected){res.writeHead(400);res.end("Unknown QA identity");return;}
+    headers.set("Cookie", "__Host-auction_session=" + selected.token);
     const chunks = [];
     let length = 0;
     for await (const chunk of req) {
