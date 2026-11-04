@@ -226,7 +226,9 @@ export class AuctionRooms {
         canStart:
           room.status === "waiting" &&
           room.host_id === p.id &&
+          humans.length >= 2 &&
           humans.every((s) => s.user_id === room.host_id || s.ready),
+        humans: humans.length,
         started:
           live || room.status === "settled"
             ? {
@@ -365,6 +367,9 @@ export class AuctionRooms {
     if (room.status !== "waiting") throw Error("这局已经开始了。");
     const seated = this.seats(mine.code).filter((s) => !s.npc);
     if (!seated.length) throw Error("房间里没人。");
+    // A table of one is just the solo mode with extra steps, so two humans
+    // are the minimum; the remaining seats still go to the NPCs.
+    if (seated.length < 2) throw Error("至少要有两个真人才能开局，等个人进来。");
     if (seated.some((s) => s.user_id !== room.host_id && !s.ready))
       throw Error("还有人没准备好。");
 
