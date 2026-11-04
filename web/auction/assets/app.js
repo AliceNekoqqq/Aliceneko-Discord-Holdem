@@ -1,3 +1,4 @@
+import { createAuctionTutorial, tutorialView } from "./tutorial.mjs";
 import { createRevealLoop } from "./reveal-loop.mjs";
 import { rareRevealMoment, createRevealPresentation } from "./reveal-stage.mjs";
 import { buildSeatStage } from "./seat-stage.mjs";
@@ -219,12 +220,31 @@ function renderRoles() {
       .join("")}</tbody></table>`;
   $("#full-rules").textContent = meta.rules.replaceAll("**", "");
 }
+let tutorial=null;
+function renderTutorial(focus=false) {
+  if(!meta)return;
+  try {
+    tutorial??=createAuctionTutorial(meta);
+    $("#tutorial-content").innerHTML=tutorialView(tutorial.view,meta);
+    if(focus){const heading=$("#tutorial-step-title");heading?.focus?.({preventScroll:true});heading?.scrollIntoView?.({block:"start",behavior:"instant"});}
+  }catch(error){$("#tutorial-content").textContent=error.message;}
+}
+function tutorialDispatch(action,value) {
+  if(location.hash!=="#tutorial"||!tutorial)return;
+  if(action==='fill-bid'){
+    const input=$("#tutorial-bid");if(input&&tutorial.view.phase==='bid'){input.value=String(tutorial.view.recommended);input.focus?.();}return;
+  }
+  const before=tutorial.view.phase,changed=tutorial.act(action,value);
+  if(!changed){$("#tutorial-feedback").textContent=tutorial.view.feedback;return;}
+  renderTutorial(before!==tutorial.view.phase);
+  if(before===tutorial.view.phase)$$("[data-tutorial]").find(b=>b.dataset.tutorial===action&&(value===undefined||b.dataset.index===String(value)))?.focus?.({preventScroll:true});
+}
 function route() {
   if (location.hash !== "#play") {pauseReveal();stopRoomTimer();}
   const hash = location.hash.slice(1) || "home",
     name = hash.startsWith("rule-")
       ? "rules"
-      : ["home", "play", "catalog", "roles", "rules"].includes(hash)
+      : ["home", "play", "catalog", "roles", "rules", "tutorial"].includes(hash)
         ? hash
         : "home";
   $$(".page").forEach((p) => (p.hidden = p.id !== `page-${name}`));
@@ -234,9 +254,10 @@ function route() {
   $$(".site-header nav a[aria-current]").forEach((a) =>
     a.setAttribute("aria-current", "page"),
   );
-  document.title = `${{ home: "仓库盲拍", play: "拍卖大厅", catalog: "藏品图鉴", roles: "人物技能", rules: "拍卖指南" }[name]} · 红豆粉小酒馆`;
+  document.title = `${{ home: "仓库盲拍", play: "拍卖大厅", catalog: "藏品图鉴", roles: "人物技能", rules: "拍卖指南", tutorial:"新手教程" }[name]} · 红豆粉小酒馆`;
   document.body.classList.toggle("game-route", name === "play");
   if (name === "play") renderPlay();
+  if (name === "tutorial") renderTutorial();
   if (!hash.startsWith("rule-"))
     window.scrollTo({ top: 0, behavior: "instant" });
 }
@@ -1091,6 +1112,7 @@ document.addEventListener("click", (event) => {
   const b = event.target.closest("button,a");
   if (!b) return;
   if (b.matches("button")) play("click");
+  if(b.hasAttribute("data-tutorial")){tutorialDispatch(b.dataset.tutorial,b.dataset.index);return;}
   if(b.hasAttribute("data-rare-skip")){revealPresentation?.skip();return;}
   if(b.hasAttribute("data-rare-dismiss")){revealPresentation?.clear();return;}
   if(b.hasAttribute("data-rare-details")){
@@ -1483,6 +1505,7 @@ $("#catalog-search").addEventListener("input", (event) => {
   renderCatalog();
 });
 document.addEventListener("submit", (event) => {
+  if(event.target.id==="tutorial-bid-form"){event.preventDefault();tutorialDispatch("bid",$("#tutorial-bid").value);return;}
   if (event.target.id === "room-bid-form") {
     event.preventDefault();
     const budget = roomState?.room?.started?.budget ?? 0,
