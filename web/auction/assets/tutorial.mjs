@@ -12,8 +12,9 @@ export function tutorialOutcome(round,bids,budget) {
 export function createAuctionTutorial(meta) {
   const used=new Set(),items=[0,1,2,3,4,1].map(q=>{
     const x=meta.items.find(x=>x.quality===q&&x.width<=2&&x.height<=2&&!used.has(x.id));
-    if(!x)throw Error('教学藏品暂未备齐，请稍后重试。');used.add(x.id);
-    return {id:x.id,name:x.name,quality:x.quality,category:x.category,width:x.width,height:x.height,
+    if(!x)throw Error('教学藏品暂未备齐，请稍后重试。');
+    if(!/^\/art\/auction\/[A-Za-z0-9_-]+\.png$/.test(x.image??''))throw Error('教学图片暂未备齐，请稍后重试。');used.add(x.id);
+    return {id:x.id,image:x.image,name:x.name,quality:x.quality,category:x.category,width:x.width,height:x.height,
       value:Math.max(1,Math.floor(x.value*(meta.tiers.small.scale??.25)/(meta.tiers.standard.scale??1)))};
   });
   const total=items.reduce((n,x)=>n+x.value,0),budget=meta.tiers.small.budget,fee=meta.tiers.small.fee,opening=Math.max(20_000_000,budget+fee);
@@ -81,7 +82,7 @@ export function createAuctionTutorial(meta) {
   return {get view(){return view();},act};
 }
 const button=(action,text,disabled=false)=>`<button class="button primary" data-tutorial="${action}"${disabled?' disabled':''}>${text}</button>`;
-const art=x=>`/art/auction/${encodeURIComponent(x.id)}-v5.png`;
+const art=x=>esc(x.image);
 function board(v,qualities) {
   return `<div class="tutorial-board" aria-label="教学小仓格板，8列4行">${v.items.map((x,i)=>{
     const w=x.width??1,h=x.height??1;
