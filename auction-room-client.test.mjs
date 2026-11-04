@@ -246,3 +246,9 @@ test('actual tutorial entry, bidding and completion never call private APIs or r
  assert.equal(x.h.tutorial.view.phase,'done');assert.equal(x.h.game.session.token,'real-session-keep');assert.equal(x.h.view,'auction');assert.equal(calls,0);
  const state=x.h.tutorial.view;x.context.location.hash='#rules';x.h.route();x.context.location.hash='#tutorial';x.h.route();assert.equal(x.h.tutorial.view.cash,state.cash);assert.equal(x.h.tutorial.view.phase,'done');
 });
+
+
+test('room capital display uses frozen server terms rather than the current catalogue budget',()=>{
+ const {h}=harness(),r=room([],'waiting');r.terms={budget:7000000,fee:100000};h.setRoom(r);
+ const html=h.renderRoom();assert(html.includes('托管预算 7,000,000'));assert(!html.includes('托管预算 4,000,000'));
+});

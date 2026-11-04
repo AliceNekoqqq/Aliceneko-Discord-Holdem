@@ -28,17 +28,17 @@ const SESSION = "__Host-auction_session",
   FLOW = "__Host-auction_flow",
   TOKEN = /^[a-f0-9]{64}$/;
 const allowedActions = {
-  auctionStart: ["token", "role", "tier", "theme"],
+  auctionStart: ["token", "role", "tier", "theme", "expectedBudget"],
   auctionBid: ["token", "round", "bid"],
   auctionLeave: ["token", "round"],
   auctionReveal: ["token", "step", "all"],
   roomView: ["roomId"],
-  roomCreate: ["tier", "theme"],
+  roomCreate: ["tier", "theme", "expectedBudget"],
   roomJoin: ["code"],
   roomLeave: ["roomId"],
   roomRole: ["roomId", "role"],
   roomReady: ["roomId", "ready"],
-  roomStart: ["roomId"],
+  roomStart: ["roomId", "expectedBudget"],
   roomBid: ["roomId", "round", "requestId", "bid"],
   roomReveal: ["roomId", "mode", "step"],
   auctionExchangeConvert: ["token", "direction", "amount"],
@@ -461,6 +461,11 @@ export async function handleAuctionWebsite(request, env, ctx, fetcher = fetch) {
           throw new WebsiteError(400, "无效游戏操作。");
         for (const key of fields)
           if (Object.hasOwn(body, key)) p[key] = body[key];
+        if (["auctionStart", "roomCreate"].includes(action) &&
+            p.expectedBudget !== AUCTION_TIERS[p.tier ?? "standard"]?.budget)
+          throw new WebsiteError(400, "竞拍预算已更新，请刷新页面后查看预算再开局；尚未扣币。");
+        if (action === "roomStart" && !Number.isSafeInteger(p.expectedBudget))
+          throw new WebsiteError(400, "请刷新页面后查看房间预算再开局；尚未扣币。");
         if (action === "auctionStart") p.presentation = "warehouse";
         kind = action.startsWith("room")
           ? "room"

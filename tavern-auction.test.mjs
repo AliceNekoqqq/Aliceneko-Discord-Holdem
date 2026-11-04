@@ -26,18 +26,19 @@ function setup(t,fund=2000,initializeCurrency=true){
  if(initializeCurrency){fx.view(base,1000);if(fund>500)tavern.sql.exec('UPDATE tavern_members SET balance=? WHERE id=?',fund,base.id);if(fund){const v=fx.view(base,1000);fx.convert({...base,token:v.token,direction:'buy',amount:fund},1001);}}
  return {db,storage,tavern,auction,fx,calls:()=>calls};
 }
-test('a cold old ready window can fail for insufficient funds without rolling back currency initialization',t=>{
+test('old ready windows require refreshed terms before any funds can be held',t=>{
  const e=setup(t,0,false),a=e.auction,token='0123456789abcdef';
  e.tavern.member(base.id,base.name,1000);
  e.tavern.sql.exec("INSERT INTO tavern_auctions(token,user_id,channel,status,created_at) VALUES(?,?,?,'ready',?)",token,base.id,base.channel,1000);
- assert.throws(()=>a.start({...base,token,role:'sophie'},1001),/先用酒馆币兑换/);
- assert.equal(a.view(base,1002).balance,0);
+ assert.throws(()=>a.start({...base,token,role:'sophie'},1001),/预算已更新/);
+ const refreshed=a.view(base,1002);assert.equal(refreshed.balance,0);assert.notEqual(refreshed.offerToken,token);
+ assert.throws(()=>a.start({...base,token:refreshed.offerToken,role:'sophie'},1002),/先用酒馆币兑换/);
  const fx=e.tavern.auctionCurrency,v=fx.view(base,1003);assert.equal(v.tavernBalance,500);assert.equal(v.auctionBalance,0);
  assert.equal(e.tavern.view(base.id,base.name,1004).member.balance,500);
  assert.equal(e.tavern.one("SELECT COUNT(*) n FROM tavern_ledger WHERE kind LIKE 'auction_%'").n,0);
- fx.convert({...base,token:v.token,direction:'buy',amount:71},1005);
- const started=a.start({...base,token,role:'sophie'},1006);assert.equal(started.balance,0);assert.equal(started.tavernBalance,429);
- assert.equal(a.leave({...base,token,round:1},1007).balance,70*R);
+ const entry=(BUDGET+FEE)/R;fx.convert({...base,token:v.token,direction:'buy',amount:entry},1005);
+ const started=a.start({...base,token:refreshed.offerToken,role:'sophie'},1006);assert.equal(started.balance,0);assert.equal(started.tavernBalance,500-entry);
+ assert.equal(a.leave({...base,token:refreshed.offerToken,round:1},1007).balance,BUDGET);
 });
 function open(a,role='sophie',now=1002){const v=a.view(base,now);return a.start({...base,token:v.offerToken,role},now+1);}
 function force(e,token,bids,priority){const r=e.tavern.one('SELECT * FROM tavern_auctions WHERE token=?',token),s=JSON.parse(r.state);s.committed=bids;if(priority)s.priority=priority;e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(s),token);}
@@ -184,10 +185,10 @@ test('three information abilities reveal only stated fields and NPCs cannot read
 });
 test('new wallets start at zero; opening never converts or spends tavern coins implicitly',t=>{
  const e=setup(t,0),v=e.auction.view(base,1002);assert.equal(v.balance,0);assert.equal(v.tavernBalance,500);
- assert.throws(()=>e.auction.start({...base,token:v.offerToken,role:'sophie'},1003),/710万/);assert.equal(e.tavern.member('1').balance,500);
- const f=e.fx.view(base,1004);e.fx.convert({...base,token:f.token,direction:'buy',amount:71},1005);
- const s=e.auction.start({...base,token:v.offerToken,role:'sophie'},1006);assert.equal(s.balance,0);assert.equal(s.tavernBalance,429);assert.equal(s.session.currency,'auction');
- assert.equal(e.auction.leave({...base,token:s.session.token,round:1},1007).balance,(70*R));assert.equal(e.tavern.member('1').balance,429);
+ assert.throws(()=>e.auction.start({...base,token:v.offerToken,role:'sophie'},1003),/1,810万/);assert.equal(e.tavern.member('1').balance,500);
+ const f=e.fx.view(base,1004),entry=(BUDGET+FEE)/R;e.fx.convert({...base,token:f.token,direction:'buy',amount:entry},1005);
+ const s=e.auction.start({...base,token:v.offerToken,role:'sophie'},1006);assert.equal(s.balance,0);assert.equal(s.tavernBalance,500-entry);assert.equal(s.session.currency,'auction');
+ assert.equal(e.auction.leave({...base,token:s.session.token,round:1},1007).balance,BUDGET);assert.equal(e.tavern.member('1').balance,500-entry);
 });
 test('auction-coin fees, escrow, retained inventory and receipts settle once across replay and reconstruction',t=>{
  const e=setup(t),a=e.auction,v=a.view(base,1002),p={...base,token:v.offerToken,role:'sophie'},s=a.start(p,1003),token=s.session.token;
@@ -269,8 +270,8 @@ test('invalid, foreign, expired, insufficient and overflowing exchanges never mo
  await e.tavern.dispatch({...base,action:'auctionExchangeView'});await assert.rejects(()=>e.tavern.dispatch({...base,guild:'9',action:'auctionExchangeView'}),/服务器不匹配/);assert.equal(setup(t,0).fx.view(base).auctionBalance,0);
 });
 test('escrow is not redeemable; exchanging available coins during a game cannot double-spend its budget',t=>{
- const e=setup(t,71),s=open(e.auction),v=e.fx.view(base,1004);assert.equal(v.auctionBalance,0);assert.throws(()=>e.fx.convert({...base,token:v.token,direction:'sell',amount:1},1005),/竞拍币不足/);
- e.auction.leave({...base,token:s.session.token,round:1},1006);const out=e.fx.convert({...base,token:v.token,direction:'sell',amount:70},1007);assert.equal(out.tavernBalance,499);assert.equal(out.auctionBalance,0);
+ const e=setup(t,(BUDGET+FEE)/R),s=open(e.auction),v=e.fx.view(base,1004);assert.equal(v.auctionBalance,0);assert.throws(()=>e.fx.convert({...base,token:v.token,direction:'sell',amount:1},1005),/竞拍币不足/);
+ e.auction.leave({...base,token:s.session.token,round:1},1006);const out=e.fx.convert({...base,token:v.token,direction:'sell',amount:BUDGET/R},1007);assert.equal(out.tavernBalance,499);assert.equal(out.auctionBalance,0);
 });
 test('auction and currency buttons/modals use owner-bound ephemeral acknowledgements and eight-digit bids',async t=>{
  const e=setup(t),env=envFor(e.tavern),view=await answerTavern(env,i());bounds(view);assert(tavernCommand.options.some(x=>x.name==='竞拍币'));assert(tavernCommand.options.length<=25);
@@ -561,10 +562,10 @@ test('odd small-tier item prices settle, replay and exchange with exact retained
  const fx=e.fx.view(base,1006),out=e.fx.convert({...base,token:fx.token,direction:'sell',amount:Math.floor(expected/R)},1007);assert.equal(out.auctionBalance,expected%R);
 });
 
-test('new collection quotes stop at 100M while historical 200M games still accept, settle and replay their saved ceiling',t=>{
- const fresh=funded(t,3000),fv=fresh.auction.view(base,1002),ns=fresh.auction.start({...base,token:fv.offerToken,role:'sophie',tier:'collection'},1003);
- assert.equal(ns.session.budget,17000000);const balance=fresh.fx.balance(base.id),ledger=fresh.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n;
- assert.throws(()=>fresh.auction.bid({...base,token:ns.session.token,round:1,bid:17000001},1004),/超出本局/);assert.equal(fresh.fx.balance(base.id),balance);assert.equal(fresh.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n,ledger);
+test('new collection quotes use the red-warehouse budget while historical 200M games keep their saved ceiling',t=>{
+ const fresh=funded(t,4000),fv=fresh.auction.view(base,1002),ns=fresh.auction.start({...base,token:fv.offerToken,role:'sophie',tier:'collection'},1003);
+ assert.equal(ns.session.budget,AUCTION_TIERS.collection.budget);const balance=fresh.fx.balance(base.id),ledger=fresh.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n;
+ assert.throws(()=>fresh.auction.bid({...base,token:ns.session.token,round:1,bid:AUCTION_TIERS.collection.budget+1},1004),/预算/);assert.equal(fresh.fx.balance(base.id),balance);assert.equal(fresh.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n,ledger);
  const e=funded(t,5000),v=e.auction.view(base,1002),opened=e.auction.start({...base,token:v.offerToken,role:'sophie',tier:'collection'},1003),token=opened.session.token;
  const state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state),oldBudget=2000*R,oldFee=100*R;
  e.tavern.sql.exec('UPDATE tavern_auction_wallets SET balance=balance+? WHERE user_id=?',state.budget+state.fee-oldBudget-oldFee,base.id);
@@ -811,4 +812,31 @@ test('Discord theme menus remain private, fit 100-character custom IDs and start
  const big=auctionData({...game,session:null,offerToken:'a'.repeat(16)},'1'.repeat(20),'2'.repeat(20),'','collection','dining');bounds(big);
  assert(immediateTavernReply(i('auctionTheme~a~small',{member:{user:{id:'4',username:'Other'}}})).data.content.includes('本人'));
  assert(immediateTavernReply(i('auctionTheme~z~small')).data.content.includes('无效'));
+});
+
+
+test('standard red warehouses have quote headroom while the unchanged newcomer wallet can still enter',t=>{
+ assert.deepEqual(Object.values(AUCTION_TIERS).map(x=>x.budget),[4000000,18000000,70000000,300000000]);
+ const config=AUCTION_TIERS.standard;assert(config.budget+config.fee<=20000000);
+ for(let round=1;round<=5;round++)for(let jitter=0;jitter<=20;jitter++){
+  const rng=n=>n===12?1:jitter,quote=budget=>[0,1,2].map(style=>npcAuctionBid({},round,style,rng,R,undefined,undefined,budget,()=>20000000));
+  assert.deepEqual(quote(7000000),[7000000,7000000,7000000]);
+  const next=quote(config.budget);assert(new Set(next).size>1);assert(next.some(x=>x<config.budget));
+ }
+ const e=funded(t,200),v=e.auction.view(base,1002),s=e.auction.start({...base,token:v.offerToken,role:'sophie',tier:'standard'},1003);
+ assert.equal(s.session.budget,18000000);assert.equal(e.fx.balance(base.id),20000000-config.budget-config.fee);
+ force(e,s.session.token,[0,0,0]);const end=e.auction.bid({...base,token:s.session.token,round:1,bid:8000000},1004);
+ assert.equal(end.session.result.price,8000000);assert.equal(end.balance,20000000-config.fee-8000000);
+});
+test('an already funded V9 standard match keeps its 7M cap and does not need another 11M after the upgrade',t=>{
+ const e=funded(t,1000),v=e.auction.view(base,1002),s=e.auction.start({...base,token:v.offerToken,role:'sophie',tier:'standard'},1003),token=s.session.token;
+ const raw=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
+ e.tavern.sql.exec('UPDATE tavern_auction_wallets SET balance=balance+? WHERE user_id=?',raw.budget-7000000,base.id);
+ raw.budget=7000000;raw.committed=[0,0,0];e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(raw),token);
+ const cash=e.fx.balance(base.id),count=e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n;
+ assert.equal(e.auction.view(base,1004).session.budget,7000000);assert.equal(e.fx.balance(base.id),cash);
+ assert.throws(()=>e.auction.bid({...base,token,round:1,bid:7000001},1005),/超出本局/);
+ assert.equal(e.tavern.one('SELECT COUNT(*) n FROM tavern_auction_ledger').n,count);
+ const end=e.auction.bid({...base,token,round:1,bid:7000000},1006);assert.equal(end.balance,cash);assert.deepEqual(end.session.items,raw.items);
+ assert.deepEqual(e.auction.bid({...base,token,round:1,bid:7000000},1007).session.result,end.session.result);
 });

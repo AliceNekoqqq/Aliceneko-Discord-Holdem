@@ -576,3 +576,27 @@ test('invalid themes cannot create a room or debit any wallet',t=>{
  const {A,act,tavern}=setup(t),before=tavern.auctionCurrency.balance(A.id);
  assert.throws(()=>act(A,'roomCreate',{theme:'invalid',now:1000}),/主题/);assert.equal(act(A,'roomView',{now:1000}).room,null);assert.equal(tavern.auctionCurrency.balance(A.id),before);
 });
+
+
+test('new waiting rooms freeze their displayed capital and old waiting rooms retain the pre-upgrade 7M terms',t=>{
+ const {A,B,act,auction,tavern}=setup(t),created=act(A,'roomCreate',{tier:'standard',now:1000}).room;
+ assert.equal(created.terms.budget,18000000);assert.equal(created.terms.fee,100000);
+ const stored=auction.rooms.row(created.code);assert.equal(stored.data.terms.budget,18000000);
+ delete stored.data.terms;auction.rooms.save(stored);
+ act(B,'roomJoin',{code:created.code,now:1001});act(B,'roomReady',{ready:true,now:1001});
+ const waiting=act(A,'roomView',{now:1002}).room;assert.equal(waiting.terms.budget,7000000);
+ const before=tavern.auctionCurrency.balance(A.id),started=act(A,'roomStart',{now:1003}).room;
+ assert.equal(started.started.budget,7000000);assert.equal(started.terms.budget,7000000);
+ assert.equal(tavern.auctionCurrency.balance(A.id),before-7000000-100000);
+});
+test('new standard rooms escrow the new 18M budget once for each human, then use the same cap for bids',t=>{
+ const {A,B,act,tavern}=setup(t),r=act(A,'roomCreate',{tier:'standard',now:1000}).room;
+ act(B,'roomJoin',{code:r.code,now:1001});act(B,'roomReady',{ready:true,now:1001});
+ const before=tavern.auctionCurrency.balance(A.id),otherBefore=tavern.auctionCurrency.balance(B.id);
+ assert.throws(()=>act(A,'roomStart',{now:1002,expectedBudget:7000000}),/刷新/);
+ assert.equal(tavern.auctionCurrency.balance(A.id),before);assert.equal(tavern.auctionCurrency.balance(B.id),otherBefore);
+ const started=act(A,'roomStart',{now:1002,expectedBudget:18000000}).room;
+ assert.equal(started.started.budget,18000000);assert.equal(tavern.auctionCurrency.balance(A.id),before-18100000);
+ act(A,'roomStart',{now:1003});assert.equal(tavern.auctionCurrency.balance(A.id),before-18100000);
+ const bid=act(A,'roomBid',{bid:8000000,now:1004}).room;assert.equal(bid.seats.find(x=>x.you).bid,8000000);
+});
