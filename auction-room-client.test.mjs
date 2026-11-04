@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 import {buildSeatStage} from './web/auction/assets/seat-stage.mjs';
 import {buildOpponentReaction} from './web/auction/assets/opponent-stage.mjs';
 import {rareRevealMoment,createRevealPresentation} from './web/auction/assets/reveal-stage.mjs';
+import {AUCTION_THEMES} from './tavern-auction-themes.mjs';
 import {AUCTION_OPPONENTS,AUCTION_NPC_STYLES} from './tavern-auction-opponents.mjs';
 const source=readFileSync(new URL('./web/auction/assets/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/boot\(\);\s*$/,'');
 function harness(search=''){
@@ -19,12 +20,13 @@ function harness(search=''){
  vm.runInContext(source+`
   const renderActual=renderPlay;renderPlay=()=>{};toast=text=>messages.push(text);dialog=html=>messages.push(html);
   globalThis.h={
-   init(){account={user:{id:'b'}};guild='3';view='room';roomConnection='live';meta={opponents:AUCTION_OPPONENTS,opponentStyles:AUCTION_NPC_STYLES,roles:{sophie:{name:'索菲',skill:'首轮五件品质'},viktor:{name:'维克托',skill:'聚合线索'}},tiers:{small:{name:'小额',fee:25000,budget:4000000}},qualities:['白','绿','蓝','紫','金','红']};},
+   init(){account={user:{id:'b'}};guild='3';view='room';roomConnection='live';meta={themes:AUCTION_THEMES,opponents:AUCTION_OPPONENTS,opponentStyles:AUCTION_NPC_STYLES,roles:{sophie:{name:'索菲',skill:'首轮五件品质'},viktor:{name:'维克托',skill:'聚合线索'}},tiers:{small:{name:'小额',fee:25000,budget:4000000}},qualities:['白','绿','蓝','紫','金','红']};},
    setApi(fn){api=fn;},setRoom(room){roomState={room};},get room(){return roomState?.room;},get connection(){return roomConnection;},
    switchGuild(){guild='4';epoch++;},get pending(){return pendingRoomInvite;},setPending(code){pendingRoomInvite=code;},
    readRoomInvite,clearRoomInvite,roomInviteURL,copyRoomInvite,acceptRoom,renderRoom,renderActual,roomAction,pollRoom,setRoomConnection,
    appraiserCard,roomClues,rareMomentView,playSuspense,gameView,demo,pauseReveal,get presentation(){return revealPresentation?.state;},setGame(value){game=value;view="auction";},setPublicDemo(items){account=null;guild="";view="auction";meta.items=items;},seatStrip,roomSeatView,opponentMoment,renderOpponents,setMeta(value){meta=value;},
-  };`,Object.assign(context,{messages,AUCTION_OPPONENTS,AUCTION_NPC_STYLES}));
+   themeScene,themeGuide,setup,renderCatalog,setCatalog(items){meta.items=items;meta.tiers.standard=meta.tiers.small;catalogs.set('standard',{items});},get themes(){return {playTheme,roomTheme,guideTheme,catalogTheme};},
+  };`,Object.assign(context,{messages,AUCTION_THEMES,AUCTION_OPPONENTS,AUCTION_NPC_STYLES}));
  context.h.init();return {h:context.h,context,nodes,saved,copies,messages,events,sounds,presentationTimers,flushPresentation(){const [id,t]=presentationTimers.entries().next().value;presentationTimers.delete(id);t.fn();}};
 }
 function room(history=[],status='active'){
@@ -184,4 +186,43 @@ test('public theme clues render from the current projection and escape their tex
  r.started.theme={id:'arts',name:'文艺收藏仓',categories:['文艺','收藏'],multiplier:3};
  h.setRoom(r);const html=h.renderRoom();assert.match(html,/全桌公共情报/);assert.match(html,/文艺收藏仓/);
  assert.match(html,/最高品质：红 &lt;script&gt;/);assert.doesNotMatch(html,/第3轮|<script>/);
+});
+
+
+test('theme previews update only local choices; waiting and active rooms use their own frozen theme, with safe legacy fallback',()=>{
+ const x=harness(),change=x.events.get('doc:change');let calls=0;x.h.setApi(()=>{calls++;throw Error('preview cannot start a game');});
+ change({target:{id:'play-theme',value:'living'}});change({target:{id:'room-theme',value:'dining'}});
+ assert(x.nodes.get('#solo-theme-preview').innerHTML.includes('日用收纳间'));
+ assert(x.nodes.get('#room-theme-preview').innerHTML.includes('餐具备藏室'));
+ assert(x.h.setup().includes('value="living" selected'));
+ const r=room([],'waiting');r.themeChoice='arts';x.h.setRoom(r);
+ assert(x.h.renderRoom().includes('文艺陈列室'));assert(!x.h.renderRoom().includes('餐具备藏室'));
+ r.status='active';r.started.theme={id:'tech'};x.h.setRoom(r);
+ assert(x.h.renderRoom().includes('数码工坊'));assert(!x.h.renderRoom().includes('文艺陈列室'));
+ delete r.started.theme;assert(!x.h.renderRoom().includes('data-scene='));
+ assert.equal(x.h.themeScene(null),'');assert.equal(x.h.themeScene('unknown'),'');
+ assert(x.h.themeScene('random',{preview:true}).includes('四种主题等概率'));assert.equal(calls,0);
+});
+test('decorative rooms use only canonical theme IDs and public metadata, escaping category labels',()=>{
+ const {h}=harness();h.setMeta({themes:[{id:'living',name:'<img onerror=1>',categories:['<script>'],multiplier:3}],get items(){throw Error('scene must not inspect catalogue goods');}});
+ const html=h.themeScene('living');assert(html.includes('日用收纳间'));assert(html.includes('&lt;script&gt;'));assert(!html.includes('<img onerror'));
+ assert(html.includes('装饰场景，不展示本仓藏品'));assert.equal(h.themeScene('__proto__'),'');
+});
+test('public theme browsing leaves play choices intact and opens a correct category filter without an API action',()=>{
+ const x=harness(),items=[
+  {...revealedArtifact('daily',0,12),category:'日用'},
+  {...revealedArtifact('dining',5,99),category:'厨房'},
+  {...revealedArtifact('arts',2,34),category:'收藏'},
+  {...revealedArtifact('tech',4,56),category:'数码'}];
+ x.h.setCatalog(items);let calls=0;x.h.setApi(()=>{calls++;throw Error('no mutation');});
+ const click=x.events.get('doc:click'),press=(key,value)=>click({target:{closest:()=>({matches:s=>s==='button',hasAttribute:k=>k===key,dataset:{themeGuide:value,themeCatalog:value}})}});
+ press('data-theme-guide','tech');assert(x.nodes.get('#theme-guide-scene').innerHTML.includes('数码工坊'));
+ assert.equal(x.h.themes.playTheme,'random');assert.equal(x.h.themes.roomTheme,'random');
+ press('data-theme-catalog','tech');assert.equal(x.context.location.hash,'#catalog');
+ const grid=x.nodes.get('#catalog-grid').innerHTML;assert(grid.includes('data-item="tech"'));assert(!grid.includes('data-item="daily"'));
+ assert(x.nodes.get('#catalog-theme-note').textContent.includes('其他类别仍可能出现'));
+ const change=x.events.get('doc:change');change({target:{id:'catalog-theme',value:'dining'}});
+ assert(x.nodes.get('#catalog-grid').innerHTML.includes('data-item="dining"'));assert(!x.nodes.get('#catalog-grid').innerHTML.includes('data-item="tech"'));
+ change({target:{id:'catalog-theme',value:'all'}});assert(x.nodes.get('#catalog-count').textContent.includes('4 件'));
+ assert.equal(calls,0);assert.equal(x.h.themes.playTheme,'random');
 });
