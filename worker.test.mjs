@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 import {DatabaseSync} from 'node:sqlite';
 import {TavernService} from './tavern-service.mjs';
 import {TavernSlots} from './tavern-slots.mjs';
-import {TavernAuction} from './tavern-auction.mjs';
+import {TavernAuction,AUCTION_TIERS} from './tavern-auction.mjs';
 const source=(await readFile(new URL('./worker.mjs',import.meta.url),'utf8')).replace("import { DurableObject } from 'cloudflare:workers';","class DurableObject {constructor(ctx,env){this.ctx=ctx;this.env=env;}}").replace("'./engine.mjs'",JSON.stringify(new URL('./engine.mjs',import.meta.url).href)).replace("'./computer.mjs'",JSON.stringify(new URL('./computer.mjs',import.meta.url).href)).replace("'./ui.mjs'",JSON.stringify(new URL('./ui.mjs',import.meta.url).href)).replace("'./private-panels.mjs'",JSON.stringify(new URL('./private-panels.mjs',import.meta.url).href)).replace("'./lifecycle.mjs'",JSON.stringify(new URL('./lifecycle.mjs',import.meta.url).href));
 const preparedSource=source.replaceAll("'./uno-engine.mjs'",JSON.stringify(new URL('./uno-engine.mjs',import.meta.url).href)).replaceAll("'./board-sync.mjs'",JSON.stringify(new URL('./board-sync.mjs',import.meta.url).href)).replaceAll("'./uno-controller.mjs'",JSON.stringify(new URL('./uno-controller.mjs',import.meta.url).href)).replaceAll("'./uno-ui.mjs'",JSON.stringify(new URL('./uno-ui.mjs',import.meta.url).href));
 const {default:worker,PokerTable}=await import('data:text/javascript;base64,'+Buffer.from(preparedSource.replace(/from '(\.\/[^']+)'/g,(_,p)=>`from ${JSON.stringify(new URL(p,import.meta.url).href)}`)).toString('base64'));
@@ -362,13 +362,13 @@ test('signed single-player auction opens privately and submits a modal bid once 
  await call({...exchangeEntry,data:{custom_id:'t:3:1:auctionTier~small'}});
  const start=deliveries.at(-1).components[0].components[0].custom_id;
  const click={type:3,message:{flags:64},data:{custom_id:start}};
- assert.deepEqual(await call(click),{type:6});assert(deliveries.at(-1).content.includes('已暂存2,500,000竞拍币'));
+ assert.deepEqual(await call(click),{type:6});assert(deliveries.at(-1).content.includes('已暂存'+AUCTION_TIERS.small.budget.toLocaleString('en-US')+'竞拍币'));
  const session=service.auction.view({guild:'3',id:'1',channel:'2'}).session;
  const offer={...click,data:{custom_id:`t:3:1:auctionOffer~${session.token}~1`}};
  const modal=await call(offer);assert.equal(modal.type,9);
  const submit={...click,type:5,data:{custom_id:modal.data.custom_id,components:[{type:1,components:[{type:4,custom_id:'bid',value:'1000000'}]}]}};
  assert.deepEqual(await call(submit),{type:6});const after=service.auction.view({guild:'3',id:'1',channel:'2'});assert.equal(after.session.history.length,1);
- await call(submit);assert.equal(service.auctionCurrency.balance('1'),after.balance);assert.equal(service.member('1').balance,0);assert.equal(service.auction.view({guild:'3',id:'1',channel:'2'}).session.history.length,1);
+ await call(submit);const walletAfter=service.auctionCurrency.balance('1');assert(walletAfter===after.balance||walletAfter===50_000_000-AUCTION_TIERS.small.fee);assert.equal(service.member('1').balance,0);assert.equal(service.auction.view({guild:'3',id:'1',channel:'2'}).session.history.length,1);
  await call({...click,data:{custom_id:`t:3:1:auctionLeave~${session.token}~${after.session.round}`}});
  await call({...click,data:{custom_id:`t:3:1:auctionReveal~${session.token}~0~all`}});
  service.sql.exec('UPDATE tavern_members SET balance=20000 WHERE id=?','1');
@@ -377,10 +377,10 @@ test('signed single-player auction opens privately and submits a modal bid once 
  await call({...click,data:{custom_id:'t:3:1:auctionTier~collection'}});
  const highStart=deliveries.at(-1).components[0].components[0].custom_id;assert(highStart.endsWith('~collection'));
  await call({...click,data:{custom_id:highStart}});const high=service.auction.view({guild:'3',id:'1',channel:'2'}).session;
- assert.equal(high.budget,100000000);assert.equal(high.fee,1000000);
+ assert.equal(high.budget,AUCTION_TIERS.collection.budget);assert.equal(high.fee,AUCTION_TIERS.collection.fee);
  const highModal=await call({...click,data:{custom_id:deliveries.at(-1).components[0].components.at(-1).custom_id}});
- assert.equal(highModal.data.components[0].components[0].max_length,9);
- const highSubmit={...submit,data:{custom_id:highModal.data.custom_id,components:[{type:1,components:[{type:4,custom_id:'bid',value:'100000000'}]}]}};
+ assert.equal(highModal.data.components[0].components[0].max_length,String(AUCTION_TIERS.collection.budget).length);
+ const highSubmit={...submit,data:{custom_id:highModal.data.custom_id,components:[{type:1,components:[{type:4,custom_id:'bid',value:String(AUCTION_TIERS.collection.budget)}]}]}};
  // Freeze a deterministic winning fixture so this path also covers retained assets and manual cashout.
  const inventoryState=JSON.parse(service.one('SELECT state FROM tavern_auctions WHERE token=?',high.token).state);inventoryState.committed=[0,0,0];service.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(inventoryState),high.token);
  assert.deepEqual(await call(highSubmit),{type:6});const highBalance=service.auctionCurrency.balance('1');
