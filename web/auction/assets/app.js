@@ -100,7 +100,7 @@ async function api(path, body) {
   if (!r.ok) {
     if (r.status === 401) {
       account = null;
-      game = wallet = inventory = null;
+      game = wallet = inventory = roomState = null;
       renderAccount();
       renderPlay();
     }
@@ -565,7 +565,7 @@ function resultView(s) {
 }
 function inventoryView() {
   if (!inventory) return '<p class="loading">正在读取个人仓库…</p>';
-  return `<div class="wallet-summary"><div><small>已揭晓藏品</small><strong>${inventory.count}<span>件</span></strong></div><div><small>藏品总值</small><strong>${number(inventory.value)}<span>竞拍币</span></strong></div><div><small>陈列中</small><strong>${inventory.displayed}<span>/ 6</span></strong></div></div>${inventory.pending ? `<div class="notice">还有${inventory.locked}件藏品待开仓。<button class="text-link" data-resume="${inventory.pending.token}">继续揭晓 →</button></div>` : ""}<div class="inventory-tools"><button class="button primary" data-sale-selected ${!selected.size ? "disabled" : ""}>出售已选 ${selected.size ? `· ${selected.size}件` : ""}</button><button class="button outline" data-display-selected ${selected.size !== 1 ? "disabled" : ""}>放入展示柜</button><label>按品质批卖 <select id="bulk-quality">${["白", "绿", "蓝", "紫", "金", "红", "全部"].map((x, i) => `<option value="${i}" ${i === 6 ? "selected" : ""}>${x}品质</option>`).join("")}</select></label><button class="button outline" data-sale-bulk>预览批卖</button></div>${inventory.items.length ? `<div class="inventory-grid">${inventory.items.map((u) => `<div class="owned-card"><label class="owned-select"><input type="checkbox" data-select="${u.id}" ${selected.has(u.id) ? "checked" : ""}>选择</label>${card(u.item, `data-owned="${u.id}"`)}<p class="owned-state">${u.display_slot !== null ? `展示中 · 第${u.display_slot + 1}格` : "已开仓"}</p></div>`).join("")}</div><div class="load-more"><button class="button outline" data-page="${inventory.page - 1}" ${inventory.page <= 0 ? "disabled" : ""}>← 上一页</button> <span class="mini-note">${inventory.page + 1} / ${inventory.pages}</span> <button class="button outline" data-page="${inventory.page + 1}" ${inventory.page + 1 >= inventory.pages ? "disabled" : ""}>下一页 →</button></div>` : '<div class="empty-state"><h2>仓库还空着。</h2><p>拍中并开仓后，喜欢的藏品就能留在这里。</p><button class="button outline" data-view="auction">去拍下一仓 →</button></div>'}`;
+  return `<div class="wallet-summary"><div><small>已揭晓藏品</small><strong>${inventory.count}<span>件</span></strong></div><div><small>藏品总值</small><strong>${number(inventory.value)}<span>竞拍币</span></strong></div><div><small>陈列中</small><strong>${inventory.displayed}<span>/ 6</span></strong></div></div>${inventory.pending ? `<div class="notice">还有${inventory.locked}件藏品待开仓。<button class="text-link" data-resume="${inventory.pending.token}" ${inventory.pending.room?`data-resume-room="${escape(inventory.pending.roomId)}"`:""}>继续揭晓 →</button></div>` : ""}<div class="inventory-tools"><button class="button primary" data-sale-selected ${!selected.size ? "disabled" : ""}>出售已选 ${selected.size ? `· ${selected.size}件` : ""}</button><button class="button outline" data-display-selected ${selected.size !== 1 ? "disabled" : ""}>放入展示柜</button><label>按品质批卖 <select id="bulk-quality">${["白", "绿", "蓝", "紫", "金", "红", "全部"].map((x, i) => `<option value="${i}" ${i === 6 ? "selected" : ""}>${x}品质</option>`).join("")}</select></label><button class="button outline" data-sale-bulk>预览批卖</button></div>${inventory.items.length ? `<div class="inventory-grid">${inventory.items.map((u) => `<div class="owned-card"><label class="owned-select"><input type="checkbox" data-select="${u.id}" ${selected.has(u.id) ? "checked" : ""}>选择</label>${card(u.item, `data-owned="${u.id}"`)}<p class="owned-state">${u.display_slot !== null ? `展示中 · 第${u.display_slot + 1}格` : "已开仓"}</p></div>`).join("")}</div><div class="load-more"><button class="button outline" data-page="${inventory.page - 1}" ${inventory.page <= 0 ? "disabled" : ""}>← 上一页</button> <span class="mini-note">${inventory.page + 1} / ${inventory.pages}</span> <button class="button outline" data-page="${inventory.page + 1}" ${inventory.page + 1 >= inventory.pages ? "disabled" : ""}>下一页 →</button></div>` : '<div class="empty-state"><h2>仓库还空着。</h2><p>拍中并开仓后，喜欢的藏品就能留在这里。</p><button class="button outline" data-view="auction">去拍下一仓 →</button></div>'}`;
 }
 function cabinetView() {
   if (!inventory) return '<p class="loading">正在打开展示柜…</p>';
@@ -583,11 +583,45 @@ function walletView() {
   return `${summary()}<div class="panel wallet-panel"><p class="eyebrow">同一间小酒馆，同一个钱包</p><h2>竞拍币双向兑换</h2><div class="exchange-rate"><div>1<small>酒馆币</small></div><span>⇄</span><div>100,000<small>竞拍币</small></div></div><p>整数兑换，免手续费。</p><p class="wallet-gift">新玩家见面礼：开局送 2,000 万竞拍币，不用先换。</p><form id="exchange-form"><label>兑换方向<select id="exchange-direction"><option value="buy">酒馆币 → 竞拍币</option><option value="sell">竞拍币 → 酒馆币</option></select></label><label>酒馆币数量（整数）<input id="exchange-amount" type="number" min="1" max="1000000" step="1" required placeholder="例如：100" inputmode="numeric"></label><button class="button primary wide" type="submit">预览兑换 →</button></form><p>与 Discord 同一个钱包。</p></div>`;
 }
 // Room actions all return the same payload shape: the caller's room, or null.
+async function refreshRoomWallet(g, e) {
+  const [w,i] = await Promise.all([api(`wallet?guild=${g}`),api(`inventory?guild=${g}`)]);
+  if(g!==guild || e!==epoch) return;
+  wallet=w.data;inventory=i.data;selected=new Set();
+}
+function acceptRoom(data) {
+  const previous=roomState?.room, next=data?.room;
+  if(next?.status==="settled" && (previous?.id!==next.id || previous?.status!=="settled"))
+    play(next.result?.won ? "win" : "lose");
+  if(next?.started?.reveal?.count > (previous?.id===next?.id ? previous?.started?.reveal?.count??0 : 0)) {
+    const item=next.started.items?.[next.started.reveal.last];
+    if(item) play("reveal",{quality:item.quality});
+  }
+  roomState=data;
+}
+const roomWalletKey = r => `${r?.id}:${r?.status}:${r?.started?.reveal?.complete??false}`;
 async function roomAction(action, fields = {}) {
-  const answer = await api("action", { action, guild, ...fields });
-  if (answer?.kind === "room") roomState = answer.data;
-  renderPlay();
+  const g=guild,e=++epoch,previous=roomWalletKey(roomState?.room),
+    roomId=roomState?.room?.id;
+  let answer;
+  try {
+    answer=await api("action",{action,guild:g,
+      ...(!["roomCreate","roomJoin"].includes(action)?{roomId}:{}),...fields});
+  } catch(error) {
+    if(g===guild && e===epoch){
+      try{const fresh=await api(`room?guild=${g}`);if(g===guild && e===epoch)acceptRoom(fresh.data);}catch{}
+      if(g===guild && e===epoch)renderPlay();
+    }
+    throw error;
+  }
+  if(g!==guild || e!==epoch) return;
+  if(answer?.kind==="room")acceptRoom(answer.data);
+  if(previous!==roomWalletKey(roomState?.room)) await refreshRoomWallet(g,e);
+  if(g===guild && e===epoch)renderPlay();
   return answer;
+}
+function roomClues(info) {
+  if(!info)return "";
+  return `<details class="clue-list"><summary>你的专属线索</summary>${info.highCount===null?"":`<p>紫 / 金 / 红合计 ${info.highCount} 件</p>`}${info.highCounts?`<p>紫 ${info.highCounts[0]} / 金 ${info.highCounts[1]} / 红 ${info.highCounts[2]}</p>`:""}${info.highArea===undefined?"":`<p>高品质总占格 ${info.highArea} 格</p>`}${info.items.map((c,i)=>`<p>${i+1}. ${c.quality===null?"品质未知":meta.qualities[c.quality]+"品质"} · ${c.width===null?"轮廓未知":`${c.width}×${c.height} / ${c.width*c.height}格`}</p>`).join("")}</details>`;
 }
 function roomSeatView(seat, status) {
   const role = meta.roles?.[seat.role];
@@ -597,7 +631,7 @@ function roomSeatView(seat, status) {
 function renderRoom() {
   const r = roomState?.room;
   if (!r)
-    return `<div class="panel room-panel"><p class="eyebrow">联机 · 同服开黑</p><h2>凑一桌，四个人抢一个仓库。</h2><p class="room-hint">房间只有本服务器的人能看到。开好之后，把 6 位房号念给朋友。</p><div class="room-boot"><label>区域<select id="room-tier">${Object.entries(
+    return `${summary()}<div class="panel room-panel"><p class="eyebrow">联机 · 同服开黑</p><h2>凑一桌，四个人抢一个仓库。</h2><p class="room-hint">房间只有本服务器的人能看到。开好之后，把 6 位房号念给朋友。</p><div class="room-boot"><label>区域<select id="room-tier">${Object.entries(
       meta.tiers,
     )
       .map(
@@ -633,7 +667,7 @@ function renderRoom() {
         .map((h) => {
           const winner =
             h.winner === null
-              ? "流拍"
+              ? (h.done === false ? "继续竞拍" : "流拍")
               : `${escape(seats.find((s) => s.index === h.winner)?.name ?? "?")} ${number(h.price)}`;
           return `<tr><td>${h.round}</td>${h.bids
             .map((b, i) => `<td${h.winner === i ? ' class="won"' : ""}>${number(b)}</td>`)
@@ -665,22 +699,21 @@ function renderRoom() {
           `<button type="button" class="chip" data-room-preset="${Math.floor(st.budget * p)}">${p === 0 ? "过牌" : `${p * 100}%`}</button>`,
       )
       .join("");
-    controls = `<form id="room-bid-form" class="room-bid"><label>这一轮出价（0 到 ${number(st.budget)}）<input id="room-bid-input" type="number" min="0" max="${st.budget}" step="1" value="${you.bid ?? ""}" inputmode="numeric" placeholder="整数，币"></label><div class="room-presets">${presets}</div><button class="button primary" type="submit">${you.submitted ? "改一下 →" : "封牌 →"}</button></form>`;
+    controls = `<form id="room-bid-form" class="room-bid" data-room-id="${escape(r.id)}" data-round="${st.round}"><label>这一轮出价（0 到 ${number(st.budget)}）<input id="room-bid-input" type="number" min="0" max="${st.budget}" step="1" value="${you.bid ?? ""}" inputmode="numeric" placeholder="整数，币"></label><div class="room-presets">${presets}</div><button class="button primary" type="submit">${you.submitted ? "改一下 →" : "封牌 →"}</button></form>`;
   }
   if (settled && st?.result) {
-    const won = st.result.winner === you?.index;
-    const spent = (st.fee ?? 0) + (won ? st.result.price : 0);
-    controls = `<div class="room-result"><p class="eyebrow">结算</p><h2>${
-      st.result.winner === null
-        ? "没人接盘，流拍了"
-        : `${escape(st.result.winnerName ?? "?")} 以 ${number(st.result.price)} 拍中`
-    }</h2><p class="room-hint">${
-      won ? "这仓归你了，藏品已经进个人仓库。" : "没拍到，预算整笔退回，只留入场费。"
-    }</p><p class="room-hint">你这一局净支出约 ${number(spent)} 竞拍币。</p></div><button class="button outline wide" data-room-leave>再来一局</button>`;
-  } else if (!settled) {
-    controls += `<button class="text-link" data-room-leave>${waiting ? "退出房间" : "解散这局"}</button>`;
-  }
-  return `<div class="panel room-panel">${head}${seatGrid}${history}${controls}</div>`;
+    const result=st.result,reveal=st.reveal;
+    controls=`<div class="room-result"><p class="eyebrow">${result.won?"竞拍成功！":"落槌结果"}</p><h2>${result.winner===null?"无人出价，本仓流拍":`${escape(result.winnerName)} 以 ${number(result.price)} 拍中`}</h2><p>${result.won?(reveal?.complete?"这一仓归你，藏品已解锁到个人仓库。":"这一仓归你；共享揭晓完成后，藏品解锁到个人仓库。 "):"预算已退回，你只支付入场费。一起看看这一仓。"}</p></div>`;
+    if(reveal && !reveal.complete) {
+      const subtotal=st.items.filter(Boolean).reduce((n,x)=>n+x.value,0);
+      controls+=`<div class="line-value">${number(subtotal)}</div><p>已揭晓藏品价值 · 竞拍币</p><div class="reveal-controls"><progress class="reveal-meter" aria-label="共享开仓进度" value="${reveal.count}" max="${reveal.total}"></progress><p class="reveal-note">全桌共享 · ${reveal.count} / ${reveal.total} 件${reveal.running?" · 正在逐件揭晓":""}</p><div class="reveal-buttons"><button class="button primary wide" data-room-reveal="${reveal.running?"pause":"start"}">${reveal.running?"暂停共享揭晓":"自动逐件揭晓 →"}</button><button class="button outline" data-room-reveal="next"${reveal.running?" disabled":""}>单件</button><button class="button outline" data-room-reveal="all"${reveal.running?" disabled":""}>全部打开</button></div></div><p class="mini-note">任何一位玩家都可控制；重新进入会恢复同一进度。</p>`;
+    } else {
+      controls+=`<div class="result-grid"><div><small>藏品预估总值</small><strong>${number(result.total)}</strong></div><div><small>成交价</small><strong>${number(result.price)}</strong></div><div><small>你的单仓盈亏 · 含入场费</small><strong class="${result.net>=0?"profit":"loss"}">${result.net>0?"+":""}${number(result.net)}</strong></div><div><small>你的现金变化</small><strong>${number(result.cashNet)}</strong></div></div><p class="mini-note">入场费 ${number(st.fee)} 竞拍币。${result.won?"藏品已入仓，出售后才增加现金。":"未拍中，只付入场费。"}</p><button class="button outline wide" data-room-leave>返回联机大厅</button>${result.won?'<button class="text-link" data-view="inventory">查看我的藏品 →</button>':""}`;
+    }
+  } else if(waiting) controls+='<button class="text-link" data-room-leave>退出房间</button>';
+  if(waiting) return `${summary()}<div class="panel room-panel">${head}${seatGrid}${controls}</div>`;
+  const ownInfo=live && st.info ? `${appraiserCard({role:you.role})}<span class="auction-stage">只属于你的判断</span><p>线索估值约</p><div class="line-value">${number(st.estimate)}</div><p>竞拍币 · 预算 ${number(st.budget)}</p><p class="mini-note">同价优先：${(st.priority??[]).map(i=>escape(seats.find(x=>x.index===i)?.name??"?")).join(" → ")}</p>` : "";
+  return `${summary()}<div class="panel room-panel">${head}${seatGrid}</div><div class="play-layout room-match"><div><div class="board-heading"><h2>${live?"你的仓库视野":"全桌共享开仓"}</h2><p>${st.board?`${st.board.cols}×${st.board.rows}格`:""} · ${live?"只展示你的技能已知信息":"同一仓库，同一揭晓进度"}</p></div>${st.board?'<div class="board-wrap"><div id="room-warehouse-board" class="warehouse-board"></div></div>':""}${legend()}${history}</div><aside class="panel">${ownInfo}${controls}${live?roomClues(st.info):""}</aside></div>`;
 }
 
 // --- room polling ---------------------------------------------------------
@@ -688,16 +721,8 @@ let roomTimer = null;
 let roomTick = 0;
 let roomSignature = "";
 
-function signatureOf(room) {
-  if (!room) return "none";
-  return [
-    room.status,
-    room.started?.round ?? 0,
-    room.seats.filter((s) => s.submitted).length,
-    room.started?.history?.length ?? 0,
-    room.seats.length,
-  ].join("|");
-}
+function signatureOf(room) { return JSON.stringify(room); }
+let roomPolling=false;
 
 function tickRoomClock() {
   const el = document.querySelector("[data-room-clock]");
@@ -708,18 +733,17 @@ function tickRoomClock() {
 }
 
 async function pollRoom() {
-  if (view !== "room" || !account?.user) return;
+  if(view!=="room" || !account?.user || !guild || busy || roomPolling || document.hidden) return;
+  const g=guild,e=epoch,previous=roomWalletKey(roomState?.room);
+  roomPolling=true;
   try {
-    const answer = await api("action", { action: "roomView", guild });
-    if (view !== "room" || answer?.kind !== "room") return;
-    roomState = answer.data;
-    const sig = signatureOf(roomState?.room ?? null);
-    const typing = document.activeElement?.id === "room-bid-input";
-    if (sig !== roomSignature) {
-      roomSignature = sig;
-      if (!(typing && roomState?.room?.status === "active")) renderPlay();
-    }
-  } catch {}
+    const answer=await api(`room?guild=${g}`);
+    if(g!==guild || e!==epoch || view!=="room" || answer?.kind!=="room")return;
+    acceptRoom(answer.data);
+    if(previous!==roomWalletKey(roomState?.room)) await refreshRoomWallet(g,e);
+    if(g===guild && e===epoch && view==="room" && signatureOf(roomState?.room)!==roomSignature)renderPlay();
+  } catch(error) { if(g===guild && e===epoch && view==="room")toast(error.message); }
+  finally {roomPolling=false;}
 }
 
 function ensureRoomTimer() {
@@ -729,7 +753,7 @@ function ensureRoomTimer() {
   roomTimer = setInterval(() => {
     roomTick++;
     tickRoomClock();
-    if (roomTick % 3 === 0) pollRoom();
+    if (roomState?.room?.started?.reveal?.running || roomTick % 3 === 0) pollRoom();
   }, 1000);
 }
 
@@ -741,6 +765,11 @@ function stopRoomTimer() {
 
 function renderPlay() {
   if (!meta) return;
+  const focused=document.activeElement,oldForm=$("#room-bid-form"),
+    draft=focused?.id==="room-bid-input" && oldForm ? {
+      value:focused.value,id:oldForm.dataset.roomId,round:Number(oldForm.dataset.round),
+    } : null,
+    roleDraft=focused?.id==="room-role"?focused.value:null;
   $("#game-tabs").hidden = !account?.user || !guild;
   const bar = $("#game-statusbar");
   if (bar) {
@@ -784,8 +813,17 @@ function renderPlay() {
             ? inventoryView()
             : `${summary()}${game ? gameView() : '<p class="loading">正在恢复你的拍卖…</p>'}`;
   if (view === "auction" && game?.session) mountBoard(game.session);
+  if(view==="room") {
+    tickRoomClock();
+    if(roomState?.room?.started?.board) mountBoard(roomState.room.started,"#room-warehouse-board");
+    roomSignature=signatureOf(roomState?.room);
+  }
   if (view === "room" && account?.user) ensureRoomTimer();
   else stopRoomTimer();
+  if(draft && draft.id===roomState?.room?.id && draft.round===roomState?.room?.started?.round) {
+    const input=$("#room-bid-input");if(input){input.value=draft.value;input.focus({preventScroll:true});}
+  }
+  if(roleDraft && $("#room-role")){$("#room-role").value=roleDraft;$("#room-role").focus({preventScroll:true});}
   tick();
 }
 async function refreshAll() {
@@ -794,12 +832,14 @@ async function refreshAll() {
     g = guild;
   const a = await api(`state?guild=${g}`);
   if (e !== epoch || g !== guild) return;
-  const [w, i] = await Promise.all([
+  const [w, i, r] = await Promise.all([
     api(`wallet?guild=${g}`),
     api(`inventory?guild=${g}&page=${inventory?.page || 0}`),
+    view==="room"?api(`room?guild=${g}`):null,
   ]);
   if (e !== epoch || g !== guild) return;
   game = a.data;
+  if(r)acceptRoom(r.data);
   wallet = w.data;
   inventory = i.data;
   selected = new Set();
@@ -905,6 +945,11 @@ document.addEventListener("click", (event) => {
   const b = event.target.closest("button,a");
   if (!b) return;
   if (b.matches("button")) play("click");
+  if(b.hasAttribute("data-room-reveal")) {
+    const r=roomState?.room,mode=b.dataset.roomReveal,step=r?.started?.reveal?.count;
+    perform(()=>roomAction("roomReveal",{roomId:r?.id,mode,step}));
+    return;
+  }
   if (b.hasAttribute("data-room-preset")) {
     const input = $("#room-bid-input");
     if (input) input.value = b.dataset.roomPreset;
@@ -1028,8 +1073,8 @@ document.addEventListener("click", (event) => {
         const data = await api(`wallet?guild=${g}`);
         if (g === guild && e === epoch) wallet = data.data;
       } else if (view === "room") {
-        const data = await api("action", { action: "roomView", guild: g });
-        if (g === guild && e === epoch) roomState = data.data;
+        const data = await api(`room?guild=${g}`);
+        if (g === guild && e === epoch) acceptRoom(data.data);
       } else {
         const data = await api(`state?guild=${g}`);
         if (g === guild && e === epoch) game = data.data;
@@ -1083,7 +1128,7 @@ document.addEventListener("click", (event) => {
       await api("logout", {});
       account = null;
       guild = "";
-      game = wallet = inventory = null;
+      game = wallet = inventory = roomState = null;
       epoch++;
       renderAccount();
       renderPlay();
@@ -1140,8 +1185,16 @@ document.addEventListener("click", (event) => {
       return;
     }
     if (b.hasAttribute("data-resume")) {
-      game = (await api(`state?guild=${guild}&token=${b.dataset.resume}`)).data;
-      view = "auction";
+      const g=guild,e=++epoch;
+      if(b.dataset.resumeRoom){
+        const answer=await api(`room?guild=${g}&roomId=${encodeURIComponent(b.dataset.resumeRoom)}`);
+        if(g!==guild || e!==epoch)return;
+        acceptRoom(answer.data);view="room";
+      } else {
+        const answer=await api(`state?guild=${g}&token=${b.dataset.resume}`);
+        if(g!==guild || e!==epoch)return;
+        game=answer.data;view="auction";
+      }
       renderPlay();
       return;
     }
@@ -1217,7 +1270,7 @@ document.addEventListener("change", (event) => {
     perform(async () => {
       epoch++;
       guild = t.value;
-      game = wallet = inventory = null;
+      game = wallet = inventory = roomState = null;
       selected = new Set();
       renderAccount();
       renderPlay();
@@ -1244,13 +1297,17 @@ $("#catalog-search").addEventListener("input", (event) => {
 document.addEventListener("submit", (event) => {
   if (event.target.id === "room-bid-form") {
     event.preventDefault();
-    const budget = roomState?.room?.started?.budget ?? 0;
-    const bid = Number($("#room-bid-input").value);
+    const budget = roomState?.room?.started?.budget ?? 0,
+      roomId=event.target.dataset.roomId,round=Number(event.target.dataset.round),
+      requestId=crypto.randomUUID();
+    const raw=$("#room-bid-input").value.trim();
+    if(!raw)return toast("先填写报价；不出价请填 0。");
+    const bid = Number(raw);
     if (!Number.isSafeInteger(bid) || bid < 0 || bid > budget)
       return toast(`报价得是 0 到 ${number(budget)} 之间的整数。`);
     play("seal");
     perform(async () => {
-      await roomAction("roomBid", { bid });
+      await roomAction("roomBid", { roomId,round,requestId,bid });
     });
     return;
   }
@@ -1297,6 +1354,7 @@ window.addEventListener("hashchange", route);
 // Auto-reveal stops while the tab is hidden and only resumes after the session
 // has been re-read from the server, so a background tab can never double-open.
 document.addEventListener("visibilitychange", () => {
+  if(!document.hidden && view==="room")pollRoom();
   if (document.hidden) {
     if (revealLoop?.state === "running") {
       revealPausedByHidden = true;

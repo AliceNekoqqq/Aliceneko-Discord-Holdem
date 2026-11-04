@@ -708,6 +708,7 @@ test("read-only member proofs reduce Discord calls while every mutation still ch
   assert.equal(count(), 1);
   await j(await e.request("api/wallet?guild=3", { cookie: s.cookie }));
   await j(await e.request("api/inventory?guild=3", { cookie: s.cookie }));
+  assert.deepEqual((await j(await e.request("api/room?guild=3",{cookie:s.cookie}))).data,{room:null});
   assert.equal(count(), 1);
   e.setMembership(false);
   assert.equal(
@@ -724,4 +725,26 @@ test("read-only member proofs reduce Discord calls while every mutation still ch
   const hash = await webDigest(s.cookie.split("=")[1]),
     stored = await e.auth.dispatch({ kind: "sessionRead", hash });
   assert(stored.checkedGuilds["3"] > Date.now());
+});
+
+
+test("room API accepts bound mutations and cached read proofs while rejecting stale or unauthorized room identities",async t=>{
+ const e=setup(t),s=await login(e);
+ const created=await j(await action(e,s,"roomCreate",{tier:"small"}));
+ assert.equal(created.kind,"room");assert.match(created.data.room.id,/^[a-f0-9]{16}$/);
+ const roomId=created.data.room.id;
+ const proofCalls=()=>e.calls.filter(x=>x.url.includes("/guilds/3/members/1")).length;
+ const before=proofCalls();
+ for(let i=0;i<3;i++){
+  const read=await j(await e.request(`api/room?guild=3&roomId=${roomId}`,{cookie:s.cookie}));
+  assert.equal(read.data.room.id,roomId);
+ }
+ assert.equal(proofCalls(),before);
+ assert.equal((await action(e,s,"roomRole",{roomId,role:"viktor"})).status,200);
+ assert.equal((await action(e,s,"roomReady",{roomId,ready:true})).status,200);
+ assert.equal((await action(e,s,"roomRole",{roomId:"f".repeat(16),role:"sophie"})).status,400);
+ assert.equal((await action(e,s,"roomRole",{role:"sophie"})).status,400);
+ assert.equal((await action(e,s,"roomLeave",{roomId})).status,200);
+ assert.equal((await e.request("api/room?guild=4",{cookie:s.cookie})).status,403);
+ assert.equal((await e.request("api/room?guild=3")).status,401);
 });

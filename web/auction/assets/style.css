@@ -4107,3 +4107,15 @@ body.game-route {
   border-radius: 12px;
   background: #fff7f2;
 }
+/* Multiplayer uses the same warehouse and appraiser panels as solo play. */
+.room-match { margin-top: 24px; }
+.room-match > div, .room-match > aside { min-width: 0; }
+.room-match .room-result { margin-top: 0; padding-top: 0; }
+.room-match .result-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.room-match .result-grid strong { overflow-wrap: anywhere; }
+.room-match .room-bid input { width: 100%; box-sizing: border-box; }
+.room-match .clue-list { margin-top: 20px; }
+@media (max-width: 640px) {
+  .room-match { gap: 20px; }
+  .room-match .result-grid { gap: 16px; }
+}
