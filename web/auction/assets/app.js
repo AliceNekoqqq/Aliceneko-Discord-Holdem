@@ -208,7 +208,7 @@ function renderRoles() {
   $("#full-rules").textContent = meta.rules.replaceAll("**", "");
 }
 function route() {
-  if (location.hash !== "#play") pauseReveal();
+  if (location.hash !== "#play") {pauseReveal();stopRoomTimer();}
   const hash = location.hash.slice(1) || "home",
     name = hash.startsWith("rule-")
       ? "rules"
@@ -246,7 +246,7 @@ function renderAccount() {
       cancelled =
         new URLSearchParams(location.search).get("login") === "cancelled";
     $("#login-status").innerHTML =
-      `${unavailable ? '<div class="notice">Discord登录正在准备中。你可以先浏览藏品、了解能力和规则，或查看下方开仓演示。</div>' : cancelled ? '<div class="notice">本次登录已取消，随时可以重新进入。</div>' : ""}<div class="login-panel"><div><p class="eyebrow">从你熟悉的小酒馆，走进来</p><h2>用Discord，打开你的仓库。</h2><p>同一个钱包，同一个仓库。这边开的局，Discord 里也能接着打。</p><button class="button primary" data-login>Discord 登录 ↗</button><p class="mini-note">只读取身份与服务器列表。</p></div><div class="login-art"><img src="${LIVE}/art/auction/tavern-5-53-v5.png" alt="装着街道的旅行箱"></div></div>`;
+      `${pendingRoomInvite?`<div class="notice">收到房间 ${escape(pendingRoomInvite)} 的邀请。登录后选择朋友所在的服务器，再确认加入。</div>`:""}${unavailable ? '<div class="notice">Discord登录正在准备中。你可以先浏览藏品、了解能力和规则，或查看下方开仓演示。</div>' : cancelled ? '<div class="notice">本次登录已取消，随时可以重新进入。</div>' : ""}<div class="login-panel"><div><p class="eyebrow">从你熟悉的小酒馆，走进来</p><h2>用Discord，打开你的仓库。</h2><p>同一个钱包，同一个仓库。这边开的局，Discord 里也能接着打。</p><button class="button primary" data-login>Discord 登录 ↗</button><p class="mini-note">只读取身份与服务器列表。</p></div><div class="login-art"><img src="${LIVE}/art/auction/tavern-5-53-v5.png" alt="装着街道的旅行箱"></div></div>`;
   }
 }
 // Red chance per item comes from the live region table, so tuning the odds
@@ -400,6 +400,54 @@ const REVEAL_SPIN_MS = [420, 620, 820, 1080, 1340, 1700];
 let revealSuspense = null;
 let settledSoundToken = null;
 let roomState = null;
+let pendingRoomInvite = "";
+let roomConnection = "idle";
+let roomOpenKey = "";
+const ROOM_INVITE_KEY = "auction-room-invite";
+const validRoomCode = code => /^[A-HJ-NP-Z2-9]{6}$/.test(code);
+function readRoomInvite(now = Date.now()) {
+  const params = new URLSearchParams(location.search);
+  try {
+    if(params.has("room")) {
+      const code = (params.get("room") || "").toUpperCase();
+      if(!validRoomCode(code)){sessionStorage.removeItem(ROOM_INVITE_KEY);return "";}
+      sessionStorage.setItem(ROOM_INVITE_KEY,JSON.stringify({code,expires:now+30*60_000}));
+      return code;
+    }
+    const saved = JSON.parse(sessionStorage.getItem(ROOM_INVITE_KEY) || "null");
+    if(saved && validRoomCode(saved.code) && saved.expires>now && saved.expires<=now+30*60_000)return saved.code;
+    sessionStorage.removeItem(ROOM_INVITE_KEY);
+  } catch { return validRoomCode((params.get("room") || "").toUpperCase()) ? params.get("room").toUpperCase() : ""; }
+  return "";
+}
+function roomInviteURL(code) {
+  if(!validRoomCode(code))throw Error("房号无效，请刷新房间。");
+  const url = new URL("/auction/",PRIMARY);
+  url.searchParams.set("room",code);url.hash="play";
+  return url.href;
+}
+function clearRoomInvite() {
+  pendingRoomInvite="";
+  try{sessionStorage.removeItem(ROOM_INVITE_KEY);}catch{}
+  const url=new URL(location.href);
+  if(url.searchParams.has("room")){url.searchParams.delete("room");window.history.replaceState(null,"",url);}
+}
+async function copyRoomInvite(kind) {
+  const code=roomState?.room?.code;
+  if(!validRoomCode(code))return;
+  const value=kind==="code"?code:roomInviteURL(code);
+  try{await navigator.clipboard.writeText(value);toast(kind==="code"?"房号已复制。":"邀请链接已复制，发给同服务器的朋友即可。");}
+  catch{dialog(`<h2>邀请朋友</h2><p>复制下面的${kind==="code"?"房号":"链接"}，发给同服务器的朋友。</p><input class="room-share-value" aria-label="邀请内容" readonly value="${escape(value)}"><button class="button outline" data-close>完成</button>`);}
+}
+function setRoomConnection(state) {
+  roomConnection=state;
+  const label=$("#room-connection");
+  if(label){label.dataset.state=state;const text={idle:"正在读取房间…",live:"房间已同步",stale:"连接中断，正在重试；报价不会自动重发。",offline:"网络已断开，恢复连接后会重新读取进度。"}[state];if(label.textContent!==text)label.textContent=text;}
+}
+function roomConnectionView() {
+  return `<div class="room-sync"><span id="room-connection" role="status" aria-live="polite" data-state="${roomConnection}"></span><button class="text-link" data-room-refresh>刷新房间</button></div>`;
+}
+
 const sleepFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function playSuspense(session) {
   const last = session?.reveal?.last,
@@ -589,6 +637,7 @@ async function refreshRoomWallet(g, e) {
   wallet=w.data;inventory=i.data;selected=new Set();
 }
 function acceptRoom(data) {
+  setRoomConnection("live");
   const previous=roomState?.room, next=data?.room;
   if(next?.status==="settled" && (previous?.id!==next.id || previous?.status!=="settled"))
     play(next.result?.won ? "win" : "lose");
@@ -600,6 +649,7 @@ function acceptRoom(data) {
 }
 const roomWalletKey = r => `${r?.id}:${r?.status}:${r?.started?.reveal?.complete??false}`;
 async function roomAction(action, fields = {}) {
+  if(roomConnection==="stale" || roomConnection==="offline")throw Error("先刷新房间并恢复同步，再提交操作。");
   const g=guild,e=++epoch,previous=roomWalletKey(roomState?.room),
     roomId=roomState?.room?.id;
   let answer;
@@ -608,13 +658,14 @@ async function roomAction(action, fields = {}) {
       ...(!["roomCreate","roomJoin"].includes(action)?{roomId}:{}),...fields});
   } catch(error) {
     if(g===guild && e===epoch){
-      try{const fresh=await api(`room?guild=${g}`);if(g===guild && e===epoch)acceptRoom(fresh.data);}catch{}
+      try{const fresh=await api(`room?guild=${g}`);if(g===guild && e===epoch)acceptRoom(fresh.data);}catch{if(g===guild && e===epoch)setRoomConnection(navigator.onLine===false?"offline":"stale");}
       if(g===guild && e===epoch)renderPlay();
     }
     throw error;
   }
   if(g!==guild || e!==epoch) return;
   if(answer?.kind==="room")acceptRoom(answer.data);
+  if(["roomJoin","roomCreate"].includes(action))clearRoomInvite();
   if(previous!==roomWalletKey(roomState?.room)) await refreshRoomWallet(g,e);
   if(g===guild && e===epoch)renderPlay();
   return answer;
@@ -623,38 +674,49 @@ function roomClues(info) {
   if(!info)return "";
   return `<details class="clue-list"><summary>你的专属线索</summary>${info.highCount===null?"":`<p>紫 / 金 / 红合计 ${info.highCount} 件</p>`}${info.highCounts?`<p>紫 ${info.highCounts[0]} / 金 ${info.highCounts[1]} / 红 ${info.highCounts[2]}</p>`:""}${info.highArea===undefined?"":`<p>高品质总占格 ${info.highArea} 格</p>`}${info.items.map((c,i)=>`<p>${i+1}. ${c.quality===null?"品质未知":meta.qualities[c.quality]+"品质"} · ${c.width===null?"轮廓未知":`${c.width}×${c.height} / ${c.width*c.height}格`}</p>`).join("")}</details>`;
 }
-function roomSeatView(seat, status) {
-  const role = meta.roles?.[seat.role];
-  return `<div class="room-seat${seat.you ? " you" : ""}${seat.npc ? " npc" : ""}"><span class="room-seat-name">${escape(seat.name)}${seat.you ? " <i>你</i>" : ""}</span><small>${escape(role?.name ?? "待定")}</small><em>${status === "active" ? (seat.submitted ? (seat.bid == null ? "已封牌" : `已封 ${number(seat.bid)}`) : "还在想") : status === "settled" ? "——" : seat.npc ? "NPC 补位" : seat.ready ? "已就绪" : "还没准备"}</em></div>`;
+function roomSeatView(seat, room, stage) {
+  const role=meta.roles?.[seat.role],waiting=room.status==="waiting",
+    published=stage?.seats.find(s=>s.index===seat.index),
+    won=Boolean(published?.winner),leading=!stage?.settled && Boolean(published?.leader),
+    current=waiting?(seat.ready?"已就绪":"尚未准备"):
+      room.status==="settled"?(won?"竞拍成功":"本仓已结束"):
+      seat.npc?"NPC · 等待开牌":seat.submitted?(seat.you?`已封 ${number(seat.bid)}`:"已封牌"):"本轮尚未封牌";
+  return `<div class="room-seat${seat.you?" you":""}${seat.npc?" npc":""}${won?" won":""}${leading?" leading":""}"><span class="room-seat-name">${escape(seat.name)}${seat.you?" <i>你</i>":""}${seat.npc?" <i>NPC</i>":""}</span><small>${escape(role?.name??"待定")}</small><em>${current}</em>${published?.bid==null?"":`<div class="room-seat-offer"><small>第 ${stage.round} 轮已公开${won?" · 成交":leading?" · 最高":""}</small><strong>${published.bid===0?"过牌":number(published.bid)}</strong></div>`}</div>`;
 }
 
 function renderRoom() {
   const r = roomState?.room;
   if (!r)
-    return `${summary()}<div class="panel room-panel"><p class="eyebrow">联机 · 同服开黑</p><h2>凑一桌，四个人抢一个仓库。</h2><p class="room-hint">房间只有本服务器的人能看到。开好之后，把 6 位房号念给朋友。</p><div class="room-boot"><label>区域<select id="room-tier">${Object.entries(
+    return `${summary()}${roomConnectionView()}<div class="panel room-panel"><p class="eyebrow">联机 · 同服开黑</p><h2>凑一桌，四个人抢一个仓库。</h2><p class="room-hint">房间只有本服务器的人能看到。开好之后，把 6 位房号或邀请链接发给朋友。${pendingRoomInvite?"已有邀请房号，请选择朋友所在服务器后确认加入。":""}</p><div class="room-boot"><label>区域<select id="room-tier">${Object.entries(
       meta.tiers,
     )
       .map(
         ([k, t]) =>
           `<option value="${k}">${escape(t.name)}区 · 入场 ${number(t.fee)}</option>`,
       )
-      .join("")}</select></label><button class="button primary" data-room-create>开一个房间</button></div><div class="room-boot"><label>房号<input id="room-code" maxlength="6" placeholder="比如 A7K2M9" autocomplete="off" spellcheck="false"></label><button class="button outline" data-room-join>加入</button></div></div>`;
+      .join("")}</select></label><button class="button primary" data-room-create>开一个房间</button></div><div class="room-boot"><label>房号<input id="room-code" maxlength="6" value="${escape(pendingRoomInvite)}" placeholder="比如 A7K2M9" autocomplete="off" spellcheck="false"></label><button class="button outline" data-room-join>加入</button></div></div>`;
 
   const seats = r.seats,
     you = seats.find((s) => s.you),
     waiting = r.status === "waiting",
     live = r.status === "active",
     settled = r.status === "settled",
-    st = r.started ?? null;
+    st = r.started ?? null,
+    stage=waiting?null:buildSeatStage({...st,status:r.status,result:r.result,names:seats.map(s=>s.name)}),
+    tier=meta.tiers[r.tier],
+    fees=`<div class="room-fees"><span>${escape(tier.name)}区</span><span>每人入场 ${number(tier.fee)}</span><span>托管预算 ${number(tier.budget)}</span></div>`;
   const head = waiting
-    ? `<p class="eyebrow">联机 · 等人中</p><h2>房号 <span class="room-code">${escape(r.code)}</span></h2><p class="room-hint">还剩 ${4 - seats.length} 个位置；开局时空位由 NPC 顶上。</p>`
+    ? `<p class="eyebrow">联机 · 等人中</p><h2>房号 <span class="room-code">${escape(r.code)}</span></h2><p class="room-hint">至少两名真人；还剩 ${4-seats.length} 个位置，开局后空位由 NPC 补齐。</p><div class="room-invite-actions"><button class="button outline" data-room-copy="code">复制房号</button><button class="button outline" data-room-copy="link">复制邀请链接</button></div>${fees}`
     : `<p class="eyebrow">联机 · ${live ? `第 ${st.round} / ${st.rounds} 轮` : "已结束"} · ${escape(r.code)}</p><h2>${escape(st?.warehouse?.name ?? "仓库")} · ${escape(st?.itemCount ?? 0)} 件</h2>${
         live
-          ? `<p class="room-hint">还有 <strong data-room-clock="${st.roundEndsAt}">…</strong> 秒自动开牌；四个人都封好牌会立刻开。</p>`
+          ? `<p class="room-hint">还有 <strong data-room-clock="${st.roundEndsAt}">…</strong> 秒自动开牌；所有真人都封好牌后立即开牌。</p>`
           : `<p class="room-hint">这一仓已经定了。</p>`
       }`;
 
-  const seatGrid = `<div class="room-seats">${seats.map((s) => roomSeatView(s, r.status)).join("")}${Array.from(
+  const openKey=`${r.id}:${stage?.open?stage.round:0}:${stage?.settled??false}`,
+    opening=roomOpenKey!==openKey && stage?.open;
+  roomOpenKey=openKey;
+  const seatGrid = `<div class="room-seats${opening?" opening":""}">${seats.map((s) => roomSeatView(s, r, stage)).join("")}${Array.from(
     { length: Math.max(0, 4 - seats.length) },
     () => '<div class="room-seat empty"><span class="room-seat-name">空位</span><small>开局后 NPC 顶上</small><em>——</em></div>',
   ).join("")}</div>`;
@@ -689,9 +751,9 @@ function renderRoom() {
       )
         .map(
           ([k, role]) =>
-            `<option value="${k}"${you.role === k ? " selected" : ""}>${escape(role.name)} · ${escape(role.skill.slice(0, 14))}…</option>`,
+            `<option value="${k}"${you.role===k?" selected":""}${seats.some(s=>s.role===k && !s.you)?" disabled":""}>${escape(role.name)}${seats.some(s=>s.role===k && !s.you)?" · 已被选择":""}</option>`,
         )
-        .join("")}</select></label><button class="button outline" data-room-role>换</button></div>`;
+        .join("")}</select></label><button class="button outline" data-room-role>确认更换</button></div><p id="room-role-description" class="mini-note">${escape(meta.roles[you.role]?.skill)}</p><p class="mini-note">换能力后需要重新准备。开局才扣入场费并托管预算。</p>`;
   } else if (live && you) {
     const presets = [0, 0.25, 0.5, 0.75, 1]
       .map(
@@ -711,9 +773,9 @@ function renderRoom() {
       controls+=`<div class="result-grid"><div><small>藏品预估总值</small><strong>${number(result.total)}</strong></div><div><small>成交价</small><strong>${number(result.price)}</strong></div><div><small>你的单仓盈亏 · 含入场费</small><strong class="${result.net>=0?"profit":"loss"}">${result.net>0?"+":""}${number(result.net)}</strong></div><div><small>你的现金变化</small><strong>${number(result.cashNet)}</strong></div></div><p class="mini-note">入场费 ${number(st.fee)} 竞拍币。${result.won?"藏品已入仓，出售后才增加现金。":"未拍中，只付入场费。"}</p><button class="button outline wide" data-room-leave>返回联机大厅</button>${result.won?'<button class="text-link" data-view="inventory">查看我的藏品 →</button>':""}`;
     }
   } else if(waiting) controls+='<button class="text-link" data-room-leave>退出房间</button>';
-  if(waiting) return `${summary()}<div class="panel room-panel">${head}${seatGrid}${controls}</div>`;
+  if(waiting) return `${summary()}${roomConnectionView()}<div class="panel room-panel">${head}${seatGrid}${controls}</div>`;
   const ownInfo=live && st.info ? `${appraiserCard({role:you.role})}<span class="auction-stage">只属于你的判断</span><p>线索估值约</p><div class="line-value">${number(st.estimate)}</div><p>竞拍币 · 预算 ${number(st.budget)}</p><p class="mini-note">同价优先：${(st.priority??[]).map(i=>escape(seats.find(x=>x.index===i)?.name??"?")).join(" → ")}</p>` : "";
-  return `${summary()}<div class="panel room-panel">${head}${seatGrid}</div><div class="play-layout room-match"><div><div class="board-heading"><h2>${live?"你的仓库视野":"全桌共享开仓"}</h2><p>${st.board?`${st.board.cols}×${st.board.rows}格`:""} · ${live?"只展示你的技能已知信息":"同一仓库，同一揭晓进度"}</p></div>${st.board?'<div class="board-wrap"><div id="room-warehouse-board" class="warehouse-board"></div></div>':""}${legend()}${history}</div><aside class="panel">${ownInfo}${controls}${live?roomClues(st.info):""}</aside></div>`;
+  return `${summary()}${roomConnectionView()}<div class="panel room-panel">${head}${seatGrid}</div><div class="play-layout room-match"><div><div class="board-heading"><h2>${live?"你的仓库视野":"全桌共享开仓"}</h2><p>${st.board?`${st.board.cols}×${st.board.rows}格`:""} · ${live?"只展示你的技能已知信息":"同一仓库，同一揭晓进度"}</p></div>${st.board?'<div class="board-wrap"><div id="room-warehouse-board" class="warehouse-board"></div></div>':""}${legend()}${history}</div><aside class="panel">${ownInfo}${controls}${live?roomClues(st.info):""}</aside></div>`;
 }
 
 // --- room polling ---------------------------------------------------------
@@ -733,7 +795,7 @@ function tickRoomClock() {
 }
 
 async function pollRoom() {
-  if(view!=="room" || !account?.user || !guild || busy || roomPolling || document.hidden) return;
+  if(view!=="room" || location.hash!=="#play" || !account?.user || !guild || busy || roomPolling || document.hidden) return;
   const g=guild,e=epoch,previous=roomWalletKey(roomState?.room);
   roomPolling=true;
   try {
@@ -742,7 +804,7 @@ async function pollRoom() {
     acceptRoom(answer.data);
     if(previous!==roomWalletKey(roomState?.room)) await refreshRoomWallet(g,e);
     if(g===guild && e===epoch && view==="room" && signatureOf(roomState?.room)!==roomSignature)renderPlay();
-  } catch(error) { if(g===guild && e===epoch && view==="room")toast(error.message); }
+  } catch(error) { if(g===guild && e===epoch && view==="room")setRoomConnection(navigator.onLine===false?"offline":"stale"); }
   finally {roomPolling=false;}
 }
 
@@ -818,12 +880,12 @@ function renderPlay() {
     if(roomState?.room?.started?.board) mountBoard(roomState.room.started,"#room-warehouse-board");
     roomSignature=signatureOf(roomState?.room);
   }
-  if (view === "room" && account?.user) ensureRoomTimer();
+  if (view === "room" && account?.user && location.hash==="#play") {ensureRoomTimer();setRoomConnection(roomConnection);}
   else stopRoomTimer();
   if(draft && draft.id===roomState?.room?.id && draft.round===roomState?.room?.started?.round) {
     const input=$("#room-bid-input");if(input){input.value=draft.value;input.focus({preventScroll:true});}
   }
-  if(roleDraft && $("#room-role")){$("#room-role").value=roleDraft;$("#room-role").focus({preventScroll:true});}
+  if(roleDraft && $("#room-role")){$("#room-role").value=roleDraft;$("#room-role-description").textContent=meta.roles[roleDraft]?.skill||"";$("#room-role").focus({preventScroll:true});}
   tick();
 }
 async function refreshAll() {
@@ -945,6 +1007,8 @@ document.addEventListener("click", (event) => {
   const b = event.target.closest("button,a");
   if (!b) return;
   if (b.matches("button")) play("click");
+  if(b.hasAttribute("data-room-copy")){copyRoomInvite(b.dataset.roomCopy);return;}
+  if(b.hasAttribute("data-room-refresh")){pollRoom();return;}
   if(b.hasAttribute("data-room-reveal")) {
     const r=roomState?.room,mode=b.dataset.roomReveal,step=r?.started?.reveal?.count;
     perform(()=>roomAction("roomReveal",{roomId:r?.id,mode,step}));
@@ -1266,11 +1330,14 @@ document.addEventListener("click", (event) => {
 });
 document.addEventListener("change", (event) => {
   const t = event.target;
-  if (t.id === "guild-select") {
+  if(t.id==="room-role") {
+    $("#room-role-description").textContent=meta.roles[t.value]?.skill||"";
+  } else if (t.id === "guild-select") {
     perform(async () => {
       epoch++;
       guild = t.value;
       game = wallet = inventory = roomState = null;
+      roomConnection="idle";
       selected = new Set();
       renderAccount();
       renderPlay();
@@ -1350,6 +1417,8 @@ $("#detail-dialog").addEventListener("click", (event) => {
       closeDialog();
   }
 });
+window.addEventListener("offline",()=>{if(view==="room")setRoomConnection("offline");});
+window.addEventListener("online",()=>{if(view==="room")pollRoom();});
 window.addEventListener("hashchange", route);
 // Auto-reveal stops while the tab is hidden and only resumes after the session
 // has been re-read from the server, so a background tab can never double-open.
@@ -1410,6 +1479,8 @@ document.addEventListener("visibilitychange", () => {
 async function boot() {
   try {
     initSound();
+    pendingRoomInvite=readRoomInvite();
+    if(pendingRoomInvite){view="room";location.hash="#play";}
     meta = await loadCatalog("standard");
     renderHome();
     renderCatalog();
