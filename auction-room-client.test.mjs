@@ -4,17 +4,18 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {buildSeatStage} from './web/auction/assets/seat-stage.mjs';
 import {buildOpponentReaction} from './web/auction/assets/opponent-stage.mjs';
+import {rareRevealMoment,createRevealPresentation} from './web/auction/assets/reveal-stage.mjs';
 import {AUCTION_OPPONENTS,AUCTION_NPC_STYLES} from './tavern-auction-opponents.mjs';
 const source=readFileSync(new URL('./web/auction/assets/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/boot\(\);\s*$/,'');
 function harness(search=''){
- const nodes=new Map(),events=new Map(),saved=new Map(),copies=[],messages=[];
+ const nodes=new Map(),events=new Map(),saved=new Map(),copies=[],messages=[],presentationTimers=new Map(),sounds=[];let timerId=0;
  const node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',dataset:{},value:'',addEventListener(){},setAttribute(){},classList:{toggle(){}},showModal(){},close(){}});return nodes.get(id);};
  const location={origin:'https://auction.alicenekoqqq.cc.cd',search,hash:'#play',href:'https://auction.alicenekoqqq.cc.cd/auction/'+search+'#play'};
- const context=vm.createContext({document:{hidden:false,body:node('body'),querySelector:node,querySelectorAll:()=>[],addEventListener(){}},
+ const context=vm.createContext({document:{hidden:false,body:node('body'),querySelector:node,querySelectorAll:()=>[],addEventListener:(name,fn)=>events.set('doc:'+name,fn)},
   location,window:{addEventListener:(name,fn)=>events.set(name,fn),scrollTo(){},history:{replaceState(a,b,url){location.href=url.href;location.search=url.search;location.hash=url.hash;}}},
   sessionStorage:{getItem:k=>saved.get(k)??null,setItem:(k,v)=>saved.set(k,v),removeItem:k=>saved.delete(k)},
-  navigator:{onLine:true,clipboard:{writeText:async value=>copies.push(value)}},URL,URLSearchParams,Date,crypto,setInterval(){},clearInterval(){},setTimeout,clearTimeout,buildSeatStage,buildOpponentReaction,
-  play(){},soundEnabled:()=>false,createRevealLoop(){}});
+  navigator:{onLine:true,clipboard:{writeText:async value=>copies.push(value)}},URL,URLSearchParams,Date,crypto,setInterval(){},clearInterval(){},setTimeout,clearTimeout,buildSeatStage,buildOpponentReaction,rareRevealMoment,createRevealPresentation:options=>createRevealPresentation({...options,schedule:(fn,ms)=>{presentationTimers.set(++timerId,{fn,ms});return timerId;},cancel:id=>presentationTimers.delete(id)}),
+  play:(...args)=>sounds.push(args),soundEnabled:()=>false,createRevealLoop(){}});
  vm.runInContext(source+`
   const renderActual=renderPlay;renderPlay=()=>{};toast=text=>messages.push(text);dialog=html=>messages.push(html);
   globalThis.h={
@@ -22,9 +23,9 @@ function harness(search=''){
    setApi(fn){api=fn;},setRoom(room){roomState={room};},get room(){return roomState?.room;},get connection(){return roomConnection;},
    switchGuild(){guild='4';epoch++;},get pending(){return pendingRoomInvite;},setPending(code){pendingRoomInvite=code;},
    readRoomInvite,clearRoomInvite,roomInviteURL,copyRoomInvite,acceptRoom,renderRoom,renderActual,roomAction,pollRoom,setRoomConnection,
-   appraiserCard,roomClues,seatStrip,roomSeatView,opponentMoment,renderOpponents,setMeta(value){meta=value;},
+   appraiserCard,roomClues,rareMomentView,playSuspense,gameView,demo,pauseReveal,get presentation(){return revealPresentation?.state;},setGame(value){game=value;view="auction";},setPublicDemo(items){account=null;guild="";view="auction";meta.items=items;},seatStrip,roomSeatView,opponentMoment,renderOpponents,setMeta(value){meta=value;},
   };`,Object.assign(context,{messages,AUCTION_OPPONENTS,AUCTION_NPC_STYLES}));
- context.h.init();return {h:context.h,context,nodes,saved,copies,messages,events};
+ context.h.init();return {h:context.h,context,nodes,saved,copies,messages,events,sounds,presentationTimers,flushPresentation(){const [id,t]=presentationTimers.entries().next().value;presentationTimers.delete(id);t.fn();}};
 }
 function room(history=[],status='active'){
  return {id:'1234567890abcdef',code:'ABC234',status,tier:'small',host:false,you:'b',seats:[
@@ -34,6 +35,60 @@ function room(history=[],status='active'){
   {id:'npc:b',name:'老猫',role:'viktor',index:3,npc:true}],
   started:{round:2,rounds:5,roundEndsAt:Date.now()+60000,warehouse:{name:'小仓'},itemCount:6,history,priority:[1,0,2,3],budget:4000000,fee:25000},result:null};
 }
+
+const revealedArtifact=(id,quality,value)=>({id,name:`<${id}&>`,quality,value,width:2,height:2});
+function soloReveal(items,count){return {token:'rare-one',status:'settled',currency:'auction',role:'sophie',tier:'small',budget:4000000,fee:25000,itemCount:items.length,
+ reveal:{count,total:items.length,complete:count===items.length,last:count-1},items,board:{cols:8,rows:4,slots:items.map(()=>null)},info:{highCount:null,items:items.map(()=>({quality:null,width:null,height:null}))},history:[],priority:[0,1,2,3],result:{winner:0,price:200,net:999,cashNet:-25200,total:999999}};}
+test('actual solo presentation masks the last reveal result, uses receipt value, escapes text and paints its entrance only once',async()=>{
+ const x=harness(),before=soloReveal([null],0),next=soloReveal([revealedArtifact('red',5,7654321)],1);
+ x.h.setGame({session:next});const pending=x.h.playSuspense(next,before);
+ assert.equal(x.h.presentation.phase,'spin');assert.equal(x.h.rareMomentView(),'');
+ assert(!x.h.gameView().includes('本局盈亏'));assert(!x.h.gameView().includes('999,999'));
+ x.flushPresentation();const html=x.h.rareMomentView();
+ assert(html.includes('rare-red'));assert(html.includes('&lt;red&amp;&gt;'));assert(html.includes('7,654,321'));assert(html.includes('rare-enter'));
+ assert(!x.h.rareMomentView().includes('rare-enter'));assert(x.h.gameView().includes('本局盈亏'));
+ x.flushPresentation();assert.equal(await pending,true);assert.equal(x.sounds.filter(s=>s[0]==='reveal').length,1);
+});
+test('actual batch reveal gives one high-quality moment even when the final item is low quality, with reduced motion and no waits',async()=>{
+ const x=harness(),before=soloReveal([null,null],0),next=soloReveal([revealedArtifact('red',5,456),revealedArtifact('white',0,12)],2);
+ x.context.window.matchMedia=()=>({matches:true});x.h.setGame({session:next});
+ await x.h.playSuspense(next,before,{batch:true});assert.equal(x.presentationTimers.size,0);
+ assert.equal(x.h.presentation.moment.item.id,'red');assert(x.h.rareMomentView().includes('本次揭晓2件'));
+ assert.equal(x.sounds.find(s=>s[0]==='reveal')[1].quality,5);
+});
+test('same-frame app redraws keep the first entrance until browser paint, then later redraws remain static',async()=>{
+ const x=harness(),frames=[],before=soloReveal([null],0),next=soloReveal([revealedArtifact('red',5,456)],1);
+ x.context.window.requestAnimationFrame=fn=>frames.push(fn);x.h.setGame({session:next});
+ const pending=x.h.playSuspense(next,before);x.flushPresentation();
+ assert(x.h.rareMomentView().includes('rare-enter'));assert(x.h.rareMomentView().includes('rare-enter'));
+ assert.equal(frames.length,1);frames.shift()();assert(!x.h.rareMomentView().includes('rare-enter'));
+ x.h.pauseReveal();assert.equal(await pending,false);
+});
+test('a pending real app presentation cannot produce a late moment or sound after a guild switch or detail pause',async()=>{
+ for(const interrupt of ['guild','details']){
+  const x=harness(),before=soloReveal([null],0),next=soloReveal([revealedArtifact('red',5,456)],1);
+  x.h.setGame({session:next});const pending=x.h.playSuspense(next,before);
+  if(interrupt==='guild'){x.h.switchGuild();x.flushPresentation();}else x.h.pauseReveal();
+  assert.equal(await pending,false);assert.equal(x.h.presentation,null);assert.equal(x.sounds.filter(s=>s[0]==='reveal').length,0);
+ }
+});
+test('public gold/red demonstration has no API or wallet operations and is visibly identified as a fixed example',()=>{
+ const x=harness(),gold=revealedArtifact('gold',4,123),red=revealedArtifact('tavern-5-52',5,456);
+ let calls=0;x.h.setApi(()=>{calls++;throw Error('demo cannot use API');});x.h.setPublicDemo([gold,red]);
+ const button={matches:s=>s==='button',hasAttribute:k=>k==='data-demo',dataset:{}};
+ const click=x.events.get('doc:click');click({target:{closest:()=>button}});
+ assert(x.h.demo().includes('金色珍藏'));assert(x.h.demo().includes('不代表掉率'));
+ click({target:{closest:()=>button}});assert(x.h.demo().includes('红色珍藏'));assert.equal(calls,0);
+ x.h.pauseReveal();
+});
+test('shared room catch-up emits one moment, does not replay initial data, and never sends a progression action',()=>{
+ const x=harness(),r=room([], 'settled');r.started={...soloReveal([null,null],0),round:5};r.id='shared-rare';
+ x.h.setRoom(null);x.h.acceptRoom({room:r});assert.equal(x.h.presentation,undefined);
+ const next=JSON.parse(JSON.stringify(r));next.started=soloReveal([revealedArtifact('red',5,456),revealedArtifact('white',0,12)],2);
+ x.h.acceptRoom({room:next});assert.equal(x.h.presentation.moment.item.id,'red');
+ const id=x.h.presentation.id;x.h.acceptRoom({room:next});assert.equal(x.h.presentation.id,id);
+ x.h.pauseReveal();
+});
 
 test('actual appraisal cards retain old skill text and display focused private clues with escaped categories',()=>{
  const {h}=harness();h.setMeta({skillVersion:3,roles:{zhou:{name:'老周',skill:'新版鉴定类别',legacySkill:'旧版每轮品质',focus:'重点鉴定'}},qualities:['白','绿','蓝','紫','金','红']});

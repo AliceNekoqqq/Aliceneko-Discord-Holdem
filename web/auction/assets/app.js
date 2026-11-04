@@ -1,4 +1,5 @@
 import { createRevealLoop } from "./reveal-loop.mjs";
+import { rareRevealMoment, createRevealPresentation } from "./reveal-stage.mjs";
 import { buildSeatStage } from "./seat-stage.mjs";
 import { buildOpponentReaction } from "./opponent-stage.mjs";
 import { initSound, play, soundEnabled, setSoundEnabled } from "./sound.mjs";
@@ -65,6 +66,7 @@ function pauseReveal() {
   revealResumeEpoch++;
   revealPausedByHidden = false;
   revealLoop?.pause();
+  revealPresentation?.clear();
 }
 function dialog(html) {
   pauseReveal();
@@ -333,7 +335,7 @@ function mountBoard(s, selector = "#warehouse-board") {
       clue = s.info.items[i],
       quality = item ? item.quality : clue.quality,
       el = document.createElement(item ? "button" : "div");
-    const fresh = item && s.reveal && s.reveal.last === i;
+    const fresh = item && s.reveal && s.reveal.last === i,spinning=spinningIndex()===i;
     el.className = `board-item ${quality === null ? "" : `q${quality}`} ${item ? "" : "unknown"}${fresh ? " just-revealed" : ""}`;
     el.style.left = `${(p.x / b.cols) * 100}%`;
     el.style.top = `${(p.y / b.rows) * 100}%`;
@@ -341,16 +343,16 @@ function mountBoard(s, selector = "#warehouse-board") {
     el.style.height = `${((p.height ?? 1) / b.rows) * 100}%`;
     el.setAttribute(
       "aria-label",
-      item
+      spinning?`第${i+1}件正在揭晓`:item
         ? `${i + 1}. ${item.name}，${money(item.value)}`
         : `${i + 1}. ${quality === null ? "未知品质" : meta.qualities[quality] + "品质"}，${p.width ? `${p.width}×${p.height}格` : "轮廓未知"}${clue.category?`，类别：${clue.category}`:""}`,
     );
     el.innerHTML = item
-      ? revealSuspense === i
+      ? spinning
         ? '<span class="spin-ring" role="status" aria-label="正在揭晓"></span>'
         : `<img src="${escape(imageFor(item))}" alt="${escape(item.name)}"><span>${i + 1}</span>`
       : `?<span>${i + 1}</span>`;
-    if (item && revealSuspense === i) el.classList.add("spinning");
+    if (item && spinning) {el.classList.add("spinning");el.disabled=true;}
     if (item)
       el.addEventListener("click", () =>
         showItem(
@@ -362,19 +364,11 @@ function mountBoard(s, selector = "#warehouse-board") {
     board.append(el);
   });
 }
+function demoGoods(){return [meta.items.find(x=>x.quality===4),...['tavern-5-52','tavern-1-26','tavern-5-53','tavern-2-30','tavern-3-30'].map(id=>meta.items.find(x=>x.id===id))].filter(Boolean);}
+function demoReceipt(count){return {token:`demo-${demoRun}`,status:'settled',reveal:{count},items:demoGoods().map((x,i)=>i<count?x:null)};}
 function demo() {
-  const ids = [
-    "tavern-5-52",
-    "tavern-1-26",
-    "tavern-5-53",
-    "tavern-2-30",
-    "tavern-3-30",
-    "tavern-5-54",
-  ];
-  const xs = ids
-    .slice(0, demoCount)
-    .map((id) => meta.items.find((x) => x.id === id));
-  return `<div class="panel"><p class="demo-label">开仓演示 · 不碰你的钱包</p><h2>先开一个，看看里面有什么。</h2><p>纯展示，不碰钱包；想真拍得先登录。</p><div class="featured-items">${xs.map((x) => card(x)).join("")}${demoCount < ids.length ? '<div class="empty-state"><h2>?</h2><p>下一件尚未揭晓</p></div>' : ""}</div><div class="demo-actions"><button class="button outline" data-demo>${demoCount >= ids.length ? "再看一次" : "揭晓一件演示藏品 →"}</button></div></div>`;
+  const goods=demoGoods(),xs=goods.slice(0,demoCount);
+  return `<div class="panel"><p class="demo-label">开仓演示 · 不碰你的钱包</p><h2>先开一个，看看里面有什么。</h2><p>固定藏品示例，不代表掉率；想真拍得先登录。</p>${rareMomentView()}<div class="featured-items">${xs.map(x=>card(x)).join('')}${demoCount<goods.length?'<div class="empty-state"><h2>?</h2><p>下一件尚未揭晓</p></div>':''}</div><div class="demo-actions"><button class="button outline" data-demo>${demoCount>=goods.length?'再看一次':'揭晓一件演示藏品 →'}</button></div></div>`;
 }
 function summary() {
   return `<div class="wallet-summary"><div><small>可用酒馆币</small><strong>${number(wallet?.tavernBalance)}<span>酒馆币</span></strong></div><div><small>可用竞拍币</small><strong>${number(wallet?.auctionBalance)}<span>竞拍币</span></strong></div></div>`;
@@ -408,7 +402,7 @@ const bidStep = (s) => Math.max(1, Math.round((s?.budget ?? 0) / 100));
 // The suspense ring before an item is shown. Rarer goods spin longer so a red
 // pull actually lands as a moment instead of appearing instantly.
 const REVEAL_SPIN_MS = [420, 620, 820, 1080, 1340, 1700];
-let revealSuspense = null;
+let revealPresentation=null,rarePaintKey=null,rareQueuedKey=null,demoRun=0;
 let settledSoundToken = null;
 let roomState = null;
 let pendingRoomInvite = "";
@@ -459,17 +453,46 @@ function roomConnectionView() {
   return `<div class="room-sync"><span id="room-connection" role="status" aria-live="polite" data-state="${roomConnection}"></span><button class="text-link" data-room-refresh>刷新房间</button></div>`;
 }
 
-const sleepFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-async function playSuspense(session) {
-  const last = session?.reveal?.last,
-    item = Number.isInteger(last) ? session.items?.[last] : null;
-  if (!item) return;
-  revealSuspense = last;
-  renderPlay();
-  play("spin");
-  await sleepFor(REVEAL_SPIN_MS[item.quality] ?? 700);
-  revealSuspense = null;
-  play("reveal", { quality: item.quality });
+function presentationKey(source,id,scope=guild){return JSON.stringify([scope,source,id]);}
+function presentationContext(){
+  if(location.hash!=="#play")return null;
+  if(!account?.user)return presentationKey("demo",demoRun,"");
+  if(!guild)return null;
+  if(view==="room"&&roomState?.room)return presentationKey("room",roomState.room.id);
+  if(view==="auction"&&game?.session)return presentationKey("auction",game.session.token);
+  return null;
+}
+function reducedRevealMotion(){return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches===true;}
+function presenter(){
+  return revealPresentation??=createRevealPresentation({
+    isCurrent:key=>key===presentationContext()&&!document.hidden&&!$("#detail-dialog").open,
+    onChange:()=>{if(!revealPresentation?.state){const live=$("#reveal-announcement");if(live)live.textContent="";}renderPlay();},onReveal:(quality,moment)=>{
+      play("reveal",{quality});
+      const live=$("#reveal-announcement");
+      if(live&&moment)live.textContent=`${moment.demo?'演示 · ':''}第${moment.index+1}件 · ${quality===5?'红色':'金色'}珍藏：${moment.item.name}`;
+    },
+  });
+}
+function spinningIndex(){const p=revealPresentation?.state;return p?.phase==="spin"&&p.key===presentationContext()?p.index:null;}
+function rareMomentView(){
+  const p=revealPresentation?.state,m=p?.moment;
+  if(!m||p.key!==presentationContext()||p.phase==="spin")return "";
+  const fresh=p.active&&!reducedRevealMotion()&&rarePaintKey!==p.id;
+  if(fresh&&window.requestAnimationFrame){
+    if(rareQueuedKey!==p.id){rareQueuedKey=p.id;window.requestAnimationFrame(()=>{if(revealPresentation?.state?.id===p.id)rarePaintKey=p.id;});}
+  }else if(fresh)rarePaintKey=p.id;
+  const x=m.item,red=x.quality===5,unit=m.currency==="tavern"?'酒馆币':'竞拍币';
+  return `<section class="rare-reveal ${red?'rare-red':'rare-gold'}${fresh?' rare-enter':''}" role="region" aria-label="${red?'红色':'金色'}藏品揭晓"><div class="rare-reveal-art"><div class="rare-reveal-rays" aria-hidden="true"></div><div class="rare-reveal-sparks" aria-hidden="true">${'<i></i>'.repeat(8)}</div><img src="${escape(imageFor(x))}" alt="${escape(x.name)}" width="220" height="220"></div><div class="rare-reveal-copy"><p class="rare-reveal-quality">${m.demo?'开仓演示 · ':''}${red?'红色珍藏':'金色珍藏'}</p><h3>${escape(x.name)}</h3><p class="rare-reveal-value">${number(x.value)}<span>${unit}</span></p><p class="rare-reveal-meta">${m.added>1?`本次揭晓${m.added}件 · 最高品质展示`:`第${m.index+1}件`}${x.width&&x.height?` · ${x.width}×${x.height}，占${x.width*x.height}格`:''}${m.demo?' · 示例价值，不代表掉率':''}</p><div class="rare-reveal-actions"><button class="button outline" data-rare-details>查看藏品</button>${p.active?'<button class="text-link" data-rare-skip>跳过演出</button>':''}<button class="text-link" data-rare-dismiss>收起</button></div></div></section>`;
+}
+async function playSuspense(session,previous,{batch=false,scope=guild,resume=revealResumeEpoch}={}){
+  if(session?.status==="active")return;
+  const last=session?.reveal?.last,item=Number.isInteger(last)?session.items?.[last]:null,
+    key=presentationKey("auction",session?.token,scope);
+  if(!item||key!==presentationContext()||resume!==revealResumeEpoch)return;
+  const moment=rareRevealMoment(previous,session),reduced=reducedRevealMotion(),quality=moment?.item.quality??item.quality;
+  if(!batch&&!reduced)play("spin");
+  return presenter().play({key,index:moment?.index??last,quality,moment:moment?{...moment,currency:session.currency}:null,
+    spin:batch?0:REVEAL_SPIN_MS[quality]??700,hold:moment?(moment.item.quality===5?1600:1100):0,reduced});
 }
 async function unlockAfterReveal(g = guild, token = game?.session?.token) {
   if (!g) return;
@@ -506,14 +529,16 @@ function buildRevealLoop(token) {
       !busy,
     reveal: async (step) => {
       // Only the server's last confirmed count is sent; never guess progress.
+      const previous=game.session,resume=revealResumeEpoch;
       const answer = await mutation("auctionReveal", {
         token,
         step,
         all: false,
       });
       if (!answer || !current()) return;
-      if (game.session.reveal?.complete) await unlockAfterReveal(g, token);
-      await playSuspense(game.session);
+      const session=game.session;
+      if (session.reveal?.complete) await unlockAfterReveal(g, token);
+      await playSuspense(session,previous,{scope:g,resume});
       if (current()) renderPlay();
     },
     onChange: () => renderPlay(),
@@ -550,15 +575,15 @@ function revealControls(s) {
 }
 function gameView() {
   const s = game?.session;
-  if (!s || (s.status !== "active" && (!s.reveal || s.reveal.complete))) {
+  if (!s || (s.status !== "active" && (!s.reveal || s.reveal.complete) && spinningIndex()===null)) {
     if (revealLoop) revealLoop.dispose();
     revealLoop = null;
     return `${s ? resultView(s) : ""}${setup()}`;
   }
   const active = s.status === "active",
     r = s.result,
-    subtotal = s.items?.filter(Boolean).reduce((n, x) => n + x.value, 0) || 0;
-  return `<div class="play-layout"><div>${seatStrip(s)}<div class="board-heading"><h2>${escape(s.warehouse?.name || "仓库")} · ${s.itemCount}件</h2><p>${s.board.cols}×${s.board.rows}格板<br>${active ? "只展示已知品质与轮廓" : `开仓揭晓 ${s.reveal.count} / ${s.reveal.total}`}</p></div><div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${legend()}${history(s)}</div><aside class="panel">${
+    subtotal = s.items?.reduce((n,x,i)=>n+(x&&i!==spinningIndex()?x.value:0),0)||0;
+  return `<div class="play-layout"><div>${seatStrip(s)}<div class="board-heading"><h2>${escape(s.warehouse?.name || "仓库")} · ${s.itemCount}件</h2><p>${s.board.cols}×${s.board.rows}格板<br>${active ? "只展示已知品质与轮廓" : `开仓揭晓 ${s.reveal.count} / ${s.reveal.total}`}</p></div>${rareMomentView()}<div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${legend()}${history(s)}</div><aside class="panel">${
     active
       ? `${appraiserCard(s)}<span class="auction-stage">第 ${s.round} / 5 轮 · ${meta.roles[s.role].name}</span><p>本局预算 ${gameMoney(s, s.budget)}<br>线索估值约</p><div class="line-value">${number(s.estimate)}</div><p>${s.currency === "tavern" ? "酒馆币" : "竞拍币"} · 剩余 <span data-countdown="${s.expires}"></span> · 同价优先 ${s.priority.map((i) => npc[i]).join(" / ")}</p>${warehouseIntel(s)}<div class="bid-presets">${[
           [0.8, "估值80%"],
@@ -571,7 +596,7 @@ function gameView() {
           .join(
             "",
           )}<button data-bid="0">本轮不出价<small>0 ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small></button><button data-bid="${s.budget}">预算上限<small>${gameMoney(s, s.budget)}</small></button></div><form id="bid-form" class="bid-form"><label for="bid-amount">本轮暗标总价（整数）</label><div class="bid-stepper"><button type="button" class="step-button" data-bid-step="-1" aria-label="减少报价">−</button><input id="bid-amount" name="bid" type="number" min="0" max="${s.budget}" step="1" placeholder="输入报价" required inputmode="numeric"><button type="button" class="step-button" data-bid-step="1" aria-label="增加报价">+</button></div><small class="step-hint">每次 ±${number(bidStep(s))}，上限 ${gameMoney(s, s.budget)}</small><button class="button primary wide" type="submit">封牌，压上这一轮 →</button></form><details class="clue-list"><summary>翻翻这局的线索</summary>${focusClue(s.info)}${s.info.highCount === null ? "" : `<p>紫 / 金 / 红合计 ${s.info.highCount} 件</p>`}${s.info.highCounts ? `<p>紫${s.info.highCounts[0]} / 金${s.info.highCounts[1]} / 红${s.info.highCounts[2]}</p>` : ""}${s.info.highArea === undefined ? "" : `<p>高品质总占格 ${s.info.highArea} 格</p>`}${s.info.items.map((c, i) => `<p>${i + 1}. ${c.quality === null ? "品质未知" : meta.qualities[c.quality] + "品质"} · ${c.width === null ? "轮廓未知" : `${c.width}×${c.height} / ${c.width * c.height}格`}${c.category?` · 类别：${escape(c.category)}`:""}</p>`).join("")}</details><button class="danger-link" data-leave>放弃余下竞拍</button>`
-      : `<span class="auction-stage">仓门开了，看看里面有什么。</span><h2>${r.winner === null ? "没人接盘，流拍了" : r.winner === 0 ? "竞拍成功！" : `${npc[r.winner]}拍中`}</h2><p>成交价 ${gameMoney(s, r.price)}<br>已揭晓 ${s.reveal.count} / ${s.reveal.total}件</p><div class="line-value">${number(subtotal)}</div><p>已揭晓总值 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</p>${revealControls(s)}`
+      : `<span class="auction-stage">仓门开了，看看里面有什么。</span><h2>${r.winner === null ? "没人接盘，流拍了" : r.winner === 0 ? "竞拍成功！" : `${npc[r.winner]}拍中`}</h2><p>成交价 ${gameMoney(s, r.price)}<br>已揭晓 ${s.reveal.count} / ${s.reveal.total}件</p><div class="line-value">${number(subtotal)}</div><p>已揭晓总值 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</p>${s.reveal.complete?'<p class="reveal-note">最后一件正在揭晓…</p>':revealControls(s)}`
   }</aside></div>`;
 }
 let seatSweptKey = null;
@@ -637,7 +662,7 @@ function history(s) {
 function resultView(s) {
   const r = s.result,
     won = r.winner === 0;
-  return `${seatStrip(s)}<div class="panel"><p class="eyebrow">${r.winner === null ? "没人接盘，流拍了" : `${npc[r.winner]}以 ${gameMoney(s, r.price)} 拍中`}</p><h2>这一仓，${r.net > 0 ? "赚到了，手气不错。" : r.net < 0 ? "亏了，当交学费。" : "不赚不亏，白忙一场。"}</h2><div class="result-grid"><div><small>成交价</small><strong>${number(r.price)}</strong></div><div><small>仓库藏品总值</small><strong>${number(r.total)}</strong></div><div><small>本局盈亏 · 含入场费${won ? "与藏品价值" : ""}</small><strong class="${r.net >= 0 ? "profit" : "loss"}">${r.net > 0 ? "+" : ""}${number(r.net)}</strong></div><div><small>现金变化 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small><strong>${r.cashNet > 0 ? "+" : ""}${number(r.cashNet ?? r.net)}</strong></div></div><p>入场费 ${gameMoney(s, s.fee)}。${won ? (r.inventory ? "藏品已入仓，卖出才计现金。" : "藏品已按开局规则结算。") : "未拍中，只付入场费。"}${s.currency === "tavern" ? " 旧版酒馆币对局，按当时规则计算。" : ""}</p><div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${history(s)}<button class="text-link" data-view="inventory">到个人仓库看看 →</button></div><br>`;
+  return `${seatStrip(s)}<div class="panel"><p class="eyebrow">${r.winner === null ? "没人接盘，流拍了" : `${npc[r.winner]}以 ${gameMoney(s, r.price)} 拍中`}</p><h2>这一仓，${r.net > 0 ? "赚到了，手气不错。" : r.net < 0 ? "亏了，当交学费。" : "不赚不亏，白忙一场。"}</h2><div class="result-grid"><div><small>成交价</small><strong>${number(r.price)}</strong></div><div><small>仓库藏品总值</small><strong>${number(r.total)}</strong></div><div><small>本局盈亏 · 含入场费${won ? "与藏品价值" : ""}</small><strong class="${r.net >= 0 ? "profit" : "loss"}">${r.net > 0 ? "+" : ""}${number(r.net)}</strong></div><div><small>现金变化 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small><strong>${r.cashNet > 0 ? "+" : ""}${number(r.cashNet ?? r.net)}</strong></div></div><p>入场费 ${gameMoney(s, s.fee)}。${won ? (r.inventory ? "藏品已入仓，卖出才计现金。" : "藏品已按开局规则结算。") : "未拍中，只付入场费。"}${s.currency === "tavern" ? " 旧版酒馆币对局，按当时规则计算。" : ""}</p>${rareMomentView()}<div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${history(s)}<button class="text-link" data-view="inventory">到个人仓库看看 →</button></div><br>`;
 }
 function inventoryView() {
   if (!inventory) return '<p class="loading">正在读取个人仓库…</p>';
@@ -669,11 +694,12 @@ function acceptRoom(data) {
   const previous=roomState?.room, next=data?.room;
   if(next?.status==="settled" && (previous?.id!==next.id || previous?.status!=="settled"))
     play(next.result?.won ? "win" : "lose");
-  if(next?.started?.reveal?.count > (previous?.id===next?.id ? previous?.started?.reveal?.count??0 : 0)) {
-    const item=next.started.items?.[next.started.reveal.last];
-    if(item) play("reveal",{quality:item.quality});
-  }
   roomState=data;
+  if(previous?.id===next?.id && next?.status==="settled" && next?.started?.reveal?.count>previous?.started?.reveal?.count){
+    const moment=rareRevealMoment(previous.started,next.started),item=next.started.items?.[next.started.reveal.last];
+    if(moment&&view==="room")void presenter().play({key:presentationKey("room",next.id),index:moment.index,quality:moment.item.quality,moment:{...moment,currency:'auction'},hold:1600,reduced:reducedRevealMotion()});
+    else if(item&&!document.hidden&&!$("#detail-dialog").open)play("reveal",{quality:item.quality});
+  }
 }
 const roomWalletKey = r => `${r?.id}:${r?.status}:${r?.started?.reveal?.complete??false}`;
 async function roomAction(action, fields = {}) {
@@ -807,7 +833,7 @@ function renderRoom() {
   } else if(waiting) controls+='<button class="text-link" data-room-leave>退出房间</button>';
   if(waiting) return `${summary()}${roomConnectionView()}<div class="panel room-panel">${head}${seatGrid}${controls}</div>`;
   const ownInfo=live && st.info ? `${appraiserCard({...st,role:you.role})}${warehouseIntel(st)}<span class="auction-stage">只属于你的判断</span><p>线索估值约</p><div class="line-value">${number(st.estimate)}</div><p>竞拍币 · 预算 ${number(st.budget)}</p><p class="mini-note">同价优先：${(st.priority??[]).map(i=>escape(seats.find(x=>x.index===i)?.name??"?")).join(" → ")}</p>` : "";
-  return `${summary()}${roomConnectionView()}<div class="panel room-panel">${head}${seatGrid}</div><div class="play-layout room-match"><div><div class="board-heading"><h2>${live?"你的仓库视野":"全桌共享开仓"}</h2><p>${st.board?`${st.board.cols}×${st.board.rows}格`:""} · ${live?"展示公共情报与技能已知信息":"同一仓库，同一揭晓进度"}</p></div>${st.board?'<div class="board-wrap"><div id="room-warehouse-board" class="warehouse-board"></div></div>':""}${legend()}${history}</div><aside class="panel">${ownInfo}${controls}${live?roomClues(st.info):""}</aside></div>`;
+  return `${summary()}${roomConnectionView()}<div class="panel room-panel">${head}${seatGrid}</div><div class="play-layout room-match"><div><div class="board-heading"><h2>${live?"你的仓库视野":"全桌共享开仓"}</h2><p>${st.board?`${st.board.cols}×${st.board.rows}格`:""} · ${live?"展示公共情报与技能已知信息":"同一仓库，同一揭晓进度"}</p></div>${rareMomentView()}${st.board?'<div class="board-wrap"><div id="room-warehouse-board" class="warehouse-board"></div></div>':""}${legend()}${history}</div><aside class="panel">${ownInfo}${controls}${live?roomClues(st.info):""}</aside></div>`;
 }
 
 // --- room polling ---------------------------------------------------------
@@ -1039,6 +1065,13 @@ document.addEventListener("click", (event) => {
   const b = event.target.closest("button,a");
   if (!b) return;
   if (b.matches("button")) play("click");
+  if(b.hasAttribute("data-rare-skip")){revealPresentation?.skip();return;}
+  if(b.hasAttribute("data-rare-dismiss")){revealPresentation?.clear();return;}
+  if(b.hasAttribute("data-rare-details")){
+    const p=revealPresentation?.state,m=p?.moment;
+    if(m&&p.key===presentationContext())showItem(m.item.id,m.demo?undefined:m.item.value,m.currency==="tavern"?'酒馆币':'竞拍币');
+    return;
+  }
   if(b.hasAttribute("data-room-copy")){copyRoomInvite(b.dataset.roomCopy);return;}
   if(b.hasAttribute("data-room-refresh")){pollRoom();return;}
   if(b.hasAttribute("data-room-reveal")) {
@@ -1147,7 +1180,13 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (b.hasAttribute("data-demo")) {
-    demoCount = demoCount >= 6 ? 0 : demoCount + 1;
+    const before=demoReceipt(demoCount);
+    if(demoCount>=demoGoods().length){demoRun++;demoCount=0;revealPresentation?.clear();}
+    else {
+      demoCount++;
+      const moment=rareRevealMoment(before,demoReceipt(demoCount));
+      if(moment)void presenter().play({key:presentationContext(),index:moment.index,quality:moment.item.quality,moment:{...moment,currency:'auction',demo:true},hold:moment.item.quality===5?1600:1100,reduced:reducedRevealMotion()});
+    }
     renderPlay();
     return;
   }
@@ -1214,7 +1253,7 @@ document.addEventListener("click", (event) => {
     if (!loop) return;
     revealResumeEpoch++;
     revealPausedByHidden = false;
-    if (loop.state === "running") loop.pause();
+    if (loop.state === "running") pauseReveal();
     else loop.start();
     renderPlay();
     return;
@@ -1270,14 +1309,16 @@ document.addEventListener("click", (event) => {
         revealLoop.dispose();
         revealLoop = null;
       }
-      const s = game.session;
-      await mutation("auctionReveal", {
+      const s = game.session,g=guild,resume=revealResumeEpoch;
+      const answer=await mutation("auctionReveal", {
         token: s.token,
         step: s.reveal.count,
         all: b.dataset.reveal === "all",
       });
-      if (game.session.reveal.complete) await unlockAfterReveal();
-      if (b.dataset.reveal !== "all") await playSuspense(game.session);
+      if(!answer||g!==guild||game?.session?.token!==s.token)return;
+      const session=game.session;
+      if (session.reveal.complete) await unlockAfterReveal(g,s.token);
+      await playSuspense(session,s,{batch:b.dataset.reveal==="all",scope:g,resume});
       renderPlay();
       return;
     }
@@ -1460,6 +1501,7 @@ window.addEventListener("hashchange", route);
 document.addEventListener("visibilitychange", () => {
   if(!document.hidden && view==="room")pollRoom();
   if (document.hidden) {
+    revealPresentation?.clear();
     if (revealLoop?.state === "running") {
       revealPausedByHidden = true;
       revealLoop.pause();
