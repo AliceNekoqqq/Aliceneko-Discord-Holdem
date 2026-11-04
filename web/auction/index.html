@@ -23,7 +23,7 @@
       <nav aria-label="主导航">
         <a href="#home">首页</a><a href="#play">拍卖大厅</a
         ><a href="#catalog">藏品图鉴</a><a href="#roles">人物技能</a
-        ><a href="#rules">玩法指南</a>
+        ><a href="#rules">玩法指南</a><a href="#tutorial" class="nav-tutorial">新手教程</a>
       </nav>
       <button class="login-button" data-login>
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -47,7 +47,7 @@
                 >进入拍卖大厅 <span>↗</span></a
               ><a class="text-link" href="#catalog"
                 >先逛逛藏品图鉴 <span>→</span></a
-              >
+              ><a class="button outline tutorial-home-link" href="#tutorial">新手教程 · 带你玩一局 →</a>
             </div>
             <div class="hero-facts">
               <div>
@@ -148,7 +148,9 @@
           <p class="eyebrow">仓门已备好</p>
           <h1>拍卖大厅</h1>
           <p>选服务器，接着打。</p>
-        </div>        <div id="login-status"></div>
+        </div>
+        <a class="tutorial-entry" href="#tutorial"><span class="tutorial-entry-icon" aria-hidden="true">新</span><span><strong>第一次来？跟着教程完整玩一局</strong><small>零消耗练习 · 不用登录 · 从出价到入仓，边玩边学</small></span><b>开始教学 →</b></a>
+        <div id="login-status"></div>
         <div id="account-bar" class="account-bar" hidden></div>
         <div class="game-tabs" id="game-tabs" hidden>
           <button data-view="auction" class="active" aria-label="拍卖大厅">
@@ -179,6 +181,10 @@
         <div id="reveal-announcement" class="sr-only" aria-live="polite" aria-atomic="true"></div>
         <div id="game-content"></div>
         <div class="game-statusbar" id="game-statusbar"></div>
+      </section>
+      <section id="page-tutorial" class="page wrap inner-page" hidden>
+        <div class="page-heading"><p class="eyebrow">边玩边学</p><h1>新手教程</h1><p>第一次出价，从这一仓开始。</p></div>
+        <div id="tutorial-content"><p class="loading">正在准备教学仓…</p></div>
       </section>
       <section id="page-catalog" class="page wrap inner-page" hidden>
         <div class="page-heading split-heading">

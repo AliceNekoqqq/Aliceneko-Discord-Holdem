@@ -4329,3 +4329,65 @@ body.game-route {
 @media (prefers-reduced-motion:reduce) {
   :is(.collectible,.board-item,.cabinet-slot):is(.q4,.q5):before { animation:none; }
 }
+
+/* Guided practice is visibly separate from a live auction. */
+.site-header nav a.nav-tutorial { color:#835b18; font-weight:700; background:linear-gradient(180deg,#fff5d8aa,#fff5d800); }
+.tutorial-home-link { border-color:#c6a460; background:#fff6de; color:#735220; }
+.tutorial-entry { display:flex; align-items:center; gap:16px; padding:19px 23px; margin:0 0 24px; border:2px solid #c7a45b; border-radius:15px; background:linear-gradient(105deg,#fff1cc,#fffdf5 60%,#eaf4ff); box-shadow:0 8px 24px #98763514; text-decoration:none; color:#385c78; }
+.tutorial-entry-icon { display:grid; place-items:center; flex:0 0 43px; height:43px; border:1px solid #cba454; border-radius:12px; background:#fffaf0; color:#8b631e; font-size:24px; }
+.tutorial-entry strong,.tutorial-entry small { display:block; }
+.tutorial-entry strong { font-size:17px; line-height:1.6; }
+.tutorial-entry small { margin-top:3px; color:#7d765f; font-size:12px; line-height:1.7; }
+.tutorial-entry b { margin-left:auto; flex-shrink:0; color:#845a15; font-size:14px; }
+.tutorial-entry:focus-visible { outline:3px solid #416f94; outline-offset:4px; }
+.tutorial-shell { padding:28px; border:1px solid #c3d9ea; border-radius:20px; background:linear-gradient(150deg,#fffdf7,#f2f8fe); box-shadow:0 15px 40px #5c829819; }
+.tutorial-topline { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; font-size:12px; color:#587c97; }
+.tutorial-topline > span { font-weight:700; color:#8a641f; }
+.tutorial-steps { list-style:none; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); padding:0; margin:24px 0; gap:7px; }
+.tutorial-steps li { padding:11px 5px; border-radius:8px; background:#e9f1f8; color:#58748b; text-align:center; font-size:12px; }
+.tutorial-steps li[aria-current] { background:#355e7d; color:white; font-weight:700; }
+.tutorial-coach { display:flex; align-items:flex-start; gap:15px; padding:22px; margin-bottom:22px; border-left:4px solid #c29d57; background:#fff7e5; border-radius:12px; }
+.tutorial-coach-mark { flex-shrink:0; display:grid; place-items:center; width:38px; height:38px; border-radius:50%; background:#efd9a8; color:#75551c; font-size:19px; }
+.tutorial-coach h2 { margin:0 0 8px; color:#34546d; font-size:clamp(21px,3vw,29px); font-weight:500; scroll-margin-top:110px; }
+.tutorial-coach p,.tutorial-lesson p { color:#526f85; line-height:1.9; font-size:14px; }
+.tutorial-coach p { margin:0; }
+.tutorial-lesson { color:#355a77; }
+.tutorial-lesson > .button { margin:10px 10px 0 0; }
+.tutorial-lesson .button { white-space:normal; line-height:1.6; min-height:44px; }
+.tutorial-roadmap { display:flex; flex-wrap:wrap; gap:10px; margin:18px 0; }
+.tutorial-roadmap span { padding:12px 15px; border:1px solid #cbdce9; border-radius:8px; background:#f3f8fc; font-size:13px; }
+.tutorial-choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; }
+.tutorial-choices button { display:grid; gap:12px; text-align:left; padding:22px; border:2px solid #b9cfe0; border-radius:12px; background:#fff; color:#496b85; line-height:1.8; font:inherit; cursor:pointer; }
+.tutorial-choices button[aria-pressed="true"] { border-color:#4d849f; background:#e7f4f6; }
+.tutorial-choices strong { font-size:19px; color:#345a78; }
+.tutorial-choices span,.tutorial-choices small { font-size:13px; }
+#tutorial-feedback:not(:empty) { margin:14px 0; padding:13px 17px; background:#fff0d6; border:1px solid #d4b680; border-radius:9px; color:#78571f; line-height:1.8; }
+.tutorial-board { position:relative; width:100%; max-width:760px; aspect-ratio:2; margin:20px 0; border:5px solid #a5bfd6; border-radius:10px; background-color:#e1ecf5; background-image:linear-gradient(to right,#adc6d677 1px,transparent 1px),linear-gradient(to bottom,#adc6d677 1px,transparent 1px); background-size:12.5% 25%; }
+.tutorial-cell-0 { left:0; top:0; }.tutorial-cell-1 { left:25%; top:0; }.tutorial-cell-2 { left:50%; top:0; }.tutorial-cell-3 { left:75%; top:0; }.tutorial-cell-4 { left:0; top:50%; }.tutorial-cell-5 { left:37.5%; top:50%; }
+.tutorial-w1 { width:12.5%; }.tutorial-w2 { width:25%; }.tutorial-h1 { height:25%; }.tutorial-h2 { height:50%; }
+.tutorial-clues { padding:16px 20px; border:1px solid #bbd4e5; border-radius:10px; background:#f1f7fc; margin:16px 0; }
+.tutorial-clues h3 { margin:0 0 10px; font-size:16px; }.tutorial-clues p { margin:6px 0; font-size:13px; }
+.tutorial-clues.private { border-color:#bea8cd; background:#f7f1fc; }
+.tutorial-new { padding:6px 9px; border-left:3px solid #c09c58; background:#fff8e9; }
+.tutorial-match { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(240px,1fr); gap:24px; }
+.tutorial-bid { display:grid; align-content:start; gap:12px; padding:22px; border:1px solid #bfd5e5; border-radius:12px; background:#fff; }
+.tutorial-bid h3,.tutorial-bid p { margin:0; }.tutorial-bid strong { color:#315d7c; font-size:28px; }.tutorial-bid label { font-size:13px; }.tutorial-bid input { min-width:0; width:100%; padding:13px; border:2px solid #91b3cb; border-radius:8px; color:#305a79; background:#f5faff; font-size:17px; }.tutorial-bid small { color:#6b8497; line-height:1.8; font-size:12px; }
+.tutorial-offers,.tutorial-money { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:22px 0; }.tutorial-money { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.tutorial-offers > div,.tutorial-money > div { display:grid; gap:12px; padding:20px; border:1px solid #c8dce9; border-radius:12px; background:#f4f9fd; }.tutorial-offers .highest { border:2px solid #bf9b50; background:#fff4d9; }.tutorial-offers strong,.tutorial-money strong { font-size:clamp(17px,2.2vw,25px); color:#315a78; overflow-wrap:anywhere; }.tutorial-offers small,.tutorial-money small { color:#607d93; line-height:1.6; }
+.tutorial-lesson progress { width:100%; max-width:760px; height:10px; accent-color:#5d8eaf; }
+.tutorial-receipt { padding:16px 20px; border-radius:10px; border:1px solid #bdced9; background:#edf7f6; line-height:1.9; }
+.tutorial-stock { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:13px; margin:20px 0; }
+.tutorial-good { display:grid; align-content:start; gap:9px; min-width:0; padding:15px; text-align:center; border:3px solid var(--q); border-radius:12px; background:linear-gradient(#fffdf8,#edf5fb); color:#355a77; font:inherit; cursor:pointer; }
+.tutorial-good img { width:100%; height:120px; object-fit:contain; }.tutorial-good strong { font-size:13px; line-height:1.7; }.tutorial-good span,.tutorial-good small { font-size:11px; line-height:1.6; }.tutorial-good.selected { outline:3px solid #365b78; outline-offset:2px; background:#e5f3fa; }.tutorial-good:disabled { opacity:.5; cursor:default; }
+.tutorial-actions { display:flex; flex-wrap:wrap; gap:12px; margin:20px 0; }
+.tutorial-cabinet { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:20px 0; }.tutorial-empty { display:grid; place-items:center; min-height:150px; border:2px dashed #b4cbde; border-radius:12px; color:#6b879d; font-size:12px; }
+@media(max-width:700px) {
+ .tutorial-entry { flex-wrap:wrap; padding:16px; gap:12px; }.tutorial-entry strong { font-size:15px; }.tutorial-entry b { margin-left:55px; }.tutorial-entry > span:nth-child(2) { flex:1; min-width:170px; }
+ .tutorial-shell { padding:15px; }.tutorial-steps { gap:4px; }.tutorial-steps li { font-size:10px; padding:10px 2px; }.tutorial-coach { padding:16px 12px; gap:10px; }.tutorial-coach-mark { width:29px; height:29px; font-size:15px; }
+ .tutorial-match,.tutorial-choices { grid-template-columns:minmax(0,1fr); }.tutorial-money,.tutorial-offers { grid-template-columns:repeat(2,minmax(0,1fr)); }.tutorial-money > div,.tutorial-offers > div { padding:15px; }
+ .tutorial-stock,.tutorial-cabinet { grid-template-columns:repeat(2,minmax(0,1fr)); }.tutorial-good { padding:10px; }.tutorial-good img { height:105px; }
+ .tutorial-topline { font-size:11px; }.tutorial-lesson p { font-size:13px; }.tutorial-board { border-width:3px; }
+}
+
+.tutorial-board .board-item { border:2px solid var(--q,#a4baca); }
+@media(max-width:800px) { .site-header nav .nav-tutorial { order:-1; } .tutorial-coach h2 { scroll-margin-top:140px; } }

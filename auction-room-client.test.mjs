@@ -5,6 +5,8 @@ import {readFileSync} from 'node:fs';
 import {buildSeatStage} from './web/auction/assets/seat-stage.mjs';
 import {buildOpponentReaction} from './web/auction/assets/opponent-stage.mjs';
 import {rareRevealMoment,createRevealPresentation} from './web/auction/assets/reveal-stage.mjs';
+import {createAuctionTutorial,tutorialView} from './web/auction/assets/tutorial.mjs';
+import {publicAuctionData} from './auction-website.mjs';
 import {AUCTION_THEMES} from './tavern-auction-themes.mjs';
 import {AUCTION_OPPONENTS,AUCTION_NPC_STYLES} from './tavern-auction-opponents.mjs';
 const source=readFileSync(new URL('./web/auction/assets/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/boot\(\);\s*$/,'');
@@ -15,7 +17,7 @@ function harness(search=''){
  const context=vm.createContext({document:{hidden:false,body:node('body'),querySelector:node,querySelectorAll:()=>[],addEventListener:(name,fn)=>events.set('doc:'+name,fn)},
   location,window:{addEventListener:(name,fn)=>events.set(name,fn),scrollTo(){},history:{replaceState(a,b,url){location.href=url.href;location.search=url.search;location.hash=url.hash;}}},
   sessionStorage:{getItem:k=>saved.get(k)??null,setItem:(k,v)=>saved.set(k,v),removeItem:k=>saved.delete(k)},
-  navigator:{onLine:true,clipboard:{writeText:async value=>copies.push(value)}},URL,URLSearchParams,Date,crypto,setInterval(){},clearInterval(){},setTimeout,clearTimeout,buildSeatStage,buildOpponentReaction,rareRevealMoment,createRevealPresentation:options=>createRevealPresentation({...options,schedule:(fn,ms)=>{presentationTimers.set(++timerId,{fn,ms});return timerId;},cancel:id=>presentationTimers.delete(id)}),
+  navigator:{onLine:true,clipboard:{writeText:async value=>copies.push(value)}},URL,URLSearchParams,Date,crypto,setInterval(){},clearInterval(){},setTimeout,clearTimeout,buildSeatStage,buildOpponentReaction,rareRevealMoment,createAuctionTutorial,tutorialView,createRevealPresentation:options=>createRevealPresentation({...options,schedule:(fn,ms)=>{presentationTimers.set(++timerId,{fn,ms});return timerId;},cancel:id=>presentationTimers.delete(id)}),
   play:(...args)=>sounds.push(args),soundEnabled:()=>false,createRevealLoop(){}});
  vm.runInContext(source+`
   const renderActual=renderPlay;renderPlay=()=>{};toast=text=>messages.push(text);dialog=html=>messages.push(html);
@@ -25,7 +27,7 @@ function harness(search=''){
    switchGuild(){guild='4';epoch++;},get pending(){return pendingRoomInvite;},setPending(code){pendingRoomInvite=code;},
    readRoomInvite,clearRoomInvite,roomInviteURL,copyRoomInvite,acceptRoom,renderRoom,renderActual,roomAction,pollRoom,setRoomConnection,
    appraiserCard,roomClues,rareMomentView,playSuspense,gameView,demo,pauseReveal,get presentation(){return revealPresentation?.state;},setGame(value){game=value;view="auction";},setPublicDemo(items){account=null;guild="";view="auction";meta.items=items;},seatStrip,roomSeatView,opponentMoment,renderOpponents,setMeta(value){meta=value;},
-   themeScene,themeGuide,setup,renderCatalog,setCatalog(items){meta.items=items;meta.tiers.standard=meta.tiers.small;catalogs.set('standard',{items});},get themes(){return {playTheme,roomTheme,guideTheme,catalogTheme};},
+   route,renderTutorial,tutorialDispatch,get tutorial(){return tutorial;},get game(){return game;},get view(){return view;},themeScene,themeGuide,setup,renderCatalog,setCatalog(items){meta.items=items;meta.tiers.standard=meta.tiers.small;catalogs.set('standard',{items});},get themes(){return {playTheme,roomTheme,guideTheme,catalogTheme};},
   };`,Object.assign(context,{messages,AUCTION_THEMES,AUCTION_OPPONENTS,AUCTION_NPC_STYLES}));
  context.h.init();return {h:context.h,context,nodes,saved,copies,messages,events,sounds,presentationTimers,flushPresentation(){const [id,t]=presentationTimers.entries().next().value;presentationTimers.delete(id);t.fn();}};
 }
@@ -225,4 +227,22 @@ test('public theme browsing leaves play choices intact and opens a correct categ
  assert(x.nodes.get('#catalog-grid').innerHTML.includes('data-item="dining"'));assert(!x.nodes.get('#catalog-grid').innerHTML.includes('data-item="tech"'));
  change({target:{id:'catalog-theme',value:'all'}});assert(x.nodes.get('#catalog-count').textContent.includes('4 件'));
  assert.equal(calls,0);assert.equal(x.h.themes.playTheme,'random');
+});
+
+
+test('actual tutorial entry, bidding and completion never call private APIs or replace the real game',()=>{
+ const x=harness(),live={token:'real-session-keep',status:'active',expires:Date.now()+100000};
+ x.h.setMeta(publicAuctionData('standard'));x.h.setGame({session:live});let calls=0;x.h.setApi(()=>{calls++;throw Error('tutorial cannot call private APIs');});
+ x.context.location.hash='#tutorial';x.h.route();assert(x.nodes.get('#tutorial-content').innerHTML.includes('零消耗练习'));
+ const click=x.events.get('doc:click'),press=(action,index)=>click({target:{closest:()=>({matches:s=>s==='button',hasAttribute:k=>k==='data-tutorial',dataset:{tutorial:action,index}})}});
+ for(const action of ['begin','area','role','enter','read-public','read-private'])press(action);
+ for(let r=1;r<=5;r++){
+  press('fill-bid');assert.equal(x.nodes.get('#tutorial-bid').value,String(x.h.tutorial.view.recommended));
+  let prevented=false;x.events.get('doc:submit')({target:{id:'tutorial-bid-form'},preventDefault(){prevented=true;}});assert(prevented);
+  if(r<5)press('next-round');
+ }
+ for(const action of ['settlement','open',...Array(6).fill('reveal'),'finish-reveal','quiz-inventory'])press(action);
+ press('select-sale','0');press('quote-sale');press('confirm-sale');press('to-display');press('select-display','4');press('place');
+ assert.equal(x.h.tutorial.view.phase,'done');assert.equal(x.h.game.session.token,'real-session-keep');assert.equal(x.h.view,'auction');assert.equal(calls,0);
+ const state=x.h.tutorial.view;x.context.location.hash='#rules';x.h.route();x.context.location.hash='#tutorial';x.h.route();assert.equal(x.h.tutorial.view.cash,state.cash);assert.equal(x.h.tutorial.view.phase,'done');
 });
