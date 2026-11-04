@@ -4278,3 +4278,54 @@ body.game-route {
  .catalog-toolbar { flex-wrap:wrap; }
 }
 @media(max-width:370px) { .theme-scene { grid-template-columns:76px minmax(0,1fr); gap:8px; } }
+
+/* Quality frames stay legible on cream/blue panels, including without motion. */
+.q0 { --q:#8695a5; --q-soft:#edf1f5; --q-label:#465768; }
+.q1 { --q:#26815d; --q-soft:#e3f3eb; --q-label:#176347; }
+.q2 { --q:#327ec1; --q-soft:#e4f1fc; --q-label:#245f97; }
+.q3 { --q:#8b54bb; --q-soft:#f0e7fa; --q-label:#713ca0; }
+.q4 { --q:#bc861d; --q-soft:#fff2cc; --q-label:#825909; }
+.q5 { --q:#ca4261; --q-soft:#ffe5ec; --q-label:#a52645; }
+.collectible,
+.collectible:hover {
+  border:3px solid var(--q,#b8cbdc);
+  box-shadow:inset 0 0 0 1px #fff,0 5px 14px #53799a20;
+}
+.collectible:hover { box-shadow:inset 0 0 0 1px #fff,0 16px 30px #53799a30,0 0 0 1px var(--q); }
+.collectible:before { display:none; }
+.collectible .item-top { padding:11px 12px 0; gap:6px; align-items:center; }
+.collectible .item-top b {
+  padding:4px 8px; border:1px solid var(--q); border-radius:6px;
+  background:var(--q-soft); color:var(--q-label); font-weight:700;
+  letter-spacing:.03em; line-height:1.4;
+}
+.board-item:is(.q0,.q1,.q2,.q3,.q4,.q5):not(.spinning) {
+  border:2px solid var(--q); box-shadow:inset 0 0 0 1px #fff,0 0 0 1px var(--q),0 3px 8px #57738e29;
+}
+.board-item:is(.q0,.q1,.q2,.q3,.q4,.q5):not(.spinning) > span {
+  border:1px solid var(--q); background:var(--q-soft); color:var(--q-label); font-weight:700;
+}
+.quality-legend span { border-color:var(--q); background:var(--q-soft); color:var(--q-label); font-weight:600; }
+.quality-legend span:before { width:9px; height:9px; border-radius:3px; }
+.cabinet-slot:is(.q0,.q1,.q2,.q3,.q4,.q5) { border:3px solid var(--q); }
+.cabinet-quality { position:absolute; top:12px; right:12px; padding:3px 7px; border:1px solid var(--q); border-radius:5px; background:var(--q-soft); color:var(--q-label); font-size:10px; font-weight:700; }
+.collectible:focus-visible,.cabinet-slot button:focus-visible { outline:3px solid #294e70; outline-offset:3px; }
+@property --quality-angle { syntax:'<angle>'; initial-value:0deg; inherits:false; }
+@supports (mask-composite:exclude) or (-webkit-mask-composite:xor) {
+  :is(.collectible,.board-item:not(.unknown):not(.spinning),.cabinet-slot):is(.q4,.q5):before {
+    content:""; display:block; position:absolute; inset:0; height:auto; padding:2px;
+    border-radius:inherit; opacity:1; pointer-events:none; z-index:2;
+    background:conic-gradient(from var(--quality-angle),var(--q) 0deg,#fff6 45deg,var(--q) 85deg,var(--q) 160deg,#fffdf1 190deg,var(--q) 225deg,var(--q) 320deg,#fff9 345deg,var(--q) 360deg);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;
+    mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    mask-composite:exclude; box-shadow:none;
+    animation:quality-edge-orbit 5s linear 2;
+  }
+  .collectible:is(.q4,.q5):is(:hover,:focus-visible):before,
+  .cabinet-slot:is(.q4,.q5):focus-within:before { animation-iteration-count:infinite; }
+}
+@keyframes quality-edge-orbit { to { --quality-angle:360deg; } }
+@media (prefers-reduced-motion:reduce) {
+  :is(.collectible,.board-item,.cabinet-slot):is(.q4,.q5):before { animation:none; }
+}
