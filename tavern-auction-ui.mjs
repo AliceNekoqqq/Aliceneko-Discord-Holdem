@@ -74,7 +74,7 @@ export function auctionData(data,g,id,notice='',selectedTier='standard',selected
    if(s.catalogVersion===6)content+='\n本局沿用升级前的192件藏品池。';
    if(s.catalogVersion===4)content+='\n本局沿用旧的同品质等概率藏品池。';
    if(s.dropVersion===1)content+='\n本局沿用旧掉率：红4% / 金8%；其余品质不变。';
-   content+=`\n${auctionRoleSkill(s.role,s.skillVersion??1)}\n${s.info.highCount===null?'':`紫、金、红品质合计 **${s.info.highCount}件**\n`}${s.info.highCounts?`紫 **${s.info.highCounts[0]}件** · 金 **${s.info.highCounts[1]}件** · 红 **${s.info.highCounts[2]}件**\n`:''}${s.info.highArea===undefined?'':`这些高品质藏品合计 **${s.info.highArea}格**\n`}\n**你的仓库线索**\n${s.info.items.map((x,i)=>`${i+1}. ${x.quality===null?'品质未知':AUCTION_QUALITIES[x.quality]+'品质'} · ${x.width===null?'轮廓未知':`${x.width}×${x.height} / ${x.width*x.height}格`}`).join('\n')}`;
+   content+=`\n${auctionRoleSkill(s.role,s.skillVersion??1)}\n${Number.isInteger(s.info.focus)?`重点鉴定：第${s.info.focus+1}件${s.info.largeAbsent?' · 未发现镇仓大件':''}\n`:''}${s.info.highCount===null?'':`紫、金、红品质合计 **${s.info.highCount}件**\n`}${s.info.highCounts?`紫 **${s.info.highCounts[0]}件** · 金 **${s.info.highCounts[1]}件** · 红 **${s.info.highCounts[2]}件**\n`:''}${s.info.highArea===undefined?'':`这些高品质藏品合计 **${s.info.highArea}格**\n`}\n**你的仓库线索**\n${s.info.items.map((x,i)=>`${i+1}. ${x.quality===null?'品质未知':AUCTION_QUALITIES[x.quality]+'品质'} · ${x.width===null?'轮廓未知':`${x.width}×${x.height} / ${x.width*x.height}格`}${x.category?` · 类别：${x.category}`:""}`).join('\n')}`;
    content+=`\n\n${s.readOnly?`请回到 <#${s.channel}> 继续本局。`:`${s.catalogVersion>=4?'未知大奖已折计风险 · ':''}本轮报价单位：${unit}，0表示不出价。截止 <t:${Math.floor(s.expires/1000)}:R>`}`;
    const a=`${s.token}~${s.round}`;
    const estimate=s.estimate,reference=Number.isSafeInteger(estimate)?estimate:0;

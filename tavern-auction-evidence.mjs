@@ -3,13 +3,13 @@
 const groups=pool=>Array.from({length:6},(_,q)=>pool.filter(x=>x.quality===q));
 const factorial=n=>{let x=1;for(let i=2;i<=n;i++)x*=i;return x;};
 const optionCache=new WeakMap();
-function options(m,clue,featured,unit,limit,cap){
+function options(m,clue,featured,unit,limit,cap,noLarge=false){
  let cache=optionCache.get(m);if(!cache){cache=new Map();optionCache.set(m,cache);}
- const key=[featured,unit,limit,cap,clue.quality,clue.width,clue.height,clue.category].join(':');
+ const key=[featured,unit,limit,cap,noLarge,clue.quality,clue.width,clue.height,clue.category].join(':');
  if(cache.has(key))return cache.get(key);
  const pool=featured?m.featured:m.ordinary,bins=new Map(),totals=groups(pool).map(xs=>xs.reduce((s,x)=>s+x.dropWeight,0)),total=m.weights.reduce((s,x)=>s+x,0);
  for(const x of pool){
-  if(x.quality>limit || clue.quality!=null&&clue.quality!==x.quality || clue.width!=null&&(clue.width!==x.width||clue.height!==x.height) || clue.category!=null&&clue.category!==x.category)continue;
+  if(noLarge&&x.width*x.height>4 || x.quality>limit || clue.quality!=null&&clue.quality!==x.quality || clue.width!=null&&(clue.width!==x.width||clue.height!==x.height) || clue.category!=null&&clue.category!==x.category)continue;
   const q=x.quality,area=x.width*x.height,k=`${q}:${area}`,b=bins.get(k)??{q,area,p:0,v:0},
    p=m.weights[q]/total*x.dropWeight/totals[q],value=Math.floor((cap&&q===5?Math.min(x.value,2000000):x.value)*unit/100000);
   b.p+=p;b.v+=p*value;bins.set(k,b);
@@ -19,7 +19,7 @@ function options(m,clue,featured,unit,limit,cap){
 }
 const blank={quality:null,width:null,height:null,category:null};
 function unconditioned(info,unit,m,limit){
- const ordinary=info.items.map(c=>options(m,c,false,unit,limit,c.quality==null)),featured=info.items.map(c=>options(m,c,true,unit,limit,c.quality==null)),n=info.items.length;
+ const ordinary=info.items.map(c=>options(m,c,false,unit,limit,c.quality==null,info.largeAbsent===true)),featured=info.items.map(c=>options(m,c,true,unit,limit,c.quality==null,info.largeAbsent===true)),n=info.items.length;
  const stats=xs=>({p:xs.reduce((s,x)=>s+x.p,0),v:xs.reduce((s,x)=>s+x.p*x.v,0)}),a=ordinary.map(stats),b=featured.map(stats);let p=0,v=0;
  for(let h=-1;h<n;h++){
   let prior=h===-1?1-m.chance:m.chance/n,total=0;
@@ -29,7 +29,7 @@ function unconditioned(info,unit,m,limit){
 }
 function aggregate(info,unit,m,limit){
  const known=info.items.map((c,i)=>({c,i})).filter(({c})=>c.quality!=null||c.width!=null||c.category!=null),n=info.items.length,
-  remaining=n-known.length,cap=!info.highCounts,ordinary=options(m,blank,false,unit,limit,cap),featured=options(m,blank,true,unit,limit,cap),
+  remaining=n-known.length,cap=!info.highCounts,ordinary=options(m,blank,false,unit,limit,cap,info.largeAbsent===true),featured=options(m,blank,true,unit,limit,cap,info.largeAbsent===true),
   qstats=xs=>Array.from({length:6},(_,q)=>{const a=xs.filter(x=>x.q===q),p=a.reduce((s,x)=>s+x.p,0);return {p,v:p?a.reduce((s,x)=>s+x.p*x.v,0)/p:0,areas:a.map(x=>({...x,p:x.p/p}))};}),
   og=qstats(ordinary),fg=qstats(featured),sum=(xs,qs)=>{const p=qs.reduce((s,q)=>s+xs[q].p,0);return {p,v:p?qs.reduce((s,q)=>s+xs[q].p*xs[q].v,0)/p:0};},
   lo=sum(og,[0,1,2]),hi=sum(og,[3,4,5]),fl=sum(fg,[0,1,2]),fh=sum(fg,[3,4,5]),memo=new Map();
@@ -77,7 +77,7 @@ function aggregate(info,unit,m,limit){
     p+=prior*prob*rest.p;v+=prior*prob*(rest.v+rest.p*value);return;
    }
    const {c,i}=known[k];
-   for(const x of options(m,c,i===h,unit,limit,cap&&c.quality==null)){
+   for(const x of options(m,c,i===h,unit,limit,cap&&c.quality==null,info.largeAbsent===true)){
     const next=counts?[...counts]:null;if(x.q>=3&&next)next[x.q-3]--;
     visit(k+1,prob*x.p,value+x.v,high+(x.q>=3?1:0),next,area+(x.q>=3?x.area:0));
    }

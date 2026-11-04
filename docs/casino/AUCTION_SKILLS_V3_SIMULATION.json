@@ -1,0 +1,2651 @@
+{
+  "method": "Paired V2/V3 on identical V9 warehouses; independent actor RNG; NPCs use own clues only; ref95 and wait-until-4 policies. Synthetic strategy evidence, not human balance acceptance.",
+  "samplesPerTierTheme": 24,
+  "boards": 384,
+  "noLarge": 300,
+  "finiteEstimates": 30720,
+  "information": [
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "sophie",
+      "round": 1,
+      "medianRelativeError": 0.24976462697664714,
+      "meanPrivateFields": 5
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "gabriella",
+      "round": 1,
+      "medianRelativeError": 0.27863725372561204,
+      "meanPrivateFields": 4
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "viktor",
+      "round": 1,
+      "medianRelativeError": 0.28080621603969746,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "zhou",
+      "round": 1,
+      "medianRelativeError": 0.2778958332968765,
+      "meanPrivateFields": 1.0729166666666667
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "lucia",
+      "round": 1,
+      "medianRelativeError": 0.29787302406866645,
+      "meanPrivateFields": 1
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "sophie",
+      "round": 2,
+      "medianRelativeError": 0.25086584946713364,
+      "meanPrivateFields": 5.989583333333333
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "gabriella",
+      "round": 2,
+      "medianRelativeError": 0.19542180292379352,
+      "meanPrivateFields": 7.572916666666667
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "viktor",
+      "round": 2,
+      "medianRelativeError": 0.2249443061240558,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "zhou",
+      "round": 2,
+      "medianRelativeError": 0.2622102360064563,
+      "meanPrivateFields": 1.8229166666666667
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "lucia",
+      "round": 2,
+      "medianRelativeError": 0.2720018794737145,
+      "meanPrivateFields": 1.7395833333333333
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "sophie",
+      "round": 3,
+      "medianRelativeError": 0.21150808364402837,
+      "meanPrivateFields": 6.979166666666667
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "gabriella",
+      "round": 3,
+      "medianRelativeError": 0.12276861513107322,
+      "meanPrivateFields": 10.625
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "viktor",
+      "round": 3,
+      "medianRelativeError": 0.19911257653625675,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "zhou",
+      "round": 3,
+      "medianRelativeError": 0.26675536339264466,
+      "meanPrivateFields": 2.7291666666666665
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "lucia",
+      "round": 3,
+      "medianRelativeError": 0.25689303948310854,
+      "meanPrivateFields": 2.59375
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "sophie",
+      "round": 4,
+      "medianRelativeError": 0.1739127018416511,
+      "meanPrivateFields": 7.489583333333333
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "gabriella",
+      "round": 4,
+      "medianRelativeError": 0.07193520418446205,
+      "meanPrivateFields": 13.083333333333334
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "viktor",
+      "round": 4,
+      "medianRelativeError": 0.10212323937929668,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "zhou",
+      "round": 4,
+      "medianRelativeError": 0.23920210595105246,
+      "meanPrivateFields": 3.5520833333333335
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "lucia",
+      "round": 4,
+      "medianRelativeError": 0.22641170786515655,
+      "meanPrivateFields": 3.5
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "sophie",
+      "round": 5,
+      "medianRelativeError": 0.15625065188111395,
+      "meanPrivateFields": 6.666666666666667
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "gabriella",
+      "round": 5,
+      "medianRelativeError": 0.059969032655977736,
+      "meanPrivateFields": 12.520833333333334
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "viktor",
+      "round": 5,
+      "medianRelativeError": 0.11700234886435452,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "zhou",
+      "round": 5,
+      "medianRelativeError": 0.19825049826761268,
+      "meanPrivateFields": 3.8020833333333335
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "lucia",
+      "round": 5,
+      "medianRelativeError": 0.15214429392822967,
+      "meanPrivateFields": 6.854166666666667
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "sophie",
+      "round": 1,
+      "medianRelativeError": 0.24976462697664714,
+      "meanPrivateFields": 5
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "gabriella",
+      "round": 1,
+      "medianRelativeError": 0.27863725372561204,
+      "meanPrivateFields": 4
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "viktor",
+      "round": 1,
+      "medianRelativeError": 0.28080621603969746,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "zhou",
+      "round": 1,
+      "medianRelativeError": 0.28385781726369863,
+      "meanPrivateFields": 2
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "lucia",
+      "round": 1,
+      "medianRelativeError": 0.28403332831334666,
+      "meanPrivateFields": 2
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "sophie",
+      "round": 2,
+      "medianRelativeError": 0.22655219217558947,
+      "meanPrivateFields": 6.104166666666667
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "gabriella",
+      "round": 2,
+      "medianRelativeError": 0.19542180292379352,
+      "meanPrivateFields": 7.572916666666667
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "viktor",
+      "round": 2,
+      "medianRelativeError": 0.2249443061240558,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "zhou",
+      "round": 2,
+      "medianRelativeError": 0.25572521707665075,
+      "meanPrivateFields": 2.8229166666666665
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "lucia",
+      "round": 2,
+      "medianRelativeError": 0.2697708384550564,
+      "meanPrivateFields": 3.84375
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "sophie",
+      "round": 3,
+      "medianRelativeError": 0.20590137399293823,
+      "meanPrivateFields": 7.03125
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "gabriella",
+      "round": 3,
+      "medianRelativeError": 0.12006383794326277,
+      "meanPrivateFields": 10.958333333333334
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "viktor",
+      "round": 3,
+      "medianRelativeError": 0.19911257653625675,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "zhou",
+      "round": 3,
+      "medianRelativeError": 0.25618666274243895,
+      "meanPrivateFields": 3.7291666666666665
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "lucia",
+      "round": 3,
+      "medianRelativeError": 0.2357874398425796,
+      "meanPrivateFields": 5.84375
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "sophie",
+      "round": 4,
+      "medianRelativeError": 0.17298948446554677,
+      "meanPrivateFields": 7.53125
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "gabriella",
+      "round": 4,
+      "medianRelativeError": 0.06811610507171503,
+      "meanPrivateFields": 13.4375
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "viktor",
+      "round": 4,
+      "medianRelativeError": 0.10212323937929668,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "zhou",
+      "round": 4,
+      "medianRelativeError": 0.2667222317284447,
+      "meanPrivateFields": 4.614583333333333
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "lucia",
+      "round": 4,
+      "medianRelativeError": 0.2146304721204467,
+      "meanPrivateFields": 7.270833333333333
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "sophie",
+      "round": 5,
+      "medianRelativeError": 0.15625065188111395,
+      "meanPrivateFields": 6.708333333333333
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "gabriella",
+      "round": 5,
+      "medianRelativeError": 0.04608389258344824,
+      "meanPrivateFields": 12.916666666666666
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "viktor",
+      "round": 5,
+      "medianRelativeError": 0.11700234886435452,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "zhou",
+      "round": 5,
+      "medianRelativeError": 0.22351854420051293,
+      "meanPrivateFields": 5.125
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "lucia",
+      "round": 5,
+      "medianRelativeError": 0.1643995284005588,
+      "meanPrivateFields": 10.28125
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "sophie",
+      "round": 1,
+      "medianRelativeError": 0.3182927151089068,
+      "meanPrivateFields": 5
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "gabriella",
+      "round": 1,
+      "medianRelativeError": 0.3143898897536409,
+      "meanPrivateFields": 4
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "viktor",
+      "round": 1,
+      "medianRelativeError": 0.27509925643584254,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "zhou",
+      "round": 1,
+      "medianRelativeError": 0.3505929668790799,
+      "meanPrivateFields": 1.1145833333333333
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "lucia",
+      "round": 1,
+      "medianRelativeError": 0.3362566407450647,
+      "meanPrivateFields": 1
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "sophie",
+      "round": 2,
+      "medianRelativeError": 0.19968802223492998,
+      "meanPrivateFields": 6.0625
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "gabriella",
+      "round": 2,
+      "medianRelativeError": 0.24845321244417806,
+      "meanPrivateFields": 7.59375
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "viktor",
+      "round": 2,
+      "medianRelativeError": 0.19774578824073635,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "zhou",
+      "round": 2,
+      "medianRelativeError": 0.2850750617815904,
+      "meanPrivateFields": 1.875
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "lucia",
+      "round": 2,
+      "medianRelativeError": 0.3044046089098875,
+      "meanPrivateFields": 1.875
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "sophie",
+      "round": 3,
+      "medianRelativeError": 0.21440351515386374,
+      "meanPrivateFields": 7.125
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "gabriella",
+      "round": 3,
+      "medianRelativeError": 0.12845606210995406,
+      "meanPrivateFields": 10.625
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "viktor",
+      "round": 3,
+      "medianRelativeError": 0.20147473323465565,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "zhou",
+      "round": 3,
+      "medianRelativeError": 0.27504460965115546,
+      "meanPrivateFields": 2.6875
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "lucia",
+      "round": 3,
+      "medianRelativeError": 0.28975708933613237,
+      "meanPrivateFields": 2.7395833333333335
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "sophie",
+      "round": 4,
+      "medianRelativeError": 0.1966731885749211,
+      "meanPrivateFields": 7.885416666666667
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "gabriella",
+      "round": 4,
+      "medianRelativeError": 0.09880504730361625,
+      "meanPrivateFields": 13.333333333333334
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "viktor",
+      "round": 4,
+      "medianRelativeError": 0.09794196466807793,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "zhou",
+      "round": 4,
+      "medianRelativeError": 0.28890948672071626,
+      "meanPrivateFields": 3.5520833333333335
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "lucia",
+      "round": 4,
+      "medianRelativeError": 0.2842242423485404,
+      "meanPrivateFields": 3.6354166666666665
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "sophie",
+      "round": 5,
+      "medianRelativeError": 0.16560833664487112,
+      "meanPrivateFields": 7.40625
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "gabriella",
+      "round": 5,
+      "medianRelativeError": 0.07928369668688402,
+      "meanPrivateFields": 13.270833333333334
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "viktor",
+      "round": 5,
+      "medianRelativeError": 0.08225234014205247,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "zhou",
+      "round": 5,
+      "medianRelativeError": 0.22090207882873758,
+      "meanPrivateFields": 3.90625
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "lucia",
+      "round": 5,
+      "medianRelativeError": 0.15965988810644086,
+      "meanPrivateFields": 7.78125
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "sophie",
+      "round": 1,
+      "medianRelativeError": 0.3182927151089068,
+      "meanPrivateFields": 5
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "gabriella",
+      "round": 1,
+      "medianRelativeError": 0.3143898897536409,
+      "meanPrivateFields": 4
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "viktor",
+      "round": 1,
+      "medianRelativeError": 0.27509925643584254,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "zhou",
+      "round": 1,
+      "medianRelativeError": 0.34438358646332257,
+      "meanPrivateFields": 2
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "lucia",
+      "round": 1,
+      "medianRelativeError": 0.34162175105558745,
+      "meanPrivateFields": 2
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "sophie",
+      "round": 2,
+      "medianRelativeError": 0.2062767535569065,
+      "meanPrivateFields": 6.21875
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "gabriella",
+      "round": 2,
+      "medianRelativeError": 0.24845321244417806,
+      "meanPrivateFields": 7.59375
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "viktor",
+      "round": 2,
+      "medianRelativeError": 0.19774578824073635,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "zhou",
+      "round": 2,
+      "medianRelativeError": 0.30893666649958745,
+      "meanPrivateFields": 2.875
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "lucia",
+      "round": 2,
+      "medianRelativeError": 0.2930777799709516,
+      "meanPrivateFields": 3.9479166666666665
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "sophie",
+      "round": 3,
+      "medianRelativeError": 0.20183501406493465,
+      "meanPrivateFields": 7.333333333333333
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "gabriella",
+      "round": 3,
+      "medianRelativeError": 0.14266918339674955,
+      "meanPrivateFields": 10.958333333333334
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "viktor",
+      "round": 3,
+      "medianRelativeError": 0.20147473323465565,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "zhou",
+      "round": 3,
+      "medianRelativeError": 0.2686809942332145,
+      "meanPrivateFields": 3.7916666666666665
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "lucia",
+      "round": 3,
+      "medianRelativeError": 0.27547837085827737,
+      "meanPrivateFields": 5.947916666666667
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "sophie",
+      "round": 4,
+      "medianRelativeError": 0.16715744108499148,
+      "meanPrivateFields": 8.104166666666666
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "gabriella",
+      "round": 4,
+      "medianRelativeError": 0.09538637185036744,
+      "meanPrivateFields": 13.625
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "viktor",
+      "round": 4,
+      "medianRelativeError": 0.09794196466807793,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "zhou",
+      "round": 4,
+      "medianRelativeError": 0.24208036368743074,
+      "meanPrivateFields": 4.708333333333333
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "lucia",
+      "round": 4,
+      "medianRelativeError": 0.23892229134642237,
+      "meanPrivateFields": 7.416666666666667
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "sophie",
+      "round": 5,
+      "medianRelativeError": 0.15965988810644086,
+      "meanPrivateFields": 7.520833333333333
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "gabriella",
+      "round": 5,
+      "medianRelativeError": 0.07652076452837403,
+      "meanPrivateFields": 13.708333333333334
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "viktor",
+      "round": 5,
+      "medianRelativeError": 0.08225234014205247,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "zhou",
+      "round": 5,
+      "medianRelativeError": 0.2214089079015486,
+      "meanPrivateFields": 5.34375
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "lucia",
+      "round": 5,
+      "medianRelativeError": 0.14000672464886602,
+      "meanPrivateFields": 11.25
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "sophie",
+      "round": 1,
+      "medianRelativeError": 0.25225970122457003,
+      "meanPrivateFields": 5
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "gabriella",
+      "round": 1,
+      "medianRelativeError": 0.29738623737462067,
+      "meanPrivateFields": 4
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "viktor",
+      "round": 1,
+      "medianRelativeError": 0.3193985532994497,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "zhou",
+      "round": 1,
+      "medianRelativeError": 0.30544134920277655,
+      "meanPrivateFields": 1.25
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "lucia",
+      "round": 1,
+      "medianRelativeError": 0.3287317466878872,
+      "meanPrivateFields": 1
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "sophie",
+      "round": 2,
+      "medianRelativeError": 0.24393649762696848,
+      "meanPrivateFields": 6.333333333333333
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "gabriella",
+      "round": 2,
+      "medianRelativeError": 0.24131284646379159,
+      "meanPrivateFields": 7.59375
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "viktor",
+      "round": 2,
+      "medianRelativeError": 0.25665703609519464,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "zhou",
+      "round": 2,
+      "medianRelativeError": 0.3186666476826324,
+      "meanPrivateFields": 1.9895833333333333
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "lucia",
+      "round": 2,
+      "medianRelativeError": 0.3408149909204015,
+      "meanPrivateFields": 1.8229166666666667
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "sophie",
+      "round": 3,
+      "medianRelativeError": 0.24507593310739895,
+      "meanPrivateFields": 7.864583333333333
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "gabriella",
+      "round": 3,
+      "medianRelativeError": 0.20367144277567525,
+      "meanPrivateFields": 10.875
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "viktor",
+      "round": 3,
+      "medianRelativeError": 0.20904540093235757,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "zhou",
+      "round": 3,
+      "medianRelativeError": 0.296326939362375,
+      "meanPrivateFields": 2.90625
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "lucia",
+      "round": 3,
+      "medianRelativeError": 0.2898241709503891,
+      "meanPrivateFields": 2.71875
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "sophie",
+      "round": 4,
+      "medianRelativeError": 0.24988560765211437,
+      "meanPrivateFields": 9.125
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "gabriella",
+      "round": 4,
+      "medianRelativeError": 0.15297461213624525,
+      "meanPrivateFields": 14.104166666666666
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "viktor",
+      "round": 4,
+      "medianRelativeError": 0.12188379482262271,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "zhou",
+      "round": 4,
+      "medianRelativeError": 0.28818762017333255,
+      "meanPrivateFields": 3.8020833333333335
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "lucia",
+      "round": 4,
+      "medianRelativeError": 0.2902731756709706,
+      "meanPrivateFields": 3.625
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "sophie",
+      "round": 5,
+      "medianRelativeError": 0.20919798734335698,
+      "meanPrivateFields": 8.979166666666666
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "gabriella",
+      "round": 5,
+      "medianRelativeError": 0.1051018371712297,
+      "meanPrivateFields": 15.333333333333334
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "viktor",
+      "round": 5,
+      "medianRelativeError": 0.09732275506304894,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "zhou",
+      "round": 5,
+      "medianRelativeError": 0.2831806013374158,
+      "meanPrivateFields": 4.260416666666667
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "lucia",
+      "round": 5,
+      "medianRelativeError": 0.1926284250067512,
+      "meanPrivateFields": 9.75
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "sophie",
+      "round": 1,
+      "medianRelativeError": 0.25225970122457003,
+      "meanPrivateFields": 5
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "gabriella",
+      "round": 1,
+      "medianRelativeError": 0.29738623737462067,
+      "meanPrivateFields": 4
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "viktor",
+      "round": 1,
+      "medianRelativeError": 0.3193985532994497,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "zhou",
+      "round": 1,
+      "medianRelativeError": 0.3198959429986954,
+      "meanPrivateFields": 2
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "lucia",
+      "round": 1,
+      "medianRelativeError": 0.33308523638552767,
+      "meanPrivateFields": 2
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "sophie",
+      "round": 2,
+      "medianRelativeError": 0.23395103609990556,
+      "meanPrivateFields": 6.427083333333333
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "gabriella",
+      "round": 2,
+      "medianRelativeError": 0.24131284646379159,
+      "meanPrivateFields": 7.59375
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "viktor",
+      "round": 2,
+      "medianRelativeError": 0.25665703609519464,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "zhou",
+      "round": 2,
+      "medianRelativeError": 0.27711481117116593,
+      "meanPrivateFields": 2.8854166666666665
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "lucia",
+      "round": 2,
+      "medianRelativeError": 0.32169316266679693,
+      "meanPrivateFields": 3.8645833333333335
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "sophie",
+      "round": 3,
+      "medianRelativeError": 0.23959319131344786,
+      "meanPrivateFields": 8.072916666666666
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "gabriella",
+      "round": 3,
+      "medianRelativeError": 0.20214937519386567,
+      "meanPrivateFields": 11.1875
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "viktor",
+      "round": 3,
+      "medianRelativeError": 0.20904540093235757,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "zhou",
+      "round": 3,
+      "medianRelativeError": 0.2562676202104285,
+      "meanPrivateFields": 3.7604166666666665
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "lucia",
+      "round": 3,
+      "medianRelativeError": 0.2690442149332732,
+      "meanPrivateFields": 5.864583333333333
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "sophie",
+      "round": 4,
+      "medianRelativeError": 0.23222385674380405,
+      "meanPrivateFields": 9.302083333333334
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "gabriella",
+      "round": 4,
+      "medianRelativeError": 0.17481257889183785,
+      "meanPrivateFields": 14.645833333333334
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "viktor",
+      "round": 4,
+      "medianRelativeError": 0.12188379482262271,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "zhou",
+      "round": 4,
+      "medianRelativeError": 0.2483547132443294,
+      "meanPrivateFields": 4.697916666666667
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "lucia",
+      "round": 4,
+      "medianRelativeError": 0.2420378938282578,
+      "meanPrivateFields": 7.53125
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "sophie",
+      "round": 5,
+      "medianRelativeError": 0.19663220217059446,
+      "meanPrivateFields": 9.125
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "gabriella",
+      "round": 5,
+      "medianRelativeError": 0.11730900394613143,
+      "meanPrivateFields": 15.958333333333334
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "viktor",
+      "round": 5,
+      "medianRelativeError": 0.09732275506304894,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "zhou",
+      "round": 5,
+      "medianRelativeError": 0.2510022115357447,
+      "meanPrivateFields": 5.34375
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "lucia",
+      "round": 5,
+      "medianRelativeError": 0.18497180496095939,
+      "meanPrivateFields": 13.416666666666666
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "sophie",
+      "round": 1,
+      "medianRelativeError": 0.3216573557831002,
+      "meanPrivateFields": 5
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "gabriella",
+      "round": 1,
+      "medianRelativeError": 0.41443745862409986,
+      "meanPrivateFields": 4
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "viktor",
+      "round": 1,
+      "medianRelativeError": 0.3214171060959597,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "zhou",
+      "round": 1,
+      "medianRelativeError": 0.43384965752004534,
+      "meanPrivateFields": 1.4375
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "lucia",
+      "round": 1,
+      "medianRelativeError": 0.4322295464034787,
+      "meanPrivateFields": 1
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "sophie",
+      "round": 2,
+      "medianRelativeError": 0.29678194998495944,
+      "meanPrivateFields": 6.416666666666667
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "gabriella",
+      "round": 2,
+      "medianRelativeError": 0.3023816374136263,
+      "meanPrivateFields": 7.729166666666667
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "viktor",
+      "round": 2,
+      "medianRelativeError": 0.2393531856596702,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "zhou",
+      "round": 2,
+      "medianRelativeError": 0.37285256129388383,
+      "meanPrivateFields": 2.25
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "lucia",
+      "round": 2,
+      "medianRelativeError": 0.3842889286929053,
+      "meanPrivateFields": 1.8541666666666667
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "sophie",
+      "round": 3,
+      "medianRelativeError": 0.28735367406174966,
+      "meanPrivateFields": 8.072916666666666
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "gabriella",
+      "round": 3,
+      "medianRelativeError": 0.2397336234253923,
+      "meanPrivateFields": 11.083333333333334
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "viktor",
+      "round": 3,
+      "medianRelativeError": 0.19032358276977962,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "zhou",
+      "round": 3,
+      "medianRelativeError": 0.3058888362216559,
+      "meanPrivateFields": 3.1666666666666665
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "lucia",
+      "round": 3,
+      "medianRelativeError": 0.36706541392657377,
+      "meanPrivateFields": 2.8020833333333335
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "sophie",
+      "round": 4,
+      "medianRelativeError": 0.25525805237736543,
+      "meanPrivateFields": 9.510416666666666
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "gabriella",
+      "round": 4,
+      "medianRelativeError": 0.16561471276473988,
+      "meanPrivateFields": 14.541666666666666
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "viktor",
+      "round": 4,
+      "medianRelativeError": 0.16216615685343347,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "zhou",
+      "round": 4,
+      "medianRelativeError": 0.34737798628057287,
+      "meanPrivateFields": 4.114583333333333
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "lucia",
+      "round": 4,
+      "medianRelativeError": 0.35422713870981315,
+      "meanPrivateFields": 3.71875
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "sophie",
+      "round": 5,
+      "medianRelativeError": 0.21147576992997164,
+      "meanPrivateFields": 9.822916666666666
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "gabriella",
+      "round": 5,
+      "medianRelativeError": 0.13178688502480465,
+      "meanPrivateFields": 16.166666666666668
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "viktor",
+      "round": 5,
+      "medianRelativeError": 0.16352898545287886,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "zhou",
+      "round": 5,
+      "medianRelativeError": 0.2962518134153179,
+      "meanPrivateFields": 4.541666666666667
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "lucia",
+      "round": 5,
+      "medianRelativeError": 0.20781092453303218,
+      "meanPrivateFields": 11.010416666666666
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "sophie",
+      "round": 1,
+      "medianRelativeError": 0.3216573557831002,
+      "meanPrivateFields": 5
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "gabriella",
+      "round": 1,
+      "medianRelativeError": 0.41443745862409986,
+      "meanPrivateFields": 4
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "viktor",
+      "round": 1,
+      "medianRelativeError": 0.3214171060959597,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "zhou",
+      "round": 1,
+      "medianRelativeError": 0.43722949624914126,
+      "meanPrivateFields": 2
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "lucia",
+      "round": 1,
+      "medianRelativeError": 0.43765886370206797,
+      "meanPrivateFields": 2
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "sophie",
+      "round": 2,
+      "medianRelativeError": 0.28990954856431733,
+      "meanPrivateFields": 6.489583333333333
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "gabriella",
+      "round": 2,
+      "medianRelativeError": 0.3023816374136263,
+      "meanPrivateFields": 7.729166666666667
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "viktor",
+      "round": 2,
+      "medianRelativeError": 0.2393531856596702,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "zhou",
+      "round": 2,
+      "medianRelativeError": 0.3483526999420463,
+      "meanPrivateFields": 2.90625
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "lucia",
+      "round": 2,
+      "medianRelativeError": 0.3449732994576053,
+      "meanPrivateFields": 3.90625
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "sophie",
+      "round": 3,
+      "medianRelativeError": 0.2644123647926952,
+      "meanPrivateFields": 8.25
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "gabriella",
+      "round": 3,
+      "medianRelativeError": 0.24819139177732882,
+      "meanPrivateFields": 11.458333333333334
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "viktor",
+      "round": 3,
+      "medianRelativeError": 0.19032358276977962,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "zhou",
+      "round": 3,
+      "medianRelativeError": 0.3201549515685423,
+      "meanPrivateFields": 3.84375
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "lucia",
+      "round": 3,
+      "medianRelativeError": 0.3249814791654435,
+      "meanPrivateFields": 5.90625
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "sophie",
+      "round": 4,
+      "medianRelativeError": 0.24311153018950774,
+      "meanPrivateFields": 9.729166666666666
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "gabriella",
+      "round": 4,
+      "medianRelativeError": 0.1657364177767846,
+      "meanPrivateFields": 15.125
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "viktor",
+      "round": 4,
+      "medianRelativeError": 0.16216615685343347,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "zhou",
+      "round": 4,
+      "medianRelativeError": 0.30072238379799154,
+      "meanPrivateFields": 4.802083333333333
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "lucia",
+      "round": 4,
+      "medianRelativeError": 0.32611681589069164,
+      "meanPrivateFields": 7.552083333333333
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "sophie",
+      "round": 5,
+      "medianRelativeError": 0.21443233595322259,
+      "meanPrivateFields": 10.010416666666666
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "gabriella",
+      "round": 5,
+      "medianRelativeError": 0.11658704598425695,
+      "meanPrivateFields": 17.125
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "viktor",
+      "round": 5,
+      "medianRelativeError": 0.16352898545287886,
+      "meanPrivateFields": 0
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "zhou",
+      "round": 5,
+      "medianRelativeError": 0.28918420810176887,
+      "meanPrivateFields": 5.5625
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "lucia",
+      "round": 5,
+      "medianRelativeError": 0.18830439395739593,
+      "meanPrivateFields": 14.65625
+    }
+  ],
+  "games": [
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "sophie",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 71,
+      "profitable": 8,
+      "winRate": 0.7395833333333334,
+      "profitRate": 0.08333333333333333,
+      "meanNet": -34216.375,
+      "meanLastRound": 3.2604166666666665
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "sophie",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 33,
+      "profitable": 3,
+      "winRate": 0.34375,
+      "profitRate": 0.03125,
+      "meanNet": -29602.916666666668,
+      "meanLastRound": 3.3229166666666665
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "gabriella",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 74,
+      "profitable": 9,
+      "winRate": 0.7708333333333334,
+      "profitRate": 0.09375,
+      "meanNet": -17528.03125,
+      "meanLastRound": 3.3229166666666665
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "gabriella",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 39,
+      "profitable": 2,
+      "winRate": 0.40625,
+      "profitRate": 0.020833333333333332,
+      "meanNet": -24333.677083333332,
+      "meanLastRound": 3.3125
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "viktor",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 90,
+      "profitable": 17,
+      "winRate": 0.9375,
+      "profitRate": 0.17708333333333334,
+      "meanNet": -23010.104166666668,
+      "meanLastRound": 3.5104166666666665
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "viktor",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 43,
+      "profitable": 11,
+      "winRate": 0.4479166666666667,
+      "profitRate": 0.11458333333333333,
+      "meanNet": -19517.510416666668,
+      "meanLastRound": 3.3645833333333335
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "zhou",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 73,
+      "profitable": 13,
+      "winRate": 0.7604166666666666,
+      "profitRate": 0.13541666666666666,
+      "meanNet": -50981.635416666664,
+      "meanLastRound": 3.3333333333333335
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "zhou",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 33,
+      "profitable": 6,
+      "winRate": 0.34375,
+      "profitRate": 0.0625,
+      "meanNet": -29925.135416666668,
+      "meanLastRound": 3.34375
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "lucia",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 68,
+      "profitable": 9,
+      "winRate": 0.7083333333333334,
+      "profitRate": 0.09375,
+      "meanNet": -10319.375,
+      "meanLastRound": 3.3229166666666665
+    },
+    {
+      "tier": "small",
+      "version": 2,
+      "role": "lucia",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 32,
+      "profitable": 3,
+      "winRate": 0.3333333333333333,
+      "profitRate": 0.03125,
+      "meanNet": -30530.78125,
+      "meanLastRound": 3.3020833333333335
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "sophie",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 71,
+      "profitable": 8,
+      "winRate": 0.7395833333333334,
+      "profitRate": 0.08333333333333333,
+      "meanNet": -33077.03125,
+      "meanLastRound": 3.2291666666666665
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "sophie",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 32,
+      "profitable": 2,
+      "winRate": 0.3333333333333333,
+      "profitRate": 0.020833333333333332,
+      "meanNet": -30642.78125,
+      "meanLastRound": 3.2916666666666665
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "gabriella",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 75,
+      "profitable": 10,
+      "winRate": 0.78125,
+      "profitRate": 0.10416666666666667,
+      "meanNet": -14615.6875,
+      "meanLastRound": 3.3125
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "gabriella",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 40,
+      "profitable": 3,
+      "winRate": 0.4166666666666667,
+      "profitRate": 0.03125,
+      "meanNet": -23588.229166666668,
+      "meanLastRound": 3.2916666666666665
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "viktor",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 90,
+      "profitable": 17,
+      "winRate": 0.9375,
+      "profitRate": 0.17708333333333334,
+      "meanNet": -6254.104166666667,
+      "meanLastRound": 3.5
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "viktor",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 42,
+      "profitable": 11,
+      "winRate": 0.4375,
+      "profitRate": 0.11458333333333333,
+      "meanNet": -19606,
+      "meanLastRound": 3.3020833333333335
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "zhou",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 63,
+      "profitable": 6,
+      "winRate": 0.65625,
+      "profitRate": 0.0625,
+      "meanNet": -39022.635416666664,
+      "meanLastRound": 3.4375
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "zhou",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 33,
+      "profitable": 4,
+      "winRate": 0.34375,
+      "profitRate": 0.041666666666666664,
+      "meanNet": -32461.583333333332,
+      "meanLastRound": 3.2916666666666665
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "lucia",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 70,
+      "profitable": 9,
+      "winRate": 0.7291666666666666,
+      "profitRate": 0.09375,
+      "meanNet": -23690.208333333332,
+      "meanLastRound": 3.25
+    },
+    {
+      "tier": "small",
+      "version": 3,
+      "role": "lucia",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 34,
+      "profitable": 1,
+      "winRate": 0.3541666666666667,
+      "profitRate": 0.010416666666666666,
+      "meanNet": -31399.0625,
+      "meanLastRound": 3.28125
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "sophie",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 79,
+      "profitable": 23,
+      "winRate": 0.8229166666666666,
+      "profitRate": 0.23958333333333334,
+      "meanNet": -60552.645833333336,
+      "meanLastRound": 3.4375
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "sophie",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 41,
+      "profitable": 7,
+      "winRate": 0.4270833333333333,
+      "profitRate": 0.07291666666666667,
+      "meanNet": -124340.42708333333,
+      "meanLastRound": 3.4479166666666665
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "gabriella",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 70,
+      "profitable": 20,
+      "winRate": 0.7291666666666666,
+      "profitRate": 0.20833333333333334,
+      "meanNet": -103418.17708333333,
+      "meanLastRound": 3.4895833333333335
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "gabriella",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 44,
+      "profitable": 7,
+      "winRate": 0.4583333333333333,
+      "profitRate": 0.07291666666666667,
+      "meanNet": -111492.625,
+      "meanLastRound": 3.4479166666666665
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "viktor",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 86,
+      "profitable": 29,
+      "winRate": 0.8958333333333334,
+      "profitRate": 0.3020833333333333,
+      "meanNet": 10052.510416666666,
+      "meanLastRound": 3.75
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "viktor",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 48,
+      "profitable": 15,
+      "winRate": 0.5,
+      "profitRate": 0.15625,
+      "meanNet": -72550.73958333333,
+      "meanLastRound": 3.5416666666666665
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "zhou",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 70,
+      "profitable": 14,
+      "winRate": 0.7291666666666666,
+      "profitRate": 0.14583333333333334,
+      "meanNet": -205974.14583333334,
+      "meanLastRound": 3.3541666666666665
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "zhou",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 40,
+      "profitable": 5,
+      "winRate": 0.4166666666666667,
+      "profitRate": 0.052083333333333336,
+      "meanNet": -158389.16666666666,
+      "meanLastRound": 3.4583333333333335
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "lucia",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 71,
+      "profitable": 11,
+      "winRate": 0.7395833333333334,
+      "profitRate": 0.11458333333333333,
+      "meanNet": -197387.38541666666,
+      "meanLastRound": 3.25
+    },
+    {
+      "tier": "standard",
+      "version": 2,
+      "role": "lucia",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 42,
+      "profitable": 5,
+      "winRate": 0.4375,
+      "profitRate": 0.052083333333333336,
+      "meanNet": -163147.30208333334,
+      "meanLastRound": 3.4791666666666665
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "sophie",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 77,
+      "profitable": 22,
+      "winRate": 0.8020833333333334,
+      "profitRate": 0.22916666666666666,
+      "meanNet": -110720.46875,
+      "meanLastRound": 3.4479166666666665
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "sophie",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 42,
+      "profitable": 8,
+      "winRate": 0.4375,
+      "profitRate": 0.08333333333333333,
+      "meanNet": -137633.09375,
+      "meanLastRound": 3.4791666666666665
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "gabriella",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 67,
+      "profitable": 19,
+      "winRate": 0.6979166666666666,
+      "profitRate": 0.19791666666666666,
+      "meanNet": -112960.5,
+      "meanLastRound": 3.4583333333333335
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "gabriella",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 44,
+      "profitable": 6,
+      "winRate": 0.4583333333333333,
+      "profitRate": 0.0625,
+      "meanNet": -116712.1875,
+      "meanLastRound": 3.4375
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "viktor",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 86,
+      "profitable": 28,
+      "winRate": 0.8958333333333334,
+      "profitRate": 0.2916666666666667,
+      "meanNet": -54294.229166666664,
+      "meanLastRound": 3.6875
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "viktor",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 50,
+      "profitable": 14,
+      "winRate": 0.5208333333333334,
+      "profitRate": 0.14583333333333334,
+      "meanNet": -77414.16666666667,
+      "meanLastRound": 3.5208333333333335
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "zhou",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 68,
+      "profitable": 13,
+      "winRate": 0.7083333333333334,
+      "profitRate": 0.13541666666666666,
+      "meanNet": -168041.66666666666,
+      "meanLastRound": 3.2916666666666665
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "zhou",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 41,
+      "profitable": 4,
+      "winRate": 0.4270833333333333,
+      "profitRate": 0.041666666666666664,
+      "meanNet": -184778.36458333334,
+      "meanLastRound": 3.46875
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "lucia",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 74,
+      "profitable": 15,
+      "winRate": 0.7708333333333334,
+      "profitRate": 0.15625,
+      "meanNet": -175301.10416666666,
+      "meanLastRound": 3.3125
+    },
+    {
+      "tier": "standard",
+      "version": 3,
+      "role": "lucia",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 45,
+      "profitable": 7,
+      "winRate": 0.46875,
+      "profitRate": 0.07291666666666667,
+      "meanNet": -181572.29166666666,
+      "meanLastRound": 3.4479166666666665
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "sophie",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 60,
+      "profitable": 20,
+      "winRate": 0.625,
+      "profitRate": 0.20833333333333334,
+      "meanNet": 2362436.4270833335,
+      "meanLastRound": 3.8854166666666665
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "sophie",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 32,
+      "profitable": 10,
+      "winRate": 0.3333333333333333,
+      "profitRate": 0.10416666666666667,
+      "meanNet": 2230554.0729166665,
+      "meanLastRound": 3.8541666666666665
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "gabriella",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 59,
+      "profitable": 19,
+      "winRate": 0.6145833333333334,
+      "profitRate": 0.19791666666666666,
+      "meanNet": 2325224.15625,
+      "meanLastRound": 3.9166666666666665
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "gabriella",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 33,
+      "profitable": 7,
+      "winRate": 0.34375,
+      "profitRate": 0.07291666666666667,
+      "meanNet": 2201819.375,
+      "meanLastRound": 3.7604166666666665
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "viktor",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 61,
+      "profitable": 25,
+      "winRate": 0.6354166666666666,
+      "profitRate": 0.2604166666666667,
+      "meanNet": 2735634.3541666665,
+      "meanLastRound": 4.135416666666667
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "viktor",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 37,
+      "profitable": 15,
+      "winRate": 0.3854166666666667,
+      "profitRate": 0.15625,
+      "meanNet": 2428433.5416666665,
+      "meanLastRound": 3.8125
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "zhou",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 51,
+      "profitable": 11,
+      "winRate": 0.53125,
+      "profitRate": 0.11458333333333333,
+      "meanNet": 1726783.8958333333,
+      "meanLastRound": 3.78125
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "zhou",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 30,
+      "profitable": 6,
+      "winRate": 0.3125,
+      "profitRate": 0.0625,
+      "meanNet": 1813865.1666666667,
+      "meanLastRound": 3.7916666666666665
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "lucia",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 62,
+      "profitable": 16,
+      "winRate": 0.6458333333333334,
+      "profitRate": 0.16666666666666666,
+      "meanNet": 2090019.9375,
+      "meanLastRound": 3.6770833333333335
+    },
+    {
+      "tier": "high",
+      "version": 2,
+      "role": "lucia",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 34,
+      "profitable": 7,
+      "winRate": 0.3541666666666667,
+      "profitRate": 0.07291666666666667,
+      "meanNet": 2021283.28125,
+      "meanLastRound": 3.8125
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "sophie",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 58,
+      "profitable": 18,
+      "winRate": 0.6041666666666666,
+      "profitRate": 0.1875,
+      "meanNet": 2528033.6145833335,
+      "meanLastRound": 3.9166666666666665
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "sophie",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 33,
+      "profitable": 10,
+      "winRate": 0.34375,
+      "profitRate": 0.10416666666666667,
+      "meanNet": 2214677.71875,
+      "meanLastRound": 3.875
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "gabriella",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 60,
+      "profitable": 20,
+      "winRate": 0.625,
+      "profitRate": 0.20833333333333334,
+      "meanNet": 2518520.7291666665,
+      "meanLastRound": 3.9166666666666665
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "gabriella",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 34,
+      "profitable": 7,
+      "winRate": 0.3541666666666667,
+      "profitRate": 0.07291666666666667,
+      "meanNet": 2125161.1041666665,
+      "meanLastRound": 3.7916666666666665
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "viktor",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 61,
+      "profitable": 25,
+      "winRate": 0.6354166666666666,
+      "profitRate": 0.2604166666666667,
+      "meanNet": 2843481.0729166665,
+      "meanLastRound": 4.21875
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "viktor",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 38,
+      "profitable": 16,
+      "winRate": 0.3958333333333333,
+      "profitRate": 0.16666666666666666,
+      "meanNet": 2413396.2083333335,
+      "meanLastRound": 3.8645833333333335
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "zhou",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 58,
+      "profitable": 14,
+      "winRate": 0.6041666666666666,
+      "profitRate": 0.14583333333333334,
+      "meanNet": 2051938.2083333333,
+      "meanLastRound": 3.78125
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "zhou",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 34,
+      "profitable": 9,
+      "winRate": 0.3541666666666667,
+      "profitRate": 0.09375,
+      "meanNet": 1886320.3229166667,
+      "meanLastRound": 3.8333333333333335
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "lucia",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 64,
+      "profitable": 19,
+      "winRate": 0.6666666666666666,
+      "profitRate": 0.19791666666666666,
+      "meanNet": 2230567.6770833335,
+      "meanLastRound": 3.6666666666666665
+    },
+    {
+      "tier": "high",
+      "version": 3,
+      "role": "lucia",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 36,
+      "profitable": 9,
+      "winRate": 0.375,
+      "profitRate": 0.09375,
+      "meanNet": 1989290.7291666667,
+      "meanLastRound": 3.8020833333333335
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "sophie",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 46,
+      "profitable": 32,
+      "winRate": 0.4791666666666667,
+      "profitRate": 0.3333333333333333,
+      "meanNet": 28709726.8125,
+      "meanLastRound": 4.697916666666667
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "sophie",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 40,
+      "profitable": 30,
+      "winRate": 0.4166666666666667,
+      "profitRate": 0.3125,
+      "meanNet": 28733084.375,
+      "meanLastRound": 4.604166666666667
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "gabriella",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 48,
+      "profitable": 31,
+      "winRate": 0.5,
+      "profitRate": 0.3229166666666667,
+      "meanNet": 28690813.416666668,
+      "meanLastRound": 4.65625
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "gabriella",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 41,
+      "profitable": 30,
+      "winRate": 0.4270833333333333,
+      "profitRate": 0.3125,
+      "meanNet": 28802512.541666668,
+      "meanLastRound": 4.59375
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "viktor",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 44,
+      "profitable": 33,
+      "winRate": 0.4583333333333333,
+      "profitRate": 0.34375,
+      "meanNet": 28912858.895833332,
+      "meanLastRound": 4.833333333333333
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "viktor",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 39,
+      "profitable": 31,
+      "winRate": 0.40625,
+      "profitRate": 0.3229166666666667,
+      "meanNet": 28876454.583333332,
+      "meanLastRound": 4.635416666666667
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "zhou",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 46,
+      "profitable": 30,
+      "winRate": 0.4791666666666667,
+      "profitRate": 0.3125,
+      "meanNet": 28379293.239583332,
+      "meanLastRound": 4.625
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "zhou",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 40,
+      "profitable": 28,
+      "winRate": 0.4166666666666667,
+      "profitRate": 0.2916666666666667,
+      "meanNet": 28444407.114583332,
+      "meanLastRound": 4.59375
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "lucia",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 48,
+      "profitable": 30,
+      "winRate": 0.5,
+      "profitRate": 0.3125,
+      "meanNet": 28515217.5625,
+      "meanLastRound": 4.614583333333333
+    },
+    {
+      "tier": "collection",
+      "version": 2,
+      "role": "lucia",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 41,
+      "profitable": 29,
+      "winRate": 0.4270833333333333,
+      "profitRate": 0.3020833333333333,
+      "meanNet": 28610417.791666668,
+      "meanLastRound": 4.604166666666667
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "sophie",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 47,
+      "profitable": 32,
+      "winRate": 0.4895833333333333,
+      "profitRate": 0.3333333333333333,
+      "meanNet": 28730280.083333332,
+      "meanLastRound": 4.697916666666667
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "sophie",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 40,
+      "profitable": 30,
+      "winRate": 0.4166666666666667,
+      "profitRate": 0.3125,
+      "meanNet": 28779278.875,
+      "meanLastRound": 4.614583333333333
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "gabriella",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 48,
+      "profitable": 31,
+      "winRate": 0.5,
+      "profitRate": 0.3229166666666667,
+      "meanNet": 28655576.572916668,
+      "meanLastRound": 4.65625
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "gabriella",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 40,
+      "profitable": 30,
+      "winRate": 0.4166666666666667,
+      "profitRate": 0.3125,
+      "meanNet": 28806806.958333332,
+      "meanLastRound": 4.604166666666667
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "viktor",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 45,
+      "profitable": 33,
+      "winRate": 0.46875,
+      "profitRate": 0.34375,
+      "meanNet": 28921768.270833332,
+      "meanLastRound": 4.822916666666667
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "viktor",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 39,
+      "profitable": 31,
+      "winRate": 0.40625,
+      "profitRate": 0.3229166666666667,
+      "meanNet": 28890183.25,
+      "meanLastRound": 4.635416666666667
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "zhou",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 48,
+      "profitable": 31,
+      "winRate": 0.5,
+      "profitRate": 0.3229166666666667,
+      "meanNet": 28476946.916666668,
+      "meanLastRound": 4.572916666666667
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "zhou",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 41,
+      "profitable": 29,
+      "winRate": 0.4270833333333333,
+      "profitRate": 0.3020833333333333,
+      "meanNet": 28539427.489583332,
+      "meanLastRound": 4.59375
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "lucia",
+      "policy": "ref95",
+      "games": 96,
+      "wins": 49,
+      "profitable": 32,
+      "winRate": 0.5104166666666666,
+      "profitRate": 0.3333333333333333,
+      "meanNet": 28569554.020833332,
+      "meanLastRound": 4.65625
+    },
+    {
+      "tier": "collection",
+      "version": 3,
+      "role": "lucia",
+      "policy": "waitUntil4ref95",
+      "games": 96,
+      "wins": 41,
+      "profitable": 30,
+      "winRate": 0.4270833333333333,
+      "profitRate": 0.3125,
+      "meanNet": 28690198.28125,
+      "meanLastRound": 4.604166666666667
+    }
+  ]
+}

@@ -20,6 +20,7 @@ function harness(search=''){
    setApi(fn){api=fn;},setRoom(room){roomState={room};},get room(){return roomState?.room;},get connection(){return roomConnection;},
    switchGuild(){guild='4';epoch++;},get pending(){return pendingRoomInvite;},setPending(code){pendingRoomInvite=code;},
    readRoomInvite,clearRoomInvite,roomInviteURL,copyRoomInvite,acceptRoom,renderRoom,renderActual,roomAction,pollRoom,setRoomConnection,
+   appraiserCard,roomClues,setMeta(value){meta=value;},
   };`,Object.assign(context,{messages}));
  context.h.init();return {h:context.h,context,nodes,saved,copies,messages,events};
 }
@@ -31,6 +32,16 @@ function room(history=[],status='active'){
   {id:'npc:b',name:'老猫',role:'viktor',index:3,npc:true}],
   started:{round:2,rounds:5,roundEndsAt:Date.now()+60000,warehouse:{name:'小仓'},itemCount:6,history,priority:[1,0,2,3],budget:4000000,fee:25000},result:null};
 }
+
+test('actual appraisal cards retain old skill text and display focused private clues with escaped categories',()=>{
+ const {h}=harness();h.setMeta({skillVersion:3,roles:{zhou:{name:'老周',skill:'新版鉴定类别',legacySkill:'旧版每轮品质',focus:'重点鉴定'}},qualities:['白','绿','蓝','紫','金','红']});
+ assert(h.appraiserCard({role:'zhou',skillVersion:2}).includes('旧版每轮品质'));
+ assert(!h.appraiserCard({role:'zhou',skillVersion:2}).includes('新版鉴定类别'));
+ assert(h.appraiserCard({role:'zhou',skillVersion:3}).includes('新版鉴定类别'));
+ const html=h.roomClues({focus:0,largeAbsent:true,highCount:null,items:[{quality:1,width:1,height:2,category:'<img onerror=alert(1)>'}]});
+ assert(html.includes('第1件'));assert(html.includes('未发现镇仓大件'));assert(html.includes('类别：&lt;img'));
+ assert(!html.includes('<img onerror'));
+});
 
 test('invite links contain only a validated room code and survive the OAuth return without joining automatically',()=>{
  const {h,context,saved}=harness('?room=abc234&next=https://evil.invalid');

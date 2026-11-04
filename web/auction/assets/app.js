@@ -194,7 +194,7 @@ function renderRoles() {
   $("#role-cards").innerHTML = Object.entries(meta.roles)
     .map(
       ([key, r], i) =>
-        `<article class="role-card">${withArt.includes(key) ? `<div class="role-portrait portrait-${withArt.indexOf(key)}" role="img" aria-label="${escape(r.name)}，本作鉴赏师形象"></div>` : `<div class="role-portrait portrait-fallback" role="img" aria-label="${escape(r.name)}"><span>${escape(r.name.slice(0, 1))}</span></div>`}<div class="role-info"><small>信息能力 / 0${i + 1}</small><h2>${escape(r.name)}</h2><p>${escape(r.skill)}</p><p class="role-extra">${notes[key]}</p><a class="text-link" href="#play" data-role-pick="${key}">带上这份眼力 →</a></div></article>`,
+        `<article class="role-card">${withArt.includes(key) ? `<div class="role-portrait portrait-${withArt.indexOf(key)}" role="img" aria-label="${escape(r.name)}，本作鉴赏师形象"></div>` : `<div class="role-portrait portrait-fallback" role="img" aria-label="${escape(r.name)}"><span>${escape(r.name.slice(0, 1))}</span></div>`}<div class="role-info"><small>信息能力 / 0${i + 1}</small><h2>${escape(r.name)}</h2><p>${escape(r.skill)}</p><p class="role-extra">${escape(r.tip||notes[key])}</p><a class="text-link" href="#play" data-role-pick="${key}">带上这份眼力 →</a></div></article>`,
     )
     .join("");
   $("#rules-tiers").innerHTML =
@@ -280,7 +280,7 @@ function appraiserCard(s) {
   const portrait = withArt.includes(s.role)
     ? `<div class="appraiser-portrait ${s.role}" role="img" aria-label="${escape(role.name)}"></div>`
     : `<div class="appraiser-portrait fallback" role="img" aria-label="${escape(role.name)}"><span>${escape(role.name.slice(0, 1))}</span></div>`;
-  return `<div class="appraiser-card">${portrait}<div class="appraiser-meta"><strong>${escape(role.name)}</strong><small>${escape(role.skill)}</small></div></div>`;
+  return `<div class="appraiser-card">${portrait}<div class="appraiser-meta"><strong>${escape(role.name)}</strong><small>${escape((s.skillVersion??meta.skillVersion??2)<3?((s.skillVersion??2)<2&&role.skillV1?role.skillV1:role.legacySkill||role.skill):role.skill)}</small>${role.focus?`<span class="appraiser-focus">${escape(role.focus)}</span>`:''}</div></div>`;
 }
 // Column letters and row numbers around the warehouse grid. Labels are built
 // from the session's own board size, so 8x4, 8x6 and 10x8 all read correctly.
@@ -341,7 +341,7 @@ function mountBoard(s, selector = "#warehouse-board") {
       "aria-label",
       item
         ? `${i + 1}. ${item.name}，${money(item.value)}`
-        : `${i + 1}. ${quality === null ? "未知品质" : meta.qualities[quality] + "品质"}，${p.width ? `${p.width}×${p.height}格` : "轮廓未知"}`,
+        : `${i + 1}. ${quality === null ? "未知品质" : meta.qualities[quality] + "品质"}，${p.width ? `${p.width}×${p.height}格` : "轮廓未知"}${clue.category?`，类别：${clue.category}`:""}`,
     );
     el.innerHTML = item
       ? revealSuspense === i
@@ -396,7 +396,7 @@ function setup() {
     )
     .join(
       "",
-    )}</div><p>${escape(meta.roles[role].skill)}</p><div class="setup-actions"><button class="button primary" data-start ${!game?.offerToken ? "disabled" : ""}>暂存预算并入场 ↗</button><span class="mini-note">需 ${money(meta.tiers[playTier].budget + meta.tiers[playTier].fee)}，含${number(meta.tiers[playTier].fee)}入场费</span><button class="text-link" data-view="wallet">先兑换竞拍币 →</button></div></div>`;
+    )}</div><p>${escape(meta.roles[role].skill)}</p><p class="role-strategy">${escape(meta.roles[role].tip||"")}</p><div class="setup-actions"><button class="button primary" data-start ${!game?.offerToken ? "disabled" : ""}>暂存预算并入场 ↗</button><span class="mini-note">需 ${money(meta.tiers[playTier].budget + meta.tiers[playTier].fee)}，含${number(meta.tiers[playTier].fee)}入场费</span><button class="text-link" data-view="wallet">先兑换竞拍币 →</button></div></div>`;
 }
 const gameMoney = (s, value) =>
   `${number(value)} ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}`;
@@ -568,7 +568,7 @@ function gameView() {
           })
           .join(
             "",
-          )}<button data-bid="0">本轮不出价<small>0 ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small></button><button data-bid="${s.budget}">预算上限<small>${gameMoney(s, s.budget)}</small></button></div><form id="bid-form" class="bid-form"><label for="bid-amount">本轮暗标总价（整数）</label><div class="bid-stepper"><button type="button" class="step-button" data-bid-step="-1" aria-label="减少报价">−</button><input id="bid-amount" name="bid" type="number" min="0" max="${s.budget}" step="1" placeholder="输入报价" required inputmode="numeric"><button type="button" class="step-button" data-bid-step="1" aria-label="增加报价">+</button></div><small class="step-hint">每次 ±${number(bidStep(s))}，上限 ${gameMoney(s, s.budget)}</small><button class="button primary wide" type="submit">封牌，压上这一轮 →</button></form><details class="clue-list"><summary>翻翻这局的线索</summary>${s.info.highCount === null ? "" : `<p>紫 / 金 / 红合计 ${s.info.highCount} 件</p>`}${s.info.highCounts ? `<p>紫${s.info.highCounts[0]} / 金${s.info.highCounts[1]} / 红${s.info.highCounts[2]}</p>` : ""}${s.info.highArea === undefined ? "" : `<p>高品质总占格 ${s.info.highArea} 格</p>`}${s.info.items.map((c, i) => `<p>${i + 1}. ${c.quality === null ? "品质未知" : meta.qualities[c.quality] + "品质"} · ${c.width === null ? "轮廓未知" : `${c.width}×${c.height} / ${c.width * c.height}格`}</p>`).join("")}</details><button class="danger-link" data-leave>放弃余下竞拍</button>`
+          )}<button data-bid="0">本轮不出价<small>0 ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</small></button><button data-bid="${s.budget}">预算上限<small>${gameMoney(s, s.budget)}</small></button></div><form id="bid-form" class="bid-form"><label for="bid-amount">本轮暗标总价（整数）</label><div class="bid-stepper"><button type="button" class="step-button" data-bid-step="-1" aria-label="减少报价">−</button><input id="bid-amount" name="bid" type="number" min="0" max="${s.budget}" step="1" placeholder="输入报价" required inputmode="numeric"><button type="button" class="step-button" data-bid-step="1" aria-label="增加报价">+</button></div><small class="step-hint">每次 ±${number(bidStep(s))}，上限 ${gameMoney(s, s.budget)}</small><button class="button primary wide" type="submit">封牌，压上这一轮 →</button></form><details class="clue-list"><summary>翻翻这局的线索</summary>${focusClue(s.info)}${s.info.highCount === null ? "" : `<p>紫 / 金 / 红合计 ${s.info.highCount} 件</p>`}${s.info.highCounts ? `<p>紫${s.info.highCounts[0]} / 金${s.info.highCounts[1]} / 红${s.info.highCounts[2]}</p>` : ""}${s.info.highArea === undefined ? "" : `<p>高品质总占格 ${s.info.highArea} 格</p>`}${s.info.items.map((c, i) => `<p>${i + 1}. ${c.quality === null ? "品质未知" : meta.qualities[c.quality] + "品质"} · ${c.width === null ? "轮廓未知" : `${c.width}×${c.height} / ${c.width * c.height}格`}${c.category?` · 类别：${escape(c.category)}`:""}</p>`).join("")}</details><button class="danger-link" data-leave>放弃余下竞拍</button>`
       : `<span class="auction-stage">仓门开了，看看里面有什么。</span><h2>${r.winner === null ? "没人接盘，流拍了" : r.winner === 0 ? "竞拍成功！" : `${npc[r.winner]}拍中`}</h2><p>成交价 ${gameMoney(s, r.price)}<br>已揭晓 ${s.reveal.count} / ${s.reveal.total}件</p><div class="line-value">${number(subtotal)}</div><p>已揭晓总值 · ${s.currency === "tavern" ? "酒馆币" : "竞拍币"}</p>${revealControls(s)}`
   }</aside></div>`;
 }
@@ -679,9 +679,12 @@ async function roomAction(action, fields = {}) {
   if(g===guild && e===epoch)renderPlay();
   return answer;
 }
+function focusClue(info) {
+  return Number.isInteger(info?.focus)?`<p class="focus-clue">重点鉴定：第${info.focus+1}件${info.largeAbsent?' · 未发现镇仓大件':''}</p>`:"";
+}
 function roomClues(info) {
   if(!info)return "";
-  return `<details class="clue-list"><summary>你的专属线索</summary>${info.highCount===null?"":`<p>紫 / 金 / 红合计 ${info.highCount} 件</p>`}${info.highCounts?`<p>紫 ${info.highCounts[0]} / 金 ${info.highCounts[1]} / 红 ${info.highCounts[2]}</p>`:""}${info.highArea===undefined?"":`<p>高品质总占格 ${info.highArea} 格</p>`}${info.items.map((c,i)=>`<p>${i+1}. ${c.quality===null?"品质未知":meta.qualities[c.quality]+"品质"} · ${c.width===null?"轮廓未知":`${c.width}×${c.height} / ${c.width*c.height}格`}</p>`).join("")}</details>`;
+  return `<details class="clue-list"><summary>你的专属线索</summary>${focusClue(info)}${info.highCount===null?"":`<p>紫 / 金 / 红合计 ${info.highCount} 件</p>`}${info.highCounts?`<p>紫 ${info.highCounts[0]} / 金 ${info.highCounts[1]} / 红 ${info.highCounts[2]}</p>`:""}${info.highArea===undefined?"":`<p>高品质总占格 ${info.highArea} 格</p>`}${info.items.map((c,i)=>`<p>${i+1}. ${c.quality===null?"品质未知":meta.qualities[c.quality]+"品质"} · ${c.width===null?"轮廓未知":`${c.width}×${c.height} / ${c.width*c.height}格`}${c.category?` · 类别：${escape(c.category)}`:""}</p>`).join("")}</details>`;
 }
 function roomSeatView(seat, room, stage) {
   const role=meta.roles?.[seat.role],waiting=room.status==="waiting",
@@ -783,7 +786,7 @@ function renderRoom() {
     }
   } else if(waiting) controls+='<button class="text-link" data-room-leave>退出房间</button>';
   if(waiting) return `${summary()}${roomConnectionView()}<div class="panel room-panel">${head}${seatGrid}${controls}</div>`;
-  const ownInfo=live && st.info ? `${appraiserCard({role:you.role})}${warehouseIntel(st)}<span class="auction-stage">只属于你的判断</span><p>线索估值约</p><div class="line-value">${number(st.estimate)}</div><p>竞拍币 · 预算 ${number(st.budget)}</p><p class="mini-note">同价优先：${(st.priority??[]).map(i=>escape(seats.find(x=>x.index===i)?.name??"?")).join(" → ")}</p>` : "";
+  const ownInfo=live && st.info ? `${appraiserCard({...st,role:you.role})}${warehouseIntel(st)}<span class="auction-stage">只属于你的判断</span><p>线索估值约</p><div class="line-value">${number(st.estimate)}</div><p>竞拍币 · 预算 ${number(st.budget)}</p><p class="mini-note">同价优先：${(st.priority??[]).map(i=>escape(seats.find(x=>x.index===i)?.name??"?")).join(" → ")}</p>` : "";
   return `${summary()}${roomConnectionView()}<div class="panel room-panel">${head}${seatGrid}</div><div class="play-layout room-match"><div><div class="board-heading"><h2>${live?"你的仓库视野":"全桌共享开仓"}</h2><p>${st.board?`${st.board.cols}×${st.board.rows}格`:""} · ${live?"展示公共情报与技能已知信息":"同一仓库，同一揭晓进度"}</p></div>${st.board?'<div class="board-wrap"><div id="room-warehouse-board" class="warehouse-board"></div></div>':""}${legend()}${history}</div><aside class="panel">${ownInfo}${controls}${live?roomClues(st.info):""}</aside></div>`;
 }
 

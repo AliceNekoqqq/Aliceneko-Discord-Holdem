@@ -4173,3 +4173,7 @@ body.game-route {
 .theme-odds { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 14px; }
 .theme-odds span { display: grid; gap: 5px; color: #6d8395; font-size: 11px; padding: 9px; background: #eff5fa; border-radius: 8px; }
 .theme-odds strong { color: #365e7c; font-variant-numeric: tabular-nums; }
+
+/* V3 appraisal routes use the existing cream-blue panels. */
+.appraiser-focus{display:inline-block;margin-top:.45rem;padding:.18rem .55rem;border:1px solid var(--line);border-radius:999px;font-size:.75rem;color:var(--muted);}
+.role-strategy,.focus-clue{padding:.7rem .85rem;border-left:3px solid var(--blue,#7297b4);background:rgba(114,151,180,.08);border-radius:.4rem;line-height:1.65;}
