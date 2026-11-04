@@ -4177,3 +4177,28 @@ body.game-route {
 /* V3 appraisal routes use the existing cream-blue panels. */
 .appraiser-focus{display:inline-block;margin-top:.45rem;padding:.18rem .55rem;border:1px solid var(--line);border-radius:999px;font-size:.75rem;color:var(--muted);}
 .role-strategy,.focus-clue{padding:.7rem .85rem;border-left:3px solid var(--blue,#7297b4);background:rgba(114,151,180,.08);border-radius:.4rem;line-height:1.65;}
+
+/* Public opponent portraits and closed-round reactions. */
+.opponent-identity{display:flex;align-items:center;gap:9px;min-width:0;min-height:56px;}
+.opponent-identity>div{display:grid;gap:5px;min-width:0;}
+.opponent-avatar{width:56px;height:56px;aspect-ratio:1;object-fit:cover;flex:none;border-radius:15px;border:1px solid #c7d9e7;background:#eff5fa;}
+.opponent-player{display:grid;place-items:center;color:#7293ac;font-size:21px;font-weight:600;}
+.opponent-identity .seat-name{display:block;font-size:13px;line-height:1.4;overflow-wrap:anywhere;}
+.opponent-style{display:inline-block;font-size:11px;color:#5d7e99;line-height:1.5;}
+.opponent-moment{display:grid;gap:3px;margin-top:7px;padding-top:8px;border-top:1px solid #dce8f2;min-height:40px;line-height:1.5;}
+.opponent-moment>span{font-size:12px;font-weight:600;color:#57748b;}
+.opponent-moment>small{font-size:10px;color:#6b859a;overflow-wrap:anywhere;}
+.opponent-moment[data-reaction="raise"]>span{color:#b87554;}
+.opponent-moment[data-reaction="lower"]>span,.opponent-moment[data-reaction="hold"]>span{color:#557f9a;}
+.opponent-moment[data-reaction="won"]>span{color:#9a732c;}
+.seat-strip.sweep .opponent-moment,.room-seats.opening .opponent-moment{animation:opponent-reaction-in 360ms ease-out both;}
+.seat.won .opponent-avatar,.room-seat.won .opponent-avatar{border-color:#d7b36e;box-shadow:0 0 0 3px #e7c78730;}
+.opponent-guide{margin-top:44px;}
+.opponent-guide>p{color:#6b8295;line-height:1.8;max-width:70ch;}
+.opponent-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:20px;}
+.opponent-card{display:flex;flex-direction:column;align-items:center;gap:14px;padding:24px;border:1px solid #d5e2ec;border-radius:22px;background:linear-gradient(150deg,#fffefa,#f1f7fc);box-shadow:0 8px 20px #6c8eaa0c;}
+.opponent-card img{width:min(160px,100%);height:auto;aspect-ratio:1;border-radius:26px;object-fit:cover;}
+.opponent-card>div{width:100%;}.opponent-card h3{margin:0 0 8px;}.opponent-card p{font-size:13px;color:#657f94;line-height:1.8;}
+@keyframes opponent-reaction-in{from{opacity:.4;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:720px){.opponent-avatar{width:44px;height:44px;border-radius:12px;}.opponent-identity{min-height:44px;gap:7px;}.opponent-identity .seat-name{font-size:12px;}.opponent-style{font-size:10px;}.opponent-cards{grid-template-columns:1fr;}.opponent-card{flex-direction:row;padding:18px;}.opponent-card img{width:96px;flex:none;border-radius:18px;}.seat-row{grid-template-columns:repeat(2,minmax(0,1fr));}.seat{min-width:0;}.seat-bid{overflow-wrap:anywhere;}}
+@media(prefers-reduced-motion:reduce){.seat-strip.sweep .opponent-moment,.room-seats.opening .opponent-moment{animation:none;}}

@@ -1,5 +1,6 @@
 import { createRevealLoop } from "./reveal-loop.mjs";
 import { buildSeatStage } from "./seat-stage.mjs";
+import { buildOpponentReaction } from "./opponent-stage.mjs";
 import { initSound, play, soundEnabled, setSoundEnabled } from "./sound.mjs";
 const PRIMARY = "https://auction.alicenekoqqq.cc.cd",
   sameOrigin = [
@@ -197,6 +198,7 @@ function renderRoles() {
         `<article class="role-card">${withArt.includes(key) ? `<div class="role-portrait portrait-${withArt.indexOf(key)}" role="img" aria-label="${escape(r.name)}，本作鉴赏师形象"></div>` : `<div class="role-portrait portrait-fallback" role="img" aria-label="${escape(r.name)}"><span>${escape(r.name.slice(0, 1))}</span></div>`}<div class="role-info"><small>信息能力 / 0${i + 1}</small><h2>${escape(r.name)}</h2><p>${escape(r.skill)}</p><p class="role-extra">${escape(r.tip||notes[key])}</p><a class="text-link" href="#play" data-role-pick="${key}">带上这份眼力 →</a></div></article>`,
     )
     .join("");
+  renderOpponents();
   $("#rules-tiers").innerHTML =
     `<table><thead><tr><th>区域</th><th>竞拍预算</th><th>入场费</th><th>单件出红</th></tr></thead><tbody>${Object.entries(
       meta.tiers,
@@ -573,6 +575,21 @@ function gameView() {
   }</aside></div>`;
 }
 let seatSweptKey = null;
+function opponentProfile(key) {
+  return meta.opponents?.find(x=>x.key===key)??null;
+}
+function opponentIdentity(profile,style,name,you=false) {
+  const tone=meta.opponentStyles?.[style],image=profile?`<img class="opponent-avatar" src="${escape(profile.portrait)}" alt="${escape(profile.title)}" width="56" height="56">`:`<span class="opponent-avatar opponent-player" aria-hidden="true">${escape(Array.from(String(name))[0]||'客')}</span>`;
+  return `<div class="opponent-identity">${image}<div><span class="seat-name">${escape(name)}${you?' <i>你</i>':''}</span>${profile&&tone?`<small class="opponent-style" title="${escape(tone.description)}">${escape(tone.label)}</small>`:''}</div></div>`;
+}
+function opponentMoment(stage,history,index) {
+  const m=buildOpponentReaction({stage,history,index});
+  return `<div class="opponent-moment" data-reaction="${m.kind}"><span>${escape(m.label)}</span>${m.round?`<small>第${m.round}轮已公开${m.delta&&m.previousRound?` · 较第${m.previousRound}轮 ${m.delta>0?'+':'−'}${number(Math.abs(m.delta))}`:''}</small>`:'<small>本轮报价未公开</small>'}</div>`;
+}
+function renderOpponents() {
+  const node=$("#opponent-cards");if(!node)return;
+  node.innerHTML=(meta.opponents||[]).map(p=>{const tone=meta.opponentStyles?.[p.style];return `<article class="opponent-card"><img src="${escape(p.portrait)}" alt="${escape(p.title)}" width="160" height="160" loading="lazy"><div><h3>${escape(p.title)}</h3><span class="opponent-style">${escape(tone?.label||'')}</span><p>${escape(tone?.description||'')}</p></div></article>`;}).join('');
+}
 function seatStrip(s) {
   const stage = buildSeatStage({
       history: s.history,
@@ -604,8 +621,10 @@ function seatStrip(s) {
         : `第 ${stage.round} / ${stage.total} 轮 · 四个人都在憋`;
   return `<div class="seat-strip${sweep ? " sweep" : ""}${stage.settled ? " final" : ""}" data-round="${stage.round}"><div class="seat-strip-head"><span class="auction-stage">拍卖席</span><small>${note}</small></div><div class="seat-row">${stage.seats
     .map(
-      (seat) =>
-        `<div class="seat${seat.you ? " you" : ""}${seat.leader ? " leading" : ""}${seat.winner ? " won" : ""}" data-state="${seat.state}"><span class="seat-name">${escape(seat.name)}</span><strong class="seat-bid">${seat.bid === null ? "—" : number(seat.bid)}</strong><small class="seat-state">${labels[seat.state] || "—"}</small></div>`,
+      (seat) => {
+        const p=meta.opponents?.find(x=>x.soloIndex===seat.index);
+        return `<div class="seat${seat.you ? " you" : ""}${seat.leader ? " leading" : ""}${seat.winner ? " won" : ""}" data-state="${seat.state}">${opponentIdentity(p,p?.style,seat.name)}<strong class="seat-bid">${seat.bid === null ? "—" : number(seat.bid)}</strong><small class="seat-state">${labels[seat.state] || "—"}</small>${p?opponentMoment(stage,s.history,seat.index):''}</div>`;
+      },
     )
     .join(
       "",
@@ -693,7 +712,8 @@ function roomSeatView(seat, room, stage) {
     current=waiting?(seat.ready?"已就绪":"尚未准备"):
       room.status==="settled"?(won?"竞拍成功":"本仓已结束"):
       seat.npc?"NPC · 等待开牌":seat.submitted?(seat.you?`已封 ${number(seat.bid)}`:"已封牌"):"本轮尚未封牌";
-  return `<div class="room-seat${seat.you?" you":""}${seat.npc?" npc":""}${won?" won":""}${leading?" leading":""}"><span class="room-seat-name">${escape(seat.name)}${seat.you?" <i>你</i>":""}${seat.npc?" <i>NPC</i>":""}</span><small>${escape(role?.name??"待定")}</small><em>${current}</em>${published?.bid==null?"":`<div class="room-seat-offer"><small>第 ${stage.round} 轮已公开${won?" · 成交":leading?" · 最高":""}</small><strong>${published.bid===0?"过牌":number(published.bid)}</strong></div>`}</div>`;
+  const profile=seat.npc?opponentProfile(seat.id):null;
+  return `<div class="room-seat${seat.you?" you":""}${seat.npc?" npc":""}${won?" won":""}${leading?" leading":""}">${opponentIdentity(profile,seat.npcStyle,seat.name,seat.you)}<small>${escape(role?.name??"待定")}</small><em>${current}</em>${published?.bid==null?"":`<div class="room-seat-offer"><small>第 ${stage.round} 轮已公开${won?" · 成交":leading?" · 最高":""}</small><strong>${published.bid===0?"过牌":number(published.bid)}</strong></div>`}${profile&&stage?opponentMoment(stage,room.started?.history,seat.index):""}</div>`;
 }
 
 function renderRoom() {

@@ -1,3 +1,4 @@
+import {AUCTION_NPC_VERSION,AUCTION_OPPONENTS} from './tavern-auction-opponents.mjs';
 import {AUCTION_SKILL_VERSION} from './tavern-auction-skills.mjs';
 import {chooseAuctionTheme,auctionTheme,initializePublicAuction,publicAuctionInfo,auctionInfoWithPublic} from './tavern-auction-themes.mjs';
 // Guild-scoped multiplayer rooms for the warehouse auction.
@@ -31,11 +32,7 @@ const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const WAITING_TTL = 30 * 60_000;
 export const ROOM_REVEAL_MS = 900;
 const ACTIVE_TTL = 2 * 60 * 60_000;
-const NPC_SEATS = [
-  { id: "npc:aji", name: "阿吉" },
-  { id: "npc:laomao", name: "老猫" },
-  { id: "npc:zhanggui", name: "掌柜" },
-];
+const NPC_SEATS=AUCTION_OPPONENTS.map(x=>({id:x.key,name:x.name,npcStyle:x.style}));
 const ROLES = ["sophie", "gabriella", "viktor", "zhou", "lucia"];
 
 export class AuctionRooms {
@@ -279,6 +276,7 @@ export class AuctionRooms {
             role: s.role,
             ready: Boolean(s.ready),
             npc: Boolean(s.npc),
+            ...(s.npc&&seat?{npcStyle:this.npcStyle(state,seat)}:{}),
             index: idx,
             you: mineRow,
             budget: live ? state.budget : null,
@@ -304,7 +302,7 @@ export class AuctionRooms {
                 itemCount: state.itemCount,
                 history: state.history ?? [],
                 result,
-                skillVersion:state.skillVersion??2,
+                skillVersion:state.skillVersion??2,npcVersion:state.npcVersion??1,
                 theme:state.catalogVersion>=9?auctionTheme(state.warehouse.themeId):null,publicInfo,
                 ...(info ? {info, estimate:Math.round(this.estimate(state, info)),
                   currency:"auction", items:visible,
@@ -453,6 +451,7 @@ export class AuctionRooms {
         name: npc.name,
         role: freeRoles[npcSeats.length] ?? "sophie",
         npc: true,
+        npcStyle:npc.npcStyle,
       });
     }
 
@@ -480,7 +479,7 @@ export class AuctionRooms {
     const state = {
       id: room.data.id ?? crypto.randomUUID().replaceAll("-", "").slice(0,16),
       themeChoice:room.data.themeChoice??'random',
-      contractVersion:2, catalogVersion:9, skillVersion:AUCTION_SKILL_VERSION, dropVersion:6, weights,
+      npcVersion:AUCTION_NPC_VERSION, contractVersion:2, catalogVersion:9, skillVersion:AUCTION_SKILL_VERSION, dropVersion:6, weights,
       round: 1,
       roundEndsAt: now + ROOM_ROUND_MS,
       startedAt: now,
@@ -592,13 +591,17 @@ export class AuctionRooms {
     return estimateLargeAuction(auctionInfoWithPublic(info,publicAuctionInfo(state)),state.unit,state.tier,state.warehouse,state.catalogVersion);
   }
 
+  npcStyle(state,seat){
+    return state.npcVersion>=2&&Number.isInteger(seat.npcStyle)&&seat.npcStyle>=0&&seat.npcStyle<3?seat.npcStyle:Math.abs(hash08(seat.id))%3;
+  }
+
   npcBid(state, seat, round) {
     let info=state.infos?.[seat.index];
     if (!info) {
       info={highCount:null,items:state.items.map(() => ({quality:null,width:null,height:null}))};
       for(let r=1;r<=round;r++) revealAuction(state.items,info,seat.role,r,this.random,2);
     }
-    return npcAuctionBid(info,round,Math.abs(hash08(seat.id))%3,this.random,
+    return npcAuctionBid(info,round,this.npcStyle(state,seat),this.random,
       state.unit,state.infos ? largeCatalog(state.tier,state.catalogVersion,state.warehouse.themeId) : state.catalog,state.weights,
       state.budget,state.infos ? x => this.estimate(state,x) : undefined);
   }

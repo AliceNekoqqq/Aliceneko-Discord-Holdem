@@ -1,3 +1,4 @@
+import {AUCTION_OPPONENTS,AUCTION_NPC_STYLES} from './tavern-auction-opponents.mjs';
 import {AUCTION_SKILL_VERSION} from './tavern-auction-skills.mjs';
 import {AUCTION_THEMES} from './tavern-auction-themes.mjs';
 import {
@@ -193,6 +194,7 @@ export function publicAuctionData(tier = "standard") {
     version: AUCTION_WEBSITE_VERSION,
     qualities: AUCTION_QUALITIES,
     roles: AUCTION_ROLES,
+    opponents:AUCTION_OPPONENTS,opponentStyles:AUCTION_NPC_STYLES,
     skillVersion:AUCTION_SKILL_VERSION,
     tiers: AUCTION_TIERS,
     warehouses: AUCTION_WAREHOUSES,
@@ -480,7 +482,7 @@ export async function handleAuctionWebsite(request, env, ctx, fetcher = fetch) {
     const file =
       path === "/auction/"
         ? "/auction/index.html"
-        : /^\/auction\/assets\/(?:app\.js|reveal-loop\.mjs|seat-stage\.mjs|sound\.mjs|sfx\/[a-z0-9-]+\.wav|style\.css|favicon\.svg|warehouse-v1\.webp|appraisers-v1\.webp)$/.test(
+        : /^\/auction\/assets\/(?:app\.js|reveal-loop\.mjs|seat-stage\.mjs|opponent-stage\.mjs|npc-(?:aji|laomao|zhanggui)-v1\.png|sound\.mjs|sfx\/[a-z0-9-]+\.wav|style\.css|favicon\.svg|warehouse-v1\.webp|appraisers-v1\.webp)$/.test(
               path,
             )
           ? path
