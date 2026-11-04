@@ -1,3 +1,4 @@
+import {AUCTION_SKILL_VERSION,AUCTION_LEGACY_SKILLS,AUCTION_CURRENT_SKILLS,AUCTION_ROLE_TACTICS,revealAuctionSkill} from './tavern-auction-skills.mjs';
 import {chooseAuctionTheme,auctionTheme,initializePublicAuction,publicAuctionInfo,auctionInfoWithPublic} from './tavern-auction-themes.mjs';
 import {largeCatalog,generateLargeAuction,estimateLargeAuction} from './tavern-auction-large.mjs';
 import {validId} from './tavern-catalog.mjs';
@@ -21,14 +22,8 @@ export const AUCTION_TIERS=Object.freeze(Object.fromEntries([
 // Historical collection sessions may still have a 200M escrow.
 export const AUCTION_MAX_BUDGET=Math.max(AUCTION_TIERS.collection.budget,2000*AUCTION_RATE);
 export const AUCTION_QUALITIES=Object.freeze(['白','绿','蓝','紫','金','红']);
-export const AUCTION_ROLES=Object.freeze({
- sophie:{name:'索菲',skill:'首轮随机获知5件品质，此后每轮再获知2件未知品质。'},
- gabriella:{name:'加布里埃拉',skill:'每轮随机获知2件完全未知藏品的品质与轮廓。'},
- viktor:{name:'维克托',skill:'首轮获知紫/金/红合计件数，第2轮分辨各档件数，第4轮获知这些藏品的总占格。'},
- zhou:{name:'老周',skill:'首轮认出镇仓大件的轮廓，此后每轮再获知1件未知品质。'},
- lucia:{name:'露西娅',skill:'前四轮每轮获知1件未知品质，第五轮一次公开剩余全部品质。'}
-});
-export const auctionRoleSkill=(role,version=2)=>role==='viktor'&&version<2?'开局获知紫、金、红品质藏品的合计件数。':AUCTION_ROLES[role].skill;
+export const AUCTION_ROLES=Object.freeze(Object.fromEntries(Object.entries({sophie:'索菲',gabriella:'加布里埃拉',viktor:'维克托',zhou:'老周',lucia:'露西娅'}).map(([id,name])=>[id,Object.freeze({name,skill:AUCTION_CURRENT_SKILLS[id],legacySkill:AUCTION_LEGACY_SKILLS[id],...(id==='viktor'?{skillV1:'开局获知紫、金、红品质藏品的合计件数。'}:{}),...AUCTION_ROLE_TACTICS[id]})])));
+export const auctionRoleSkill=(role,version=AUCTION_SKILL_VERSION)=>role==='viktor'&&version<2?AUCTION_ROLES.viktor.skillV1:version<3?AUCTION_LEGACY_SKILLS[role]:AUCTION_ROLES[role].skill;
 export const AUCTION_QUALITY_WEIGHTS=Object.freeze([30,25,20,13,11,1]);
 export const AUCTION_LEGACY_WEIGHTS=Object.freeze([30,25,20,13,8,4]);
 const sessionCatalog=state=>state.catalogVersion>=7?largeCatalog(state.tier,state.catalogVersion,state.warehouse?.themeId):state.catalogVersion===6?regionCatalog(state.tier):auctionCatalogFor(state.catalogVersion);
@@ -53,7 +48,8 @@ export function generateAuction(random=auctionRandom,unit=AUCTION_RATE,catalog=A
   const item=pool[index];return {...item,value:scaleAuctionValue(item.value,unit)};
  });
 }
-export function revealAuction(items,info,role,round,random=auctionRandom,skillVersion=1){
+export function revealAuction(items,info,role,round,random=auctionRandom,skillVersion=1,publicInfo=null){
+ if(skillVersion>=3&&role!=='viktor')return revealAuctionSkill(items,info,role,round,random,publicInfo);
  if(role==='zhou'){
   // First round: the warehouse keeper recognises the shape of a sealed large prop.
   if(round===1){
@@ -172,7 +168,7 @@ export class TavernAuction {
  save(row,state){row.state=JSON.stringify(state);this.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',row.state,row.token);}
  stage(state){
   const roles=[state.role,'sophie','gabriella','viktor'];
-  roles.forEach((role,i)=>revealAuction(state.items,state.infos[i],role,state.round,this.random,state.skillVersion??1));
+  roles.forEach((role,i)=>revealAuction(state.items,state.infos[i],role,state.round,this.random,state.skillVersion??1,publicAuctionInfo(state)));
   // Commit opponents before receiving the human's sealed offer, then persist with the round.
   state.committed=state.infos.slice(1).map((info,i)=>npcAuctionBid(info,state.round,i,this.random,state.unit??(state.currency==='auction'?AUCTION_RATE:1),sessionCatalog(state),sessionWeights(state),state.budget??200,info=>sessionEstimate(state,info)));
  }
@@ -217,7 +213,7 @@ export class TavernAuction {
    if(row.created_at+AUCTION_READY_TTL<=now)throw Error('开局窗口已过期，请刷新；尚未扣币。');
    if(this.tavern.auctionCurrency.balance(p.id)<budget+fee)throw Error(`需要${auctionAmount((budget+fee)/10000)}万竞拍币：${auctionAmount(budget/10000)}万预算及${auctionAmount(fee/10000)}万入场费，请先用酒馆币兑换。`);
    const warehouse={...drawAuctionWarehouse(tier,this.random),themeId:chooseAuctionTheme(themeChoice,this.random)};
-   const state={currency:'auction',catalogVersion:9,dropVersion:6,skillVersion:2,inventoryVersion:1,themeChoice,tier,warehouse,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateLargeAuction(this.random,AUCTION_RATE*scale,tier,warehouse,generateAuction,9),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},()=>emptyInfo(warehouse.count)),history:[]};
+   const state={currency:'auction',catalogVersion:9,dropVersion:6,skillVersion:AUCTION_SKILL_VERSION,inventoryVersion:1,themeChoice,tier,warehouse,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateLargeAuction(this.random,AUCTION_RATE*scale,tier,warehouse,generateAuction,9),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},()=>emptyInfo(warehouse.count)),history:[]};
    // Public opening notice: only the best quality tier in the warehouse, which is
    // coarser than any skill can see, so it adds suspense without stealing clues.
    state.notice={top:state.items.reduce((top,item)=>Math.max(top,item.quality),0)};

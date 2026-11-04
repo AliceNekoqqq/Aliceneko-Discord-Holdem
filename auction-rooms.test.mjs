@@ -311,6 +311,34 @@ function won(t) {
   return {...x,settled};
 }
 
+test('V3 room skills use the same version for each seat and keep focused/category information private',t=>{
+ const {A,B,act,auction,room}=running(t,['zhou','lucia']);
+ const a=act(A,'roomView',{now:1001}).room,b=act(B,'roomView',{now:1001}).room;
+ assert.equal(a.started.skillVersion,3);assert.equal(b.started.skillVersion,3);
+ assert(Number.isInteger(a.started.info.focus));assert.equal(b.started.info.focus,undefined);
+ const raw=auction.rooms.row(room.code).data;
+ assert.equal(raw.skillVersion,3);assert(raw.infos[1].items.some(x=>x.category!==undefined));
+ assert(raw.infos[0].items.every(x=>x.category===undefined));
+ assert(a.started.info.items.every(x=>x.category===null));
+ assert(b.started.info.items.some(x=>x.category!==null));
+ const frozen=JSON.stringify(raw.infos);act(A,'roomView',{now:1002});act(B,'roomView',{now:1002});
+ assert.equal(JSON.stringify(auction.rooms.row(room.code).data.infos),frozen);
+});
+
+test('ongoing V2 themed rooms retain old reveal behavior and report the saved skill version',t=>{
+ const {A,B,act,auction,room}=running(t,['zhou','lucia']),stored=auction.rooms.row(room.code);
+ stored.data.skillVersion=2;stored.data.infos=stored.data.infos.map(info=>({highCount:null,items:info.items.map(()=>({quality:null,width:null,height:null}))}));
+ auction.rooms.revealClues(stored.data,1);auction.rooms.save(stored);
+ for(let round=1;round<=3;round++){
+  const a=act(A,'roomView',{now:1000+round}).room;
+  assert.equal(a.started.skillVersion,2);assert.equal(a.started.info.focus,undefined);
+  assert(auction.rooms.row(room.code).data.infos[1].items.every(x=>x.category===undefined));
+  if(round<3){
+   act(A,'roomBid',{bid:0,now:2000+round*1000});act(B,'roomBid',{bid:0,now:2000+round*1000});
+  }
+ }
+});
+
 test("a retried closing bid cannot become a bid in the next round; stale rounds and changed replays fail",t=>{
   const {A,B,act,room}=running(t);
   act(A,"roomBid",{bid:100,now:2000});

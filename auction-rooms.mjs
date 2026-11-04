@@ -1,3 +1,4 @@
+import {AUCTION_SKILL_VERSION} from './tavern-auction-skills.mjs';
 import {chooseAuctionTheme,auctionTheme,initializePublicAuction,publicAuctionInfo,auctionInfoWithPublic} from './tavern-auction-themes.mjs';
 // Guild-scoped multiplayer rooms for the warehouse auction.
 //
@@ -303,6 +304,7 @@ export class AuctionRooms {
                 itemCount: state.itemCount,
                 history: state.history ?? [],
                 result,
+                skillVersion:state.skillVersion??2,
                 theme:state.catalogVersion>=9?auctionTheme(state.warehouse.themeId):null,publicInfo,
                 ...(info ? {info, estimate:Math.round(this.estimate(state, info)),
                   currency:"auction", items:visible,
@@ -478,7 +480,7 @@ export class AuctionRooms {
     const state = {
       id: room.data.id ?? crypto.randomUUID().replaceAll("-", "").slice(0,16),
       themeChoice:room.data.themeChoice??'random',
-      contractVersion:2, catalogVersion:9, skillVersion:2, dropVersion:6, weights,
+      contractVersion:2, catalogVersion:9, skillVersion:AUCTION_SKILL_VERSION, dropVersion:6, weights,
       round: 1,
       roundEndsAt: now + ROOM_ROUND_MS,
       startedAt: now,
@@ -583,7 +585,7 @@ export class AuctionRooms {
   revealClues(state, round) {
     if (!state.infos) return;
     for (const seat of state.seats)
-      revealAuction(state.items,state.infos[seat.index],seat.role,round,this.random,state.skillVersion);
+      revealAuction(state.items,state.infos[seat.index],seat.role,round,this.random,state.skillVersion,publicAuctionInfo(state));
   }
 
   estimate(state, info) {

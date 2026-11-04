@@ -34,10 +34,10 @@ export function publicAuctionInfo(state){
 }
 export function auctionInfoWithPublic(info,publicInfo){
  if(!publicInfo)return info;
- return {highCount:info.highCount,...(info.highCounts?{highCounts:info.highCounts}:{}),
+ return {highCount:info.highCount,...(Number.isInteger(info.focus)?{focus:info.focus,largeAbsent:info.largeAbsent===true}:{}),...(info.highCounts?{highCounts:info.highCounts}:{}),
   ...(info.highArea!==undefined?{highArea:info.highArea}:{}),maxQuality:publicInfo.top,
   items:info.items.map((x,i)=>{const p=publicInfo.items[i];return {
-   quality:x.quality??p.quality,width:x.width??p.width,height:x.height??p.height,category:p.category,
+   quality:x.quality??p.quality,width:x.width??p.width,height:x.height??p.height,category:x.category??p.category,
   };})};
 }
 

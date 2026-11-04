@@ -1,3 +1,4 @@
+import {AUCTION_SKILL_VERSION} from './tavern-auction-skills.mjs';
 import {AUCTION_THEMES} from './tavern-auction-themes.mjs';
 import {
   AuctionWebAuth,
@@ -192,6 +193,7 @@ export function publicAuctionData(tier = "standard") {
     version: AUCTION_WEBSITE_VERSION,
     qualities: AUCTION_QUALITIES,
     roles: AUCTION_ROLES,
+    skillVersion:AUCTION_SKILL_VERSION,
     tiers: AUCTION_TIERS,
     warehouses: AUCTION_WAREHOUSES,
     catalogVersion:9,themes:AUCTION_THEMES,

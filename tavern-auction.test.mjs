@@ -622,7 +622,7 @@ test('new players and NPCs share progressive skills while unversioned saved game
   const e=setup(t),opened=open(e.auction,'viktor'),token=opened.session.token;
   let state=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
   state.catalogVersion=8;state.dropVersion=5;
-  assert.equal(opened.session.skillVersion,2);if(old){state.catalogVersion=5;state.dropVersion=2;delete state.warehouse;delete state.inventoryVersion;delete state.skillVersion;}
+  assert.equal(opened.session.skillVersion,3);state.skillVersion=2;if(old){state.catalogVersion=5;state.dropVersion=2;delete state.warehouse;delete state.inventoryVersion;delete state.skillVersion;}
   // A zero-high warehouse makes area 0 explicit, not an absent clue; force equal bids to reach each round.
   state.items=state.items.map(()=>({...AUCTION_ITEMS.find(x=>x.quality===0)}));state.infos.forEach(x=>x.highCount=null);
   e.auction.stage(state);e.tavern.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',JSON.stringify(state),token);
@@ -641,6 +641,26 @@ test('new players and NPCs share progressive skills while unversioned saved game
    force(e,token,[BUDGET,BUDGET,BUDGET]);e.auction.bid({...base,token,round,bid:BUDGET},1020+round);
   }
  }
+});
+
+test('new solo focus skills persist across restart and Discord projects only the disclosed target and category',t=>{
+ const e=setup(t),s=open(e.auction,'zhou'),token=s.session.token;
+ assert.equal(s.session.skillVersion,3);assert(Number.isInteger(s.session.info.focus));
+ const focus=s.session.info.focus;
+ assert.equal(s.session.info.items[focus].category,null);
+ for(let round=1;round<3;round++){
+  force(e,token,[BUDGET,BUDGET,BUDGET]);e.auction.bid({...base,token,round,bid:BUDGET},1010+round);
+ }
+ const restored=new TavernAuction(e.tavern,n=>n-1),view=restored.view(base,1020);
+ assert.equal(view.session.info.focus,focus);assert(view.session.info.items[focus].category);
+ const text=auctionData(view,'3','1');bounds(text);
+ assert(text.content.includes(`重点鉴定：第${focus+1}件`));
+ assert(text.content.includes(`类别：${view.session.info.items[focus].category}`));
+ const before=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
+ restored.view(base,1021);
+ const after=JSON.parse(e.tavern.one('SELECT state FROM tavern_auctions WHERE token=?',token).state);
+ assert.deepEqual(after.infos,before.infos);assert.deepEqual(after.committed,before.committed);
+ assert.equal(view.session.items,null);assert.equal(view.session.info.items[focus].name,undefined);
 });
 
 
