@@ -1,3 +1,4 @@
+import {chooseAuctionTheme,auctionTheme,initializePublicAuction,publicAuctionInfo,auctionInfoWithPublic} from './tavern-auction-themes.mjs';
 // Guild-scoped multiplayer rooms for the warehouse auction.
 //
 // M1: create a room with a short code, join it from the same server, pick a
@@ -245,7 +246,8 @@ export class AuctionRooms {
       live = room.status === "active",
       currentRow = live ? (state.bids[state.round - 1] ?? []) : [],
       own = state.seats?.find(s => s.id === p.id && !s.npc),
-      info = own && state.infos ? state.infos[own.index] : null,
+      publicInfo=publicAuctionInfo(state),
+      info = own && state.infos ? auctionInfoWithPublic(state.infos[own.index],publicInfo) : null,
       complete = !state.reveal || state.reveal.complete,
       visible = state.items?.map((x,i) => !live && complete ||
         !live && state.revealOrder?.slice(0,state.reveal.count).includes(i) ? x : null),
@@ -263,6 +265,7 @@ export class AuctionRooms {
         code: room.code,
         status: room.status,
         tier: room.tier,
+        themeChoice:state.themeChoice??'random',
         host: room.host_id === p.id,
         you: p.id,
         seats: seats.map((s) => {
@@ -300,6 +303,7 @@ export class AuctionRooms {
                 itemCount: state.itemCount,
                 history: state.history ?? [],
                 result,
+                theme:state.catalogVersion>=9?auctionTheme(state.warehouse.themeId):null,publicInfo,
                 ...(info ? {info, estimate:Math.round(this.estimate(state, info)),
                   currency:"auction", items:visible,
                   board:auctionBoardView({...state,infos:[info]}, this.roomId(room), visible),
@@ -318,9 +322,11 @@ export class AuctionRooms {
       throw Error("你已经在一个房间里了，先退出来再开。");
     const tier = p.tier ?? "standard";
     if (!Object.hasOwn(AUCTION_TIERS, tier)) throw Error("没有这个区域。");
+    const themeChoice=p.theme??'random';
+    if(themeChoice!=='random'&&!auctionTheme(themeChoice))throw Error('请选择有效仓库主题。');
     this.releaseFinished(p);
     const code = this.newCode(),
-      state = { id: crypto.randomUUID().replaceAll("-", "").slice(0,16), round: 0, seats: [], startedAt: null };
+      state = { themeChoice, id: crypto.randomUUID().replaceAll("-", "").slice(0,16), round: 0, seats: [], startedAt: null };
     this.sql.exec(
       "INSERT INTO auction_rooms(code,guild_id,host_id,tier,status,created_at,state) VALUES(?,?,?,?,?,?,?)",
       code,
@@ -448,13 +454,14 @@ export class AuctionRooms {
       });
     }
 
-    const warehouse = drawAuctionWarehouse(tier, this.random),
+    const warehouse = {...drawAuctionWarehouse(tier, this.random),themeId:chooseAuctionTheme(room.data.themeChoice,this.random)},
       items = generateLargeAuction(
         this.random,
         unit,
         tier,
         warehouse,
         generateAuction,
+        9,
       ),
       board = layoutAuction(items, room.code, warehouse);
 
@@ -470,7 +477,8 @@ export class AuctionRooms {
 
     const state = {
       id: room.data.id ?? crypto.randomUUID().replaceAll("-", "").slice(0,16),
-      contractVersion:2, catalogVersion:8, skillVersion:2, dropVersion:5, weights,
+      themeChoice:room.data.themeChoice??'random',
+      contractVersion:2, catalogVersion:9, skillVersion:2, dropVersion:6, weights,
       round: 1,
       roundEndsAt: now + ROOM_ROUND_MS,
       startedAt: now,
@@ -490,6 +498,7 @@ export class AuctionRooms {
       history: [],
       result: null,
     };
+    initializePublicAuction(state);
     this.revealClues(state, 1);
     for (const npc of npcSeats)
       this.sql.exec(
@@ -578,7 +587,7 @@ export class AuctionRooms {
   }
 
   estimate(state, info) {
-    return estimateLargeAuction(info,state.unit,state.tier,state.warehouse,state.catalogVersion);
+    return estimateLargeAuction(auctionInfoWithPublic(info,publicAuctionInfo(state)),state.unit,state.tier,state.warehouse,state.catalogVersion);
   }
 
   npcBid(state, seat, round) {
@@ -588,7 +597,7 @@ export class AuctionRooms {
       for(let r=1;r<=round;r++) revealAuction(state.items,info,seat.role,r,this.random,2);
     }
     return npcAuctionBid(info,round,Math.abs(hash08(seat.id))%3,this.random,
-      state.unit,state.infos ? largeCatalog(state.tier,state.catalogVersion) : state.catalog,state.weights,
+      state.unit,state.infos ? largeCatalog(state.tier,state.catalogVersion,state.warehouse.themeId) : state.catalog,state.weights,
       state.budget,state.infos ? x => this.estimate(state,x) : undefined);
   }
 

@@ -14,12 +14,12 @@ function harness(search=''){
   navigator:{onLine:true,clipboard:{writeText:async value=>copies.push(value)}},URL,URLSearchParams,Date,crypto,setInterval(){},clearInterval(){},setTimeout,clearTimeout,buildSeatStage,
   play(){},soundEnabled:()=>false,createRevealLoop(){}});
  vm.runInContext(source+`
-  renderPlay=()=>{};toast=text=>messages.push(text);dialog=html=>messages.push(html);
+  const renderActual=renderPlay;renderPlay=()=>{};toast=text=>messages.push(text);dialog=html=>messages.push(html);
   globalThis.h={
    init(){account={user:{id:'b'}};guild='3';view='room';roomConnection='live';meta={roles:{sophie:{name:'索菲',skill:'首轮五件品质'},viktor:{name:'维克托',skill:'聚合线索'}},tiers:{small:{name:'小额',fee:25000,budget:4000000}},qualities:['白','绿','蓝','紫','金','红']};},
    setApi(fn){api=fn;},setRoom(room){roomState={room};},get room(){return roomState?.room;},get connection(){return roomConnection;},
    switchGuild(){guild='4';epoch++;},get pending(){return pendingRoomInvite;},setPending(code){pendingRoomInvite=code;},
-   readRoomInvite,clearRoomInvite,roomInviteURL,copyRoomInvite,acceptRoom,renderRoom,roomAction,pollRoom,setRoomConnection,
+   readRoomInvite,clearRoomInvite,roomInviteURL,copyRoomInvite,acceptRoom,renderRoom,renderActual,roomAction,pollRoom,setRoomConnection,
   };`,Object.assign(context,{messages}));
  context.h.init();return {h:context.h,context,nodes,saved,copies,messages,events};
 }
@@ -86,4 +86,20 @@ test('a lost bid response is never resent automatically; a failed recovery read 
  const {h}=harness();h.setRoom(room());const paths=[];h.setApi(async(path,body)=>{paths.push(body?.action??path);throw Error('network');});
  await assert.rejects(h.roomAction('roomBid',{round:1,requestId:'one-request',bid:100}),/network/);
  assert.deepEqual(paths,['roomBid','room?guild=3']);assert.equal(h.connection,'stale');
+});
+test('a preset bid survives a same-round redraw without stealing focus; a new round clears it',()=>{
+ const {h,context,nodes}=harness();h.setRoom(room());h.renderActual();
+ const input=nodes.get('#room-bid-input'),form=nodes.get('#room-bid-form'),content=nodes.get('#game-content');
+ form.dataset={roomId:room().id,round:'2'};input.value='4000000';
+ let focused=0;input.focus=()=>focused++;context.document.activeElement={id:'preset-button'};
+ Object.defineProperty(content,'innerHTML',{set(){input.value='';},configurable:true});
+ h.renderActual();assert.equal(input.value,'4000000');assert.equal(focused,0);
+ context.document.activeElement=input;h.renderActual();assert.equal(input.value,'4000000');assert.equal(focused,1);
+ const next=room();next.started.round=3;h.setRoom(next);h.renderActual();assert.equal(input.value,'');
+});
+test('public theme clues render from the current projection and escape their text',()=>{
+ const {h}=harness(),r=room();r.started.info={highCount:null,items:[]};r.started.publicInfo={clues:[{round:1,text:'最高品质：红 <script>'}]};
+ r.started.theme={id:'arts',name:'文艺收藏仓',categories:['文艺','收藏'],multiplier:3};
+ h.setRoom(r);const html=h.renderRoom();assert.match(html,/全桌公共情报/);assert.match(html,/文艺收藏仓/);
+ assert.match(html,/最高品质：红 &lt;script&gt;/);assert.doesNotMatch(html,/第3轮|<script>/);
 });

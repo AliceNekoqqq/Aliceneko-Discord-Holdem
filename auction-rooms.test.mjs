@@ -506,3 +506,27 @@ test("already running legacy rooms remain readable and settle to their original 
  const goods=tavern.rows("SELECT * FROM tavern_auction_inventory WHERE source=?",`room:${room.code}`);
  assert.equal(goods.length,done.started.itemCount);assert(goods.every(x=>x.revealed===1));
 });
+
+test('selectable themes and progressive public clues are shared across all seats and survive restart',t=>{
+ const {A,B,act,auction,tavern}=setup(t);
+ const code=act(A,'roomCreate',{tier:'small',theme:'arts',now:1000}).room.code;
+ assert.equal(act(A,'roomView',{now:1000}).room.themeChoice,'arts');
+ act(B,'roomJoin',{code,now:1000});act(B,'roomRole',{role:'viktor',now:1000});act(B,'roomReady',{ready:true,now:1000});
+ act(A,'roomStart',{now:1000});auction.rooms.npcBid=()=>0;
+ for(let r=1;r<=5;r++){
+  const a=act(A,'roomView',{now:2000}).room.started,b=act(B,'roomView',{now:2000}).room.started;
+  assert.equal(a.theme.id,'arts');assert.equal(a.publicInfo.clues.length,r);assert.deepEqual(a.publicInfo,b.publicInfo);
+  assert.equal(a.items.filter(Boolean).length,0);assert.equal(b.info.highCount>=0,true);
+  assert(Number.isFinite(a.estimate)&&Number.isFinite(b.estimate));
+  assert.equal('publicOrder' in a,false);assert.equal('total' in a,false);
+  act(A,'roomBid',{bid:100,now:2000});act(B,'roomBid',{bid:100,now:2000});
+ }
+ const before=act(A,'roomView',{now:2000}).room;
+ tavern._auction=new TavernAuction(tavern,()=>{throw Error('rerolled');});
+ const restored=tavern.auction.rooms.dispatch({...A,action:'roomView',roomId:before.id,now:2000}).room;
+ assert.deepEqual(restored.started.publicInfo,before.started.publicInfo);assert.equal(restored.started.theme.id,'arts');
+});
+test('invalid themes cannot create a room or debit any wallet',t=>{
+ const {A,act,tavern}=setup(t),before=tavern.auctionCurrency.balance(A.id);
+ assert.throws(()=>act(A,'roomCreate',{theme:'invalid',now:1000}),/主题/);assert.equal(act(A,'roomView',{now:1000}).room,null);assert.equal(tavern.auctionCurrency.balance(A.id),before);
+});

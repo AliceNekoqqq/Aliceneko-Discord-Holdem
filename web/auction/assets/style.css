@@ -4155,3 +4155,21 @@ body.game-route {
   .room-bid { scroll-margin-bottom: 70px; }
 }
 @media (prefers-reduced-motion: reduce) { .room-seats.opening .room-seat-offer { animation: none; } }
+
+/* Theme selection and the shared, round-by-round warehouse briefing. */
+.theme-select { display: grid; gap: 8px; margin-top: 22px; color: #496d89; }
+.theme-select select { padding: 12px; border: 1px solid #cbdfea; border-radius: 10px; color: #31536d; background: #fbfdff; min-width: 0; }
+.warehouse-intel { margin: 18px 0; padding: 16px; border: 1px solid #c3d9e8; border-left: 4px solid #739dbe; border-radius: 12px; background: linear-gradient(135deg, #f0f7fc, #fffdf8); }
+.warehouse-intel[data-theme="living"] { border-left-color: #78a58f; }
+.warehouse-intel[data-theme="dining"] { border-left-color: #cb9c70; }
+.warehouse-intel[data-theme="arts"] { border-left-color: #a590b4; }
+.warehouse-intel[data-theme="tech"] { border-left-color: #739dbe; }
+.intel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #365e7c; }
+.intel-heading span { padding: 3px 7px; border-radius: 5px; background: #e3eef6; white-space: nowrap; font-size: 10px; }
+.warehouse-intel .intel-affinity { font-size: 11px; line-height: 1.7; color: #6a8398; margin: 8px 0 12px; }
+.warehouse-intel ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
+.warehouse-intel li { display: grid; grid-template-columns: 42px 1fr; gap: 8px; font-size: 12px; color: #3b5c75; line-height: 1.7; }
+.warehouse-intel li span { color: #8198aa; font-size: 10px; }
+.theme-odds { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 14px; }
+.theme-odds span { display: grid; gap: 5px; color: #6d8395; font-size: 11px; padding: 9px; background: #eff5fa; border-radius: 8px; }
+.theme-odds strong { color: #365e7c; font-variant-numeric: tabular-nums; }

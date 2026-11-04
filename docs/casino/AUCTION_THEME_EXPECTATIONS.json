@@ -1,0 +1,45 @@
+{
+  "method": "Exact generation-model mean, fixed item values, includes warehouse-size mixture and exclusive featured slot; not player win-rate data.",
+  "regions": {
+    "small": {
+      "budget": 4000000,
+      "baselineV8": 474908,
+      "themes": {
+        "living": 469273,
+        "dining": 475017,
+        "arts": 481975,
+        "tech": 468452
+      }
+    },
+    "standard": {
+      "budget": 7000000,
+      "baselineV8": 3056157,
+      "themes": {
+        "living": 3021663,
+        "dining": 3013559,
+        "arts": 3118510,
+        "tech": 3026287
+      }
+    },
+    "high": {
+      "budget": 11000000,
+      "baselineV8": 13771626,
+      "themes": {
+        "living": 13600930,
+        "dining": 13463195,
+        "arts": 14116562,
+        "tech": 13631804
+      }
+    },
+    "collection": {
+      "budget": 17000000,
+      "baselineV8": 71183153,
+      "themes": {
+        "living": 70161285,
+        "dining": 68685701,
+        "arts": 73632070,
+        "tech": 69946796
+      }
+    }
+  }
+}
