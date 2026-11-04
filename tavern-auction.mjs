@@ -1,3 +1,4 @@
+import {chooseAuctionTheme,auctionTheme,initializePublicAuction,publicAuctionInfo,auctionInfoWithPublic} from './tavern-auction-themes.mjs';
 import {largeCatalog,generateLargeAuction,estimateLargeAuction} from './tavern-auction-large.mjs';
 import {validId} from './tavern-catalog.mjs';
 import {AUCTION_ITEMS,AUCTION_ITEMS_V4,auctionItemWeight,auctionCatalogFor,scaleAuctionValue} from './tavern-auction-data.mjs';
@@ -30,9 +31,9 @@ export const AUCTION_ROLES=Object.freeze({
 export const auctionRoleSkill=(role,version=2)=>role==='viktor'&&version<2?'开局获知紫、金、红品质藏品的合计件数。':AUCTION_ROLES[role].skill;
 export const AUCTION_QUALITY_WEIGHTS=Object.freeze([30,25,20,13,11,1]);
 export const AUCTION_LEGACY_WEIGHTS=Object.freeze([30,25,20,13,8,4]);
-const sessionCatalog=state=>state.catalogVersion>=7?largeCatalog(state.tier,state.catalogVersion):state.catalogVersion===6?regionCatalog(state.tier):auctionCatalogFor(state.catalogVersion);
+const sessionCatalog=state=>state.catalogVersion>=7?largeCatalog(state.tier,state.catalogVersion,state.warehouse?.themeId):state.catalogVersion===6?regionCatalog(state.tier):auctionCatalogFor(state.catalogVersion);
 const sessionWeights=state=>state.catalogVersion>=6?AUCTION_REGIONS[state.tier].quality:state.dropVersion===2?AUCTION_QUALITY_WEIGHTS:AUCTION_LEGACY_WEIGHTS;
-const sessionEstimate=(state,info)=>state.catalogVersion>=7?estimateLargeAuction(info,state.unit,state.tier,state.warehouse,state.catalogVersion):estimateAuction(info,state.unit??(state.currency==='auction'?AUCTION_RATE:1),sessionCatalog(state),sessionWeights(state));
+const sessionEstimate=(state,info)=>state.catalogVersion>=7?estimateLargeAuction(auctionInfoWithPublic(info,publicAuctionInfo(state)),state.unit,state.tier,state.warehouse,state.catalogVersion):estimateAuction(info,state.unit??(state.currency==='auction'?AUCTION_RATE:1),sessionCatalog(state),sessionWeights(state));
 const TOKEN=/^[a-f0-9]{16}$/;
 export function auctionRandom(n){
  if(!Number.isInteger(n)||n<1||n>0x100000000)throw Error('无效随机范围。');
@@ -153,7 +154,7 @@ export class TavernAuction {
   this.sql.exec("CREATE UNIQUE INDEX IF NOT EXISTS tavern_auction_ready ON tavern_auctions(user_id,channel) WHERE status='ready'");
   this.sql.exec('CREATE INDEX IF NOT EXISTS tavern_auction_history ON tavern_auctions(user_id,settled_at DESC)');
   this.inventory=new TavernAuctionInventory(tavern);
-  this.rooms=new AuctionRooms(tavern);
+  this.rooms=new AuctionRooms(tavern,random);
  }
  validate(p){if(!validId(p.id)||!validId(p.channel))throw Error('请在服务器频道打开自己的仓库盲拍。');}
  load(p){
@@ -182,10 +183,11 @@ export class TavernAuction {
   const items=settled?state.items.map((item,i)=>!opened||opened.has(i)?item:null):null;
   const result=revealing?{winner:state.result.winner,price:state.result.price,reason:state.result.reason,at:state.result.at,...(state.result.inventory?{inventory:true}:{})}:state?.result||null;
   const stats=this.tavern.one("SELECT COUNT(*) AS plays,COALESCE(SUM(CASE WHEN json_extract(state,'$.currency')='auction' AND (json_extract(state,'$.revealOrder') IS NULL OR COALESCE(json_extract(state,'$.opened'),0)>=json_array_length(state,'$.items')) THEN json_extract(state,'$.result.net') ELSE 0 END),0) AS net,COALESCE(SUM(CASE WHEN json_extract(state,'$.currency') IS NULL AND (json_extract(state,'$.revealOrder') IS NULL OR COALESCE(json_extract(state,'$.opened'),0)>=json_array_length(state,'$.items')) THEN json_extract(state,'$.result.net') ELSE 0 END),0) AS legacyNet FROM tavern_auctions WHERE user_id=? AND status='settled'",p.id);
+  const publicInfo=state?publicAuctionInfo(state):null,info=state?auctionInfoWithPublic(state.infos[0],publicInfo):null;
   // Whitelist: hidden catalog identities, prices and opponent information never leave the guild DO.
   return {balance:revealing?null:this.tavern.auctionCurrency.balance(p.id),tavernBalance:this.tavern.one('SELECT balance FROM tavern_members WHERE id=?',p.id).balance,stats,repeated,
    offerToken:!state||settled?this.ready(p,now):null,
-   session:state?{currency:state.currency||'tavern',catalogVersion:state.catalogVersion??1,dropVersion:state.dropVersion??1,skillVersion:state.skillVersion??1,inventoryVersion:state.inventoryVersion??0,tier:state.tier||'standard',warehouse:state.warehouse??null,itemCount:state.items.length,catalogSize:sessionCatalog(state).length,estimate:Math.floor(sessionEstimate(state,state.infos[0])),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel&&row.channel!=='0'&&p.channel!=='0',status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,notice:state.notice??null,history:state.history,result,info:state.infos[0],items,board:auctionBoardView(state,row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
+   session:state?{currency:state.currency||'tavern',catalogVersion:state.catalogVersion??1,dropVersion:state.dropVersion??1,skillVersion:state.skillVersion??1,inventoryVersion:state.inventoryVersion??0,tier:state.tier||'standard',warehouse:state.warehouse??null,itemCount:state.items.length,catalogSize:sessionCatalog(state).length,estimate:Math.floor(sessionEstimate(state,state.infos[0])),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel&&row.channel!=='0'&&p.channel!=='0',status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,notice:state.notice??null,history:state.history,result,theme:state.catalogVersion>=9?auctionTheme(state.warehouse.themeId):null,publicInfo,info,items,board:auctionBoardView({...state,infos:[info]},row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
  }
  view(p,now=Date.now()){
   this.validate(p);let answer;
@@ -200,12 +202,13 @@ export class TavernAuction {
  start(p,now=Date.now()){
   if(!Object.hasOwn(AUCTION_ROLES,p.role))throw Error('请选择一种信息能力。');
   const tier=p.tier??'standard';if(!Object.hasOwn(AUCTION_TIERS,tier))throw Error('请选择有效竞拍档位。');
-  const {budget,fee,scale}=AUCTION_TIERS[tier];let answer;
+  const {budget,fee,scale}=AUCTION_TIERS[tier],themeChoice=p.theme??'random';
+  if(themeChoice!=='random'&&!auctionTheme(themeChoice))throw Error('请选择有效仓库主题。');let answer;
   this.storage.transactionSync(()=>{
    const row=this.load(p);
    if(row.status!=='ready'){
     const existing=JSON.parse(row.state);
-    if(existing.role!==p.role||(existing.tier??'standard')!==tier)throw Error('本次开局已选择另一能力或档位，请刷新。');
+    if(existing.role!==p.role||(existing.tier??'standard')!==tier||(existing.themeChoice??'random')!==themeChoice)throw Error('本次开局已选择另一能力或档位，请刷新。');
     if(row.status==='active'&&existing.expires<=now)this.forfeit(row,existing,now,'expired');
     answer=this.present(p,row,now,true);return;
    }
@@ -213,12 +216,13 @@ export class TavernAuction {
    if(active){if(JSON.parse(active.state).expires<=now)this.forfeit(active,JSON.parse(active.state),now,'expired');else throw Error('你已有一局竞拍，请先恢复或结束该局。');}
    if(row.created_at+AUCTION_READY_TTL<=now)throw Error('开局窗口已过期，请刷新；尚未扣币。');
    if(this.tavern.auctionCurrency.balance(p.id)<budget+fee)throw Error(`需要${auctionAmount((budget+fee)/10000)}万竞拍币：${auctionAmount(budget/10000)}万预算及${auctionAmount(fee/10000)}万入场费，请先用酒馆币兑换。`);
-   const warehouse=drawAuctionWarehouse(tier,this.random);
-   const state={currency:'auction',catalogVersion:8,dropVersion:5,skillVersion:2,inventoryVersion:1,tier,warehouse,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateLargeAuction(this.random,AUCTION_RATE*scale,tier,warehouse,generateAuction),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},()=>emptyInfo(warehouse.count)),history:[]};
+   const warehouse={...drawAuctionWarehouse(tier,this.random),themeId:chooseAuctionTheme(themeChoice,this.random)};
+   const state={currency:'auction',catalogVersion:9,dropVersion:6,skillVersion:2,inventoryVersion:1,themeChoice,tier,warehouse,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateLargeAuction(this.random,AUCTION_RATE*scale,tier,warehouse,generateAuction,9),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},()=>emptyInfo(warehouse.count)),history:[]};
    // Public opening notice: only the best quality tier in the warehouse, which is
    // coarser than any skill can see, so it adds suspense without stealing clues.
    state.notice={top:state.items.reduce((top,item)=>Math.max(top,item.quality),0)};
    state.board=layoutAuction(state.items,row.token,warehouse);
+   initializePublicAuction(state);
    if(p.presentation==='warehouse'){state.opened=0;state.revealOrder=state.board.map((_,i)=>i).sort((a,b)=>state.board[a].y-state.board[b].y||state.board[a].x-state.board[b].x);}
    this.stage(state);
    this.ledger(row,state,'fee',-fee,'仓库盲拍 · 入场费',now);

@@ -32,6 +32,7 @@ let meta,
   inventory = null,
   view = "auction",
   playTier = "small",
+  playTheme = "random",
   role = "sophie",
   catalogTier = "standard",
   quality = "all",
@@ -131,7 +132,7 @@ function showItem(id, ownedValue, unit = "竞拍币") {
   if (!x) return;
   const p = x.chance;
   dialog(
-    `<div class="detail-art"><img src="${escape(imageFor(x))}" alt="${escape(x.name)}"></div><p class="eyebrow q${x.quality}">${escape(meta.qualities[x.quality])}品质 · ${escape(x.rarity)} · ${x.width * x.height}格</p><h2 class="detail-title">${escape(x.name)}</h2><p class="detail-flavor">${escape(x.flavor || "")}</p><p class="detail-meta">${escape(x.category)} · ${x.width}×${x.height}<br>${ownedValue === undefined ? escape(meta.tiers[data.tier].name) + "区图鉴价值" : "本局固定价值"}：<strong>${number(ownedValue ?? x.value)} ${escape(unit)}</strong></p>${ownedValue === undefined ? `<div class="detail-odds"><div><small>同色占比</small><strong>${(p.within * 100).toFixed(4)}%</strong></div><div><small>每件平均概率</small><strong>${(p.slot * 100).toFixed(6)}%</strong></div><div><small>每仓出现概率</small><strong>${(p.warehouse * 100).toFixed(5)}%</strong></div></div><p class="mini-note">${escape(meta.tiers[data.tier].name)}区新局概率 · 无保底，拍中才入仓。</p>` : ""}`,
+    `<div class="detail-art"><img src="${escape(imageFor(x))}" alt="${escape(x.name)}"></div><p class="eyebrow q${x.quality}">${escape(meta.qualities[x.quality])}品质 · ${escape(x.rarity)} · ${x.width * x.height}格</p><h2 class="detail-title">${escape(x.name)}</h2><p class="detail-flavor">${escape(x.flavor || "")}</p><p class="detail-meta">${escape(x.category)} · ${x.width}×${x.height}<br>${ownedValue === undefined ? escape(meta.tiers[data.tier].name) + "区图鉴价值" : "本局固定价值"}：<strong>${number(ownedValue ?? x.value)} ${escape(unit)}</strong></p>${ownedValue === undefined ? `<div class="detail-odds"><div><small>同色占比</small><strong>${(p.within * 100).toFixed(4)}%</strong></div><div><small>随机主题 · 每件平均概率</small><strong>${(p.slot * 100).toFixed(6)}%</strong></div><div><small>每仓出现概率</small><strong>${(p.warehouse * 100).toFixed(5)}%</strong></div></div>${x.chanceByTheme?`<div class="theme-odds">${(meta.themes||[]).map(t=>`<span>${escape(t.name)}<strong>${(x.chanceByTheme[t.id].slot*100).toFixed(6)}%</strong></span>`).join('')}</div>`:""}<p class="mini-note">各主题均为单件概率；默认统计按随机主题平均。${escape(meta.tiers[data.tier].name)}区新局概率 · 无保底，拍中才入仓。</p>` : ""}`,
   );
 }
 function renderHome() {
@@ -260,6 +261,14 @@ function noticeLine(s) {
   if (!Number.isInteger(top) || !meta.qualities?.[top]) return "";
   return `<p class="notice-line">开局公示 · 本仓最高品质 <strong class="q${top}">${meta.qualities[top]}</strong></p>`;
 }
+function warehouseIntel(s) {
+  if(!s?.publicInfo)return noticeLine(s);
+  const theme=s.theme;
+  return `<section class="warehouse-intel" data-theme="${escape(theme?.id||'mixed')}" aria-label="全桌公共情报"><div class="intel-heading"><strong>${escape(theme?.name||'仓库情报')}</strong><span>全桌共享</span></div>${theme?`<p class="intel-affinity">${theme.categories.map(escape).join(' / ')} · 同品质抽取权重 ×${theme.multiplier}</p>`:""}<ol>${s.publicInfo.clues.map(c=>`<li><span>第${c.round}轮</span>${escape(c.text)}</li>`).join('')}</ol>${s.round<5?'<p class="mini-note">下一轮追加公共情报，所有人同步获得。</p>':''}</section>`;
+}
+function themeOptions(value='random') {
+  return `<option value="random"${value==='random'?' selected':''}>随机主题</option>${(meta.themes||[]).map(t=>`<option value="${t.id}"${value===t.id?' selected':''}>${escape(t.name)} · ${t.categories.map(escape).join('/')}</option>`).join('')}`;
+}
 function legend() {
   return `<div class="quality-legend">${meta.qualities.map((q, i) => `<span class="q${i}">${q}品质</span>`).join("")}</div>`;
 }
@@ -378,7 +387,7 @@ function setup() {
     )
     .join(
       "",
-    )}</div><h3>选择信息能力</h3><div class="ability-options">${Object.entries(
+    )}</div><label class="theme-select">仓库主题<select id="play-theme">${themeOptions(playTheme)}</select></label><p class="mini-note">主题改变类别权重；预算、入场费和品质概率不变。</p><h3>选择信息能力</h3><div class="ability-options">${Object.entries(
     meta.roles,
   )
     .map(
@@ -549,7 +558,7 @@ function gameView() {
     subtotal = s.items?.filter(Boolean).reduce((n, x) => n + x.value, 0) || 0;
   return `<div class="play-layout"><div>${seatStrip(s)}<div class="board-heading"><h2>${escape(s.warehouse?.name || "仓库")} · ${s.itemCount}件</h2><p>${s.board.cols}×${s.board.rows}格板<br>${active ? "只展示已知品质与轮廓" : `开仓揭晓 ${s.reveal.count} / ${s.reveal.total}`}</p></div><div class="board-wrap"><div id="warehouse-board" class="warehouse-board"></div></div>${legend()}${history(s)}</div><aside class="panel">${
     active
-      ? `${appraiserCard(s)}<span class="auction-stage">第 ${s.round} / 5 轮 · ${meta.roles[s.role].name}</span><p>本局预算 ${gameMoney(s, s.budget)}<br>线索估值约</p><div class="line-value">${number(s.estimate)}</div><p>${s.currency === "tavern" ? "酒馆币" : "竞拍币"} · 剩余 <span data-countdown="${s.expires}"></span> · 同价优先 ${s.priority.map((i) => npc[i]).join(" / ")}</p>${noticeLine(s)}<div class="bid-presets">${[
+      ? `${appraiserCard(s)}<span class="auction-stage">第 ${s.round} / 5 轮 · ${meta.roles[s.role].name}</span><p>本局预算 ${gameMoney(s, s.budget)}<br>线索估值约</p><div class="line-value">${number(s.estimate)}</div><p>${s.currency === "tavern" ? "酒馆币" : "竞拍币"} · 剩余 <span data-countdown="${s.expires}"></span> · 同价优先 ${s.priority.map((i) => npc[i]).join(" / ")}</p>${warehouseIntel(s)}<div class="bid-presets">${[
           [0.8, "估值80%"],
           [0.95, "估值95%"],
         ]
@@ -694,7 +703,7 @@ function renderRoom() {
         ([k, t]) =>
           `<option value="${k}">${escape(t.name)}区 · 入场 ${number(t.fee)}</option>`,
       )
-      .join("")}</select></label><button class="button primary" data-room-create>开一个房间</button></div><div class="room-boot"><label>房号<input id="room-code" maxlength="6" value="${escape(pendingRoomInvite)}" placeholder="比如 A7K2M9" autocomplete="off" spellcheck="false"></label><button class="button outline" data-room-join>加入</button></div></div>`;
+      .join("")}</select></label><label>仓库主题<select id="room-theme">${themeOptions()}</select></label><button class="button primary" data-room-create>开一个房间</button></div><div class="room-boot"><label>房号<input id="room-code" maxlength="6" value="${escape(pendingRoomInvite)}" placeholder="比如 A7K2M9" autocomplete="off" spellcheck="false"></label><button class="button outline" data-room-join>加入</button></div></div>`;
 
   const seats = r.seats,
     you = seats.find((s) => s.you),
@@ -704,7 +713,7 @@ function renderRoom() {
     st = r.started ?? null,
     stage=waiting?null:buildSeatStage({...st,status:r.status,result:r.result,names:seats.map(s=>s.name)}),
     tier=meta.tiers[r.tier],
-    fees=`<div class="room-fees"><span>${escape(tier.name)}区</span><span>每人入场 ${number(tier.fee)}</span><span>托管预算 ${number(tier.budget)}</span></div>`;
+    fees=`<div class="room-fees"><span>${escape(tier.name)}区 · ${escape(meta.themes?.find(t=>t.id===r.themeChoice)?.name||"随机主题")}</span><span>每人入场 ${number(tier.fee)}</span><span>托管预算 ${number(tier.budget)}</span></div>`;
   const head = waiting
     ? `<p class="eyebrow">联机 · 等人中</p><h2>房号 <span class="room-code">${escape(r.code)}</span></h2><p class="room-hint">至少两名真人；还剩 ${4-seats.length} 个位置，开局后空位由 NPC 补齐。</p><div class="room-invite-actions"><button class="button outline" data-room-copy="code">复制房号</button><button class="button outline" data-room-copy="link">复制邀请链接</button></div>${fees}`
     : `<p class="eyebrow">联机 · ${live ? `第 ${st.round} / ${st.rounds} 轮` : "已结束"} · ${escape(r.code)}</p><h2>${escape(st?.warehouse?.name ?? "仓库")} · ${escape(st?.itemCount ?? 0)} 件</h2>${
@@ -774,8 +783,8 @@ function renderRoom() {
     }
   } else if(waiting) controls+='<button class="text-link" data-room-leave>退出房间</button>';
   if(waiting) return `${summary()}${roomConnectionView()}<div class="panel room-panel">${head}${seatGrid}${controls}</div>`;
-  const ownInfo=live && st.info ? `${appraiserCard({role:you.role})}<span class="auction-stage">只属于你的判断</span><p>线索估值约</p><div class="line-value">${number(st.estimate)}</div><p>竞拍币 · 预算 ${number(st.budget)}</p><p class="mini-note">同价优先：${(st.priority??[]).map(i=>escape(seats.find(x=>x.index===i)?.name??"?")).join(" → ")}</p>` : "";
-  return `${summary()}${roomConnectionView()}<div class="panel room-panel">${head}${seatGrid}</div><div class="play-layout room-match"><div><div class="board-heading"><h2>${live?"你的仓库视野":"全桌共享开仓"}</h2><p>${st.board?`${st.board.cols}×${st.board.rows}格`:""} · ${live?"只展示你的技能已知信息":"同一仓库，同一揭晓进度"}</p></div>${st.board?'<div class="board-wrap"><div id="room-warehouse-board" class="warehouse-board"></div></div>':""}${legend()}${history}</div><aside class="panel">${ownInfo}${controls}${live?roomClues(st.info):""}</aside></div>`;
+  const ownInfo=live && st.info ? `${appraiserCard({role:you.role})}${warehouseIntel(st)}<span class="auction-stage">只属于你的判断</span><p>线索估值约</p><div class="line-value">${number(st.estimate)}</div><p>竞拍币 · 预算 ${number(st.budget)}</p><p class="mini-note">同价优先：${(st.priority??[]).map(i=>escape(seats.find(x=>x.index===i)?.name??"?")).join(" → ")}</p>` : "";
+  return `${summary()}${roomConnectionView()}<div class="panel room-panel">${head}${seatGrid}</div><div class="play-layout room-match"><div><div class="board-heading"><h2>${live?"你的仓库视野":"全桌共享开仓"}</h2><p>${st.board?`${st.board.cols}×${st.board.rows}格`:""} · ${live?"展示公共情报与技能已知信息":"同一仓库，同一揭晓进度"}</p></div>${st.board?'<div class="board-wrap"><div id="room-warehouse-board" class="warehouse-board"></div></div>':""}${legend()}${history}</div><aside class="panel">${ownInfo}${controls}${live?roomClues(st.info):""}</aside></div>`;
 }
 
 // --- room polling ---------------------------------------------------------
@@ -827,9 +836,9 @@ function stopRoomTimer() {
 
 function renderPlay() {
   if (!meta) return;
-  const focused=document.activeElement,oldForm=$("#room-bid-form"),
-    draft=focused?.id==="room-bid-input" && oldForm ? {
-      value:focused.value,id:oldForm.dataset.roomId,round:Number(oldForm.dataset.round),
+  const focused=document.activeElement,oldForm=$("#room-bid-form"),oldBid=$("#room-bid-input"),
+    draft=oldBid && oldForm ? {
+      value:oldBid.value,id:oldForm.dataset.roomId,round:Number(oldForm.dataset.round),focused:focused===oldBid,
     } : null,
     roleDraft=focused?.id==="room-role"?focused.value:null;
   $("#game-tabs").hidden = !account?.user || !guild;
@@ -883,7 +892,7 @@ function renderPlay() {
   if (view === "room" && account?.user && location.hash==="#play") {ensureRoomTimer();setRoomConnection(roomConnection);}
   else stopRoomTimer();
   if(draft && draft.id===roomState?.room?.id && draft.round===roomState?.room?.started?.round) {
-    const input=$("#room-bid-input");if(input){input.value=draft.value;input.focus({preventScroll:true});}
+    const input=$("#room-bid-input");if(input){input.value=draft.value;if(draft.focused)input.focus({preventScroll:true});}
   }
   if(roleDraft && $("#room-role")){$("#room-role").value=roleDraft;$("#room-role-description").textContent=meta.roles[roleDraft]?.skill||"";$("#room-role").focus({preventScroll:true});}
   tick();
@@ -1020,9 +1029,9 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (b.hasAttribute("data-room-create")) {
-    const tier = $("#room-tier")?.value || "standard";
+    const tier = $("#room-tier")?.value || "standard",theme=$("#room-theme")?.value||"random";
     perform(async () => {
-      await roomAction("roomCreate", { tier });
+      await roomAction("roomCreate", { tier,theme });
     });
     return;
   }
@@ -1208,6 +1217,7 @@ document.addEventListener("click", (event) => {
         token: game.offerToken,
         role,
         tier: playTier,
+        theme: playTheme,
       });
       wallet = (await api(`wallet?guild=${guild}`)).data;
       renderPlay();
@@ -1330,7 +1340,9 @@ document.addEventListener("click", (event) => {
 });
 document.addEventListener("change", (event) => {
   const t = event.target;
-  if(t.id==="room-role") {
+  if(t.id==="play-theme") {
+    playTheme=t.value;
+  } else if(t.id==="room-role") {
     $("#room-role-description").textContent=meta.roles[t.value]?.skill||"";
   } else if (t.id === "guild-select") {
     perform(async () => {

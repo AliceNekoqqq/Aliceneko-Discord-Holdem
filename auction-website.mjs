@@ -1,3 +1,4 @@
+import {AUCTION_THEMES} from './tavern-auction-themes.mjs';
 import {
   AuctionWebAuth,
   randomWebToken,
@@ -25,12 +26,12 @@ const SESSION = "__Host-auction_session",
   FLOW = "__Host-auction_flow",
   TOKEN = /^[a-f0-9]{64}$/;
 const allowedActions = {
-  auctionStart: ["token", "role", "tier"],
+  auctionStart: ["token", "role", "tier", "theme"],
   auctionBid: ["token", "round", "bid"],
   auctionLeave: ["token", "round"],
   auctionReveal: ["token", "step", "all"],
   roomView: ["roomId"],
-  roomCreate: ["tier"],
+  roomCreate: ["tier", "theme"],
   roomJoin: ["code"],
   roomLeave: ["roomId"],
   roomRole: ["roomId", "role"],
@@ -193,6 +194,7 @@ export function publicAuctionData(tier = "standard") {
     roles: AUCTION_ROLES,
     tiers: AUCTION_TIERS,
     warehouses: AUCTION_WAREHOUSES,
+    catalogVersion:9,themes:AUCTION_THEMES,
     region: AUCTION_REGIONS[tier],
     regions: AUCTION_REGIONS,
     tier,
@@ -202,7 +204,8 @@ export function publicAuctionData(tier = "standard") {
       ...x,
       value: Math.floor(x.value * AUCTION_TIERS[tier].scale),
       image: art.items[x.id].path,
-      chance: largeItemChance(x, tier),
+      chance: largeItemChance(x, tier, 9),
+      chanceByTheme:Object.fromEntries(AUCTION_THEMES.map(t=>[t.id,largeItemChance(x,tier,9,t.id)])),
     })),
   };
 }

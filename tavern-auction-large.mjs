@@ -1,3 +1,5 @@
+import {AUCTION_THEMES,themedPool} from './tavern-auction-themes.mjs';
+import {estimateAuctionEvidence} from './tavern-auction-evidence.mjs';
 import {AUCTION_LARGE_ITEMS,AUCTION_EXPANDED_LARGE_ITEMS,scaleAuctionValue} from './tavern-auction-data.mjs';
 import {AUCTION_REGIONS,AUCTION_WAREHOUSES,regionCatalog} from './tavern-auction-regions.mjs';
 const FEATURE_TICKETS=Object.freeze({small:150,standard:250,high:400,collection:550}),cache=new Map(),statsCache=new WeakMap();
@@ -7,12 +9,13 @@ const weightedMean=(xs,unit,cap=false)=>xs.reduce((s,x)=>s+scaleAuctionValue(cap
 const makeLargePools=catalog=>Object.freeze(Object.fromEntries(Object.entries(AUCTION_REGIONS).map(([tier,r])=>[tier,Object.freeze(catalog.map(x=>Object.freeze({...x,dropWeight:x.dropWeight*({'稀有':r.rare[0],'极稀有':r.rare[1],'传世':r.rare[2]}[x.rarity]??1)})))])));
 const legacyPools=makeLargePools(AUCTION_LARGE_ITEMS),expandedPools=makeLargePools(AUCTION_EXPANDED_LARGE_ITEMS);
 const largePools=(tier,version)=> (version>=8?expandedPools:legacyPools)[tier];
-export function largeCatalog(tier='standard',version=8){return [...regionCatalog(tier,version),...largePools(tier,version)];}
+export function largeCatalog(tier='standard',version=8,themeId){return [...(version>=9?themedPool(regionCatalog(tier,version),themeId):regionCatalog(tier,version)),...(version>=9?themedPool(largePools(tier,version),themeId):largePools(tier,version))];}
 export function largeModel(tier,warehouse,version=8){
  const reference=AUCTION_WAREHOUSES.find(x=>x.id===warehouse.id);
  if(!reference||reference.cols!==warehouse.cols||reference.rows!==warehouse.rows||!Number.isInteger(warehouse.count)||warehouse.count<reference.min||warehouse.count>reference.max)throw Error('仓库容量配置异常。');
- const key=[version,tier,warehouse.id,warehouse.count].join(':');if(cache.has(key))return cache.get(key);
- const ordinary=regionCatalog(tier,version),bins=Math.floor(warehouse.cols/2)*Math.floor(warehouse.rows/2),eligible=largePools(tier,version).filter(x=>Math.ceil(x.width/2)*Math.ceil(x.height/2)+warehouse.count-1<=bins);
+ const themeId=version>=9?warehouse.themeId:undefined;
+ const key=[version,tier,warehouse.id,warehouse.count,themeId].join(':');if(cache.has(key))return cache.get(key);
+ const ordinary=version>=9?themedPool(regionCatalog(tier,version),themeId):regionCatalog(tier,version),bins=Math.floor(warehouse.cols/2)*Math.floor(warehouse.rows/2),eligible=(version>=9?themedPool(largePools(tier,version),themeId):largePools(tier,version)).filter(x=>Math.ceil(x.width/2)*Math.ceil(x.height/2)+warehouse.count-1<=bins);
  const og=groups(ordinary),bg=groups(eligible),featured=bg.flatMap((xs,q)=>xs.length?xs:og[q]);
  const model=Object.freeze({count:warehouse.count,weights:AUCTION_REGIONS[tier].quality,ordinary,featured:Object.freeze(featured),chance:eligible.length?FEATURE_TICKETS[tier]/1000:0});
  cache.set(key,model);return model;
@@ -60,16 +63,23 @@ export function estimateLargeModel(info,unit,m){
   probability+=p;value+=p*v;
  }if(!probability)throw Error('大件轮廓线索不匹配。');return value/probability;
 }
-export const estimateLargeAuction=(info,unit,tier,warehouse,version=8)=>estimateLargeModel(info,unit,largeModel(tier,warehouse,version));
+export const estimateLargeAuction=(info,unit,tier,warehouse,version=8)=> (version>=9?estimateAuctionEvidence:estimateLargeModel)(info,unit,largeModel(tier,warehouse,version));
 export function largeModelOdds(item,m){
  const itemProbability=pool=>{const xs=pool.filter(x=>x.quality===item.quality),x=xs.find(x=>x.id===item.id);return x?m.weights[item.quality]/m.weights.reduce((s,x)=>s+x,0)*x.dropWeight/sumWeight(xs):0;};
  const r=itemProbability(m.ordinary),b=itemProbability(m.featured),expected=m.count*r+m.chance*(b-r),none=-Math.expm1(m.count*Math.log1p(-r)),featured=-Math.expm1((m.count-1)*Math.log1p(-r)+Math.log1p(-b));
  return {expected,warehouse:(1-m.chance)*none+m.chance*featured};
 }
-export function largeItemChance(item,tier='standard',version=8){
+const itemChanceCache=new Map();
+export function largeItemChance(item,tier='standard',version=8,themeId){
+ const key=[item.id,tier,version,themeId].join(':');if(itemChanceCache.has(key))return itemChanceCache.get(key);
+ if(version>=9 && !themeId){
+  const chances=AUCTION_THEMES.map(t=>largeItemChance(item,tier,version,t.id)),result=Object.fromEntries(['slot','within','warehouse'].map(k=>[k,chances.reduce((s,c)=>s+c[k],0)/chances.length]));itemChanceCache.set(key,result);return result;
+ }
  item=largeCatalog(tier,version).find(x=>x.id===item.id);if(!item)throw Error('藏品不在区域图鉴中。');
  let count=0,expected=0,warehouse=0;
  AUCTION_WAREHOUSES.forEach((w,i)=>{for(let n=w.min;n<=w.max;n++){
-  const prior=AUCTION_REGIONS[tier].size[i]/10000/(w.max-w.min+1),odds=largeModelOdds(item,largeModel(tier,{...w,count:n},version));count+=prior*n;expected+=prior*odds.expected;warehouse+=prior*odds.warehouse;
- }});const slot=expected/count,quality=AUCTION_REGIONS[tier].quality[item.quality]/1000;return {slot,within:slot/quality,warehouse};
+  for(const selectedTheme of [version>=9?themeId:undefined]){
+   const prior=AUCTION_REGIONS[tier].size[i]/10000/(w.max-w.min+1),odds=largeModelOdds(item,largeModel(tier,{...w,count:n,themeId:selectedTheme},version));count+=prior*n;expected+=prior*odds.expected;warehouse+=prior*odds.warehouse;
+  }
+ }});const slot=expected/count,quality=AUCTION_REGIONS[tier].quality[item.quality]/1000;const result={slot,within:slot/quality,warehouse};itemChanceCache.set(key,result);return result;
 }

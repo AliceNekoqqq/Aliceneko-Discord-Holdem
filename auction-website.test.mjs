@@ -748,3 +748,22 @@ test("room API accepts bound mutations and cached read proofs while rejecting st
  assert.equal((await e.request("api/room?guild=4",{cookie:s.cookie})).status,403);
  assert.equal((await e.request("api/room?guild=3")).status,401);
 });
+
+test('selected theme and public clues pass through authenticated web actions while invalid theme changes cannot charge twice',async t=>{
+ const e=setup(t),s=await login(e);await j(await e.request('api/wallet?guild=3',{cookie:s.cookie}));
+ const tavern=[...e.stores.values()][0];
+ tavern.storage.transactionSync(()=>tavern.auctionCurrency.adjust('1',50_000_000,'test:themes:fund','test','fund',Date.now()));
+ const before=tavern.auctionCurrency.balance('1'),state=await j(await e.request('api/state?guild=3',{cookie:s.cookie}));
+ const fields={token:state.data.offerToken,role:'zhou',tier:'small',theme:'arts'};
+ const started=await j(await action(e,s,'auctionStart',fields));
+ assert.equal(started.data.session.theme.id,'arts');assert.equal(started.data.session.publicInfo.clues.length,1);
+ const held=tavern.auctionCurrency.balance('1');assert.equal(before-held,4_025_000);
+ assert.equal((await action(e,s,'auctionStart',{...fields,theme:'invalid'})).status,400);
+ assert.equal((await action(e,s,'auctionStart',{...fields,theme:'dining'})).status,400);
+ await j(await action(e,s,'auctionStart',fields));assert.equal(tavern.auctionCurrency.balance('1'),held);
+ const created=await j(await action(e,s,'roomCreate',{tier:'small',theme:'tech'}));assert.equal(created.data.room.themeChoice,'tech');
+ await j(await action(e,s,'roomLeave',{roomId:created.data.room.id}));
+ const catalog=await j(await e.request('api/catalog?tier=small'));assert.equal(catalog.themes.length,4);
+ const item=catalog.items[0];assert.equal(Object.keys(item.chanceByTheme).length,4);
+ assert(Math.abs(item.chance.slot-Object.values(item.chanceByTheme).reduce((s,x)=>s+x.slot,0)/4)<1e-12);
+});
