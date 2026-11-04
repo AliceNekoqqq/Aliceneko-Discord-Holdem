@@ -1,3 +1,4 @@
+import {AUCTION_NPC_VERSION,AUCTION_NPC_STYLES} from './tavern-auction-opponents.mjs';
 import {AUCTION_SKILL_VERSION,AUCTION_LEGACY_SKILLS,AUCTION_CURRENT_SKILLS,AUCTION_ROLE_TACTICS,revealAuctionSkill} from './tavern-auction-skills.mjs';
 import {chooseAuctionTheme,auctionTheme,initializePublicAuction,publicAuctionInfo,auctionInfoWithPublic} from './tavern-auction-themes.mjs';
 import {largeCatalog,generateLargeAuction,estimateLargeAuction} from './tavern-auction-large.mjs';
@@ -130,7 +131,7 @@ export function estimateAuction(info,unit=AUCTION_RATE,catalog=AUCTION_ITEMS,wei
 export const NPC_BID_AGGRESSION=0.85;
 export function npcAuctionBid(info,round,style,random=auctionRandom,unit=AUCTION_RATE,catalog=AUCTION_ITEMS,weights=AUCTION_QUALITY_WEIGHTS,budget=(([AUCTION_ITEMS,AUCTION_ITEMS_V4].includes(catalog)||isRegionCatalog(catalog))?100:200)*unit,estimate=estimateAuction){
  if(random(12)===0)return 0;
- const factor=[0.78,0.94,1.08][style]*(0.64+round*0.06)*(0.90+random(21)/100)*NPC_BID_AGGRESSION;
+ const factor=AUCTION_NPC_STYLES[style].factor*(0.64+round*0.06)*(0.90+random(21)/100)*NPC_BID_AGGRESSION;
  return Math.min(budget,Math.max(1,Math.floor(estimate(info,unit,catalog,weights)*factor)));
 }
 export function decideAuction(round,bids,priority,budget=AUCTION_BUDGET){
@@ -183,7 +184,7 @@ export class TavernAuction {
   // Whitelist: hidden catalog identities, prices and opponent information never leave the guild DO.
   return {balance:revealing?null:this.tavern.auctionCurrency.balance(p.id),tavernBalance:this.tavern.one('SELECT balance FROM tavern_members WHERE id=?',p.id).balance,stats,repeated,
    offerToken:!state||settled?this.ready(p,now):null,
-   session:state?{currency:state.currency||'tavern',catalogVersion:state.catalogVersion??1,dropVersion:state.dropVersion??1,skillVersion:state.skillVersion??1,inventoryVersion:state.inventoryVersion??0,tier:state.tier||'standard',warehouse:state.warehouse??null,itemCount:state.items.length,catalogSize:sessionCatalog(state).length,estimate:Math.floor(sessionEstimate(state,state.infos[0])),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel&&row.channel!=='0'&&p.channel!=='0',status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,notice:state.notice??null,history:state.history,result,theme:state.catalogVersion>=9?auctionTheme(state.warehouse.themeId):null,publicInfo,info,items,board:auctionBoardView({...state,infos:[info]},row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
+   session:state?{currency:state.currency||'tavern',catalogVersion:state.catalogVersion??1,dropVersion:state.dropVersion??1,skillVersion:state.skillVersion??1,npcVersion:state.npcVersion??1,inventoryVersion:state.inventoryVersion??0,tier:state.tier||'standard',warehouse:state.warehouse??null,itemCount:state.items.length,catalogSize:sessionCatalog(state).length,estimate:Math.floor(sessionEstimate(state,state.infos[0])),budget:state.budget??200,fee:state.fee??10,token:row.token,channel:row.channel,readOnly:(!settled||revealing)&&row.channel!==p.channel&&row.channel!=='0'&&p.channel!=='0',status:row.status,role:state.role,round:state.round,expires:state.expires,priority:state.priority,notice:state.notice??null,history:state.history,result,theme:state.catalogVersion>=9?auctionTheme(state.warehouse.themeId):null,publicInfo,info,items,board:auctionBoardView({...state,infos:[info]},row.token,items),reveal:settled&&state.revealOrder?{count:state.opened,total:state.items.length,complete:!revealing,indices:[...opened],last:state.opened?state.revealOrder[state.opened-1]:null}:null}:null};
  }
  view(p,now=Date.now()){
   this.validate(p);let answer;
@@ -213,7 +214,7 @@ export class TavernAuction {
    if(row.created_at+AUCTION_READY_TTL<=now)throw Error('开局窗口已过期，请刷新；尚未扣币。');
    if(this.tavern.auctionCurrency.balance(p.id)<budget+fee)throw Error(`需要${auctionAmount((budget+fee)/10000)}万竞拍币：${auctionAmount(budget/10000)}万预算及${auctionAmount(fee/10000)}万入场费，请先用酒馆币兑换。`);
    const warehouse={...drawAuctionWarehouse(tier,this.random),themeId:chooseAuctionTheme(themeChoice,this.random)};
-   const state={currency:'auction',catalogVersion:9,dropVersion:6,skillVersion:AUCTION_SKILL_VERSION,inventoryVersion:1,themeChoice,tier,warehouse,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateLargeAuction(this.random,AUCTION_RATE*scale,tier,warehouse,generateAuction,9),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},()=>emptyInfo(warehouse.count)),history:[]};
+   const state={currency:'auction',catalogVersion:9,dropVersion:6,skillVersion:AUCTION_SKILL_VERSION,npcVersion:AUCTION_NPC_VERSION,inventoryVersion:1,themeChoice,tier,warehouse,unit:AUCTION_RATE*scale,budget,fee,role:p.role,items:generateLargeAuction(this.random,AUCTION_RATE*scale,tier,warehouse,generateAuction,9),round:1,expires:now+AUCTION_TTL,priority:shuffleAuction([0,1,2,3],this.random),infos:Array.from({length:4},()=>emptyInfo(warehouse.count)),history:[]};
    // Public opening notice: only the best quality tier in the warehouse, which is
    // coarser than any skill can see, so it adds suspense without stealing clues.
    state.notice={top:state.items.reduce((top,item)=>Math.max(top,item.quality),0)};

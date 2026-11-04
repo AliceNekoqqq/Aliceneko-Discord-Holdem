@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {buildSeatStage} from './web/auction/assets/seat-stage.mjs';
+import {buildOpponentReaction} from './web/auction/assets/opponent-stage.mjs';
+import {AUCTION_OPPONENTS,AUCTION_NPC_STYLES} from './tavern-auction-opponents.mjs';
 const source=readFileSync(new URL('./web/auction/assets/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/boot\(\);\s*$/,'');
 function harness(search=''){
  const nodes=new Map(),events=new Map(),saved=new Map(),copies=[],messages=[];
@@ -11,17 +13,17 @@ function harness(search=''){
  const context=vm.createContext({document:{hidden:false,body:node('body'),querySelector:node,querySelectorAll:()=>[],addEventListener(){}},
   location,window:{addEventListener:(name,fn)=>events.set(name,fn),scrollTo(){},history:{replaceState(a,b,url){location.href=url.href;location.search=url.search;location.hash=url.hash;}}},
   sessionStorage:{getItem:k=>saved.get(k)??null,setItem:(k,v)=>saved.set(k,v),removeItem:k=>saved.delete(k)},
-  navigator:{onLine:true,clipboard:{writeText:async value=>copies.push(value)}},URL,URLSearchParams,Date,crypto,setInterval(){},clearInterval(){},setTimeout,clearTimeout,buildSeatStage,
+  navigator:{onLine:true,clipboard:{writeText:async value=>copies.push(value)}},URL,URLSearchParams,Date,crypto,setInterval(){},clearInterval(){},setTimeout,clearTimeout,buildSeatStage,buildOpponentReaction,
   play(){},soundEnabled:()=>false,createRevealLoop(){}});
  vm.runInContext(source+`
   const renderActual=renderPlay;renderPlay=()=>{};toast=text=>messages.push(text);dialog=html=>messages.push(html);
   globalThis.h={
-   init(){account={user:{id:'b'}};guild='3';view='room';roomConnection='live';meta={roles:{sophie:{name:'索菲',skill:'首轮五件品质'},viktor:{name:'维克托',skill:'聚合线索'}},tiers:{small:{name:'小额',fee:25000,budget:4000000}},qualities:['白','绿','蓝','紫','金','红']};},
+   init(){account={user:{id:'b'}};guild='3';view='room';roomConnection='live';meta={opponents:AUCTION_OPPONENTS,opponentStyles:AUCTION_NPC_STYLES,roles:{sophie:{name:'索菲',skill:'首轮五件品质'},viktor:{name:'维克托',skill:'聚合线索'}},tiers:{small:{name:'小额',fee:25000,budget:4000000}},qualities:['白','绿','蓝','紫','金','红']};},
    setApi(fn){api=fn;},setRoom(room){roomState={room};},get room(){return roomState?.room;},get connection(){return roomConnection;},
    switchGuild(){guild='4';epoch++;},get pending(){return pendingRoomInvite;},setPending(code){pendingRoomInvite=code;},
    readRoomInvite,clearRoomInvite,roomInviteURL,copyRoomInvite,acceptRoom,renderRoom,renderActual,roomAction,pollRoom,setRoomConnection,
-   appraiserCard,roomClues,setMeta(value){meta=value;},
-  };`,Object.assign(context,{messages}));
+   appraiserCard,roomClues,seatStrip,roomSeatView,opponentMoment,renderOpponents,setMeta(value){meta=value;},
+  };`,Object.assign(context,{messages,AUCTION_OPPONENTS,AUCTION_NPC_STYLES}));
  context.h.init();return {h:context.h,context,nodes,saved,copies,messages,events};
 }
 function room(history=[],status='active'){
@@ -41,6 +43,20 @@ test('actual appraisal cards retain old skill text and display focused private c
  const html=h.roomClues({focus:0,largeAbsent:true,highCount:null,items:[{quality:1,width:1,height:2,category:'<img onerror=alert(1)>'}]});
  assert(html.includes('第1件'));assert(html.includes('未发现镇仓大件'));assert(html.includes('类别：&lt;img'));
  assert(!html.includes('<img onerror'));
+});
+
+test('actual NPC cards use identity rather than display names, show legacy styles truthfully, and keep current sealed amounts out',()=>{
+ const {h}=harness(),r=room([ {round:1,bids:[100,200,300,400],done:false} ]);
+ r.seats[2].id='npc:aji';r.seats[2].npcStyle=2;r.seats[2].bid=987654321;h.setRoom(r);
+ const html=h.renderRoom();
+ assert(html.includes('npc-aji-v1.png'));assert(html.includes('果断竞价'));assert(html.includes('首次出价'));
+ assert(!html.includes('987654321'));assert(!html.includes('987,654,321'));
+ const fake={...r.seats[0],name:'阿吉',id:'npc:aji',npc:false};
+ const plain=h.roomSeatView(fake,r,buildSeatStage({...r.started,status:r.status}));
+ assert(!plain.includes('npc-aji-v1.png'));assert(!plain.includes('首次出价'));
+ const single={token:'aabbccdd',currency:'auction',round:2,status:'active',history:r.started.history,priority:[0,1,2,3],committed:[987654321,888888888,777777777]};
+ const strip=h.seatStrip(single);assert(strip.includes('npc-zhanggui-v1.png'));assert(strip.includes('谨慎出价'));assert(!strip.includes('987654321'));
+ assert.equal(h.seatStrip(single),strip.replace('seat-strip sweep','seat-strip'));
 });
 
 test('invite links contain only a validated room code and survive the OAuth return without joining automatically',()=>{

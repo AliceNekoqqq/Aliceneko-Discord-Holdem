@@ -311,6 +311,24 @@ function won(t) {
   return {...x,settled};
 }
 
+test('new rooms freeze the same NPC styles as solo games while legacy rooms retain their historical hash styles',t=>{
+ const {A,act,auction,room}=running(t),stored=auction.rooms.row(room.code),state=stored.data;
+ assert.equal(state.npcVersion,2);
+ const bots=state.seats.filter(x=>x.npc);assert.deepEqual(bots.map(x=>[x.id,x.npcStyle]),[['npc:aji',0],['npc:laomao',1]]);
+ const view=act(A,'roomView',{now:1001}).room;
+ assert.deepEqual(view.seats.filter(x=>x.npc).map(x=>x.npcStyle),[0,1]);
+ assert(view.seats.filter(x=>!x.npc).every(x=>x.npcStyle===undefined));
+ const legacy={...state};delete legacy.npcVersion;
+ assert.deepEqual(bots.map(x=>auction.rooms.npcStyle(legacy,x)),[2,2]);
+ auction.rooms.random=n=>n-1;
+ const bid=(state,seat)=>Object.getPrototypeOf(auction.rooms).npcBid.call(auction.rooms,state,seat,1),old=bots.map(x=>bid(legacy,x)),modern=bots.map(x=>bid(state,x));
+ assert(old.every(x=>x>0));
+ assert(modern.every((v,i)=>v<=old[i]));
+ stored.data=legacy;auction.rooms.save(stored);
+ const restored=act(A,'roomView',{now:1002}).room;
+ assert.equal(restored.started.npcVersion,1);assert.deepEqual(restored.seats.filter(x=>x.npc).map(x=>x.npcStyle),[2,2]);
+});
+
 test('V3 room skills use the same version for each seat and keep focused/category information private',t=>{
  const {A,B,act,auction,room}=running(t,['zhou','lucia']);
  const a=act(A,'roomView',{now:1001}).room,b=act(B,'roomView',{now:1001}).room;
