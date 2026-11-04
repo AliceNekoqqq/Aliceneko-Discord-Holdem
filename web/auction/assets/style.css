@@ -4405,7 +4405,7 @@ body.game-route {
 .match-menu { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
 .match-menu a { padding:12px; }
 body.compact-match { padding:0; overflow-x:hidden; }
-body.compact-match>.site-header,body.compact-match>footer,body.compact-match>.game-statusbar { display:none; }
+body.compact-match>.site-header,body.compact-match>footer,body.compact-match #game-statusbar { display:none; }
 body.compact-match #page-play>.page-heading,
 body.compact-match #page-play>.tutorial-entry,
 body.compact-match #page-play>#account-bar,
@@ -4446,7 +4446,7 @@ body.compact-match .board-frame { width:100%; max-width:100%; }
 }
 body.compact-match .board-item { padding:1px; }
 body.compact-match .board-item>span { font-size:9px; }
-body.compact-match .bid-panel { flex:none; padding:8px; border-radius:12px; }
+body.compact-match .bid-panel { flex:none; padding:8px; border-radius:12px; position:sticky; bottom:env(safe-area-inset-bottom,0px); z-index:12; }
 body.compact-match .bid-panel>.appraiser-card,
 body.compact-match .bid-panel>.auction-stage,
 body.compact-match .bid-panel>.warehouse-intel,
