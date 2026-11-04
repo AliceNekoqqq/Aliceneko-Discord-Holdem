@@ -4119,3 +4119,39 @@ body.game-route {
   .room-match { gap: 20px; }
   .room-match .result-grid { gap: 16px; }
 }
+
+/* Room invitation, connection status and published round bids. */
+.room-sync, .room-invite-actions, .room-fees { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; }
+.room-sync { margin: 12px 0 18px; justify-content: space-between; font-size: 12px; color: #55748e; }
+#room-connection::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; background: #849aaf; }
+#room-connection[data-state="live"]::before { background: #48a88e; }
+#room-connection[data-state="stale"], #room-connection[data-state="offline"] { color: #a45539; }
+#room-connection[data-state="stale"]::before, #room-connection[data-state="offline"]::before { background: #d98b65; }
+.room-invite-actions { margin: 16px 0; }
+.room-invite-actions .button { padding: 10px 16px; }
+.room-fees { color: #58758b; font-size: 12px; margin: 16px 0; padding: 12px 0; border-block: 1px solid #e1ebf3; }
+.room-fees span:first-child { color: #315c7c; font-weight: 700; }
+.room-share-value { width: 100%; padding: 12px; margin-bottom: 16px; box-sizing: border-box; }
+.room-seat { min-width: 0; position: relative; }
+.room-seat-name { overflow-wrap: anywhere; }
+.room-seat-offer { margin-top: 8px; padding-top: 10px; border-top: 1px solid #dce8f2; display: grid; gap: 4px; }
+.room-seat-offer strong { font-size: clamp(16px, 1.8vw, 24px); color: #315c7c; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.room-seat.leading { border-color: #83aac9; box-shadow: 0 3px 15px #638cad18; }
+.room-seat.won { border: 1px solid #d7a14a; background: linear-gradient(145deg, #fffaf0, #fff5dc); box-shadow: 0 4px 20px #c3944324; }
+.room-seat.won em, .room-seat.won .room-seat-offer strong { color: #956a25; }
+.room-seats.opening .room-seat-offer { animation: room-offer-in 320ms ease-out both; }
+.room-seats.opening .room-seat:nth-child(2) .room-seat-offer { animation-delay: 80ms; }
+.room-seats.opening .room-seat:nth-child(3) .room-seat-offer { animation-delay: 160ms; }
+.room-seats.opening .room-seat:nth-child(4) .room-seat-offer { animation-delay: 240ms; }
+@keyframes room-offer-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 700px) {
+  .room-seats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .room-seat { padding: 10px; }
+  .room-seat-name { font-size: 13px; }
+  .room-invite-actions .button { flex: 1; }
+  .room-invite-actions, .room-fees { gap: 8px; }
+  .room-fees span { flex-basis: 100%; }
+  .room-boot input, .room-boot select, .room-role select { min-width: 0; width: 100%; box-sizing: border-box; }
+  .room-bid { scroll-margin-bottom: 70px; }
+}
+@media (prefers-reduced-motion: reduce) { .room-seats.opening .room-seat-offer { animation: none; } }
