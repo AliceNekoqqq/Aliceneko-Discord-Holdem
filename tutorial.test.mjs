@@ -50,3 +50,12 @@ test('practice inventory preserves one piece for the cabinet and escapes display
  for(const a of ['begin','area','role','enter','read-public','read-private'])safe.act(a);safe.act('bid',String(safe.view.budget));safe.act('settlement');safe.act('open');safe.act('reveal');
  const html=tutorialView(safe.view,hostile);assert(html.includes('&lt;script&gt;'));assert(!html.includes('<script>'));assert(!html.includes('style='));
 });
+
+
+test('teaching reveals and cabinet render current manifest image paths rather than obsolete ID suffixes',()=>{
+ const t=opened();
+ for(const x of t.view.items){assert.equal(x.image,meta.items.find(y=>y.id===x.id).image);assert(tutorialView({...t.view,phase:'inventory'},meta).includes(`src="${x.image}"`));}
+ t.act('quiz-inventory');t.act('select-sale',0);t.act('quote-sale');t.act('confirm-sale');t.act('to-display');t.act('select-display',4);t.act('place');
+ const image=t.view.items[4].image;assert(tutorialView(t.view,meta).includes(`src="${image}"`));
+ assert.throws(()=>createAuctionTutorial({...meta,items:meta.items.map(x=>({...x,image:'https://invalid.test/image.png'}))}),/教学图片/);
+});
