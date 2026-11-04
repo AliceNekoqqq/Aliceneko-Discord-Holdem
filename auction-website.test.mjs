@@ -675,6 +675,7 @@ test("served HTML, scripts, styles and original website images have security hea
     "",
     "assets/app.js",
     "assets/reveal-loop.mjs",
+    "assets/reveal-stage.mjs",
     "assets/seat-stage.mjs",
     "assets/opponent-stage.mjs",
     "assets/npc-aji-v1.png",
