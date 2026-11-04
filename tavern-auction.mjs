@@ -9,9 +9,14 @@ import {AUCTION_MAX_ITEMS,AUCTION_REGIONS,regionCatalog,isRegionCatalog,drawAuct
 
 // Legacy constants also bound old controls; new sessions use the tier configuration.
 export const AUCTION_BUDGET=200*AUCTION_RATE,AUCTION_FEE=10*AUCTION_RATE,AUCTION_TTL=30*60_000,AUCTION_READY_TTL=15*60_000;
+// Budgets are pinned just above what a warehouse is actually worth (expected
+// value x 1.41 / 1.63 / 1.79 / 1.97 for 小额/常规/高额/典藏), so the budget is a
+// real constraint instead of a number everyone can ignore. The old formula was
+// budget = 200 * scale and reached 11.6x the goods in 典藏.
+const AUCTION_TIER_BUDGETS={small:4_000_000,standard:7_000_000,high:11_000_000,collection:17_000_000};
 export const AUCTION_TIERS=Object.freeze(Object.fromEntries([
  ['small','小额',0.25],['standard','常规',1],['high','高额',3],['collection','典藏',10]
-].map(([id,name,scale])=>[id,Object.freeze({name,scale,budget:AUCTION_BUDGET*.5*scale,fee:AUCTION_FEE*.1*scale})])));
+].map(([id,name,scale])=>[id,Object.freeze({name,scale,budget:AUCTION_TIER_BUDGETS[id],fee:AUCTION_FEE*.1*scale})])));
 // Historical collection sessions may still have a 200M escrow.
 export const AUCTION_MAX_BUDGET=Math.max(AUCTION_TIERS.collection.budget,2000*AUCTION_RATE);
 export const AUCTION_QUALITIES=Object.freeze(['白','绿','蓝','紫','金','红']);
