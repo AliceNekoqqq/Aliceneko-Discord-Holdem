@@ -34,3 +34,6 @@ viewport启用safe area与支持的Android交互窗口收缩；使用100svh/100d
 用户提供709×1536手机截图：底部Discord状态条覆盖报价输入与封牌。真实HTML中#game-statusbar属于#page-play，casino.29却只隐藏body直属的.game-statusbar，因此紧凑模式仍显示固定栏。修正为紧凑模式唯一ID后代选择器，保留普通模式状态栏；报价面板增加bottom安全区sticky与层级，以在低窗口滚动时优先保留报价操作。
 
 这是CSS层级修复，不改变高度上限、竞拍资金/请求/计时/报价规则。先前教学窄版验收没有覆盖真实单人页状态栏，不能据此宣称手机完整验收。以用户实机图作为失败证据；发布后核对源资产、运行状态并等待手机刷新观察，不操作真人资产。
+
+
+2026-11-05发布完成：PR #127 CI41881271996、main CI/部署41881933677共1214项全部通过（assets120/lantern387/tavern395/chat133/UGC3/Worker176）。合并ed19c8a28227e5f016c96bb117872b1424e45ad1；Cloudflare部署02e9df2c-54dc-4fa3-8b4a-ab809d9f2ddb / 版本0ae7e7d7-db18-4825-bd85-2e3211ae28d2接收100%流量，settings与发布前完全一致。线上health casino.30、ready/Gateway ready均true，聊天运行指纹保持；CSS SHA256 3a1e6f320ec540eaa70ba47ca820bc8735707de5b0f90fc3d6ffded4f87a39e9和index与本地构建完全一致，index已带新CSS版本查询，正常刷新可更新缓存。根因以用户实机图和实际HTML层级核对，修复后的手机截图/触屏键盘尚未复测，没有操作真人资产。
