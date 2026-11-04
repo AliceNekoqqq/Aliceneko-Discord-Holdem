@@ -430,7 +430,7 @@ function setup() {
     )
     .join(
       "",
-    )}</div><label class="theme-select">仓库主题<select id="play-theme">${themeOptions(playTheme)}</select></label><p class="mini-note">主题改变类别权重；预算、入场费和品质概率不变。</p><div id="solo-theme-preview">${themeScene(playTheme,{preview:true})}</div><h3>选择信息能力</h3><div class="ability-options">${Object.entries(
+    )}</div><label class="theme-select">仓库主题<select id="play-theme">${themeOptions(playTheme)}</select></label><p class="mini-note">主题改变类别权重；预算、入场费和品质概率不变。</p><p class="mini-note">预算是整仓报价上限，未用部分结算退回。小额适合初试；高额、典藏需要更多入场本金，藏品总值仍可能高于预算。</p><div id="solo-theme-preview">${themeScene(playTheme,{preview:true})}</div><h3>选择信息能力</h3><div class="ability-options">${Object.entries(
     meta.roles,
   )
     .map(
@@ -808,7 +808,7 @@ function renderRoom() {
     settled = r.status === "settled",
     st = r.started ?? null,
     stage=waiting?null:buildSeatStage({...st,status:r.status,result:r.result,names:seats.map(s=>s.name)}),
-    tier=meta.tiers[r.tier],
+    tier={...meta.tiers[r.tier],...r.terms},
     fees=`<div class="room-fees"><span>${escape(tier.name)}区 · ${escape(meta.themes?.find(t=>t.id===r.themeChoice)?.name||"随机主题")}</span><span>每人入场 ${number(tier.fee)}</span><span>托管预算 ${number(tier.budget)}</span></div>`;
   const head = waiting
     ? `<p class="eyebrow">联机 · 等人中</p><h2>房号 <span class="room-code">${escape(r.code)}</span></h2><p class="room-hint">至少两名真人；还剩 ${4-seats.length} 个位置，开局后空位由 NPC 补齐。</p><div class="room-invite-actions"><button class="button outline" data-room-copy="code">复制房号</button><button class="button outline" data-room-copy="link">复制邀请链接</button></div>${fees}${themeScene(r.themeChoice,{preview:true})}`
@@ -1148,7 +1148,7 @@ document.addEventListener("click", (event) => {
   if (b.hasAttribute("data-room-create")) {
     const tier = $("#room-tier")?.value || "standard",theme=$("#room-theme")?.value||"random";
     perform(async () => {
-      await roomAction("roomCreate", { tier,theme });
+      await roomAction("roomCreate", { tier,theme,expectedBudget:meta.tiers[tier].budget });
     });
     return;
   }
@@ -1176,7 +1176,7 @@ document.addEventListener("click", (event) => {
   }
   if (b.hasAttribute("data-room-start")) {
     perform(async () => {
-      await roomAction("roomStart");
+      await roomAction("roomStart", {expectedBudget:roomState.room.terms?.budget??meta.tiers[roomState.room.tier].budget});
     });
     return;
   }
@@ -1340,6 +1340,7 @@ document.addEventListener("click", (event) => {
         token: game.offerToken,
         role,
         tier: playTier,
+        expectedBudget: meta.tiers[playTier].budget,
         theme: playTheme,
       });
       wallet = (await api(`wallet?guild=${guild}`)).data;

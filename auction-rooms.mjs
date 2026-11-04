@@ -263,6 +263,7 @@ export class AuctionRooms {
         code: room.code,
         status: room.status,
         tier: room.tier,
+        terms:{budget:this.terms(room).budget,fee:this.terms(room).fee},
         themeChoice:state.themeChoice??'random',
         host: room.host_id === p.id,
         you: p.id,
@@ -326,7 +327,7 @@ export class AuctionRooms {
     if(themeChoice!=='random'&&!auctionTheme(themeChoice))throw Error('请选择有效仓库主题。');
     this.releaseFinished(p);
     const code = this.newCode(),
-      state = { themeChoice, id: crypto.randomUUID().replaceAll("-", "").slice(0,16), round: 0, seats: [], startedAt: null };
+      state = { themeChoice, terms:{...AUCTION_TIERS[tier]}, id: crypto.randomUUID().replaceAll("-", "").slice(0,16), round: 0, seats: [], startedAt: null };
     this.sql.exec(
       "INSERT INTO auction_rooms(code,guild_id,host_id,tier,status,created_at,state) VALUES(?,?,?,?,?,?,?)",
       code,
@@ -425,9 +426,12 @@ export class AuctionRooms {
       throw Error("还有人没准备好。");
 
     const tier = room.tier,
-      { scale, budget, fee } = AUCTION_TIERS[tier],
+      { scale, budget, fee } = this.terms(room),
       unit = AUCTION_RATE * scale,
       weights = AUCTION_REGIONS[tier].quality;
+
+    if (p.expectedBudget !== undefined && p.expectedBudget !== budget)
+      throw Error("房间预算与页面显示不一致，请刷新后再开局；尚未扣币。");
 
     // Hold fee + budget first: a player who cannot pay stops the start instead
     // of losing a warehouse they never bid on.
@@ -589,6 +593,14 @@ export class AuctionRooms {
 
   estimate(state, info) {
     return estimateLargeAuction(auctionInfoWithPublic(info,publicAuctionInfo(state)),state.unit,state.tier,state.warehouse,state.catalogVersion);
+  }
+
+  terms(room){
+    if(room.data.terms)return room.data.terms;
+    const tier=AUCTION_TIERS[room.tier];
+    if(room.status!=="waiting"&&Number.isSafeInteger(room.data.budget))return {...tier,budget:room.data.budget,fee:room.data.fee};
+    // Waiting rooms created before casino.28 retain the capital their seats saw.
+    return {...tier,budget:{small:4000000,standard:7000000,high:11000000,collection:17000000}[room.tier]};
   }
 
   npcStyle(state,seat){

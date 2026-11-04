@@ -492,6 +492,7 @@ test("web-started auction can bid on Discord, resume on web, reveal after restar
           token: state.offerToken,
           role: "sophie",
           tier: "small",
+          expectedBudget: 4000000,
         }),
       )
     ).data;
@@ -736,7 +737,7 @@ test("read-only member proofs reduce Discord calls while every mutation still ch
 
 test("room API accepts bound mutations and cached read proofs while rejecting stale or unauthorized room identities",async t=>{
  const e=setup(t),s=await login(e);
- const created=await j(await action(e,s,"roomCreate",{tier:"small"}));
+ const created=await j(await action(e,s,"roomCreate",{tier:"small",expectedBudget:4000000}));
  assert.equal(created.kind,"room");assert.match(created.data.room.id,/^[a-f0-9]{16}$/);
  const roomId=created.data.room.id;
  const proofCalls=()=>e.calls.filter(x=>x.url.includes("/guilds/3/members/1")).length;
@@ -760,16 +761,31 @@ test('selected theme and public clues pass through authenticated web actions whi
  const tavern=[...e.stores.values()][0];
  tavern.storage.transactionSync(()=>tavern.auctionCurrency.adjust('1',50_000_000,'test:themes:fund','test','fund',Date.now()));
  const before=tavern.auctionCurrency.balance('1'),state=await j(await e.request('api/state?guild=3',{cookie:s.cookie}));
- const fields={token:state.data.offerToken,role:'zhou',tier:'small',theme:'arts'};
+ const fields={token:state.data.offerToken,role:'zhou',tier:'small',theme:'arts',expectedBudget:4000000};
  const started=await j(await action(e,s,'auctionStart',fields));
  assert.equal(started.data.session.theme.id,'arts');assert.equal(started.data.session.publicInfo.clues.length,1);
  const held=tavern.auctionCurrency.balance('1');assert.equal(before-held,4_025_000);
  assert.equal((await action(e,s,'auctionStart',{...fields,theme:'invalid'})).status,400);
  assert.equal((await action(e,s,'auctionStart',{...fields,theme:'dining'})).status,400);
  await j(await action(e,s,'auctionStart',fields));assert.equal(tavern.auctionCurrency.balance('1'),held);
- const created=await j(await action(e,s,'roomCreate',{tier:'small',theme:'tech'}));assert.equal(created.data.room.themeChoice,'tech');
+ const created=await j(await action(e,s,'roomCreate',{tier:'small',theme:'tech',expectedBudget:4000000}));assert.equal(created.data.room.themeChoice,'tech');
  await j(await action(e,s,'roomLeave',{roomId:created.data.room.id}));
  const catalog=await j(await e.request('api/catalog?tier=small'));assert.equal(catalog.themes.length,4);
  const item=catalog.items[0];assert.equal(Object.keys(item.chanceByTheme).length,4);
  assert(Math.abs(item.chance.slot-Object.values(item.chanceByTheme).reduce((s,x)=>s+x.slot,0)/4)<1e-12);
+});
+
+
+test('stale web budgets cannot silently increase entry escrow',async t=>{
+ const e=setup(t),s=await login(e);
+ const view=await j(await e.request('api/state?guild=3',{cookie:s.cookie}));
+ const tavern=[...e.stores.values()][0],before=tavern.auctionCurrency.balance('1');
+ for(const expectedBudget of [undefined,7000000]){
+  const result=await action(e,s,'auctionStart',{token:view.data.offerToken,role:'sophie',tier:'standard',...(expectedBudget===undefined?{}:{expectedBudget})});
+  assert.equal(result.status,400);assert.match((await result.json()).error,/刷新页面/);
+  assert.equal((await action(e,s,'roomCreate',{tier:'standard',...(expectedBudget===undefined?{}:{expectedBudget})})).status,400);
+ }
+ assert.equal((await action(e,s,'roomStart',{roomId:'a'.repeat(16)})).status,400);
+ assert.equal(tavern.auctionCurrency.balance('1'),before);
+ assert.equal(tavern.one("SELECT COUNT(*) n FROM tavern_auctions WHERE status='active'").n,0);
 });

@@ -12,11 +12,12 @@ import {AUCTION_MAX_ITEMS,AUCTION_REGIONS,regionCatalog,isRegionCatalog,drawAuct
 
 // Legacy constants also bound old controls; new sessions use the tier configuration.
 export const AUCTION_BUDGET=200*AUCTION_RATE,AUCTION_FEE=10*AUCTION_RATE,AUCTION_TTL=30*60_000,AUCTION_READY_TTL=15*60_000;
-// Budgets are pinned just above what a warehouse is actually worth (expected
-// value x 1.41 / 1.63 / 1.79 / 1.97 for 小额/常规/高额/典藏), so the budget is a
-// real constraint instead of a number everyone can ignore. The old formula was
-// budget = 200 * scale and reached 11.6x the goods in 典藏.
-const AUCTION_TIER_BUDGETS={small:4_000_000,standard:7_000_000,high:11_000_000,collection:17_000_000};
+// Region caps follow the red-warehouse tail, so a public red clue does not
+// routinely force every bidder to the same ceiling. Small stays accessible;
+// standard still fits the unchanged 20M welcome wallet including its fee.
+// Saved matches retain state.budget and their original escrow.
+const AUCTION_BUDGET_REVISION=2;
+const AUCTION_TIER_BUDGETS={small:4_000_000,standard:18_000_000,high:70_000_000,collection:300_000_000};
 export const AUCTION_TIERS=Object.freeze(Object.fromEntries([
  ['small','小额',0.25],['standard','常规',1],['high','高额',3],['collection','典藏',10]
 ].map(([id,name,scale])=>[id,Object.freeze({name,scale,budget:AUCTION_TIER_BUDGETS[id],fee:AUCTION_FEE*.1*scale})])));
@@ -162,8 +163,8 @@ export class TavernAuction {
  }
  ready(p,now){
   let row=this.tavern.one("SELECT * FROM tavern_auctions WHERE user_id=? AND channel=? AND status='ready'",p.id,p.channel);
-  if(row&&row.created_at+AUCTION_READY_TTL<=now){this.sql.exec('DELETE FROM tavern_auctions WHERE token=?',row.token);row=null;}
-  if(!row){row={token:crypto.randomUUID().replaceAll('-','').slice(0,16)};this.sql.exec("INSERT INTO tavern_auctions(token,user_id,channel,status,created_at) VALUES(?,?,?,'ready',?)",row.token,p.id,p.channel,now);}
+  if(row&&(row.created_at+AUCTION_READY_TTL<=now||JSON.parse(row.state||'{}').budgetRevision!==AUCTION_BUDGET_REVISION)){this.sql.exec('DELETE FROM tavern_auctions WHERE token=?',row.token);row=null;}
+  if(!row){row={token:crypto.randomUUID().replaceAll('-','').slice(0,16)};this.sql.exec("INSERT INTO tavern_auctions(token,user_id,channel,status,created_at,state) VALUES(?,?,?,'ready',?,?)",row.token,p.id,p.channel,now,JSON.stringify({budgetRevision:AUCTION_BUDGET_REVISION}));}
   return row.token;
  }
  save(row,state){row.state=JSON.stringify(state);this.sql.exec('UPDATE tavern_auctions SET state=? WHERE token=?',row.state,row.token);}
@@ -209,6 +210,7 @@ export class TavernAuction {
     if(row.status==='active'&&existing.expires<=now)this.forfeit(row,existing,now,'expired');
     answer=this.present(p,row,now,true);return;
    }
+   if(JSON.parse(row.state||'{}').budgetRevision!==AUCTION_BUDGET_REVISION)throw Error('竞拍预算已更新，请重新打开开局窗口；尚未扣币。');
    const active=this.tavern.one("SELECT * FROM tavern_auctions WHERE user_id=? AND status='active'",p.id);
    if(active){if(JSON.parse(active.state).expires<=now)this.forfeit(active,JSON.parse(active.state),now,'expired');else throw Error('你已有一局竞拍，请先恢复或结束该局。');}
    if(row.created_at+AUCTION_READY_TTL<=now)throw Error('开局窗口已过期，请刷新；尚未扣币。');
