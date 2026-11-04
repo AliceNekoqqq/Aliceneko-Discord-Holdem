@@ -700,7 +700,7 @@ function cabinetView() {
     { length: 6 },
     (_, slot) => {
       const u = inventory.cabinet.find((x) => x.display_slot === slot);
-      return `<div class="cabinet-slot"><small>0${slot + 1}</small>${u ? `<button data-item="${u.item.id}" data-cabinet-value="${u.item.value}"><img src="${escape(imageFor(u.item))}" alt="${escape(u.item.name)}"></button><h3>${escape(u.item.name)}</h3><p>${u.item.width * u.item.height}格 · ${money(u.item.value)}</p><button data-remove="${slot}">撤下，放回仓库</button>` : '<div class="cabinet-empty"><span>◇</span>等待一件珍藏</div>'}</div>`;
+      return `<div class="cabinet-slot${u ? ` q${u.item.quality}` : ""}"><small>0${slot + 1}</small>${u ? `<span class="cabinet-quality">${escape(meta.qualities[u.item.quality])}品质</span><button data-item="${u.item.id}" data-cabinet-value="${u.item.value}"><img src="${escape(imageFor(u.item))}" alt="${escape(u.item.name)}"></button><h3>${escape(u.item.name)}</h3><p>${u.item.width * u.item.height}格 · ${money(u.item.value)}</p><button data-remove="${slot}">撤下，放回仓库</button>` : '<div class="cabinet-empty"><span>◇</span>等待一件珍藏</div>'}</div>`;
     },
   ).join(
     "",
