@@ -4530,3 +4530,5 @@ body.compact-match #detail-dialog .seat-margin { display:block; }
 body.compact-match #detail-dialog .seat-row,body.compact-match #detail-dialog .room-seats { grid-template-columns:repeat(2,minmax(0,1fr)); }
 body.compact-match .room-seats { margin:2px 0; }
 body.compact-match .room-seat { gap:2px; }
+
+body.compact-match .match-amounts { flex-wrap:wrap; }
