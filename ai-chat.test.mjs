@@ -672,6 +672,20 @@ test("developer account identity uses an exact local Discord User ID match", asy
   for (const request of requests) assert.doesNotMatch(JSON.stringify(request),new RegExp(ownerId));
 });
 
+test("auction questions retrieve the current warehouse rules without displacing unrelated game help", () => {
+  for (const [question, answer] of [
+    ["仓库盲拍怎么玩？", /\/酒馆 仓库盲拍.*新手教程/],
+    ["常规红仓的出价上限是多少？", /常规1800万／10万/],
+    ["拍卖怎么和朋友联机？", /六位房号或邀请链接/],
+    ["拍中的藏品怎么卖？", /由玩家决定保留、出售或放进六格展示柜/],
+  ]) {
+    const knowledge = getBotKnowledge(question, 1);
+    assert.match(knowledge, /^## 仓库盲拍/);
+    assert.match(knowledge, answer);
+  }
+  assert.doesNotMatch(getBotKnowledge("UNO 的 +2 可以叠 +4 吗？"), /仓库盲拍/);
+});
+
 test("published knowledge document is generated from the Worker knowledge source", async () => {
   const document=await readFile(new URL("./BOT_KNOWLEDGE.md",import.meta.url),"utf8");
   assert.equal(document,BOT_KNOWLEDGE_MARKDOWN);
