@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {board as pokerBoard} from './ui.mjs';
 import {marriageCommand} from './marriage.mjs';
-import {prankPenaltyCommand} from './prank-penalty.mjs';
+import {prankPenaltyCommand,sendPrankPenalty} from './prank-penalty.mjs';
 import { readFile } from 'node:fs/promises';
 import {DatabaseSync} from 'node:sqlite';
 import {TavernService} from './tavern-service.mjs';
@@ -87,24 +87,51 @@ test('health command diagnostics expose only the registered wedding option schem
  }finally{globalThis.fetch=oldFetch;}
 });
 function context(){const map=new Map();const storage={sql:{exec:()=>({one:()=>({ok:1})})},get:async k=>structuredClone(map.get(k)),delete:async k=>map.delete(k),put:async(k,v)=>map.set(k,structuredClone(v)),setAlarm:async v=>map.set('alarm',v),deleteAlarm:async()=>map.delete('alarm')};storage.transaction=async fn=>fn(storage);const tasks=[];return {storage,map,tasks,blockConcurrencyWhile:fn=>fn(),waitUntil:p=>tasks.push(p)};}
-test('signed prank penalties render orange mute and red ban without any network or table operations',async tst=>{
+test('signed prank penalties privately acknowledge and deliver standalone bot cards without table or moderation operations',async tst=>{
  const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);
- const env={DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex'),TABLES:{idFromName(){throw Error('prank must never touch storage');}}};
- const oldFetch=globalThis.fetch;tst.after(()=>globalThis.fetch=oldFetch);globalThis.fetch=()=>{throw Error('prank must never call Discord moderation or any network');};
+ const env={BOT_TOKEN:'test-bot-secret',DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex'),TABLES:{idFromName(){throw Error('prank must never touch storage');}}};
+ const requests=[];let seq=10;
+ const oldFetch=globalThis.fetch;tst.after(()=>globalThis.fetch=oldFetch);globalThis.fetch=async(url,o={})=>{
+  requests.push({url,method:o.method,body:o.body?JSON.parse(o.body):null});
+  if(o.method==='POST'){
+   assert.equal(url,'https://discord.com/api/v10/channels/2/messages');assert.equal(o.headers.Authorization,'Bot test-bot-secret');return Response.json({id:'999'});
+  }
+  assert.equal(o.method,'DELETE');assert.equal(url,'https://discord.com/api/v10/webhooks/123/private-token/messages/@original');assert.equal(o.headers,undefined);return new Response(null,{status:204});
+ };
  const call=async(kind,extra=[])=>{
-  const body=JSON.stringify({id:'10',application_id:'123',type:2,guild_id:'3',channel_id:'2',member:{user:{id:'1'},permissions:'0'},data:{name:prankPenaltyCommand.name,options:[{name:'成员',value:'4'},{name:'类型',value:kind},{name:'时长',value:'2天'},{name:'原因',value:'偷喝店里的酒 @everyone'},...extra],resolved:{users:{'4':{id:'4',avatar:'a_0123456789abcdef0123456789abcdef'}}}}});
+  const id=String(seq++),start=requests.length;
+  const body=JSON.stringify({id,token:'private-token',application_id:'123',type:2,guild_id:'3',channel_id:'2',member:{user:{id:'1'},permissions:'0'},data:{name:prankPenaltyCommand.name,options:[{name:'成员',value:'4'},{name:'类型',value:kind},{name:'时长',value:'2天'},{name:'原因',value:'偷喝店里的酒 @everyone'},...extra],resolved:{users:{'4':{id:'4',avatar:'a_0123456789abcdef0123456789abcdef'}}}}});
   const ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex'),ctx=context();
-  const reply=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);
-  assert.equal(ctx.tasks.length,0);assert.equal(ctx.map.size,0);return reply.json();
+  const response=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx),reply=await response.json();
+  if(reply.type===5){
+   assert.deepEqual(reply,{type:5,data:{flags:64}});assert.equal(ctx.tasks.length,1);await Promise.all(ctx.tasks);
+   const calls=requests.slice(start);assert.equal(calls.length,2);const card=calls[0].body;
+   assert.equal(card.nonce,id);assert.equal(card.enforce_nonce,true);assert.equal(card.message_reference,undefined);assert.equal(card.interaction_metadata,undefined);assert.equal(card.flags,undefined);assert(!JSON.stringify(card).includes('private-token'));assert(!JSON.stringify(card).includes('test-bot-secret'));assert.equal(ctx.map.size,0);
+   return {type:4,data:card};
+  }
+  assert.equal(ctx.tasks.length,0);assert.equal(requests.length,start);return reply;
  };
  const mute=await call('mute',[{name:'警告期限',value:'30天'}]),ban=await call('ban');
- assert.equal(mute.type,4);assert.equal(mute.data.flags,undefined);assert.deepEqual(mute.data.allowed_mentions,{parse:[]});
+ assert.deepEqual(mute.data.allowed_mentions,{parse:[]});
  assert.equal(mute.data.embeds[0].color,0xe67e22);assert.equal(ban.data.embeds[0].color,0xe74c3c);
  assert.equal(mute.data.embeds[0].title,'🔇 禁言处罚');assert.equal(ban.data.embeds[0].title,'⛔ 封禁处罚');
  assert.equal(mute.data.embeds[0].fields.find(f=>f.name==='成员').value,'<@4>');assert.equal(mute.data.embeds[0].fields.find(f=>f.name==='执行人').value,'<@1>');
  assert.equal(mute.data.embeds[0].fields.at(-1).value,'30天');assert.match(mute.data.embeds[0].thumbnail.url,/cdn\.discordapp\.com\/avatars\/4\/a_/);
  assert.match(mute.data.embeds[0].footer.text,/^处罚ID: [a-f0-9]{8}$/);
  assert.equal((await call('unknown')).data.flags,64);assert.equal((await call('mute',[{name:'原因',value:'x'.repeat(1001)}])).data.flags,64);
+});
+test('prank delivery errors stay private and acknowledgement cleanup failure never resends the card',async()=>{
+ const i={id:'123456789',channel_id:'2',token:'private-token'},env={BOT_TOKEN:'secret',DISCORD_APPLICATION_ID:'123'},card={embeds:[{title:'test'}],allowed_mentions:{parse:[]}};
+ for(const status of [403,429,503,'unknown','cleanup']){
+  const calls=[];const result=await sendPrankPenalty(env,i,card,async(url,o)=>{
+   calls.push({url,method:o.method,body:o.body?JSON.parse(o.body):null});
+   if(o.method==='POST'){if(status==='unknown')throw new TypeError('network failure');return status==='cleanup'?Response.json({id:'999'}):new Response(null,{status});}
+   if(o.method==='DELETE')throw new TypeError('cleanup failure');
+   assert.equal(o.method,'PATCH');assert.match(url,/webhooks\/123\/private-token\/messages\/@original$/);assert.deepEqual(JSON.parse(o.body).allowed_mentions,{parse:[]});return Response.json({id:'ack',flags:64});
+  });
+  assert.equal(calls.filter(c=>c.method==='POST').length,1);assert.equal(result,status==='cleanup');assert.equal(calls.at(-1).method,'PATCH');
+  assert.match(calls.at(-1).body.content,status==='cleanup'?/已发送/:status===429?/频繁/:status==='unknown'||status===503?/未确认/:/发送失败/);
+ }
 });
 test('signed Discord flow, private cards, stale click, duplicate, modal, timeout and safe routes',async()=>{
  const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);const env={BOT_TOKEN:'test-secret-not-real',DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex')};
