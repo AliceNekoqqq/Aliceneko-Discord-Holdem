@@ -483,3 +483,14 @@ test('signed /结婚 slash interaction completes publicly with its live PNG hall
  }finally{globalThis.fetch=oldFetch;}
 });
 
+
+
+test('persona-only deployment restarts stale gateway without deleting persistent state',async()=>{
+ const ctx=context();let aborted=false;
+ ctx.abort=()=>{aborted=true;throw Error('restart');};
+ const host=new PokerTable(ctx,{GEMINI_API_BASE_URL:'https://current.invalid/v1',GEMINI_MODEL:'model',GEMINI_PERSONA:'旧称',GEMINI_PERSONA_CONT:'续段'});
+ await ctx.storage.put('saved-history','preserve');
+ const request=new Request('https://internal',{method:'POST',body:JSON.stringify({op:'gatewayEnsure',expectedChatConfig:{baseUrl:'https://current.invalid/v1',model:'model',persona:'红小豆续段'}})});
+ await assert.rejects(host.dispatch(await request.json()),/restart/);assert.equal(aborted,true);
+ assert.equal(await ctx.storage.get('saved-history'),'preserve');
+});
