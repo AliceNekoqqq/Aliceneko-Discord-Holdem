@@ -1,7 +1,7 @@
-import { replyToMention } from "./ai-chat.mjs";
+import { replyToMention, BOT_CHARACTER_NAME } from "./ai-chat.mjs";
 import {MemberWelcome,WELCOME_TARGET} from './member-welcome.mjs';
 
-export const CHAT_PIPELINE_RUNTIME = 'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity1';
+export const CHAT_PIPELINE_RUNTIME = 'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity2-hongxiaodou';
 const GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 const GATEWAY_INTENTS = (1 << 0) | (1 << 9); // GUILDS + GUILD_MESSAGES; message content is only used for direct bot mentions.
 export const gatewayIntentsForFlags = flags => GATEWAY_INTENTS | ((Number(flags)&((1<<18)|(1<<19))) ? 1<<15 : 0) | ((Number(flags)&((1<<14)|(1<<15))) ? 1<<1 : 0);
@@ -28,6 +28,7 @@ export class DiscordGateway {
 
   async ensure() {
     if (!this.env.BOT_TOKEN) return {connected:false,reason:"missing_bot_token",chatRuntime:CHAT_PIPELINE_RUNTIME};
+    await this.ensureBotName().catch(() => {});
     if(this.gatewayIntents===undefined){
       const previous=await this.storage.get('gatewayIntents');
       this.gatewayIntents=previous||GATEWAY_INTENTS;
@@ -57,7 +58,45 @@ export class DiscordGateway {
       ready:this.socket?.readyState === WebSocket.OPEN && Boolean(this.botId),
       messageContentEnabled:Boolean(this.gatewayIntents&(1<<15)),
       memberEventsEnabled:Boolean(this.gatewayIntents&(1<<1)),
-      chatRuntime:CHAT_PIPELINE_RUNTIME};
+      chatRuntime:CHAT_PIPELINE_RUNTIME,botUsername:this.botUsername||null};
+  }
+
+  // One-time character-name migration; keep credentials inside the Worker.
+  async ensureBotName(now=Date.now()) {
+    if(this.botUsername===BOT_CHARACTER_NAME)return;
+    if(this.botNameSync)return this.botNameSync;
+    this.botNameSync=(async()=>{
+      const key='botCharacterNameMigration';
+      const previous=await this.storage.get(key);
+      if(previous?.target===BOT_CHARACTER_NAME&&previous.confirmed){this.botUsername=BOT_CHARACTER_NAME;return;}
+      if(previous?.retryAt>now)return;
+      // Persist the cooldown before I/O so an uncertain response is read back before another write.
+      await this.storage.put(key,{target:BOT_CHARACTER_NAME,confirmed:false,retryAt:now+15*60*1000});
+      const url='https://discord.com/api/v10/users/@me';
+      const headers={Authorization:'Bot '+this.env.BOT_TOKEN,'Content-Type':'application/json'};
+      const current=await fetch(url,{headers,signal:AbortSignal.timeout(4000)});
+      if(!current.ok)return;
+      let user=await current.json();
+      if(!user.bot||(this.env.DISCORD_APPLICATION_ID&&String(user.id)!==String(this.env.DISCORD_APPLICATION_ID)))return;
+      this.botUsername=String(user.username||'');
+      if(user.username!==BOT_CHARACTER_NAME){
+        const updated=await fetch(url,{method:'PATCH',headers,body:JSON.stringify({username:BOT_CHARACTER_NAME}),signal:AbortSignal.timeout(4000)});
+        if(!updated.ok){
+          if(updated.status===429){
+            const data=await updated.json().catch(()=>({}));
+            const retry=Number(data.retry_after||updated.headers.get('Retry-After'));
+            await this.storage.put(key,{target:BOT_CHARACTER_NAME,confirmed:false,retryAt:now+Math.max(15*60*1000,Number.isFinite(retry)?retry*1000:0)});
+          }
+          return;
+        }
+        user=await updated.json();
+      }
+      if(String(user.id)===String(this.env.DISCORD_APPLICATION_ID||user.id)&&user.username===BOT_CHARACTER_NAME){
+        this.botUsername=BOT_CHARACTER_NAME;
+        await this.storage.put(key,{target:BOT_CHARACTER_NAME,confirmed:true,checkedAt:now});
+      }
+    })();
+    try{return await this.botNameSync;}finally{this.botNameSync=null;}
   }
 
   async ensureMemberEvents(app){

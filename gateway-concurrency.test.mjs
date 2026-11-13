@@ -7,7 +7,7 @@ const tick=()=>new Promise(resolve=>setImmediate(resolve));
 test('gateway readiness requires its real open socket and authenticated bot',t=>{
   t.mock.method(globalThis,'WebSocket',class {static OPEN=1;});
   const gateway=new DiscordGateway({env:{},ctx:{storage:{}}});
-  assert.deepEqual(gateway.status(),{connected:false,ready:false,messageContentEnabled:false,memberEventsEnabled:false,chatRuntime:CHAT_PIPELINE_RUNTIME});
+  assert.deepEqual(gateway.status(),{connected:false,ready:false,messageContentEnabled:false,memberEventsEnabled:false,chatRuntime:CHAT_PIPELINE_RUNTIME,botUsername:null});
   gateway.socket={readyState:1};
   assert.equal(gateway.status().ready,false);
   gateway.botId='bot';assert.equal(gateway.status().ready,true);
@@ -215,4 +215,38 @@ test('explicit message-content enable preserves other limited flags and clears t
  g.socket={close(){closed=true;}};
  const r=await g.enableMessageContent();assert.equal(r.enabled,true);assert.equal(closed,true);
  assert.equal(JSON.parse(calls[1].body).flags,(1<<13)|(1<<19));assert.ok(removed.includes('gatewaySession'));
+});
+
+
+test('bot rename changes only its own username once and persists confirmation',async t=>{
+ const records=new Map(),calls=[];
+ t.mock.method(globalThis,'fetch',async(url,opts)=>{calls.push({url,method:opts.method||'GET',body:opts.body});return Response.json({id:'bot',bot:true,username:opts.method==='PATCH'?'红小豆':'红豆粉小酒馆'});});
+ const host={env:{BOT_TOKEN:'test',DISCORD_APPLICATION_ID:'bot'},ctx:{storage:{get:async k=>records.get(k),put:async(k,v)=>records.set(k,v)}}};
+ const gateway=new DiscordGateway(host);
+ await Promise.all([gateway.ensureBotName(1000),gateway.ensureBotName(1000)]);
+ assert.equal(calls.length,2);assert.equal(calls[1].url,'https://discord.com/api/v10/users/@me');
+ assert.deepEqual(JSON.parse(calls[1].body),{username:'红小豆'});
+ await new DiscordGateway(host).ensureBotName(2000);assert.equal(calls.length,2);
+ assert.equal(gateway.botUsername,'红小豆');
+});
+
+test('bot rename does not mutate mismatched identity and reads after an uncertain write',async t=>{
+ const records=new Map(),calls=[];
+ const host={env:{BOT_TOKEN:'test',DISCORD_APPLICATION_ID:'bot'},ctx:{storage:{get:async k=>records.get(k),put:async(k,v)=>records.set(k,v)}}};
+ t.mock.method(globalThis,'fetch',async(url,opts)=>{calls.push(opts.method||'GET');return Response.json({id:'someone-else',bot:true,username:'旧名'});});
+ await new DiscordGateway(host).ensureBotName(1000);assert.deepEqual(calls,['GET']);
+ records.clear();calls.length=0;let renamed=false;
+ t.mock.method(globalThis,'fetch',async(url,opts)=>{calls.push(opts.method||'GET');if(opts.method==='PATCH'){renamed=true;throw Error('timeout');}return Response.json({id:'bot',bot:true,username:renamed?'红小豆':'旧名'});});
+ const gateway=new DiscordGateway(host);await assert.rejects(gateway.ensureBotName(1000));
+ await gateway.ensureBotName(2000);assert.deepEqual(calls,['GET','PATCH']);
+ await gateway.ensureBotName(901001);assert.deepEqual(calls,['GET','PATCH','GET']);
+ assert.equal(records.get('botCharacterNameMigration').confirmed,true);
+});
+
+test('bot rename respects Discord rate limits',async t=>{
+ const records=new Map(),calls=[];
+ t.mock.method(globalThis,'fetch',async(url,opts)=>{calls.push(opts.method||'GET');return opts.method==='PATCH'?Response.json({retry_after:7200},{status:429}):Response.json({id:'bot',bot:true,username:'旧名'});});
+ const gateway=new DiscordGateway({env:{BOT_TOKEN:'test',DISCORD_APPLICATION_ID:'bot'},ctx:{storage:{get:async k=>records.get(k),put:async(k,v)=>records.set(k,v)}}});
+ await gateway.ensureBotName(1000);await gateway.ensureBotName(1000000);
+ assert.deepEqual(calls,['GET','PATCH']);assert.equal(records.get('botCharacterNameMigration').retryAt,7201000);
 });

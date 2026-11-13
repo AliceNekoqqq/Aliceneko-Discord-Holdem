@@ -533,7 +533,7 @@ test("system instruction protects private cards and excludes admin assistance", 
   const prompt = makeSystemInstruction("活泼");
   assert.match(prompt,/私密手牌/);
   assert.match(prompt,/不要充当管理员助手/);
-  assert.match(prompt,/以红豆粉的身份自然聊天/);
+  assert.match(prompt,/以红小豆的身份自然聊天/);
   assert.match(prompt,/活泼/);});
 
 test("ordinary chat has a completion-first short-reply boundary", () => {
@@ -1221,3 +1221,17 @@ test('ordinary @ messages containing marriage words do not trigger the ceremony'
  assert.equal(calls.length,0);
 });
 
+
+
+test('renamed sister stays distinct from developer, shop brand and legacy bot name',()=>{
+ for(const context of ['chat','game','welcome']){
+  const prompt=makeSystemInstruction('旧人设：你在对话中扮演红豆粉。',context,[],'','',{currentSpeaker:{key:'current_user',name:'红豆粉'}});
+  assert.match(prompt,/你叫红小豆/);assert.match(prompt,/红豆粉是你的开发者和姐姐，是另一个人/);
+  assert.match(prompt,/店名保留红豆粉小酒馆/);assert.match(prompt,/只在来源明确为本机器人发言时按旧称理解/);
+  assert.doesNotMatch(prompt,/店主红豆粉|以红豆粉的身份自然聊天/);
+ }
+ const profile=getBotKnowledge('红小豆和红豆粉是什么关系？');
+ assert.match(profile,/妹妹 bot 现在叫红小豆/);assert.match(profile,/姐姐及开发者叫红豆粉/);
+ const npc=makeSystemInstruction('红小豆人设','chat',[],'','',{cityNPC:{name:'沈清禾'}});
+ assert.doesNotMatch(npc,/你叫红小豆/);assert.match(npc,/独立于红小豆/);
+});
