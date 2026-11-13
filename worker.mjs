@@ -12,7 +12,7 @@ import {CityService} from './city-service.mjs';
 import {cityCommand,cityInteraction,finishCity} from './city-ui.mjs';
 import {RedPackets,packetCard,finishRedPacket} from './red-packet.mjs';
 import {marriageCommand,completeMarriageInteraction} from './marriage.mjs';
-import {prankPenaltyCommand,prankPenaltyReply} from './prank-penalty.mjs';
+import {prankPenaltyCommand,prankPenaltyReply,sendPrankPenalty,PRANK_DELIVERY_RUNTIME} from './prank-penalty.mjs';
 import {serveArt} from './tavern-art.mjs';
 import {serveAuctionArt} from './tavern-auction-art.mjs';
 import {servePetArt} from './pet-art.mjs';
@@ -465,7 +465,7 @@ async function handle(request,env,ctx){
         })):[]
       };
       const prank=inventory.definitions?.find(c=>c.name===prankPenaltyCommand.name&&(c.type||1)===1);
-      commands={ok:inventory.ok,status:inventory.status,names:inventory.names,cityPresent:inventory.names.includes('城市'),registration,marriage,prankPenalty:{exists:Boolean(prank),schemaMatches:sameCommand(prankPenaltyCommand,prank)}};
+      commands={ok:inventory.ok,status:inventory.status,names:inventory.names,cityPresent:inventory.names.includes('城市'),registration,marriage,prankPenalty:{exists:Boolean(prank),schemaMatches:sameCommand(prankPenaltyCommand,prank),deliveryRuntime:PRANK_DELIVERY_RUNTIME}};
     }catch{commands={ok:false,cityPresent:false};}
     let ugc;
     if(new URL(request.url).searchParams.get('ugc')==='1')try{const r=await env.TABLES.get(env.TABLES.idFromName('ugc-global-catalog-v1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'ugcCatalogStatus'})});ugc=await r.json();}catch{ugc={unavailable:true};}
@@ -480,7 +480,12 @@ async function handle(request,env,ctx){
   if(i?.type===1)return json({type:1});
   if(i?.application_id!==env.DISCORD_APPLICATION_ID)return new Response('Wrong application',{status:403});
   if(![2,3,5].includes(i.type)||!/^\d+$/.test(i.channel_id||'')||!/^\d+$/.test(i.guild_id||''))return json(privateReply('请在服务器文字频道内使用。'));
-  if(i.type===2&&i.data?.name===prankPenaltyCommand.name)return json(prankPenaltyReply(i));
+  if(i.type===2&&i.data?.name===prankPenaltyCommand.name){
+    const reply=prankPenaltyReply(i);if(reply.data.flags===64)return json(reply);
+    if(!env.BOT_TOKEN||!i.token)return json(privateReply('消息发送暂时不可用，请稍后重试。'));
+    ctx.waitUntil(sendPrankPenalty(env,i,reply.data).catch(error=>console.warn('prank_message_delivery_failed',{reason:error.name})));
+    return json({type:5,data:{flags:64}});
+  }
   if(flowerInteraction(i)||(cityInteraction(i)&&['花店','礼物'].includes(i.data.options?.[0]?.name))){if(!i.member?.user?.id)return json(privateReply('请在服务器内使用。'));ctx.waitUntil(finishFlower(env,i).catch(e=>console.warn('flower_interaction_failed',{reason:e.name})));return json({type:5,data:{flags:64}});}
   if(cityInteraction(i)){ctx.waitUntil(finishCity(env,i).catch(e=>console.warn('city_interaction_failed',{reason:e.name})));return json({type:5,data:{flags:64}});}
   const lobbyRoute=lobbyGameRequest(i);if(lobbyRoute?.error)return json(privateReply(lobbyRoute.error));if(lobbyRoute?.interaction)i=lobbyRoute.interaction;
