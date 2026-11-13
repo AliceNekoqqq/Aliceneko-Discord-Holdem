@@ -77,7 +77,7 @@ test('private view hides scores, removes only own notes, core identity remains e
  const {db}=setup();await add(db,'1',base);await add(db,'other-note',base,'辛苦了今天','support','other');
  const i={guild_id:'g',member:{user:{id:'u'}}};
  const view=await handleRelationshipCommand(db,i,{name:'查看'},null,[{value:'希望被称呼为：小鱼'}]);
- assert.equal(view.data.flags,64);assert.equal(view.data.embeds[0].title,'我与红豆粉');assert(!JSON.stringify(view).includes('goodwill'));assert(!JSON.stringify(view).includes('other-note'));
+ assert.equal(view.data.flags,64);assert.equal(view.data.embeds[0].title,'我与红小豆');assert(!JSON.stringify(view).includes('goodwill'));assert(!JSON.stringify(view).includes('other-note'));
  await handleRelationshipCommand(db,i,{name:'忘记',options:[{name:'编号',value:'other-note'}]},null);
  assert.equal((await readRelationship(db,'g','other')).notes.length,1);
  await handleRelationshipCommand(db,i,{name:'忘记',options:[{name:'编号',value:'1'}]},null);assert.equal((await readRelationship(db,'g','u')).notes.length,0);

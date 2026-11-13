@@ -50,7 +50,7 @@ export class CityService {
  }
  async recordReply({channel,placeId,messageId,user,name,content,now=Date.now()}){
   if(!validId(placeId)||!validId(channel)||!validId(messageId)||!content)return;
-  return this.storage.transaction(async tx=>{const key=`scene:${placeId}:${channel}`,rows=(await tx.get(key)||[]).filter(r=>r.at>now-24*60*60*1000);const id=`bot:${messageId}`;if(rows.some(r=>r.id===id))return;rows.push({id,speakerId:'bot',replyTo:String(user),name:clean(name||'红豆粉',32),content:String(content).slice(0,1000),at:now});await tx.put(key,rows.slice(-16));});
+  return this.storage.transaction(async tx=>{const key=`scene:${placeId}:${channel}`,rows=(await tx.get(key)||[]).filter(r=>r.at>now-24*60*60*1000);const id=`bot:${messageId}`;if(rows.some(r=>r.id===id))return;rows.push({id,speakerId:'bot',replyTo:String(user),name:clean(name||'红小豆',32),content:String(content).slice(0,1000),at:now});await tx.put(key,rows.slice(-16));});
  }
 }
 export async function cityRequest(env,guild,payload){

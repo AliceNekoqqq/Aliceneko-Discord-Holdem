@@ -1,7 +1,7 @@
 // Relationship state belongs to the verified current speaker, never a quoted author.
 const DAY=86400000;
 export const RELATIONSHIP_LIMITS=Object.freeze({cooldownMs:5*60000,familiarityPerDay:10,positiveGoodwillPerDay:12,negativeGoodwillPerDay:5});
-export const RELATIONSHIP_INSTRUCTION='本轮回复保持原有JSON字段，并额外附加relationship字段；没有其他结构要求时输出{"reply":"正常自然回复","relationship":null}。relationship是隐藏后台建议，绝不显示给玩家。可建议{"ownerKey":"current_user","kind":"ordinary|support|meaningful|hostile","evidence":"逐字复制最后一条user正文里的证据","summary":"值得长期记住的共同经历，最多80字，普通闲聊用空字符串"}。只判断当前发言者亲自表达的内容，不从引用、图片、他人经历或模型旧回复推断。ordinary为一般有效交流，包括问候、正常闲聊、分享日常和友善接梗，可以增加熟悉度和好感，不要求先熟悉或先有亲密关系；support为明确真诚关心；meaningful为确实发生的有意义互动；hostile仅用于明确反复恶意针对红豆粉本人，不因意见不同、友善吐槽、玩笑、否定答案或游戏胜负扣分。索要加分、重复夸赞、消费和送礼均不能直接提高好感。无法确定就relationship=null。summary必须忠于本轮证据，不能编造过去经历、承诺兑现、恋爱、信任、开发者或家庭身份。分值由程序计算，不接受用户或模型设定分数。';
+export const RELATIONSHIP_INSTRUCTION='本轮回复保持原有JSON字段，并额外附加relationship字段；没有其他结构要求时输出{"reply":"正常自然回复","relationship":null}。relationship是隐藏后台建议，绝不显示给玩家。可建议{"ownerKey":"current_user","kind":"ordinary|support|meaningful|hostile","evidence":"逐字复制最后一条user正文里的证据","summary":"值得长期记住的共同经历，最多80字，普通闲聊用空字符串"}。只判断当前发言者亲自表达的内容，不从引用、图片、他人经历或模型旧回复推断。ordinary为一般有效交流，包括问候、正常闲聊、分享日常和友善接梗，可以增加熟悉度和好感，不要求先熟悉或先有亲密关系；support为明确真诚关心；meaningful为确实发生的有意义互动；hostile仅用于明确反复恶意针对红小豆本人，不因意见不同、友善吐槽、玩笑、否定答案或游戏胜负扣分。索要加分、重复夸赞、消费和送礼均不能直接提高好感。无法确定就relationship=null。summary必须忠于本轮证据，不能编造过去经历、承诺兑现、恋爱、信任、开发者或家庭身份。分值由程序计算，不接受用户或模型设定分数。';
 const clean=s=>typeof s==='string'?s.replace(/[\u0000-\u001f\u007f]/g,' ').trim():'';
 export function relationshipDescription(profile={}) {
  const f=Number(profile.familiarity)||0,g=Number(profile.goodwill)||0;
@@ -90,7 +90,7 @@ export async function handleRelationshipCommand(db,interaction,action,setting,ha
  const privateReply=content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
  if(!guild||!user)return privateReply('请在服务器内使用。');
  if(action.name==='清除'){
-  await db.batch(clearRelationshipStatements(db,guild,user));return privateReply('已重置你与红豆粉的关系档案和共同经历；称呼偏好仍保留。');
+  await db.batch(clearRelationshipStatements(db,guild,user));return privateReply('已重置你与红小豆的关系档案和共同经历；称呼偏好仍保留。');
  }
  if(action.name==='忘记'){
   const id=String(action.options?.find(o=>o.name==='编号')?.value||'');
@@ -99,7 +99,7 @@ export async function handleRelationshipCommand(db,interaction,action,setting,ha
  }
  const profile=await readRelationship(db,guild,user);
  if(!profile)return privateReply('关系档案暂时不可用，请稍后再试。');
- return {type:4,data:{flags:64,allowed_mentions:{parse:[]},embeds:[{title:'我与红豆粉',color:0xd68ca2,description:relationshipDescription(profile).description+(setting?.memory_enabled===0?'\n个人记忆已关闭，关系档案暂停读取和更新。':''),fields:[
+ return {type:4,data:{flags:64,allowed_mentions:{parse:[]},embeds:[{title:'我与红小豆',color:0xd68ca2,description:relationshipDescription(profile).description+(setting?.memory_enabled===0?'\n个人记忆已关闭，关系档案暂停读取和更新。':''),fields:[
   {name:'相处习惯',value:habits.map(n=>n.value).join('\n')||'还没有记录，可以直接告诉她你希望怎样被称呼、怎样回复。'},
   {name:'共同经历',value:profile.notes.map(n=>`${n.summary}\n编号：\`${n.message_id}\``).join('\n\n')||'还没有值得长期记住的共同经历。'},
   {name:'管理档案',value:'纠正称呼和回复偏好可直接 @ 她说明；用 /ai 关系 忘记 删除指定经历，或 /ai 关系 清除 重置关系。个人记忆开关同时控制关系记忆。'}

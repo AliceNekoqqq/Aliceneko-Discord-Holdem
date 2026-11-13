@@ -57,7 +57,7 @@ export async function cityData(env,i){
   return answer(`已登记：**${p.street} · ${p.name}**\n类型：${kinds[p.kind]}\n${p.description||'可以再次使用绑定命令补充地点描述。'}\n玩家可用 /城市 地点 或 /城市 进入 开始场景。${p.kind==='flower'?'\n使用 /城市 面板 发布花店常驻面板。':''}${panelWarning}`);
  }
  if(action==='解绑'){if(opts['确认']!==true)throw Error('未移除，请将确认选项设为是。');await cityRequest(env,guild,{action:'unbind',channel});await cityRequest(env,guild,{action:'clear',placeId:channel});return answer('已移除当前频道的地点登记。');}
- if(action==='离开'){await cityRequest(env,guild,{action:'leave',user});return answer('你已离开当前角色场景。再次在已登记地点 @红豆粉或使用 /城市 进入，可以继续。');}
+ if(action==='离开'){await cityRequest(env,guild,{action:'leave',user});return answer('你已离开当前角色场景。再次在已登记地点 @红小豆或使用 /城市 进入，可以继续。');}
  const config=await cityRequest(env,guild,{action:'config'});
  if(action==='地图'){
   const visible=await visiblePlaces(env,i,Object.values(config.places));if(!visible.length)return answer('目前没有你可以访问的已登记地点。管理员可在地点频道使用 /城市 绑定。');
@@ -78,7 +78,7 @@ export async function cityData(env,i){
  const resolved=await resolveCityChannel(env,guild,target),place=config.places[resolved.channel]||config.places[resolved.parent];if(!place)return answer('这个频道尚未登记为城市地点。管理员可以使用 /城市 绑定。');
  let giftHint='';
  if(action==='进入'){await cityRequest(env,guild,{action:'context',...resolved,user});try{const gifts=await tavernRequest(env,{guild,id:user,action:'flowerInbox'});if(gifts?.waiting?.length)giftHint='\n你有待领的花束礼物，使用 /城市 礼物 查看。';}catch{}}
- return answer(`**${place.street} · ${place.name}**\n${place.description||'此地点暂未填写场景描述。'}\n${resolved.thread?'当前子区是该地点内的独立场景。\n':''}${action==='进入'?'已更新你的角色位置。\n':''}${giftHint}地点：<#${place.channelId}>\n在这里 @红豆粉时，会使用当前地点的背景；花店类型已支持花束与店员；其他店铺类型暂未开通商品。`);
+ return answer(`**${place.street} · ${place.name}**\n${place.description||'此地点暂未填写场景描述。'}\n${resolved.thread?'当前子区是该地点内的独立场景。\n':''}${action==='进入'?'已更新你的角色位置。\n':''}${giftHint}地点：<#${place.channelId}>\n在这里 @红小豆时，会使用当前地点的背景；花店类型已支持花束与店员；其他店铺类型暂未开通商品。`);
 }
 export async function finishCity(env,i){
  let data;try{data=await cityData(env,i);}catch(e){data=answer(e.message||'城市功能暂时不可用，请重试。');}
