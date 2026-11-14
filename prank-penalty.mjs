@@ -1,5 +1,6 @@
 // Entertainment-only card builder. Delivery sends messages, never moderation.
-export const PRANK_DELIVERY_RUNTIME='prank2-standalone-bot-message';
+export const PRANK_DELIVERY_RUNTIME='prank3-fixed-channel-jump';
+export const PRANK_DESTINATION=Object.freeze({guildId:'1554411807978819615',channelId:'1570735023290581135'});
 export const prankPenaltyCommand={
  name:'整蛊处罚',description:'发送玩笑处罚通知卡片，仅发消息，不执行实际处罚',type:1,integration_types:[0],contexts:[0],
  options:[
@@ -34,21 +35,26 @@ export function prankPenaltyReply(i){
  const thumbnail=avatar.test(member?.avatar||'')?`https://cdn.discordapp.com/guilds/${i.guild_id}/users/${target}/avatars/${member.avatar}.png?size=256`:avatar.test(user?.avatar||'')?`https://cdn.discordapp.com/avatars/${target}/${user.avatar}.png?size=256`:`https://cdn.discordapp.com/embed/avatars/${defaultAvatar}.png`;
  return {type:4,data:{allowed_mentions:{parse:[]},embeds:[{...style,fields,thumbnail:{url:thumbnail},footer:{text:`处罚ID: ${crypto.randomUUID().slice(0,8)}`}}]}};
 }
-// A channel message has no slash-command attribution. The acknowledgement stays
-// ephemeral, and is removed after delivery; only private errors remain visible.
+// Post to the fixed destination without slash attribution, then keep a private
+// jump link in the invoking channel. Never fall back to posting in that channel.
 export async function sendPrankPenalty(env,i,card,fetcher=fetch){
  const original=`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${encodeURIComponent(i.token)}/messages/@original`;
- const privateNotice=content=>fetcher(original,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,embeds:[],allowed_mentions:{parse:[]}}),signal:AbortSignal.timeout(6000)});
+ const destination=`https://discord.com/channels/${PRANK_DESTINATION.guildId}/${PRANK_DESTINATION.channelId}`;
+ const privateNotice=async(content,url)=>{
+  const result=await fetcher(original,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,embeds:[],components:url?[{type:1,components:[{type:2,style:5,label:'跳转查看消息',url}]}]:[],allowed_mentions:{parse:[]}}),signal:AbortSignal.timeout(6000)});
+  if(!result.ok)throw Error('PrankNoticeFailed');
+ };
  let delivered;
  try{
-  delivered=await fetcher(`https://discord.com/api/v10/channels/${i.channel_id}/messages`,{method:'POST',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({...card,nonce:i.id,enforce_nonce:true}),signal:AbortSignal.timeout(6000)});
+  delivered=await fetcher(`https://discord.com/api/v10/channels/${PRANK_DESTINATION.channelId}/messages`,{method:'POST',headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({...card,nonce:i.id,enforce_nonce:true}),signal:AbortSignal.timeout(6000)});
  }catch{
-  await privateNotice('发送结果未确认，请先查看频道，避免重复发送。');return false;
+  await privateNotice('发送结果未确认，请先查看目标频道，避免重复发送。',destination);return false;
  }
  if(!delivered.ok){
-  await privateNotice(delivered.status===429?'发送过于频繁，请稍后重试。':delivered.status>=500?'发送结果未确认，请先查看频道，避免重复发送。':'发送失败，请确认Bot有发送消息和嵌入链接权限后重试。');return false;
+  await privateNotice(delivered.status===429?'发送过于频繁，请稍后重试。':delivered.status>=500?'发送结果未确认，请先查看目标频道，避免重复发送。':'发送失败，请确认Bot在目标频道有查看频道、发送消息和嵌入链接权限后重试。',delivered.status>=500?destination:undefined);return false;
  }
- // Cleanup failure must never cause the public card to be sent again.
- try{const removed=await fetcher(original,{method:'DELETE',signal:AbortSignal.timeout(6000)});if(removed.ok||removed.status===404)return true;}catch{}
- await privateNotice('已发送。');return true;
+ // A missing response ID or notice failure must never resend the public card.
+ let message;try{message=await delivered.json();}catch{}
+ const jump=typeof message?.id==='string'&&idPattern.test(message.id)?`${destination}/${message.id}`:destination;
+ await privateNotice('已发送到指定频道，点击下方按钮查看。',jump);return true;
 }
