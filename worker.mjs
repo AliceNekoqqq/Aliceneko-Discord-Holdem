@@ -12,7 +12,7 @@ import {CityService} from './city-service.mjs';
 import {cityCommand,cityInteraction,finishCity} from './city-ui.mjs';
 import {RedPackets,packetCard,finishRedPacket} from './red-packet.mjs';
 import {marriageCommand,completeMarriageInteraction} from './marriage.mjs';
-import {prankPenaltyCommand,prankPenaltyReply,sendPrankPenalty,PRANK_DELIVERY_RUNTIME} from './prank-penalty.mjs';
+import {prankPenaltyCommand,prankPenaltyReply,sendPrankPenalty,PRANK_DELIVERY_RUNTIME,PRANK_DESTINATION} from './prank-penalty.mjs';
 import {serveArt} from './tavern-art.mjs';
 import {serveAuctionArt} from './tavern-auction-art.mjs';
 import {servePetArt} from './pet-art.mjs';
@@ -465,7 +465,7 @@ async function handle(request,env,ctx){
         })):[]
       };
       const prank=inventory.definitions?.find(c=>c.name===prankPenaltyCommand.name&&(c.type||1)===1);
-      commands={ok:inventory.ok,status:inventory.status,names:inventory.names,cityPresent:inventory.names.includes('城市'),registration,marriage,prankPenalty:{exists:Boolean(prank),schemaMatches:sameCommand(prankPenaltyCommand,prank),deliveryRuntime:PRANK_DELIVERY_RUNTIME}};
+      commands={ok:inventory.ok,status:inventory.status,names:inventory.names,cityPresent:inventory.names.includes('城市'),registration,marriage,prankPenalty:{exists:Boolean(prank),schemaMatches:sameCommand(prankPenaltyCommand,prank),deliveryRuntime:PRANK_DELIVERY_RUNTIME,destination:PRANK_DESTINATION}};
     }catch{commands={ok:false,cityPresent:false};}
     let ugc;
     if(new URL(request.url).searchParams.get('ugc')==='1')try{const r=await env.TABLES.get(env.TABLES.idFromName('ugc-global-catalog-v1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'ugcCatalogStatus'})});ugc=await r.json();}catch{ugc={unavailable:true};}
