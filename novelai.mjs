@@ -123,10 +123,11 @@ export class NovelAIService{
  constructor(host,fetcher=fetch,now=()=>Date.now()){this.host=host;this.storage=host.ctx.storage;this.env=host.env;this.fetcher=(...args)=>fetcher(...args);this.now=now;}
  async state(){
   const s=await this.storage.get('novelaiState');
-  if(!s)return {defaults:{...IMAGE_DEFAULTS},defaultsRevision:4,queue:[],recent:[],notBefore:0,inflight:null};
+  if(!s)return {defaults:{...IMAGE_DEFAULTS},defaultsRevision:5,queue:[],recent:[],notBefore:0,inflight:null};
   if((s.defaultsRevision||1)<2){s.defaults.cfg_rescale=0.15;s.defaultsRevision=2;await this.storage.put('novelaiState',s);}
   if(s.defaultsRevision<3){s.defaults={...s.defaults,prompt_prefix:DEFAULT_POSITIVE_PREFIX,prompt_suffix:DEFAULT_POSITIVE_SUFFIX,negative_prompt:DEFAULT_NEGATIVE_PROMPT,quality:false};s.defaultsRevision=3;await this.storage.put('novelaiState',s);}
   if(s.defaultsRevision<4){s.defaults.enabled=true;s.defaultsRevision=4;await this.storage.put('novelaiState',s);}
+  if(s.defaultsRevision<5){s.defaults={...s.defaults,prompt_prefix:DEFAULT_POSITIVE_PREFIX,prompt_suffix:DEFAULT_POSITIVE_SUFFIX,negative_prompt:DEFAULT_NEGATIVE_PROMPT};s.defaultsRevision=5;await this.storage.put('novelaiState',s);}
   return s;
  }
  async save(s){await this.storage.put('novelaiState',s);if(s.inflight)await this.storage.setAlarm(s.inflight.expires);else if(s.queue.length)await this.storage.setAlarm(Math.max(this.now()+1,s.notBefore));else await this.storage.deleteAlarm();}

@@ -65,7 +65,7 @@ test('persisted global templates migrate once, preserving personal templates, re
  const f=fixture();await f.enable();await f.request();
  const before=f.map.get('novelaiState');before.defaultsRevision=2;before.defaults.prompt_prefix='old';before.defaults.prompt_suffix='old suffix';before.defaults.negative_prompt='old negative';before.defaults.cfg_rescale=0.25;f.map.set('novelaiState',before);f.map.set('imagePreferences:10',{prompt_prefix:'mine'});
  const frozen=structuredClone(before.queue[0].request),s=await f.service.state();
- assert.equal(s.defaults.prompt_prefix,DEFAULT_POSITIVE_PREFIX);assert.equal(s.defaults.prompt_suffix,DEFAULT_POSITIVE_SUFFIX);assert.equal(s.defaults.negative_prompt,DEFAULT_NEGATIVE_PROMPT);assert.equal(s.defaults.cfg_rescale,0.25);assert.equal(s.defaultsRevision,4);assert.deepEqual(s.queue[0].request,frozen);assert.equal(f.map.get('imagePreferences:10').prompt_prefix,'mine');
+ assert.equal(s.defaults.prompt_prefix,DEFAULT_POSITIVE_PREFIX);assert.equal(s.defaults.prompt_suffix,DEFAULT_POSITIVE_SUFFIX);assert.equal(s.defaults.negative_prompt,DEFAULT_NEGATIVE_PROMPT);assert.equal(s.defaults.cfg_rescale,0.25);assert.equal(s.defaultsRevision,5);assert.deepEqual(s.queue[0].request,frozen);assert.equal(f.map.get('imagePreferences:10').prompt_prefix,'mine');
  await f.service.dispatch({action:'默认',admin:true,params:{prompt_prefix:'new custom'}});assert.equal((await f.service.state()).defaults.prompt_prefix,'new custom');
 });
 test('tool evidence is restricted to the current request and explicit numeric overrides',()=>{
@@ -99,8 +99,22 @@ test('new default and persisted defaults migrate to rescale .15 exactly once wit
 });
 test('approved opening migrates once and later developer closure stays closed',async()=>{
  const f=fixture(),s=await f.service.state();s.defaultsRevision=3;s.defaults.enabled=false;f.map.set('novelaiState',s);
- assert.equal((await f.service.dispatch({action:'status'})).enabled,true);assert.equal(f.map.get('novelaiState').defaultsRevision,4);
+ assert.equal((await f.service.dispatch({action:'status'})).enabled,true);assert.equal(f.map.get('novelaiState').defaultsRevision,5);
  await f.service.dispatch({action:'默认',admin:true,params:{enabled:false}});assert.equal((await f.service.dispatch({action:'status'})).enabled,false);
+});
+test('revision 5 replaces only persisted default prompt sections, preserving other settings, personal overrides and queued requests',async()=>{
+ const f=fixture();await f.enable();await f.request();
+ const s=f.map.get('novelaiState');s.defaultsRevision=4;
+ Object.assign(s.defaults,{prompt_prefix:'old prefix',prompt_suffix:'old suffix',negative_prompt:'old negative',cfg_rescale:0.28,steps:31,enabled:false});
+ const frozen=structuredClone(s.queue[0].request);f.map.set('novelaiState',s);
+ f.map.set('imagePreferences:10',{prompt_prefix:'personal override'});
+ const migrated=await f.service.state();
+ assert.equal(migrated.defaultsRevision,5);
+ for(const [key,expected] of Object.entries({prompt_prefix:DEFAULT_POSITIVE_PREFIX,prompt_suffix:DEFAULT_POSITIVE_SUFFIX,negative_prompt:DEFAULT_NEGATIVE_PROMPT}))assert.equal(migrated.defaults[key],expected);
+ assert.equal(migrated.defaults.cfg_rescale,0.28);assert.equal(migrated.defaults.steps,31);assert.equal(migrated.defaults.enabled,false);
+ assert.deepEqual(migrated.queue[0].request,frozen);assert.deepEqual(f.map.get('imagePreferences:10'),{prompt_prefix:'personal override'});
+ await f.service.dispatch({action:'默认',admin:true,params:{prompt_prefix:'subsequent admin choice'}});
+ assert.equal((await f.service.state()).defaults.prompt_prefix,'subsequent admin choice');
 });
 test('developer can close generation and trial ignores personal preferences',async()=>{
  const f=fixture();await f.service.dispatch({action:'默认',admin:true,params:{enabled:false}});assert.equal((await f.request()).accepted,false);assert.equal(f.calls.length,0);
