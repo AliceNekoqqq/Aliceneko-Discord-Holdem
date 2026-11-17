@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {board as pokerBoard} from './ui.mjs';
 import {marriageCommand} from './marriage.mjs';
 import {prankPenaltyCommand,sendPrankPenalty} from './prank-penalty.mjs';
+import {NovelAIService,NOVELAI_OBJECT} from './novelai.mjs';
 import { readFile } from 'node:fs/promises';
 import {DatabaseSync} from 'node:sqlite';
 import {TavernService} from './tavern-service.mjs';
@@ -12,6 +13,22 @@ const source=(await readFile(new URL('./worker.mjs',import.meta.url),'utf8')).re
 const preparedSource=source.replaceAll("'./uno-engine.mjs'",JSON.stringify(new URL('./uno-engine.mjs',import.meta.url).href)).replaceAll("'./board-sync.mjs'",JSON.stringify(new URL('./board-sync.mjs',import.meta.url).href)).replaceAll("'./uno-controller.mjs'",JSON.stringify(new URL('./uno-controller.mjs',import.meta.url).href)).replaceAll("'./uno-ui.mjs'",JSON.stringify(new URL('./uno-ui.mjs',import.meta.url).href));
 const {default:worker,PokerTable}=await import('data:text/javascript;base64,'+Buffer.from(preparedSource.replace(/from '(\.\/[^']+)'/g,(_,p)=>`from ${JSON.stringify(new URL(p,import.meta.url).href)}`)).toString('base64'));
 const pokerState=t=>{const copy=structuredClone(t);delete copy.ownerSeenAt;delete copy.takeoverNoticeFor;return copy;};
+test('signed image preferences command, private buttons and native modal submissions bypass game routing',async()=>{
+ const keys=await crypto.subtle.generateKey({name:'Ed25519'},true,['sign','verify']);
+ const publicKey=Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex'),ctx=context(),rpc=[];
+ const env={DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:publicKey},service=new NovelAIService({ctx,env});
+ env.TABLES={idFromName:n=>n,get:n=>{assert.equal(n,NOVELAI_OBJECT);return {async fetch(url,o){const p=JSON.parse(o.body);rpc.push(p);return Response.json(await service.dispatch(p));}};}};
+ let serial=100;
+ const send=async extra=>{const i={id:String(++serial),application_id:'123',guild_id:'3',channel_id:'2',member:{user:{id:'1'}},...extra},body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),signature=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');const response=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':signature,'X-Signature-Timestamp':ts}}),env,context());return response.json();};
+ const opened=await send({type:2,data:{name:'ai',options:[{name:'生图',options:[{name:'偏好'}]}]}});assert.equal(opened.type,4);assert.equal(opened.data.flags,64);assert.equal(opened.data.components.length,4);
+ const modal=await send({type:3,message:{flags:64},data:{custom_id:'nip:3:1:basic'}});assert.equal(modal.type,9);assert.equal(modal.data.components.length,5);
+ const values={width:'640',height:'640',steps:'',scale:'',n_samples:''};
+ const saved=await send({type:5,message:{flags:64},data:{custom_id:'nip:3:1:save_basic',components:Object.entries(values).map(([custom_id,value])=>({type:18,component:{type:4,custom_id,value}}))}});assert.equal(saved.type,7);assert.deepEqual(ctx.map.get('imagePreferences:1'),{width:640,height:640});
+ const before=rpc.length;
+ const foreign=await send({type:3,member:{user:{id:'2'}},message:{flags:64},data:{custom_id:'nip:3:1:reset_confirm'}});assert.equal(foreign.data.flags,64);assert.equal(rpc.length,before);
+ const publicClick=await send({type:3,message:{flags:0},data:{custom_id:'nip:3:1:reset_confirm'}});assert.equal(publicClick.data.flags,64);assert.equal(rpc.length,before);
+ assert(!ctx.map.has('table'));assert(rpc.every(p=>!['绘制','试画','默认'].includes(p.action)));
+});
 test('NovelAI dedicated object persists preferences and alarms without creating a game table',async t=>{
  const ctx=context(),env={BOT_TOKEN:'fake',NOVELAI_API_KEY:'never-leak'},host=new PokerTable(ctx,env);
  const call=async p=>(await host.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'novelai',...p})}))).json();

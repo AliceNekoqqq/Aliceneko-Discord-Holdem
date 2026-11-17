@@ -1,4 +1,4 @@
-import {NovelAIService,imageRpc} from './novelai.mjs';
+import {NovelAIService,imageRpc,imagePreferencesInteraction,handleImagePreferencesInteraction} from './novelai.mjs';
 import {handleAuctionWebsite,AuctionWebAuth} from './auction-website.mjs';
 import {UGCSharedCatalog,syncSharedUgc} from './tavern-ugc-sharing.mjs';
 import {DuelRouletteController,matches as duelRouletteInteraction} from './duel-roulette-controller.mjs';
@@ -55,7 +55,7 @@ import { BoardSync } from './board-sync.mjs';
 import { PrivatePanels } from './private-panels.mjs';
 import { initializeLifecycle, nextLifecycleAlarm, automaticCloseReason, idleWarning, takeoverAt, canTakeover, touchOwner, effectiveHumanAction } from './lifecycle.mjs';
 import { board, quickRaises, confirmation, handPanel, management, panelAction, button, row } from './ui.mjs';
-const COMMAND_VERSION='games-city2-flower-panel-duel-roulette-marriage2-casino3-identity2-prank1-novelai2-prompts';
+const COMMAND_VERSION='games-city2-flower-panel-duel-roulette-marriage2-casino3-identity2-prank1-novelai3-preferences';
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。点「准备下一手」，所有参与真人准备后 5 秒自动发牌；人员变化会取消全部准备。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；连续 2 次超时会在本手结束后暂离，保留筹码；在牌桌管理恢复参与。全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码；游玩中可预约本手结束后离桌，并随时取消。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。\n未发牌空闲 5 分钟、结算后空闲 10 分钟自动关桌，提前 1 分钟提醒；刷新和查看手牌不延长计时。\n游玩中 10 分钟无人有效操作且仍可行动真人均已超时时，取消本手并退回下注。\n等待发牌或结算时，桌主 2 分钟未交互，其他已入座真人可接管。只供娱乐，无充值或兑换。';
@@ -487,6 +487,7 @@ async function handle(request,env,ctx){
   if(i?.type===1)return json({type:1});
   if(i?.application_id!==env.DISCORD_APPLICATION_ID)return new Response('Wrong application',{status:403});
   if(![2,3,5].includes(i.type)||!/^\d+$/.test(i.channel_id||'')||!/^\d+$/.test(i.guild_id||''))return json(privateReply('请在服务器文字频道内使用。'));
+  if(imagePreferencesInteraction(i))return json(await handleImagePreferencesInteraction(env,i));
   if(i.type===2&&i.data?.name===prankPenaltyCommand.name){
     const reply=prankPenaltyReply(i);if(reply.data.flags===64)return json(reply);
     if(!env.BOT_TOKEN||!i.token)return json(privateReply('消息发送暂时不可用，请稍后重试。'));

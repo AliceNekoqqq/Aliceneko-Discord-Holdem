@@ -55,7 +55,7 @@ test('personal templates replace each selected section while missing fields inhe
 });
 test('all three template controls and private full-text viewing support the supplied negative prompt over 1000 characters',()=>{
  assert(DEFAULT_NEGATIVE_PROMPT.length>1000);assert.equal(imageParameters({negative_prompt:DEFAULT_NEGATIVE_PROMPT}).negative_prompt,DEFAULT_NEGATIVE_PROMPT);
- const names=imageCommandGroup.options.find(x=>x.name==='偏好').options.map(x=>x.name);
+ const names=imageCommandGroup.options.find(x=>x.name==='默认').options.map(x=>x.name);
  for(const name of ['前置正面','后置正面','负面提示'])assert(names.includes(name));assert(!names.includes('质量词'));
  const result={defaults:IMAGE_DEFAULTS,preferences:{prompt_prefix:'custom'},queued:0};
  const r=imageSettingsReply(result,{范围:'defaults',提示词:'negative_prompt'});assert.equal(r.data.flags,64);assert.equal(r.data.embeds[0].description,'```\n'+DEFAULT_NEGATIVE_PROMPT+'\n```');assert(r.data.embeds[0].description.length<4096);

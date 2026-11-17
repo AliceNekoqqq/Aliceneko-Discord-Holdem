@@ -1,5 +1,7 @@
 // One dedicated PokerTable object owns the account-wide queue, across all guilds.
 import {DEFAULT_POSITIVE_PREFIX,DEFAULT_POSITIVE_SUFFIX,DEFAULT_NEGATIVE_PROMPT} from './novelai-default-prompts.mjs';
+import {openImagePreferences,handleImagePreferences} from './novelai-preferences-ui.mjs';
+export {imagePreferencesInteraction} from './novelai-preferences-ui.mjs';
 export const NOVELAI_OBJECT='system-novelai-images-v1';
 export const BATCH_INTERVAL=35000;
 const LEASE=150000;
@@ -84,7 +86,7 @@ const settingOptions=[
 const directOptions={模型:'model',步数:'steps',引导强度:'scale',数量:'n_samples',采样器:'sampler',种子:'seed',前置正面:'prompt_prefix',后置正面:'prompt_suffix',负面提示:'negative_prompt',风格前缀:'prompt_prefix',反向提示:'negative_prompt',质量词:'quality',开放:'enabled'};
 export const imageCommandGroup={type:2,name:'生图',description:'NovelAI 生图与个人偏好',options:[
  {type:1,name:'查看',description:'私密查看参数、队列或完整提示词',options:[{type:3,name:'范围',description:'选择默认、个人覆盖或当前生效配置',choices:[{name:'当前生效',value:'effective'},{name:'默认参数',value:'defaults'},{name:'个人覆盖',value:'preferences'}]},{type:3,name:'提示词',description:'选择一栏查看完整内容',choices:[{name:'前置正面',value:'prompt_prefix'},{name:'后置正面',value:'prompt_suffix'},{name:'负面提示',value:'negative_prompt'}]}]},
- {type:1,name:'偏好',description:'保存个人生图偏好，所有服务器共用',options:settingOptions},
+ {type:1,name:'偏好',description:'打开独立私密面板，填写我的生图参数和提示词'},
  {type:1,name:'重置',description:'清除我的生图偏好，重新跟随默认值'},
  {type:1,name:'绘制',description:'使用默认参数或个人偏好生成图片',options:[{type:3,name:'描述',description:'画面提示词（建议英文，也可在聊天中请红小豆整理）',required:true,max_length:4000},...settingOptions]},
  {type:1,name:'默认',description:'开发者调整全局默认参数和开放开关',options:[{type:5,name:'开放',description:'是否接受玩家生图请求'},...settingOptions]},
@@ -95,6 +97,7 @@ export async function handleImageCommand(env,i,action){
   const user=String(i.member?.user?.id||i.user?.id||'');
   const admin=Boolean(env.DEVELOPER_DISCORD_USER_ID)&&user===String(env.DEVELOPER_DISCORD_USER_ID);
   if(['默认','试画'].includes(action.name)&&!admin)return privateReply('只有开发者可以调整默认参数或开放前试画。');
+  if(action.name==='偏好'&&!(action.options||[]).length)return openImagePreferences(i,payload=>imageRpc(env,payload));
   const values=Object.fromEntries((action.options||[]).map(o=>[o.name,o.value]));
   const params=values.参数?JSON.parse(values.参数):{};
   for(const [name,key]of Object.entries(directOptions))if(Object.hasOwn(values,name))params[key]=values[name];
@@ -104,6 +107,7 @@ export async function handleImageCommand(env,i,action){
   return privateReply(result.notice||JSON.stringify(result,null,2));
  }catch(e){return privateReply(e instanceof SyntaxError?'参数JSON格式有误。':e.message);}
 }
+export const handleImagePreferencesInteraction=(env,i)=>handleImagePreferences(i,payload=>imageRpc(env,payload));
 export function imageSettingsReply(result,values={}){
  const labels={prompt_prefix:'前置正面',prompt_suffix:'后置正面',negative_prompt:'负面提示'},scope=values.范围||'effective';
  const config=scope==='defaults'?result.defaults:scope==='preferences'?result.preferences:{...result.defaults,...result.preferences};
@@ -128,14 +132,19 @@ export class NovelAIService{
  async save(s){await this.storage.put('novelaiState',s);if(s.inflight)await this.storage.setAlarm(s.inflight.expires);else if(s.queue.length)await this.storage.setAlarm(Math.max(this.now()+1,s.notBefore));else await this.storage.deleteAlarm();}
  async dispatch(p){
   const s=await this.state(),key='imagePreferences:'+p.user;
-  if(p.action==='status')return {configured:Boolean(this.env.NOVELAI_API_KEY),enabled:s.defaults.enabled,model:s.defaults.model,cfg_rescale:s.defaults.cfg_rescale,promptStructure:'prefix-ai-body-suffix',defaultsRevision:s.defaultsRevision,defaultPromptLengths:TEXTS.map(k=>({field:k,length:s.defaults[k].length})),queued:s.queue.length,busy:!!s.inflight,intervalSeconds:35,transport:'fetch-wrapper-v1',recent:s.recent.slice(-5).map(({status,at,stage,errorCode,providerStatus,deliveryStatus,noticeDelivered})=>({status,at,stage,errorCode,providerStatus,deliveryStatus,noticeDelivered}))};
+  if(p.action==='status')return {configured:Boolean(this.env.NOVELAI_API_KEY),enabled:s.defaults.enabled,model:s.defaults.model,cfg_rescale:s.defaults.cfg_rescale,promptStructure:'prefix-ai-body-suffix',defaultsRevision:s.defaultsRevision,defaultPromptLengths:TEXTS.map(k=>({field:k,length:s.defaults[k].length})),queued:s.queue.length,busy:!!s.inflight,intervalSeconds:35,transport:'fetch-wrapper-v1',preferencesUi:'native-panel-v1',recent:s.recent.slice(-5).map(({status,at,stage,errorCode,providerStatus,deliveryStatus,noticeDelivered})=>({status,at,stage,errorCode,providerStatus,deliveryStatus,noticeDelivered}))};
   if(p.action==='查看')return {defaults:s.defaults,preferences:await this.storage.get(key)||{},queued:s.queue.length,busy:!!s.inflight,intervalSeconds:35};
   if(p.action==='默认'){
    if(!p.admin)throw Error('只有开发者可以调整默认参数。');
    s.defaults=resolveImageParameters({...s.defaults,...imageParameters(p.params,true)});await this.save(s);return {notice:'默认参数已更新。使用 /ai 生图 查看 可查看参数或三栏提示词全文。'};
   }
-  if(p.action==='偏好'){
-   const prefs={...await this.storage.get(key)||{},...imageParameters(p.params)};resolveImageParameters(s.defaults,prefs);
+  if(p.action==='偏好'||p.action==='偏好编辑'){
+   const prefs={...await this.storage.get(key)||{},...imageParameters(p.params)};
+   if(p.action==='偏好编辑'){
+    if(!Array.isArray(p.unset)||p.unset.some(k=>!Object.hasOwn(IMAGE_DEFAULTS,k)||k==='enabled'))throw Error('无效的个人参数项。');
+    for(const field of p.unset)delete prefs[field];
+   }
+   resolveImageParameters(s.defaults,prefs);
    await this.storage.put(key,prefs);return {notice:'个人生图偏好已保存；只对你生效。提示词按前置正面 → AI本次画面描述 → 后置正面拼接，负面独立发送。使用 /ai 生图 查看 可看全文。'};
   }
   if(p.action==='重置'){await this.storage.delete(key);return {notice:'已清除个人生图偏好，之后跟随默认参数。'};}
