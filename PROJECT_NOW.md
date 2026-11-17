@@ -1,10 +1,10 @@
-## NovelAI 默认提示词三栏结构（2026-11-17，待发布）
+## NovelAI 默认提示词三栏结构（2026-11-17，已发布）
 
 - 用户提供的固定正面、后置正面和负面原文已设为默认，分别690/105/1033字，保留拼写、空格、重复词和权重；源文件 novelai-default-prompts.mjs。正面严格按前置默认/个人覆盖 → AI本次主体画面 → 后置默认/个人覆盖拼接，负面独立发送，不再另加第四段画质词。
 - 个人偏好、单次参数和开发者默认均提供前置正面/后置正面/负面提示三栏，未填逐层继承，填写仅替换对应栏；每栏最多4000字，空字符串可显式清空。查看可选范围与提示词栏，私密展示完整长文本，不被1900字消息摘要截断。保留旧字段的读取兼容。
 - 模型只生成中间主体/外貌表情/服装动作/场景/构图/光影，通常50–100英文词，不复制固定模板、画师串、年份、通用质量词或尺寸等参数。模板覆盖仍由模型理解本轮明确要求，后台不使用关键词提取。
 - 默认模板迁移revision3只执行一次，保留rescale=0.15等现有数值、个人偏好和已排队冻结请求。功能仍默认关闭，35秒间隔保持；没有真实调用生图或向真人频道发测试图。
-- 本地聊天161项、Worker181项通过；同步与发布待核验。下一步核验线上promptStructure=prefix-ai-body-suffix、默认长度690/105/1033、命令schema与聊天运行时novelai4。
+- 本地聊天161项、Worker181项通过；main CI/部署44057205146全部成功，源码d03103c4a6e904216ebd1ecc953b213dabfe9a64。Cloudflare部署0ba24fb6-f851-4797-bc09-06c587735e3d / 版本4c544c02-e662-4243-85e3-95a41ded13e8接收100%流量；settings哈希与发布前完全一致。线上promptStructure=prefix-ai-body-suffix、默认长度690/105/1033、rescale=0.15、enabled=false，命令schema一致、注册无missing/failures/pending；最终health ready=true，Gateway connected/ready=true，actual/expectedRuntime均为chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity2-hongxiaodou-novelai4。
 
 ## NovelAI AI单次参数与rescale默认值（2026-11-17，已发布）
 
