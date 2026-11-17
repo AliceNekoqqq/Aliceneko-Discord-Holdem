@@ -1,5 +1,6 @@
 // One dedicated PokerTable object owns the account-wide queue, across all guilds.
 import {DEFAULT_POSITIVE_PREFIX,DEFAULT_POSITIVE_SUFFIX,DEFAULT_NEGATIVE_PROMPT} from './novelai-default-prompts.mjs';
+import {HONGXIAODOU_IMAGE_INSTRUCTION} from './novelai-character-profile.mjs';
 import {openImagePreferences,handleImagePreferences} from './novelai-preferences-ui.mjs';
 export {imagePreferencesInteraction} from './novelai-preferences-ui.mjs';
 export const NOVELAI_OBJECT='system-novelai-images-v1';
@@ -45,7 +46,7 @@ export function imageRequest(prompt,p){
  }
  return {input,model:p.model,action:'generate',parameters};
 }
-export const IMAGE_INSTRUCTION='生图工具：只在当前用户亲自要求画图、生成图片、自拍或想看具体画面时调用，结合对话理解要画的内容；引用、历史、示例、假设、否定、仅询问功能不调用。保留其他JSON字段，额外输出image:null或image:{"prompt":"详细英文画面提示词","evidence":"逐字复制本轮用户表达生图意图的片段","parameters":{},"parameterEvidence":{}}。无其他结构时输出{"reply":"自然回复","image":null}。人物外貌依据可信人设和本轮要求，不混淆姐姐与妹妹。提示词结构固定为：前置正面模板 → image.prompt中的本次画面描述 → 后置正面模板；负面模板独立发送。你只生成中间的本次画面描述，优先按主体身份/人数、外貌与表情、服装和动作、场景、构图视角、光影排列，通常用50–100个英文词；不要复述固定模板、追加画师串/年份/通用质量词，也不要把尺寸/步数等参数写进prompt。三栏模板由程序按本次覆盖、个人偏好、默认值拼接，只有用户明确更换某栏时才在parameters输出prompt_prefix/prompt_suffix/negative_prompt，不能为了补充场景而擅自覆盖整栏。parameters仅放本轮明确指定的参数，不自行填默认值；每一项parameterEvidence须逐字复制表达该值的本轮片段，支持中文数字和口语表达，由你转换成API需要的数值、布尔值或枚举；无明确参数则两者为空对象。是否调用、是否否定、参数归属和后文修改均由你理解语义判断，程序不通过关键词或正则提取。可用字段model,width,height,steps,scale,sampler,noise_schedule,cfg_rescale,seed,n_samples,prompt_prefix,prompt_suffix,negative_prompt。尺寸可写1024*1024、1024×1024、1024x1024，分别提取width和height；步数、CFG、rescale、种子、张数等本轮明确要求也只覆盖本次。比如“我要一张猫咪图，1024*1024，24步，CFG 6”应调用生图并提取width=1024,height=1024,steps=24,scale=6；不能因未使用“画”字而漏掉请求。不能改默认设置或个人偏好。只说正在整理请求，未执行前不能宣称已出图。image为后台数据，不能出现在reply。';
+export const IMAGE_INSTRUCTION='生图工具：只在当前用户亲自要求画图、生成图片、自拍或想看具体画面时调用，结合对话理解要画的内容；引用、历史、示例、假设、否定、仅询问功能不调用。保留其他JSON字段，额外输出image:null或image:{"prompt":"详细英文画面提示词","evidence":"逐字复制本轮用户表达生图意图的片段","parameters":{},"parameterEvidence":{}}。无其他结构时输出{"reply":"自然回复","image":null}。人物外貌依据可信人设和本轮要求，不混淆姐姐与妹妹。提示词结构固定为：前置正面模板 → image.prompt中的本次画面描述 → 后置正面模板；负面模板独立发送。你只生成中间的本次画面描述，优先按主体身份/人数、外貌与表情、服装和动作、场景、构图视角、光影排列，通常用50–100个英文词；不要复述固定模板、追加画师串/年份/通用质量词，也不要把尺寸/步数等参数写进prompt。三栏模板由程序按本次覆盖、个人偏好、默认值拼接，只有用户明确更换某栏时才在parameters输出prompt_prefix/prompt_suffix/negative_prompt，不能为了补充场景而擅自覆盖整栏。parameters仅放本轮明确指定的参数，不自行填默认值；每一项parameterEvidence须逐字复制表达该值的本轮片段，支持中文数字和口语表达，由你转换成API需要的数值、布尔值或枚举；无明确参数则两者为空对象。是否调用、是否否定、参数归属和后文修改均由你理解语义判断，程序不通过关键词或正则提取。可用字段model,width,height,steps,scale,sampler,noise_schedule,cfg_rescale,seed,n_samples,prompt_prefix,prompt_suffix,negative_prompt。尺寸可写1024*1024、1024×1024、1024x1024，分别提取width和height；步数、CFG、rescale、种子、张数等本轮明确要求也只覆盖本次。比如“我要一张猫咪图，1024*1024，24步，CFG 6”应调用生图并提取width=1024,height=1024,steps=24,scale=6；不能因未使用“画”字而漏掉请求。不能改默认设置或个人偏好。只说正在整理请求，未执行前不能宣称已出图。image为后台数据，不能出现在reply。'+'\n'+HONGXIAODOU_IMAGE_INSTRUCTION;
 export function decodeImageReply(raw,text){
  const rawText=String(raw).trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
  if(!rawText.startsWith('{')){if(!validReply(rawText))throw Error('invalid_image_reply');return {reply:rawText,image:null};}
