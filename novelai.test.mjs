@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {IMAGE_DEFAULTS,BATCH_INTERVAL,NovelAIService,imageParameters,resolveImageParameters,imageRequest,decodeImageReply,handleImageCommand} from './novelai.mjs';
+import {IMAGE_DEFAULTS,BATCH_INTERVAL,NovelAIService,imageParameters,resolveImageParameters,imageRequest,decodeImageReply,handleImageCommand,inlineImageParameters} from './novelai.mjs';
 
 function fixture(fetcher){
  const map=new Map();let now=100000,lock=Promise.resolve();
@@ -30,6 +30,34 @@ test('tool evidence is restricted to the current request and explicit numeric ov
  assert.equal(decodeImageReply('今天过得怎么样？','你好').image,null);
  assert.deepEqual(decodeImageReply('{"reply":"好的","image":{','画只猫'),{reply:'好的',image:null});
  assert.throws(()=>decodeImageReply('{"image":{','画只猫'));
+});
+test('inline dimensions and labelled numeric parameters work without model extraction',()=>{
+ for(const size of ['1024*1024','1024x1024','1024X1024','1024×1024','１０２４＊１０２４','1024乘1024','1024 乘以 1024'])assert.deepEqual(inlineImageParameters('我要一张猫图，'+size),{width:1024,height:1024});
+ assert.deepEqual(inlineImageParameters('画猫，24步，CFG 6，rescale 0.15，seed 123，数量2'),{steps:24,scale:6,cfg_rescale:0.15,seed:123,n_samples:2});
+ const raw=JSON.stringify({reply:'正在整理。',image:{prompt:'a cat',evidence:'我要一张猫图',parameters:{},parameterEvidence:{}}});
+ assert.deepEqual(decodeImageReply(raw,'我要一张猫图，1024*1024').image.parameters,{width:1024,height:1024});
+ const wrong=JSON.stringify({reply:'正在整理。',image:{prompt:'a cat',evidence:'我要一张猫图',parameters:{width:9999},parameterEvidence:{width:'9999只是举例'}}});
+ assert.equal(decodeImageReply(wrong,'我要一张猫图，9999只是举例，1024*1024').image.parameters.width,1024);
+});
+test('inline overrides preserve source order, ignore quoted/negated values and reject invalid sizes',()=>{
+ assert.deepEqual(inlineImageParameters('宽832，高1216，改成1024*1024'),{width:1024,height:1024});
+ assert.deepEqual(inlineImageParameters('832*1216，宽1024，高1024'),{width:1024,height:1024});
+ assert.deepEqual(inlineImageParameters('“1024*1024，steps 40”，不要832*1216，画猫，640x640，steps 24'),{width:640,height:640,steps:24});
+ assert.deepEqual(inlineImageParameters('CFG rescale 0.15'),{cfg_rescale:0.15});
+ assert.deepEqual(inlineImageParameters('画一个走了24步的人'),{});
+ const negative=JSON.stringify({reply:'准备中。',image:{prompt:'cat',evidence:'画猫',parameters:{steps:40},parameterEvidence:{steps:'40步'}}});
+ assert.deepEqual(decodeImageReply(negative,'画猫，不用40步').image.parameters,{});
+ const invalid=JSON.stringify({reply:'准备中。',image:{prompt:'cat',evidence:'画猫'}});
+ assert.match(decodeImageReply(invalid,'画猫，999*1024').reply,/宽高须为64/);
+ assert.throws(()=>inlineImageParameters('画猫，999*1024'));
+ assert.throws(()=>inlineImageParameters('画猫，4096*4096'));
+});
+test('new default and persisted defaults migrate to rescale .15 exactly once without changing preferences or frozen jobs',async()=>{
+ assert.equal(IMAGE_DEFAULTS.cfg_rescale,0.15);
+ const f=fixture();await f.enable();await f.request();
+ const before=f.map.get('novelaiState');delete before.defaultsRevision;before.defaults.cfg_rescale=0;before.queue[0].request.parameters.cfg_rescale=0;f.map.set('novelaiState',before);f.map.set('imagePreferences:10',{cfg_rescale:0.3});
+ const state=await f.service.state();assert.equal(state.defaults.cfg_rescale,0.15);assert.equal(state.queue[0].request.parameters.cfg_rescale,0);assert.equal(f.map.get('imagePreferences:10').cfg_rescale,0.3);
+ await f.service.dispatch({action:'默认',admin:true,params:{cfg_rescale:0.25}});assert.equal((await f.service.state()).defaults.cfg_rescale,0.25);
 });
 test('feature waits for default tuning; developer trial ignores personal preferences',async()=>{
  const f=fixture();assert.equal((await f.request()).accepted,false);assert.equal(f.calls.length,0);

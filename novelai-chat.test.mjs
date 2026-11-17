@@ -18,6 +18,11 @@ test('natural-language visual request uses one LLM call and only the current spe
  const calls=f.rpc.filter(r=>r.p.op==='novelai');assert.equal(calls.length,1);assert.equal(calls[0].name,NOVELAI_OBJECT);assert.equal(calls[0].p.user,'1');assert.equal(calls[0].p.reference,'8201');assert.equal(f.model.length,1);assert.equal(f.model[0].generationConfig.responseMimeType,'application/json');
  assert.match(f.posts[0].content,/已加入/);assert.doesNotMatch(JSON.stringify(f.posts),/parameterEvidence|"image"|secret-never/);assert(!JSON.stringify(f.model).includes('secret-never'));
 });
+test('chat inline size, steps and guidance override only the current job even when the model omits parameters',async t=>{
+ const f=fixture(t,{reply:'正在整理。',image:{prompt:'a cat',evidence:'我要一张猫图',parameters:{},parameterEvidence:{}}});
+ await replyToMention(f.env,{...message,content:'<@99> 我要一张猫图，1024*1024，24步，CFG 6'},'99');
+ const calls=f.rpc.filter(c=>c.p.op==='novelai');assert.equal(calls.length,1);assert.equal(calls[0].p.action,'绘制');assert.deepEqual(calls[0].p.params,{width:1024,height:1024,steps:24,scale:6});assert(!f.rpc.some(c=>['默认','偏好'].includes(c.p.action)));
+});
 test('plain reply, ordinary chat, negation and missing evidence never enqueue',async t=>{
  for(const [content,output]of [['你好','你好呀。'],['不要生图',{reply:'好的。',image:{prompt:'cat',evidence:'不要生图'}}],['你好',{reply:'你好呀。',image:{prompt:'cat',evidence:'想看看你今天的穿搭'}}]]){
   const f=fixture(t,output);await replyToMention(f.env,{...message,content:'<@99> '+content},'99');assert.equal(f.rpc.filter(r=>r.p.op==='novelai').length,0);assert.equal(f.posts.length,1);
