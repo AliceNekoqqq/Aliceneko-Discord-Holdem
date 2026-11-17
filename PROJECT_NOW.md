@@ -1,8 +1,9 @@
-## NovelAI 生图接入（2026-11-17，待发布）
+## NovelAI 生图接入（2026-11-17，已发布，默认待调）
 
-- 聊天隐藏提取、全局持久队列、每批完成后35秒冷却；个人偏好跨服务器按账号隔离，本次参数>偏好>默认。新增 /ai 生图 查看/偏好/重置/绘制/默认/试画，默认与试画仅开发者。首次默认关闭，按用户要求先调默认参数；未调用真实生图或向真人频道发测试消息。
-- NOVELAI_API_KEY已写入Cloudflare Secret；不存仓库/模型/日志。保留现有绑定、Cron、迁移和游戏版本。参数与用法见 docs/NOVELAI_IMAGES.md。
-- 本地聊天153、Worker181项通过（新生图测试含在聊天中）；发布前继续核验最终聊天结果、远端main及生产配置。下一步同步代码、发布关闭状态，核对health/命令schema/Secret存在与settings一致性，再交用户调参。
+- 聊天隐藏提取、全局持久队列、每批完成后35秒冷却；个人偏好跨服务器按账号隔离，本次参数>偏好>默认。新增 /ai 生图 查看/偏好/重置/绘制/默认/试画，常用参数可直接选择，默认与试画仅开发者。首次默认关闭，按用户要求先调默认参数；未调用真实生图或向真人频道发测试消息。
+- NOVELAI_API_KEY已写入Cloudflare Secret；不存仓库/模型/日志。参数与用法见 docs/NOVELAI_IMAGES.md。调参入口 /ai 生图 默认，试画忽略本人偏好，开放前仅开发者可试画。
+- 本地聊天153、Worker181项通过；PR #133 最终CI44050510783、main CI/部署44050857975全部成功，已合并5ccd973ce03dfc419bab005d4d00c8c501be6e1a。Cloudflare部署6e74cf2d-48d3-4287-a946-890b4921e90b / 版本2b8df1aa-9651-403f-8f82-073522312aa8接收100%流量；发布前后settings哈希完全一致（已含新Secret，排除发布注释），Cron/迁移/绑定/人设/游戏版本保持。
+- 线上images configured=true、enabled=false、queued=0、intervalSeconds=35；生图命令exists/schemaMatches=true，注册无missing/failures/pending。长连接已自动切换：health ready=true，Gateway connected/ready=true，actual/expectedRuntime均为chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity2-hongxiaodou-novelai1；未改模型URL，未清空记忆或游戏数据。真实NovelAI生成及Discord手机效果待用户调参后试画。
 
 ## 整蛊处罚固定频道与私密跳转（2026-11-14，已发布）
 
