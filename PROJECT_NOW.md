@@ -1,9 +1,9 @@
-## NovelAI 生图与通知调用修复（2026-11-17，待发布）
+## NovelAI 生图与通知调用修复（2026-11-17，已发布）
 
 - 用户最近一批自然语言生图已由聊天模型成功处理（HTTP200、10.369秒），并于18:02左右加入832×1216/28步/CFG5/rescale0.15/1张队列。当前queued=0/busy=false，但没发图。
 - 根因：NovelAIService把Cloudflare原生fetch保存为this.fetcher后作为实例方法调用，错误绑定this；生图请求与失败通知都会抛Illegal invocation，后者被catch吞掉。相同兼容日期的无密钥隔离探针已真实复现：对象方法调用报错，包装函数调用返回HTTP200；临时探针已删除。约100秒alarm wall time不能据此当作真实生图耗时。
 - 修复为包装函数调用原生fetch，并记录提供方请求/图片解码/Discord上传阶段、HTTP状态、受控错误码及通知送达结果；health只暴露最近5批安全摘要，不公开ID/提示词/图片/凭据。上传网络异常归为delivery_failed，不重复生图。没有自动重跑用户请求或向真人频道发测试图。
-- 本地聊天164、Worker181项通过；上传网络异常分支21项定向测试亦通过；同步和发布待完成。上线后读取历史recent确认最新请求结果，核验transport=fetch-wrapper-v1与ready/enabled。原三段模板、rescale0.15、35秒间隔、开放状态保持。
+- 本地聊天164、Worker181项通过；上传异常分支21项定向测试亦通过。main CI/部署44063305967成功，源码83915f1f1d050b6c0c21ace22f4fbd1aa82514ee；Cloudflare部署1788f45d-de31-4b76-93dd-9df8b01770dd / 版本0d17ee60-ded0-4e5a-a030-fbb96b3f20b0接收100%，settings与发布前一致。线上transport=fetch-wrapper-v1、ready=true、enabled=true；历史recent确认唯一最新请求status=failed，at=1794909773341（北京时间18:02:53），与入队同时即失败，不能把100秒alarm存续当作真实生图等待。没有图片可补发，等待用户主动重试。原三段模板、rescale0.15、35秒间隔、开放状态保持。
 
 ## NovelAI 开放自然语言生图（2026-11-17，已发布）
 
