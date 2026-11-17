@@ -12,6 +12,21 @@ const source=(await readFile(new URL('./worker.mjs',import.meta.url),'utf8')).re
 const preparedSource=source.replaceAll("'./uno-engine.mjs'",JSON.stringify(new URL('./uno-engine.mjs',import.meta.url).href)).replaceAll("'./board-sync.mjs'",JSON.stringify(new URL('./board-sync.mjs',import.meta.url).href)).replaceAll("'./uno-controller.mjs'",JSON.stringify(new URL('./uno-controller.mjs',import.meta.url).href)).replaceAll("'./uno-ui.mjs'",JSON.stringify(new URL('./uno-ui.mjs',import.meta.url).href));
 const {default:worker,PokerTable}=await import('data:text/javascript;base64,'+Buffer.from(preparedSource.replace(/from '(\.\/[^']+)'/g,(_,p)=>`from ${JSON.stringify(new URL(p,import.meta.url).href)}`)).toString('base64'));
 const pokerState=t=>{const copy=structuredClone(t);delete copy.ownerSeenAt;delete copy.takeoverNoticeFor;return copy;};
+test('NovelAI dedicated object persists preferences and alarms without creating a game table',async t=>{
+ const ctx=context(),env={BOT_TOKEN:'fake',NOVELAI_API_KEY:'never-leak'},host=new PokerTable(ctx,env);
+ const call=async p=>(await host.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'novelai',...p})}))).json();
+ assert.equal((await call({action:'status'})).enabled,false);
+ await call({action:'偏好',user:'1',params:{scale:6}});
+ assert.equal((await call({action:'查看',user:'2'})).preferences.scale,undefined);
+ await call({action:'默认',admin:true,params:{enabled:true}});
+ const queued=await call({action:'绘制',id:'3',user:'1',channel:'2',prompt:'a cat'});assert.equal(queued.accepted,true);
+ const posts=[];t.mock.method(globalThis,'fetch',async(url,o)=>{posts.push({url,o});return String(url).includes('novelai.net')?Response.json({images:[{image:'iVBORw0KGgo='}]}):Response.json({id:'4'});});
+ await new PokerTable(ctx,env).alarm();assert.equal(posts.length,2);assert.equal(ctx.map.get('novelaiState').recent[0].status,'sent');assert(!ctx.map.has('table'));assert(!JSON.stringify([...ctx.map]).includes('never-leak'));
+});
+test('image diagnostics expose queue availability without user preferences or prompts',async()=>{
+ const env={TABLES:{idFromName:n=>n,get:n=>({async fetch(url,o){const p=JSON.parse(o.body);return Response.json(p.op==='novelai'?{configured:true,enabled:false,queued:0,intervalSeconds:35}:p.op==='gatewayStatus'?{ready:false}:{ok:true});}})}};
+ const body=await (await worker.fetch(new Request('https://test/health?images=1'),env,context())).json();assert.deepEqual(body.images,{configured:true,enabled:false,queued:0,intervalSeconds:35});assert(!JSON.stringify(body.images).includes('preferences'));
+});
 function duelRouletteContext(){const ctx=context();ctx.storage.put=async(k,v)=>{if(k&&typeof k==='object'){for(const [key,value] of Object.entries(k))ctx.map.set(key,structuredClone(value));}else ctx.map.set(k,structuredClone(v));};ctx.storage.delete=async k=>{for(const key of Array.isArray(k)?k:[k])ctx.map.delete(key);};return ctx;}
 test('roulette PokerTable delivers initial panels, next-player actions, and final private adjudication through alarms',async tst=>{
  const ctx=duelRouletteContext(),env={BOT_TOKEN:'test',DISCORD_APPLICATION_ID:'123'},host=new PokerTable(ctx,env),requests=[];let seq=100;
@@ -68,13 +83,13 @@ test('health rejects a connected gateway running the previous chat pipeline',asy
   const env={TABLES:{idFromName:n=>n,get:n=>({fetch:async()=>Response.json(n==='system-health'?{ok:true,version:'test'}:actual)})}};
   const probe=async()=> (await worker.fetch(new Request('https://test/health'),env,{})).json();
   assert.equal((await probe()).ready,false);
-  actual.chatRuntime='chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity2-hongxiaodou';
+  actual.chatRuntime='chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity2-hongxiaodou-novelai1';
   const good=await probe();assert.equal(good.ready,true);assert.equal(JSON.stringify(good).includes('must-not-leak'),false);
   actual.ready=false;assert.equal((await probe()).ready,false);
 });
 test('health command diagnostics expose only the registered wedding option schema',async()=>{
  const actual={...structuredClone(marriageCommand),id:'command-id-must-not-leak'};
- const env={BOT_TOKEN:'token-must-not-leak',DISCORD_APPLICATION_ID:'123',TABLES:{idFromName:n=>n,get:n=>({fetch:async()=>Response.json(n==='system-health'?{ok:true,version:'test'}:n==='system-discord-gateway'?{connected:true,ready:true,chatRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity2-hongxiaodou'}:{version:'test',registered:false})})}};
+ const env={BOT_TOKEN:'token-must-not-leak',DISCORD_APPLICATION_ID:'123',TABLES:{idFromName:n=>n,get:n=>({fetch:async()=>Response.json(n==='system-health'?{ok:true,version:'test'}:n==='system-discord-gateway'?{connected:true,ready:true,chatRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity2-hongxiaodou-novelai1'}:{version:'test',registered:false})})}};
  const oldFetch=globalThis.fetch;globalThis.fetch=async()=>Response.json([actual]);
  try{
   const response=await worker.fetch(new Request('https://test/health?commands=1'),env,{});
@@ -148,7 +163,7 @@ test('signed Discord flow, private cards, stale click, duplicate, modal, timeout
  const call=async(data)=>{const i={application_id:'123',guild_id:'3',channel_id:'2',id:String(++counter),token:'transient-secret',member:{user:{id:'1'},permissions:'0'},...data};const body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');const ctx=context();const r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);await Promise.all(ctx.tasks);return {reply:await r.json(),i};};
  const unsigned=await worker.fetch(new Request('https://test/interactions',{method:'POST',body:'{}'}),env,context());assert.equal(unsigned.status,401);
  const hidden=await worker.fetch(new Request('https://test/.env'),env,context());assert.equal(hidden.status,404);
- const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.30',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity2-hongxiaodou'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
+ const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.30',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity2-hongxiaodou-novelai1'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
  assert.deepEqual((await call({type:1})).reply,{type:1});
  const create={type:2,data:{name:'德州',options:[{name:'创建'}]}};
  let {reply:b}=await call(create);assert.equal(b.type,4);assert(!JSON.stringify(b).includes(env.BOT_TOKEN));

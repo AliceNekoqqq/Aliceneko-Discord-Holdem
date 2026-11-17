@@ -1,3 +1,4 @@
+import {NovelAIService,imageRpc} from './novelai.mjs';
 import {handleAuctionWebsite,AuctionWebAuth} from './auction-website.mjs';
 import {UGCSharedCatalog,syncSharedUgc} from './tavern-ugc-sharing.mjs';
 import {DuelRouletteController,matches as duelRouletteInteraction} from './duel-roulette-controller.mjs';
@@ -54,7 +55,7 @@ import { BoardSync } from './board-sync.mjs';
 import { PrivatePanels } from './private-panels.mjs';
 import { initializeLifecycle, nextLifecycleAlarm, automaticCloseReason, idleWarning, takeoverAt, canTakeover, touchOwner, effectiveHumanAction } from './lifecycle.mjs';
 import { board, quickRaises, confirmation, handPanel, management, panelAction, button, row } from './ui.mjs';
-const COMMAND_VERSION='games-city2-flower-panel-duel-roulette-marriage2-casino3-identity2-prank1';
+const COMMAND_VERSION='games-city2-flower-panel-duel-roulette-marriage2-casino3-identity2-prank1-novelai1';
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。点「准备下一手」，所有参与真人准备后 5 秒自动发牌；人员变化会取消全部准备。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；连续 2 次超时会在本手结束后暂离，保留筹码；在牌桌管理恢复参与。全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码；游玩中可预约本手结束后离桌，并随时取消。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。\n未发牌空闲 5 分钟、结算后空闲 10 分钟自动关桌，提前 1 分钟提醒；刷新和查看手牌不延长计时。\n游玩中 10 分钟无人有效操作且仍可行动真人均已超时时，取消本手并退回下注。\n等待发牌或结算时，桌主 2 分钟未交互，其他已入座真人可接管。只供娱乐，无充值或兑换。';
@@ -69,6 +70,7 @@ async function discordApi(env,path,method,body,timeoutMs=6000){
   return fetch(`https://discord.com/api/v10${path}`,{method,headers:{Authorization:`Bot ${env.BOT_TOKEN}`,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
 }
 export class PokerTable extends DurableObject {
+  get novelai(){return this.novelaiService??=new NovelAIService(this);}
   get tavern(){return this.tavernService??=new TavernService(this.ctx.storage);}
   rogueService(guild){
     this.rogueGuildServices??=new Map();
@@ -129,6 +131,7 @@ export class PokerTable extends DurableObject {
   }
   async fetch(request){
     const payload=await request.json();
+    if(payload.op==='novelai')return this.ctx.blockConcurrencyWhile(async()=>{try{await this.ctx.storage.put('novelaiMode',true);return json(await this.novelai.dispatch(payload));}catch(e){return json({error:e.message},400);}});
     if(payload.op==='auctionWebAuth'){try{return json(await (this.auctionWebAuth??=new AuctionWebAuth(this.ctx.storage)).dispatch(payload));}catch(e){return json({error:e.message},400);}}
     if(['ugcCatalog','ugcCatalogStatus','ugcCatalogBootstrap','ugcShareExport','ugcRestoreStatus'].includes(payload.op)){
       try{
@@ -374,6 +377,7 @@ export class PokerTable extends DurableObject {
       await this.syncBoard(t);return json({type:6});
   }
   async alarm(){
+    if(await this.ctx.storage.get('novelaiMode')){await this.novelai.alarm();return;}
     if(await this.ctx.storage.get('tavernGuild')){const packets=this.redPackets??=new RedPackets(this.tavern);packets.settleExpired();await this.ctx.storage.put('redPacketRefundDue',packets.nextExpiry());this.tavern.ugc.cleanup();await this.tavernLive.flush();return;}
     await this.tavernMapBridge.flush();
     await this.ctx.blockConcurrencyWhile(async()=>{
@@ -464,12 +468,15 @@ async function handle(request,env,ctx){
           ...(Array.isArray(option.choices)?{choices:option.choices.map(choice=>({name:choice.name,value:choice.value}))}:{})
         })):[]
       };
+      const ai=inventory.definitions?.find(c=>c.name==='ai');
+      const imageGeneration={exists:Boolean(ai?.options?.some(o=>o.name==='生图')),schemaMatches:sameCommand(aiCommand,ai)};
       const prank=inventory.definitions?.find(c=>c.name===prankPenaltyCommand.name&&(c.type||1)===1);
-      commands={ok:inventory.ok,status:inventory.status,names:inventory.names,cityPresent:inventory.names.includes('城市'),registration,marriage,prankPenalty:{exists:Boolean(prank),schemaMatches:sameCommand(prankPenaltyCommand,prank),deliveryRuntime:PRANK_DELIVERY_RUNTIME,destination:PRANK_DESTINATION}};
+      commands={ok:inventory.ok,status:inventory.status,names:inventory.names,cityPresent:inventory.names.includes('城市'),registration,marriage,imageGeneration,prankPenalty:{exists:Boolean(prank),schemaMatches:sameCommand(prankPenaltyCommand,prank),deliveryRuntime:PRANK_DELIVERY_RUNTIME,destination:PRANK_DESTINATION}};
     }catch{commands={ok:false,cityPresent:false};}
     let ugc;
     if(new URL(request.url).searchParams.get('ugc')==='1')try{const r=await env.TABLES.get(env.TABLES.idFromName('ugc-global-catalog-v1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'ugcCatalogStatus'})});ugc=await r.json();}catch{ugc={unavailable:true};}
-    return json({...data,ready,gateway:{...gateway,expectedRuntime:CHAT_PIPELINE_RUNTIME},...(commands?{commands}:{}),...(ugc?{ugc}:{})});
+    let images;if(new URL(request.url).searchParams.get('images')==='1')try{images=await imageRpc(env,{action:'status'});}catch{images={unavailable:true};}
+    return json({...data,...(images?{images}:{}),ready,gateway:{...gateway,expectedRuntime:CHAT_PIPELINE_RUNTIME},...(commands?{commands}:{}),...(ugc?{ugc}:{})});
   }
   if(path!=='/interactions')return new Response('Not found',{status:404});
   if(request.method!=='POST')return new Response('Method not allowed',{status:405,headers:{Allow:'POST'}});

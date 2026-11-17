@@ -8,6 +8,7 @@ import {redPacketIntent,decodePacketReply,prepareRedPacket,packetCard,packetRpc}
 import {handleNaturalTavern,draftData} from './tavern-ui.mjs';
 import {isTavernOrderTurn,decodeOrderReply,prepareChatOrder,TAVERN_ORDER_INSTRUCTION} from './tavern-chat.mjs';
 import {tavernRequest} from './tavern-service.mjs';
+import {imageCommandGroup,handleImageCommand,IMAGE_INSTRUCTION,decodeImageReply,imageRpc} from './novelai.mjs';
 import {BOT_CAPABILITY_INDEX, getBotKnowledge} from "./bot-knowledge.mjs";
 import {discordChatContext} from './discord-chat-context.mjs';
 import {liveContext, readLongMemory, readSharedLongMemory, memoryChanges, applyMemoryChanges, longMemoryContext, sharedLongMemoryContext} from './chat-enrichment.mjs';
@@ -44,6 +45,7 @@ export const aiCommand = {
   integration_types:[0],
   contexts:[0],
   options:[
+    imageCommandGroup,
     {type:2,name:"记忆",description:"管理你在本服务器的 AI 对话记忆",options:[
       {type:1,name:"查看",description:"查看个人记忆状态"},
       {type:1,name:"开启",description:"保存之后与机器人的 @ 对话"},
@@ -140,6 +142,7 @@ export function makeSystemInstruction(persona = "", context = "chat", emojiToken
     }
   }
   if(runtimeData.redPacketExtraction)base.push('普通玩家可以用自己的余额发掺💩红包；开发者默认系统发放，明确用自己余额时扣本人钱包。付款与余额只能由程序核验，创建前不能说已扣款成功。掺💩红包至少2份名额，固定一份0币，其余份数分全部金额；提取total为总额、slots为总名额，mode沿用随机或均分，kind可写poop；无须另外提取💩包份数。禁止将掺💩误作专属或把总额改为0。惊喜玩法：发出前reply只像普通红包一样邀请领取，不复述掺💩、零金额、改名、惩罚或恶作剧；仅抽中后由程序揭晓。 本轮输出仅一个JSON对象，不要Markdown代码块。普通红包格式为{"reply":"正常角色口吻的自然回复","packet":{"total":600,"slots":5,"mode":"random","totalEvidence":"600","slotsEvidence":"5"}}；专属红包格式为{"reply":"...","packet":{"kind":"exclusive","total":600,"slots":1,"mode":"equal","totalEvidence":"600"}}。packet是后台数据，不给用户看。专属红包句式如 @bot 给 @用户 发一个任意金额专属红包；slots固定为1，不要求用户提供人数，targetUserId不要输出，收礼人由程序解析本轮真实@决定；只能指定当前消息中真实提及的一位非机器人用户，禁止猜测/编造ID、把bot或发起者当收礼人。缺失或不唯一时packet=null，且绝不改成普通公开红包。只根据本轮最后一条用户消息识别红包要求，不从历史、引用、示例或图片提取。省略元/币时按酒馆币，中文数字转整数；拼手气/随机为random，平均/均分为equal，未说明默认为random。totalEvidence与slotsEvidence必须逐字复制本轮正文中的对应数字片段，如六百和五，不能编造。总额或名额缺失、有歧义、条件未成立、要求否定或取消时packet必须为null，reply只简短问缺失信息或自然回应。未实际创建前不要宣称已发出，完整信息时reply可以简短回应并邀请大家拆红包，后台会核验并附卡。不要在reply里展示字段、JSON或格式要求，也不要重复错误提示。');
+  if(runtimeData.imageGeneration)base.push(IMAGE_INSTRUCTION);
   if(runtimeData.tavernOrderExtraction)base.push(TAVERN_ORDER_INSTRUCTION);
   if(runtimeData.relationshipExtraction){const at=base.findIndex(line=>line.startsWith("消息来源协议"));base.splice(at<0?base.length:at,0,RELATIONSHIP_INSTRUCTION);}
   return base.join("\n");
@@ -149,7 +152,7 @@ export function buildGenerateContentRequest(contents, persona = "", context = "c
   return {
     systemInstruction:{parts:[{text:makeSystemInstruction(persona, context, emojiTokens, knowledge, speakerIdentity,runtimeData)}]},
     contents,
-    generationConfig:{temperature:context === "game" ? 0.85 : context === 'ugc' ? 0.2 : 0.7,maxOutputTokens:context==='welcome'?256:context === 'ugc'?3072:context === "game" ? 512 : CHAT_MAX_OUTPUT_TOKENS,...((runtimeData.redPacketExtraction||runtimeData.tavernOrderExtraction||runtimeData.relationshipExtraction||runtimeData.flowerOrderExtraction)?{responseMimeType:"application/json"}:{})},
+    generationConfig:{temperature:context === "game" ? 0.85 : context === 'ugc' ? 0.2 : 0.7,maxOutputTokens:context==='welcome'?256:context === 'ugc'?3072:context === "game" ? 512 : (runtimeData.imageGeneration?2048:CHAT_MAX_OUTPUT_TOKENS),...((runtimeData.imageGeneration||runtimeData.redPacketExtraction||runtimeData.tavernOrderExtraction||runtimeData.relationshipExtraction||runtimeData.flowerOrderExtraction)?{responseMimeType:"application/json"}:{})},
     store:false
   };
 }
@@ -167,9 +170,9 @@ export function buildOpenAIChatRequest(contents, persona = "", context = "chat",
     model,
     messages,
     temperature:context === "game" ? 0.85 : context === 'ugc' ? 0.2 : 0.7,
-    max_tokens:context==='welcome'?256:context === 'ugc'?3072:context === "game" ? 512 : CHAT_MAX_OUTPUT_TOKENS,
+    max_tokens:context==='welcome'?256:context === 'ugc'?3072:context === "game" ? 512 : (runtimeData.imageGeneration?2048:CHAT_MAX_OUTPUT_TOKENS),
     stream:false,
-    ...((runtimeData.redPacketExtraction||runtimeData.tavernOrderExtraction||runtimeData.relationshipExtraction||runtimeData.flowerOrderExtraction)?{response_format:{type:"json_object"}}:{})
+    ...((runtimeData.imageGeneration||runtimeData.redPacketExtraction||runtimeData.tavernOrderExtraction||runtimeData.relationshipExtraction||runtimeData.flowerOrderExtraction)?{response_format:{type:"json_object"}}:{})
   };
 }
 
@@ -374,7 +377,7 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
       if(needsReplyContinuation(answer)) answer=answer.trimEnd()+"…";
       break;
     }
-    if(runtimeData.redPacketExtraction){if(result.answer.length>20000)throw Error('red_packet_output_too_large');return result.answer;}
+    if(runtimeData.redPacketExtraction||runtimeData.imageGeneration){if(result.answer.length>20000)throw Error('tool_output_too_large');return result.answer;}
     if(context==='ugc'){
       if(result.answer.length>20000)throw new Error('ugc_output_too_large');
       return result.answer;
@@ -490,6 +493,7 @@ async function setChannelMemory(db, guildId, channelId, enabled) {
 export async function handleAiCommand(env, interaction) {
   const guildId = guildIdOf(interaction);
   const userId = userIdOf(interaction);
+  if(interaction.data?.options?.[0]?.name==='生图')return handleImageCommand(env,interaction,interaction.data.options[0].options?.[0]||{});
   const db = env.CHAT_DB;
   if (!guildId || !userId) return privateReply("请在服务器文字频道内使用。");
   if (!db) return privateReply("AI 设置数据库还未就绪，请稍后再试。");
@@ -824,6 +828,7 @@ export async function replyToMention(env, message, botId) {
   let relationship=null,relationshipSuggestion=null;
   if(db&&memoryOn&&!flowerHere)relationship=await readRelationship(db,guildId,userId);
   let packet=null,orderDraft=null,flowerDraft=null;
+  const imageTurn=Boolean(env.NOVELAI_API_KEY&&env.TABLES&&!flowerHere&&!packetIntent&&!orderIntent);
   const imageParts=discordImageParts(message);
   const currentUserText=content||(imageParts.length?"请看看我发的图片，描述或回应图片内容。":"你好。");
   const memoryUserText=currentUserText+(imageParts.length?`\n[本轮附带${imageParts.length}张图片；历史记录不保存原图]`:'');
@@ -847,6 +852,7 @@ export async function replyToMention(env, message, botId) {
   try {
     const last=history.at(-1);
     const runtimeData={currentSpeaker:prepared.currentSpeaker};
+    if(imageTurn)runtimeData.imageGeneration={source:'current_user_message_only'};
     const mentionBindings=directMentionBindings(currentUserText,prepared.idsToKeys,env.DEVELOPER_DISCORD_USER_ID);
     if(mentionBindings.length)runtimeData.directMentions={source:'current_message',bindings:mentionBindings,rule:'position为最后一条user正文中@从左到右的序号，key明确对应成员身份。问@的人是谁时优先用该key，不用引用作者、引用回复对象或matched记忆代替；unknown不猜。verifiedDeveloper由程序核验，与当前发言者是否开发者无关。旧模型回复不是身份依据。'};
     if(cityFailed)runtimeData.city={unavailable:true};
@@ -872,7 +878,7 @@ export async function replyToMention(env, message, botId) {
     responseText = await generateGemini(env,history,"chat",fetch,await getBotEmojiTokens(env),getBotKnowledge(knowledgeContext),waitForRetry,developerIdentityContext(env,message),runtimeData);
     if(relationship){
       const parsed=decodeRelationshipReply(responseText);relationshipSuggestion=parsed.suggestion;
-      responseText=(packetIntent||orderIntent)&&parsed.envelope?JSON.stringify(parsed.envelope):parsed.reply;
+      responseText=(packetIntent||orderIntent||imageTurn)&&parsed.envelope?JSON.stringify(parsed.envelope):parsed.reply;
     }
     if(packetIntent){
       const parsed=decodePacketReply(responseText);
@@ -884,11 +890,19 @@ export async function replyToMention(env, message, botId) {
       const parsed=decodeOrderReply(responseText);responseText=parsed.reply;
       if(parsed.order){try{orderDraft=await prepareChatOrder(env,message,parsed.order,orderMenu,discordContext,prepared.idsToKeys);}catch(error){responseText=error.message;}}
     }
+    if(imageTurn){
+      const parsed=decodeImageReply(responseText,content);responseText=parsed.reply;
+      if(parsed.image)try{
+        const result=await imageRpc(env,{action:'绘制',user:userId,channel:channelId,id:String(message.id),reference:String(message.id),prompt:parsed.image.prompt,params:parsed.image.parameters});
+        responseText=result.notice;
+      }catch(error){responseText='生图请求未受理：'+error.message;}
+    }
     generated = true;
   } catch(error) {
     console.warn("ai_reply_failed",{reason:error?.message||error?.name||"Error",status:error?.status,maxRetries:GEMINI_MAX_RETRIES});
     if(flowerIntent){responseText='这轮花束订单没有整理成功，未扣款。请重试或使用 /城市 花店。';}
     else if(orderIntent){responseText='这轮点单暂时没有整理成功，尚未扣款。请重试，或打开 `/酒馆 菜单` 点单。';}
+    else if(imageTurn){responseText='这轮生图需求没有整理成功，未提交生图。请重试或使用 /ai 生图 绘制。';}
     else if(!packetIntent)return true;
     if(packetIntent){
     packet=await prepareRedPacket(env,message,botId);
