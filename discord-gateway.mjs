@@ -1,6 +1,7 @@
 import { replyToMention, BOT_CHARACTER_NAME } from "./ai-chat.mjs";
 import {MemberWelcome,WELCOME_TARGET} from './member-welcome.mjs';
 
+// Change this fingerprint when the character prompt changes so cached gateways reconnect.
 export const CHAT_PIPELINE_RUNTIME = 'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity3-history-mentions-hongxiaodou-novelai5-character-prefix1';
 const GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 const GATEWAY_INTENTS = (1 << 0) | (1 << 9); // GUILDS + GUILD_MESSAGES; message content is only used for direct bot mentions.
