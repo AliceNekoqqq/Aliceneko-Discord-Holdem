@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {IMAGE_DEFAULTS,BATCH_INTERVAL,NovelAIService,imageParameters,resolveImageParameters,imageRequest,decodeImageReply,handleImageCommand} from './novelai.mjs';
+import {IMAGE_DEFAULTS,BATCH_INTERVAL,NovelAIService,imageParameters,resolveImageParameters,imageRequest,decodeImageReply,handleImageCommand,imageSettingsReply,imageCommandGroup} from './novelai.mjs';
+import {DEFAULT_POSITIVE_PREFIX,DEFAULT_POSITIVE_SUFFIX,DEFAULT_NEGATIVE_PROMPT} from './novelai-default-prompts.mjs';
 
 function fixture(fetcher){
  const map=new Map();let now=100000,lock=Promise.resolve();
@@ -12,7 +13,7 @@ function fixture(fetcher){
  return {map,host,service,calls,request,advance:ms=>now+=ms,enable:()=>service.dispatch({action:'默认',admin:true,params:{enabled:true}})};
 }
 test('parameters strictly validate bounds, types, dimensions and keys',()=>{
- for(const p of [{width:833},{width:0},{steps:51},{scale:'5'},{n_samples:5},{seed:1.1},{model:'unknown'},{quality:'true'},{prompt_prefix:'x'.repeat(1001)},{url:'https://evil.invalid'},{enabled:true}])assert.throws(()=>imageParameters(p));
+ for(const p of [{width:833},{width:0},{steps:51},{scale:'5'},{n_samples:5},{seed:1.1},{model:'unknown'},{quality:'true'},{prompt_prefix:'x'.repeat(4001)},{url:'https://evil.invalid'},{enabled:true}])assert.throws(()=>imageParameters(p));
  assert.throws(()=>resolveImageParameters({...IMAGE_DEFAULTS,width:1536,height:1536}));
  assert.equal(imageParameters({steps:28}).steps,28);
 });
@@ -21,6 +22,38 @@ test('one-turn > per-user > global defaults; request supports v4 captions and ra
  const r=imageRequest('a cat',p);assert.equal(r.parameters.scale,6);assert.equal(r.parameters.steps,20);assert.equal(r.parameters.seed,123);assert.equal(r.parameters.v4_prompt.caption.base_caption,r.input);assert.match(r.input,/watercolor, a cat/);assert.equal(r.parameters.v4_negative_prompt.caption.base_caption,p.negative_prompt);
  assert(!imageRequest('a cat',{...p,model:'nai-diffusion-3'}).parameters.v4_prompt);
  assert(imageRequest('a cat',{...p,seed:-1}).parameters.seed>=0);
+});
+test('default templates bracket the AI body exactly, with a separate negative and no automatic fourth segment',()=>{
+ const body='1girl, pink hair, sitting at a cafe, soft window light';
+ const request=imageRequest(body,resolveImageParameters(IMAGE_DEFAULTS));
+ assert.equal(request.input,DEFAULT_POSITIVE_PREFIX+', '+body+', '+DEFAULT_POSITIVE_SUFFIX);
+ assert.equal(request.parameters.v4_prompt.caption.base_caption,request.input);
+ assert.equal(request.parameters.negative_prompt,DEFAULT_NEGATIVE_PROMPT);
+ assert.equal(request.parameters.v4_negative_prompt.caption.base_caption,DEFAULT_NEGATIVE_PROMPT);
+ assert.equal(request.parameters.qualityToggle,false);
+ assert.equal(imageRequest(body,resolveImageParameters(IMAGE_DEFAULTS,{prompt_prefix:'',prompt_suffix:'',quality:true})).input,body);
+});
+test('personal templates replace each selected section while missing fields inherit defaults; one-shot values stay transient',()=>{
+ const prefs={prompt_prefix:'  user prefix  ',negative_prompt:'user negative'},once={prompt_suffix:'single-shot suffix'};
+ const params=resolveImageParameters(IMAGE_DEFAULTS,prefs,once),request=imageRequest('AI body',params);
+ assert.equal(request.input,'  user prefix  , AI body, single-shot suffix');assert.equal(request.parameters.negative_prompt,'user negative');
+ assert.equal(resolveImageParameters(IMAGE_DEFAULTS,prefs).prompt_suffix,DEFAULT_POSITIVE_SUFFIX);
+ assert.equal(prefs.prompt_suffix,undefined);assert.equal(IMAGE_DEFAULTS.prompt_suffix,DEFAULT_POSITIVE_SUFFIX);
+});
+test('all three template controls and private full-text viewing support the supplied negative prompt over 1000 characters',()=>{
+ assert(DEFAULT_NEGATIVE_PROMPT.length>1000);assert.equal(imageParameters({negative_prompt:DEFAULT_NEGATIVE_PROMPT}).negative_prompt,DEFAULT_NEGATIVE_PROMPT);
+ const names=imageCommandGroup.options.find(x=>x.name==='偏好').options.map(x=>x.name);
+ for(const name of ['前置正面','后置正面','负面提示'])assert(names.includes(name));assert(!names.includes('质量词'));
+ const result={defaults:IMAGE_DEFAULTS,preferences:{prompt_prefix:'custom'},queued:0};
+ const r=imageSettingsReply(result,{范围:'defaults',提示词:'negative_prompt'});assert.equal(r.data.flags,64);assert.equal(r.data.embeds[0].description,'```\n'+DEFAULT_NEGATIVE_PROMPT+'\n```');assert(r.data.embeds[0].description.length<4096);
+ const own=imageSettingsReply(result,{范围:'preferences',提示词:'prompt_suffix'});assert.match(own.data.embeds[0].description,/沿用默认/);
+});
+test('persisted global templates migrate once, preserving personal templates, rescale and frozen jobs',async()=>{
+ const f=fixture();await f.enable();await f.request();
+ const before=f.map.get('novelaiState');before.defaultsRevision=2;before.defaults.prompt_prefix='old';before.defaults.prompt_suffix='old suffix';before.defaults.negative_prompt='old negative';before.defaults.cfg_rescale=0.25;f.map.set('novelaiState',before);f.map.set('imagePreferences:10',{prompt_prefix:'mine'});
+ const frozen=structuredClone(before.queue[0].request),s=await f.service.state();
+ assert.equal(s.defaults.prompt_prefix,DEFAULT_POSITIVE_PREFIX);assert.equal(s.defaults.prompt_suffix,DEFAULT_POSITIVE_SUFFIX);assert.equal(s.defaults.negative_prompt,DEFAULT_NEGATIVE_PROMPT);assert.equal(s.defaults.cfg_rescale,0.25);assert.equal(s.defaultsRevision,3);assert.deepEqual(s.queue[0].request,frozen);assert.equal(f.map.get('imagePreferences:10').prompt_prefix,'mine');
+ await f.service.dispatch({action:'默认',admin:true,params:{prompt_prefix:'new custom'}});assert.equal((await f.service.state()).defaults.prompt_prefix,'new custom');
 });
 test('tool evidence is restricted to the current request and explicit numeric overrides',()=>{
  const raw=image=>JSON.stringify({reply:'我来整理画面。',image,relationship:null});

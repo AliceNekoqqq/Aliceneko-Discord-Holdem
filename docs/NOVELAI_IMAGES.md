@@ -8,7 +8,7 @@
 
 - 开放后可直接 @红小豆说“帮我画只猫”“想看看你今天的穿搭”。本轮聊天模型同时整理英文提示词与隐藏调用；后台只接受当前用户消息的意图证据。引用、假设、否定与旧记录不应触发。
 - `/ai 生图 查看` 私密显示默认值、本人偏好和排队状态。
-- 可直接选择尺寸、步数、引导强度、采样器、数量、种子、质量词、英文风格前缀和反向词；高级参数仍可用JSON。
+- 可直接选择尺寸、步数、引导强度、采样器、数量、种子、前置正面、后置正面和负面提示词；高级参数仍可用JSON。
 - `/ai 生图 偏好 参数:{"scale":6,"prompt_prefix":"watercolor"}` 保存个人偏好，按 Discord 用户账号跨服务器共用；修改为逐项合并。
 - `/ai 生图 重置` 清除本人全部偏好，恢复跟随默认值。提示词前后缀可设空字符串来覆盖默认值。
 - `/ai 生图 绘制 描述:... 参数:{...}` 直接提交；描述建议用英文，聊天入口会由模型整理英文。
@@ -31,13 +31,23 @@
 | cfg_rescale | 0.15 |
 | seed | -1（随机） |
 | n_samples | 1 |
-| quality | true |
-| prompt_prefix / prompt_suffix | 空 |
-| negative_prompt | lowres, bad anatomy, bad hands, text, error, worst quality, low quality, jpeg artifacts, watermark |
+| 自动额外画质词 | 不追加 |
+| prompt_prefix / prompt_suffix | 用户指定的固定正面 / 后置正面原文 |
+| negative_prompt | 用户指定的1033字负面提示词原文 |
 
-`quality:true` 在最终提示词后追加 `best quality, amazing quality, very aesthetic, absurdres`，关闭则不追加。反向词由最终解析的 `negative_prompt` 原样传递。模型支持 V4.5 Full/Curated、V4 Full、V3；当前没有接 V5 流式协议、图生图、参考图或角色分区。
+最终正面提示词严格按三段拼接：
 
-宽高为64的倍数、各64–1536且单张不超过1048576像素；步数1–50，CFG 0–10，CFG rescale 0–1，seed为-1或0–4294967295整数，张数1–4。采样器支持 Euler、Euler a、DPM++ 2M/2S a/SDE；调度支持 karras/exponential/polyexponential/native。非法参数整次拒绝，不静默改值。
+`前置正面（prompt_prefix） + ", " + AI本次画面描述（image.prompt） + ", " + 后置正面（prompt_suffix）`
+
+负面提示词独立传入 `negative_prompt` 和 `v4_negative_prompt`。默认三段原文见 `novelai-default-prompts.mjs`，保留用户的拼写、重复词、空格和权重。不会自动另加第四段画质词；旧 `quality` 设置只兼容读取，不再改变拼接。
+
+个人偏好、单次参数和开发者默认使用相同三栏。未填某栏时逐层继承，填写后仅替换对应栏；使用高级参数的空字符串可清空该栏。AI只编写中间的主体画面，通常50–100个英文词，按主体、外貌、动作服装、场景、构图和光影排列；不复述固定画师串、年份、通用质量词或数值参数。只有用户明确更换某栏模板时才由模型提供该栏的单次覆盖。
+
+`/ai 生图 查看 范围:默认参数 提示词:负面提示` 可私密查看任意一栏全文，避免长模板被Discord消息长度截断。默认配置迁移到三栏只执行一次，个人覆盖及已受理批次的冻结请求保持。
+
+模型支持 V4.5 Full/Curated、V4 Full、V3；当前没有接 V5 流式协议、图生图、参考图或角色分区。
+
+宽高为64的倍数、各64–1536且单张不超过1048576像素；步数1–50，CFG 0–10，CFG rescale 0–1，seed为-1或0–4294967295整数，张数1–4。采样器支持 Euler、Euler a、DPM++ 2M/2S a/SDE；调度支持 karras/exponential/polyexponential/native。每栏提示词最多4000字。非法参数整次拒绝，不静默改值。
 
 ## 队列与失败
 
