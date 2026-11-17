@@ -12,6 +12,19 @@ function fixture(fetcher){
  const request=(id='1',user='10',more={})=>service.dispatch({action:'绘制',user,id,channel:'20',prompt:'1girl, pink hair',...more});
  return {map,host,service,calls,request,advance:ms=>now+=ms,enable:()=>service.dispatch({action:'默认',admin:true,params:{enabled:true}})};
 }
+test('runtime fetch is invoked without rebinding this to the service, for generation and upload',async()=>{
+ const f=fixture(),calls=[];
+ const fetcher=async function(url,o){assert.equal(this,undefined);calls.push(url);return url.includes('novelai.net')?Response.json({images:[{image:'iVBORw0KGgo='}]}):Response.json({id:'9'});};
+ const service=new NovelAIService(f.host,fetcher,()=>100000);
+ await service.dispatch({action:'绘制',user:'10',id:'1',channel:'20',prompt:'a cat'});await service.alarm();
+ assert.equal(calls.length,2);assert.equal(f.map.get('novelaiState').recent[0].status,'sent');
+});
+test('provider and notice failures retain safe stage/status diagnostics without secrets or prompt content',async()=>{
+ const f=fixture(async function(url){assert.equal(this,undefined);return url.includes('novelai.net')?Response.json({}, {status:500}):Response.json({}, {status:403});});
+ await f.request();await f.service.alarm();const status=await f.service.dispatch({action:'status'}),last=status.recent.at(-1);
+ assert.equal(status.transport,'fetch-wrapper-v1');assert.equal(last.stage,'provider_request');assert.equal(last.providerStatus,500);assert.equal(last.errorCode,'http');assert.equal(last.noticeDelivered,false);
+ for(const text of ['test-secret','bot-secret','pink hair','"id"','"channel"'])assert(!JSON.stringify(status).includes(text));
+});
 test('parameters strictly validate bounds, types, dimensions and keys',()=>{
  for(const p of [{width:833},{width:0},{steps:51},{scale:'5'},{n_samples:5},{seed:1.1},{model:'unknown'},{quality:'true'},{prompt_prefix:'x'.repeat(4001)},{url:'https://evil.invalid'},{enabled:true}])assert.throws(()=>imageParameters(p));
  assert.throws(()=>resolveImageParameters({...IMAGE_DEFAULTS,width:1536,height:1536}));
@@ -129,6 +142,7 @@ test('429, auth errors, invalid image data and delivery errors never retry gener
  }
  const f=fixture(async(url,o)=>url.includes('novelai.net')?Response.json({images:[{image:'invalid'}]}):Response.json({id:'9'}));await f.enable();await f.request();await f.service.alarm();assert.equal(f.map.get('novelaiState').recent[0].status,'failed');assert(!f.calls.some(c=>c.o.body instanceof FormData));
  const g=fixture(async(url,o)=>url.includes('novelai.net')?Response.json({images:[{image:'iVBORw0KGgo='}]}):o.body instanceof FormData?Response.json({}, {status:403}):Response.json({id:'9'}));await g.enable();await g.request();await g.service.alarm();assert.equal(g.map.get('novelaiState').recent[0].status,'delivery_failed');
+ const h=fixture(async(url,o)=>{if(url.includes('novelai.net'))return Response.json({images:[{image:'iVBORw0KGgo='}]});if(o.body instanceof FormData)throw Error('network_failed');return Response.json({id:'9'});});await h.request();await h.service.alarm();const last=h.map.get('novelaiState').recent[0];assert.equal(last.status,'delivery_failed');assert.equal(last.stage,'discord_upload');assert.equal(last.noticeDelivered,true);assert.equal(h.calls.filter(c=>c.url.includes('novelai.net')).length,1);
 });
 test('persisted unknown in-flight job is not regenerated after eviction',async()=>{
  const f=fixture();await f.enable();await f.request();await f.service.claim();f.advance(150001);await f.service.alarm();assert.equal(f.calls.filter(c=>c.url.includes('novelai.net')).length,0);assert.equal(f.map.get('novelaiState').recent[0].status,'unknown');assert.equal((await f.request()).accepted,false);

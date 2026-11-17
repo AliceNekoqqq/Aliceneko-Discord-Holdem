@@ -116,7 +116,7 @@ export function imageSettingsReply(result,values={}){
  return privateReply(names[scope]+'\n'+JSON.stringify(scalar,null,2)+'\n'+TEXTS.map(k=>labels[k]+'：'+(Object.hasOwn(config,k)?config[k]===''?'空':config[k].length+'字':'沿用默认')).join('\n')+'\n正面顺序：前置正面 → AI本次画面描述 → 后置正面；负面独立。\n用 /ai 生图 查看 的「提示词」选项查看任意一栏全文。\n队列等待'+result.queued+'批；每批间隔35秒。');
 }
 export class NovelAIService{
- constructor(host,fetcher=fetch,now=()=>Date.now()){this.host=host;this.storage=host.ctx.storage;this.env=host.env;this.fetcher=fetcher;this.now=now;}
+ constructor(host,fetcher=fetch,now=()=>Date.now()){this.host=host;this.storage=host.ctx.storage;this.env=host.env;this.fetcher=(...args)=>fetcher(...args);this.now=now;}
  async state(){
   const s=await this.storage.get('novelaiState');
   if(!s)return {defaults:{...IMAGE_DEFAULTS},defaultsRevision:4,queue:[],recent:[],notBefore:0,inflight:null};
@@ -128,7 +128,7 @@ export class NovelAIService{
  async save(s){await this.storage.put('novelaiState',s);if(s.inflight)await this.storage.setAlarm(s.inflight.expires);else if(s.queue.length)await this.storage.setAlarm(Math.max(this.now()+1,s.notBefore));else await this.storage.deleteAlarm();}
  async dispatch(p){
   const s=await this.state(),key='imagePreferences:'+p.user;
-  if(p.action==='status')return {configured:Boolean(this.env.NOVELAI_API_KEY),enabled:s.defaults.enabled,model:s.defaults.model,cfg_rescale:s.defaults.cfg_rescale,promptStructure:'prefix-ai-body-suffix',defaultsRevision:s.defaultsRevision,defaultPromptLengths:TEXTS.map(k=>({field:k,length:s.defaults[k].length})),queued:s.queue.length,busy:!!s.inflight,intervalSeconds:35};
+  if(p.action==='status')return {configured:Boolean(this.env.NOVELAI_API_KEY),enabled:s.defaults.enabled,model:s.defaults.model,cfg_rescale:s.defaults.cfg_rescale,promptStructure:'prefix-ai-body-suffix',defaultsRevision:s.defaultsRevision,defaultPromptLengths:TEXTS.map(k=>({field:k,length:s.defaults[k].length})),queued:s.queue.length,busy:!!s.inflight,intervalSeconds:35,transport:'fetch-wrapper-v1',recent:s.recent.slice(-5).map(({status,at,stage,errorCode,providerStatus,deliveryStatus,noticeDelivered})=>({status,at,stage,errorCode,providerStatus,deliveryStatus,noticeDelivered}))};
   if(p.action==='查看')return {defaults:s.defaults,preferences:await this.storage.get(key)||{},queued:s.queue.length,busy:!!s.inflight,intervalSeconds:35};
   if(p.action==='默认'){
    if(!p.admin)throw Error('只有开发者可以调整默认参数。');
@@ -167,10 +167,12 @@ export class NovelAIService{
   const claim=await this.host.ctx.blockConcurrencyWhile(()=>this.claim());
   if(!claim)return;
   if(claim.expired){await this.notice(claim.expired,'这次生图已过期或结果无法确认，没有自动重试，请检查频道后重新发起。');return;}
-  const {job}=claim;let status='failed';
+  const {job}=claim;let status='failed',stage='provider_request',providerStatus=null,deliveryStatus=null,errorCode=null,noticeDelivered=null;
   try{
    const response=await this.fetcher('https://image.novelai.net/ai/generate-image',{method:'POST',headers:{Authorization:'Bearer '+this.env.NOVELAI_API_KEY,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(job.request),signal:AbortSignal.timeout(100000)});
+   providerStatus=response.status;
    if(!response.ok){const e=Error('novelai_http');e.status=response.status;throw e;}
+   stage='provider_decode';
    const data=await response.json();
    if(!Array.isArray(data.images)||data.images.length!==job.request.parameters.n_samples)throw Error('invalid_image_response');
    const form=new FormData(),attachments=[];let total=0;
@@ -182,12 +184,14 @@ export class NovelAIService{
    }
    const p=job.request.parameters;
    form.append('payload_json',JSON.stringify({content:`🎨 <@${job.user}> · NovelAI · ${p.width}×${p.height} · ${p.steps}步 · CFG ${p.scale} · 种子 ${p.seed}`,attachments,nonce:job.id,enforce_nonce:true,allowed_mentions:{parse:[]},...(job.reference?{message_reference:{message_id:job.reference,fail_if_not_exists:false}}:{})}));
+   stage='discord_upload';status='delivery_failed';
    const sent=await this.fetcher('https://discord.com/api/v10/channels/'+job.channel+'/messages',{method:'POST',headers:{Authorization:'Bot '+this.env.BOT_TOKEN},body:form,signal:AbortSignal.timeout(15000)});
+   deliveryStatus=sent.status;
    if(!sent.ok){status='delivery_failed';throw Error('image_delivery_failed');}status='sent';
-  }catch(e){await this.notice(job,status==='delivery_failed'?'图片已生成，但发送失败；没有自动重新生图。':e.status===401||e.status===403?'NovelAI 凭证无效或没有访问权限，请联系开发者。':e.status===402?'NovelAI 额度不足，请联系开发者。':e.status===429?'NovelAI 当前限流；本次没有自动重试，请稍后重新发起。':'本次生图失败或结果无法确认，没有自动重试。若频道已出现图片，请勿重复发起。');}
+  }catch(e){errorCode=/Illegal invocation/.test(e.message||'')?'fetch_binding':['TimeoutError','AbortError'].includes(e.name)?'timeout':e.status?'http':stage==='provider_decode'?'response_format':'request_failed';console.warn('novelai_job_failed',{stage,errorCode,providerStatus,deliveryStatus});noticeDelivered=await this.notice(job,status==='delivery_failed'?'图片已生成，但发送失败；没有自动重新生图。':e.status===401||e.status===403?'NovelAI 凭证无效或没有访问权限，请联系开发者。':e.status===402?'NovelAI 额度不足，请联系开发者。':e.status===429?'NovelAI 当前限流；本次没有自动重试，请稍后重新发起。':'本次生图失败或结果无法确认，没有自动重试。若频道已出现图片，请勿重复发起。');}
   finally{
-   await this.host.ctx.blockConcurrencyWhile(async()=>{const s=await this.state();if(s.inflight?.job.id!==job.id)return;s.inflight=null;s.notBefore=this.now()+BATCH_INTERVAL;s.recent.push({id:job.id,status,at:this.now()});s.recent=s.recent.slice(-500);await this.save(s);});
+   await this.host.ctx.blockConcurrencyWhile(async()=>{const s=await this.state();if(s.inflight?.job.id!==job.id)return;s.inflight=null;s.notBefore=this.now()+BATCH_INTERVAL;s.recent.push({id:job.id,status,at:this.now(),stage,errorCode,providerStatus,deliveryStatus,noticeDelivered});s.recent=s.recent.slice(-500);await this.save(s);});
   }
  }
- async notice(job,content){try{await this.fetcher('https://discord.com/api/v10/channels/'+job.channel+'/messages',{method:'POST',headers:{Authorization:'Bot '+this.env.BOT_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({content,allowed_mentions:{parse:[]},nonce:job.id,enforce_nonce:true,...(job.reference?{message_reference:{message_id:job.reference,fail_if_not_exists:false}}:{})}),signal:AbortSignal.timeout(8000)});}catch{}}
+ async notice(job,content){try{const response=await this.fetcher('https://discord.com/api/v10/channels/'+job.channel+'/messages',{method:'POST',headers:{Authorization:'Bot '+this.env.BOT_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({content,allowed_mentions:{parse:[]},nonce:job.id,enforce_nonce:true,...(job.reference?{message_reference:{message_id:job.reference,fail_if_not_exists:false}}:{})}),signal:AbortSignal.timeout(8000)});return response.ok;}catch{return false;}}
 }
