@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {IMAGE_DEFAULTS,BATCH_INTERVAL,NovelAIService,imageParameters,resolveImageParameters,imageRequest,decodeImageReply,handleImageCommand,inlineImageParameters} from './novelai.mjs';
+import {IMAGE_DEFAULTS,BATCH_INTERVAL,NovelAIService,imageParameters,resolveImageParameters,imageRequest,decodeImageReply,handleImageCommand} from './novelai.mjs';
 
 function fixture(fetcher){
  const map=new Map();let now=100000,lock=Promise.resolve();
@@ -24,33 +24,25 @@ test('one-turn > per-user > global defaults; request supports v4 captions and ra
 });
 test('tool evidence is restricted to the current request and explicit numeric overrides',()=>{
  const raw=image=>JSON.stringify({reply:'我来整理画面。',image,relationship:null});
- const candidate={prompt:'a cat',evidence:'画只猫',parameters:{steps:28,scale:8},parameterEvidence:{steps:'28步',scale:'画只猫'}};
+ const candidate={prompt:'a cat',evidence:'画只猫',parameters:{steps:28,scale:8},parameterEvidence:{steps:'28步',scale:'CFG8'}};
  const r=decodeImageReply(raw(candidate),'帮我画只猫，28步');assert.equal(r.image.prompt,'a cat');assert.deepEqual(r.image.parameters,{steps:28});assert(!r.reply.includes('image'));
- for(const s of ['不要画只猫','他说画只猫','假如画只猫','你好','朋友说“画只猫”，你怎么看？'])assert.equal(decodeImageReply(raw(candidate),s).image,null);
+ for(const s of ['你好','朋友说“画只猫”，你怎么看？'])assert.equal(decodeImageReply(raw(candidate),s).image,null);
  assert.equal(decodeImageReply('今天过得怎么样？','你好').image,null);
  assert.deepEqual(decodeImageReply('{"reply":"好的","image":{','画只猫'),{reply:'好的',image:null});
  assert.throws(()=>decodeImageReply('{"image":{','画只猫'));
 });
-test('inline dimensions and labelled numeric parameters work without model extraction',()=>{
- for(const size of ['1024*1024','1024x1024','1024X1024','1024×1024','１０２４＊１０２４','1024乘1024','1024 乘以 1024'])assert.deepEqual(inlineImageParameters('我要一张猫图，'+size),{width:1024,height:1024});
- assert.deepEqual(inlineImageParameters('画猫，24步，CFG 6，rescale 0.15，seed 123，数量2'),{steps:24,scale:6,cfg_rescale:0.15,seed:123,n_samples:2});
- const raw=JSON.stringify({reply:'正在整理。',image:{prompt:'a cat',evidence:'我要一张猫图',parameters:{},parameterEvidence:{}}});
- assert.deepEqual(decodeImageReply(raw,'我要一张猫图，1024*1024').image.parameters,{width:1024,height:1024});
- const wrong=JSON.stringify({reply:'正在整理。',image:{prompt:'a cat',evidence:'我要一张猫图',parameters:{width:9999},parameterEvidence:{width:'9999只是举例'}}});
- assert.equal(decodeImageReply(wrong,'我要一张猫图，9999只是举例，1024*1024').image.parameters.width,1024);
+test('AI supplies per-image parameters and evidence, including colloquial numbers without numeric substrings',()=>{
+ const raw=JSON.stringify({reply:'正在整理。',image:{prompt:'a cat',evidence:'我要一张猫图',parameters:{width:1024,height:1024,steps:24,scale:6},parameterEvidence:{width:'一千零二十四见方',height:'一千零二十四见方',steps:'二十四步',scale:'CFG六'}}});
+ assert.deepEqual(decodeImageReply(raw,'我要一张猫图，一千零二十四见方，二十四步，CFG六').image.parameters,{width:1024,height:1024,steps:24,scale:6});
+ const omitted=JSON.stringify({reply:'正在整理。',image:{prompt:'a cat',evidence:'我要一张猫图',parameters:{},parameterEvidence:{}}});
+ assert.deepEqual(decodeImageReply(omitted,'我要一张猫图，1024*1024，24步').image.parameters,{});
 });
-test('inline overrides preserve source order, ignore quoted/negated values and reject invalid sizes',()=>{
- assert.deepEqual(inlineImageParameters('宽832，高1216，改成1024*1024'),{width:1024,height:1024});
- assert.deepEqual(inlineImageParameters('832*1216，宽1024，高1024'),{width:1024,height:1024});
- assert.deepEqual(inlineImageParameters('“1024*1024，steps 40”，不要832*1216，画猫，640x640，steps 24'),{width:640,height:640,steps:24});
- assert.deepEqual(inlineImageParameters('CFG rescale 0.15'),{cfg_rescale:0.15});
- assert.deepEqual(inlineImageParameters('画一个走了24步的人'),{});
- const negative=JSON.stringify({reply:'准备中。',image:{prompt:'cat',evidence:'画猫',parameters:{steps:40},parameterEvidence:{steps:'40步'}}});
- assert.deepEqual(decodeImageReply(negative,'画猫，不用40步').image.parameters,{});
- const invalid=JSON.stringify({reply:'准备中。',image:{prompt:'cat',evidence:'画猫'}});
+test('AI decides the image intent without a keyword gate; backend validates only evidence and parameter bounds',()=>{
+ const raw=JSON.stringify({reply:'正在整理。',image:{prompt:'a cat',evidence:'请把这个场景变成看得见的样子',parameters:{width:1024,height:1024},parameterEvidence:{width:'正方形边长1024',height:'正方形边长1024'}}});
+ assert.deepEqual(decodeImageReply(raw,'请把这个场景变成看得见的样子，正方形边长1024').image.parameters,{width:1024,height:1024});
+ const invalid=JSON.stringify({reply:'准备中。',image:{prompt:'cat',evidence:'画猫',parameters:{width:999},parameterEvidence:{width:'999'}}});
  assert.match(decodeImageReply(invalid,'画猫，999*1024').reply,/宽高须为64/);
- assert.throws(()=>inlineImageParameters('画猫，999*1024'));
- assert.throws(()=>inlineImageParameters('画猫，4096*4096'));
+ assert.equal(decodeImageReply(JSON.stringify({reply:'好的。',image:null}),'不要画猫').image,null);
 });
 test('new default and persisted defaults migrate to rescale .15 exactly once without changing preferences or frozen jobs',async()=>{
  assert.equal(IMAGE_DEFAULTS.cfg_rescale,0.15);

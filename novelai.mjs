@@ -9,26 +9,6 @@ const RANGES={width:[64,1536],height:[64,1536],steps:[1,50],scale:[0,10],cfg_res
 const TEXTS=['prompt_prefix','prompt_suffix','negative_prompt'];
 const clean=s=>typeof s==='string'?s.trim():'';
 const directImageText=s=>clean(s).replace(/```[\s\S]*?```|“[^”]*”|「[^」]*」|"[^"]*"|^>.*$/gm,' ');
-const negatedParameter=(source,index)=>/(?:不要|不用|别用|不设|取消|不是|不使用)[^，,;；。.!?]{0,16}$/.test(source.slice(Math.max(0,index-24),index));
-export function inlineImageParameters(text){
- const source=directImageText(text).normalize('NFKC'),out={},positions={};
- const set=(key,value,index)=>{if(positions[key]===undefined||index>=positions[key]){out[key]=value;positions[key]=index;}};
- const assign=(pattern,apply)=>{for(const m of source.matchAll(pattern)){
-  if(!negatedParameter(source,m.index))apply(m);
- }};
- assign(/(?<![\d.])(\d{2,5})\s*(?:[x×*✕]|乘(?:以)?)\s*(\d{2,5})(?![\d.])/gi,m=>{set('width',Number(m[1]),m.index);set('height',Number(m[2]),m.index);});
- const numeric=[
-  ['width',/(?:宽度?|width)\s*[:=]?\s*(\d+(?:\.\d+)?)/gi],
-  ['height',/(?:高度?|height)\s*[:=]?\s*(\d+(?:\.\d+)?)/gi],
-  ['steps',/(?:步数|steps?)\s*[:=]?\s*(\d+(?:\.\d+)?)|(?<![\p{L}\d.])(\d+(?:\.\d+)?)\s*步(?=$|[\s，,;；。.!?])/giu],
-  ['cfg_rescale',/(?:cfg[\s_-]*rescale|rescale|引导重缩放|重缩放)\s*[:=]?\s*(\d+(?:\.\d+)?)/gi],
-  ['scale',/(?:cfg(?![\s_-]*rescale)|引导强度|引导系数|(?<![a-z])scale(?![a-z]))\s*[:=]?\s*(\d+(?:\.\d+)?)/gi],
-  ['seed',/(?:seed|种子)\s*[:=]?\s*(-?\d+(?:\.\d+)?)/gi],
-  ['n_samples',/(?:数量|张数|每批|n_samples|samples?)\s*[:=]?\s*(\d+(?:\.\d+)?)/gi]
- ];
- for(const [key,pattern]of numeric)assign(pattern,m=>set(key,Number(m[1]??m[2]),m.index));
- return imageParameters(out);
-}
 const validReply=s=>typeof s==='string'&&s.trim()&&s.length<=1700&&!/"(?:image|parameterEvidence|relationship)"\s*:/.test(s);
 const privateReply=content=>({type:4,data:{content:content.length>1950?content.slice(0,1900)+'\n（较长内容已截断）':content,flags:64,allowed_mentions:{parse:[]}}});
 export function imageParameters(input={},admin=false){
@@ -62,7 +42,7 @@ export function imageRequest(prompt,p){
  }
  return {input,model:p.model,action:'generate',parameters};
 }
-export const IMAGE_INSTRUCTION='生图工具：只在当前用户亲自要求画图、生成图片、自拍或想看具体画面时调用，结合对话理解要画的内容；引用、历史、示例、假设、否定、仅询问功能不调用。保留其他JSON字段，额外输出image:null或image:{"prompt":"详细英文画面提示词","evidence":"逐字复制本轮用户表达生图意图的片段","parameters":{},"parameterEvidence":{}}。无其他结构时输出{"reply":"自然回复","image":null}。人物外貌依据可信人设和本轮要求，不混淆姐姐与妹妹。parameters仅放本轮明确指定的参数，不自行填默认值；每一项parameterEvidence须逐字复制含该值的本轮片段，无明确参数则两者为空对象。可用字段model,width,height,steps,scale,sampler,noise_schedule,cfg_rescale,seed,n_samples,quality,prompt_prefix,prompt_suffix,negative_prompt。尺寸可写1024*1024、1024×1024、1024x1024，分别提取width和height；步数、CFG、rescale、种子、张数等本轮明确要求也只覆盖本次。比如“我要一张猫咪图，1024*1024，24步，CFG 6”应调用生图并提取width=1024,height=1024,steps=24,scale=6；不能因未使用“画”字而漏掉请求。不能改默认设置或个人偏好。只说正在整理请求，未执行前不能宣称已出图。image为后台数据，不能出现在reply。';
+export const IMAGE_INSTRUCTION='生图工具：只在当前用户亲自要求画图、生成图片、自拍或想看具体画面时调用，结合对话理解要画的内容；引用、历史、示例、假设、否定、仅询问功能不调用。保留其他JSON字段，额外输出image:null或image:{"prompt":"详细英文画面提示词","evidence":"逐字复制本轮用户表达生图意图的片段","parameters":{},"parameterEvidence":{}}。无其他结构时输出{"reply":"自然回复","image":null}。人物外貌依据可信人设和本轮要求，不混淆姐姐与妹妹。parameters仅放本轮明确指定的参数，不自行填默认值；每一项parameterEvidence须逐字复制表达该值的本轮片段，支持中文数字和口语表达，由你转换成API需要的数值、布尔值或枚举；无明确参数则两者为空对象。是否调用、是否否定、参数归属和后文修改均由你理解语义判断，程序不通过关键词或正则提取。可用字段model,width,height,steps,scale,sampler,noise_schedule,cfg_rescale,seed,n_samples,quality,prompt_prefix,prompt_suffix,negative_prompt。尺寸可写1024*1024、1024×1024、1024x1024，分别提取width和height；步数、CFG、rescale、种子、张数等本轮明确要求也只覆盖本次。比如“我要一张猫咪图，1024*1024，24步，CFG 6”应调用生图并提取width=1024,height=1024,steps=24,scale=6；不能因未使用“画”字而漏掉请求。不能改默认设置或个人偏好。只说正在整理请求，未执行前不能宣称已出图。image为后台数据，不能出现在reply。';
 export function decodeImageReply(raw,text){
  const rawText=String(raw).trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
  if(!rawText.startsWith('{')){if(!validReply(rawText))throw Error('invalid_image_reply');return {reply:rawText,image:null};}
@@ -74,12 +54,11 @@ export function decodeImageReply(raw,text){
  if(!validReply(parsed.reply))throw Error('invalid_image_reply');
  const i=parsed.image,e=clean(i?.evidence),source=clean(text);
  const direct=directImageText(source);
- const visual=/(?:画|绘|生图|出图|生成.{0,12}(?:图|像|照)|(?:要|来|给我|帮我).{0,32}(?:图|画|照)|(?:发|给|来|要|想看|看看|看下).{0,24}(?:照片|自拍|图片|图像|插画|立绘|头像|穿搭|样子|你)|photo|picture|draw|image|illustrat|portrait|selfie)/i;
- if(!i||!e||e.length<2||!direct.includes(e)||!visual.test(e)||/^(?:>|他说|她说|引用|比如|例如|假如|如果|假设|“|「|")/.test(source)||/(?:不要|不用|别|不需要|取消).{0,12}(?:画|图|照|生成)|(?:画|生图).{0,6}(?:功能|接口|API).{0,8}(?:怎么|如何|是什么)/i.test(source))return {reply:parsed.reply,image:null};
+ if(!i||!e||e.length<2||!direct.includes(e))return {reply:parsed.reply,image:null};
  const prompt=clean(i.prompt);if(!prompt||prompt.length>4000)return {reply:parsed.reply,image:null};
  const parameters={};
- for(const [k,value]of Object.entries(i.parameters||{})){const evidence=clean(i.parameterEvidence?.[k]),index=direct.indexOf(evidence);if(evidence&&index>=0&&!negatedParameter(direct,index)&&!/(?:不要|不用|别用|取消)/.test(evidence)&&(typeof value!=='number'||evidence.includes(String(value))))parameters[k]=value;}
- try{return {reply:parsed.reply,image:{prompt,parameters:imageParameters({...parameters,...inlineImageParameters(source)})}};}
+ for(const [k,value]of Object.entries(i.parameters||{})){const evidence=clean(i.parameterEvidence?.[k]);if(evidence&&direct.includes(evidence))parameters[k]=value;}
+ try{return {reply:parsed.reply,image:{prompt,parameters:imageParameters(parameters)}};}
  catch(e){return {reply:'生图参数有误：'+e.message,image:null};}
 }
 export async function imageRpc(env,payload){
