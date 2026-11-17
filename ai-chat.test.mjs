@@ -1054,6 +1054,34 @@ test('prompt-local speaker keys survive same names, renames, references, shared 
   assert.doesNotMatch(JSON.stringify({discord:prepared.discord,participants:prepared.channelConversation.participants,shared:prepared.sharedMemory}),/"id"|ownerDiscordId/);
 });
 
+test('follow-up history mentions retain exact nicknames across per-turn keys and all message sources',()=>{
+  const caller='100000000000000001',a='100000000000000002',b='100000000000000003';
+  const content=`生成一张 <@${a}> 和 <@!${b}> 结婚的图片`;
+  const people=[{id:a,display:'文件传输助手'},{id:b,display:'苏幽璃//soyorin'}];
+  const recent={records:[{id:'10',author:{id:'100000000000000004',display:'Laura'},content}]};
+  const make=(extra=[])=>prepareChatContext([{user_id:caller,role:'user',content}],
+    [{user_id:caller,role:'user',speaker_name:'姐姐',content}],{author:{id:caller},content:'所以是对应哪两个人嘛'},
+    {botId:'999',people:[...extra,...people],recentMessages:recent,replyReference:{author:{id:'999',kind:'this_bot'},content:`<@${a}> <@!${b}> <@404> <@999>`}});
+  const first=make(),second=make([{id:'888',display:'另一个人'}]);
+  assert.notEqual(first.idsToKeys.get(a),second.idsToKeys.get(a));
+  for(const prepared of [first,second]){
+    const bindings=prepared.discord.recentMessages.records[0].mentionBindings;
+    assert.deepEqual(bindings.map(x=>[x.position,x.token,x.key,x.name]),[
+      [1,`<@${a}>`,prepared.idsToKeys.get(a),'文件传输助手'],
+      [2,`<@!${b}>`,prepared.idsToKeys.get(b),'苏幽璃//soyorin']]);
+    assert.deepEqual(prepared.channelConversation.records[0].mentionBindings,bindings);
+    assert.equal(prepared.history[0].parts[0].text,content);
+    assert.equal(prepared.discord.mentionBindings.find(x=>x.token===`<@${a}>`).key,prepared.idsToKeys.get(a));
+    assert.equal(prepared.discord.replyReference.mentionBindings[2].key,'unknown');
+    assert.equal(prepared.discord.replyReference.mentionBindings[3].key,'bot');
+    assert.equal(prepared.discord.recentMessages.records[0].author.key,prepared.idsToKeys.get('100000000000000004'));
+  }
+  const duplicate=prepareChatContext([],[],{author:{id:caller}},{people:people.map(p=>({...p,display:'同名'})),recentMessages:recent});
+  const bindings=duplicate.discord.recentMessages.records[0].mentionBindings;
+  assert.notEqual(bindings[0].key,bindings[1].key);
+  assert.equal(bindings[0].name,bindings[1].name);
+});
+
 test('both model adapters keep mapped identity payloads and real image parts',()=>{
   const runtimeData={currentSpeaker:{key:'current_user',name:'同名'},channelConversation:{participants:[{key:'current_user',name:'同名'},{key:'member_1',name:'同名'}],records:[{speaker:'member_1',content:'被引用者发言'}]},discord:{current:{key:'current_user'},people:[{key:'member_1',nick:'改名'}]},replyReference:{author:{key:'member_1',kind:'member'},replyTo:{key:'unknown'},content:'引用正文'},sharedLongMemory:'[{"ownerKey":"member_1","selfReportedAliases":["小猫"]}]'};
   const image={imageUrl:'https://cdn.discordapp.com/attachments/1/2/a.png',mimeType:'image/png'};

@@ -131,3 +131,15 @@ test('history marks bots, attachments and unreadable bodies without claiming ima
  assert.equal(r.records[2].author.kind,'this_bot');assert.match(r.records[2].content,/未读取附件内容/);
  assert.equal(r.records[1].author.kind,'other_bot');assert.match(r.contentNotice,/不能猜测/);
 });
+
+test('historical and referenced mention identities survive denied roster access and absent member speech',async t=>{
+ t.mock.method(console,'warn',()=>{});
+ const message={id:'1000',guild_id:'920',channel_id:'921',author:{id:'1',username:'caller'},content:'刚才@的两个人是谁',message_reference:{message_id:'990',channel_id:'921'},referenced_message:{id:'990',channel_id:'921',author:{id:'2'},content:'<@!4>',mentions:[{id:'4',global_name:'引用中那位',username:'four'}]}};
+ const historical={id:'999',channel_id:'921',guild_id:'920',author:{id:'2',username:'Laura'},content:'<@3> <@!4>',mentions:[{id:'4',global_name:'引用中那位'},{id:'3',global_name:'未发言的那位'},{id:'5',username:'自动回复提及不在正文'}]};
+ const result=await discordChatContext({BOT_TOKEN:'test'},message,'99',async url=>url.includes('/messages?')?Response.json([historical]):new Response('',{status:403}));
+ assert.equal(result.complete,false);
+ assert.deepEqual(result.recentMessages.records[0].mentions.map(p=>p.id),['4','3']);
+ assert.equal(result.people.find(p=>p.id==='3').display,'未发言的那位');
+ assert.equal(result.people.find(p=>p.id==='4').display,'引用中那位');
+ assert.equal(result.recentMessages.records[0].content,'<@3> <@!4>');
+});

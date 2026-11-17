@@ -43,7 +43,8 @@ export async function recentChannelMessages(env,message,botId,fetcher=fetch,enab
   const attachments=(row.attachments||[]).slice(0,4).map(a=>clean(a.filename)).filter(Boolean);
   const content=raw.slice(0,1200)+(attachments.length?`\n[附件：${attachments.join('、')}；未读取附件内容]`:'')||'[无可读取正文；不能猜测图片、嵌入卡片或语音内容]';
   const ref=row.message_reference;
-  return {id:String(row.id),author:{id:String(row.author.id),nick:clean(row.member?.nick),display:clean(row.author.global_name),username:clean(row.author.username),kind:String(row.author.id)===String(botId)?'this_bot':row.author.bot?'other_bot':'member'},content,at:row.timestamp||null,...(ref?.message_id&&(!ref.channel_id||String(ref.channel_id)===String(message.channel_id))?{replyToMessage:String(ref.message_id)}:{}),...(raw.length>1200?{truncated:true}:{})};
+  const mentions=(Array.isArray(row.mentions)?row.mentions:[]).filter(u=>validId(u.id)&&new RegExp(`<@!?${u.id}>`).test(content)).slice(0,30).map(u=>({id:String(u.id),nick:clean(u.member?.nick),display:clean(u.global_name),username:clean(u.username),kind:String(u.id)===String(botId)?'this_bot':u.bot?'other_bot':'member'}));
+  return {id:String(row.id),author:{id:String(row.author.id),nick:clean(row.member?.nick),display:clean(row.author.global_name),username:clean(row.author.username),kind:String(row.author.id)===String(botId)?'this_bot':row.author.bot?'other_bot':'member'},content,...(mentions.length?{mentions}:{}),at:row.timestamp||null,...(ref?.message_id&&(!ref.channel_id||String(ref.channel_id)===String(message.channel_id))?{replyToMessage:String(ref.message_id)}:{}),...(raw.length>1200?{truncated:true}:{})};
  });
  for(const row of normalized){
   const cost=JSON.stringify(row).length;

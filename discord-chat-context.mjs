@@ -92,6 +92,7 @@ export async function discordChatContext(env,message,botId,fetcher=fetch,options
   const [members,recentMessages]=await Promise.all([roster(env,message,fetcher),recentChannelMessages(env,message,botId,fetcher,options.readRecent!==false)]);
   const current=identity(message.author,message.member);
   const involved=[current,...(message.mentions||[]).map(u=>identity(u,u.member))];
+  involved.push(...recentMessages.records.flatMap(row=>row.mentions||[]),...(reference?.mentions||[]).filter(u=>validId(u.id)&&new RegExp(`<@!?${u.id}>`).test(String(reference.content||'').slice(0,4000))).slice(0,30).map(u=>identity(u,u.member)));
   if(reference?.author)involved.push(identity(reference.author,reference.member));
   if(replyTo)involved.push(replyTo);
   const unique=new Map();
