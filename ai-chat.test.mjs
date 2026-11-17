@@ -1,3 +1,4 @@
+import {HONGXIAODOU_PROMPT_PREFIX} from './hongxiaodou-prompt-prefix.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
@@ -1262,4 +1263,17 @@ test('renamed sister stays distinct from developer, shop brand and legacy bot na
  assert.match(profile,/妹妹 bot 现在叫红小豆/);assert.match(profile,/姐姐及开发者叫红豆粉/);
  const npc=makeSystemInstruction('红小豆人设','chat',[],'','',{cityNPC:{name:'沈清禾'}});
  assert.doesNotMatch(npc,/你叫红小豆/);assert.match(npc,/独立于红小豆/);
+});
+
+ test('complete character prefix leads both provider requests and welcome before persona',()=>{
+  for(const context of ['chat','welcome','host_commentary']) {
+    const persona='existing persona';
+    const system=makeSystemInstruction(persona,context);
+    assert.ok(system.startsWith(HONGXIAODOU_PROMPT_PREFIX+'\n'));
+    assert.ok(system.includes(persona));
+    assert.equal(buildGenerateContentRequest([],persona,context).systemInstruction.parts[0].text,system);
+    assert.equal(buildOpenAIChatRequest([],persona,context).messages[0].content,system);
+  }
+  assert.ok(!makeSystemInstruction('', 'ugc').includes(HONGXIAODOU_PROMPT_PREFIX));
+  assert.ok(!makeSystemInstruction('', 'chat',[], '', '',{cityNPC:true}).includes(HONGXIAODOU_PROMPT_PREFIX));
 });
