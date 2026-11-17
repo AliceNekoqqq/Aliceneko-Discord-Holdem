@@ -93,7 +93,7 @@ export const imageCommandGroup={type:2,name:'生图',description:'NovelAI 生图
  {type:1,name:'默认',description:'开发者调整全局默认参数和开放开关',options:[{type:5,name:'开放',description:'是否接受玩家生图请求'},...settingOptions]},
  {type:1,name:'试画',description:'开发者在开放前用当前默认参数试画',options:[{type:3,name:'描述',description:'画面提示词',required:true,max_length:4000},...settingOptions]}
 ]};
-export async function handleImageCommand(env,i,action){
+export async function handleImageCommand(env,i,action,preparePrompt){
  try{
   const user=String(i.member?.user?.id||i.user?.id||'');
   const admin=Boolean(env.DEVELOPER_DISCORD_USER_ID)&&user===String(env.DEVELOPER_DISCORD_USER_ID);
@@ -103,7 +103,18 @@ export async function handleImageCommand(env,i,action){
   const params=values.参数?JSON.parse(values.参数):{};
   for(const [name,key]of Object.entries(directOptions))if(Object.hasOwn(values,name))params[key]=values[name];
   if(values.尺寸){const [width,height]=values.尺寸.split('x').map(Number);params.width=width;params.height=height;}
-  const result=await imageRpc(env,{action:action.name,user,admin,params,prompt:values.描述,id:String(i.id),channel:String(i.channel_id)});
+  let prompt=values.描述,once=params;
+  if(['绘制','试画'].includes(action.name)){
+   if(!clean(prompt))throw Error('请提供画面描述。');
+   if(!env.NOVELAI_API_KEY)throw Error('NovelAI 密钥尚未配置。');
+   const settings=await imageRpc(env,{action:'查看',user});
+   if(!settings.defaults.enabled&&action.name!=='试画')return privateReply('生图功能当前未开放。');
+   resolveImageParameters(settings.defaults,action.name==='试画'?{}:settings.preferences,params);
+   if(!preparePrompt)throw Error('画面描述整理服务尚未就绪。');
+   const prepared=await preparePrompt(prompt);
+   prompt=prepared.prompt;once={...prepared.parameters,...params};
+  }
+  const result=await imageRpc(env,{action:action.name,user,admin,params:once,prompt,id:String(i.id),channel:String(i.channel_id)});
   if(action.name==='查看')return imageSettingsReply(result,values);
   return privateReply(result.notice||JSON.stringify(result,null,2));
  }catch(e){return privateReply(e instanceof SyntaxError?'参数JSON格式有误。':e.message);}

@@ -37,3 +37,28 @@ test('OpenAI-compatible tool request is structured and slash preferences work in
  const i={id:'1',guild_id:'2',channel_id:'3',member:{user:{id:'4'}},data:{options:[{name:'生图',options:[{name:'偏好',options:[{name:'参数',value:'{"scale":6}'},{name:'尺寸',value:'1024x1024'},{name:'步数',value:24}]}]}]}};
  const reply=await handleAiCommand(env,i);assert.equal(reply.data.flags,64);assert.equal(calls[0].user,'4');assert.equal(calls[0].admin,false);assert.deepEqual(calls[0].params,{scale:6,width:1024,height:1024,steps:24});
 });
+
+test('slash drawing prepares the English body through the current model; explicit options win over extracted values',async t=>{
+ const f=fixture(t,{reply:'正在整理。',image:{prompt:'1girl, pink twintails, blue dress, full body, standing in a garden',evidence:'请画图',parameters:{steps:20},parameterEvidence:{steps:'20步'}}});
+ const original=f.env.TABLES.get;
+ f.env.TABLES.get=n=>({async fetch(url,o){const p=JSON.parse(o.body);if(p.action==='查看')return Response.json({defaults:{enabled:true},preferences:{scale:6}});return original(n).fetch(url,o);}});
+ const i={id:'1',guild_id:'2',channel_id:'3',member:{user:{id:'4'}},data:{options:[{name:'生图',options:[{name:'绘制',options:[{name:'描述',value:'画红小豆穿蓝裙站在花园里，全身，20步'},{name:'步数',value:24}]}]}]}};
+ const r=await handleAiCommand(f.env,i),queued=f.rpc.find(x=>x.p.action==='绘制').p;
+ assert.equal(r.data.flags,64);assert.equal(f.model.length,1);assert.equal(queued.prompt,'1girl, pink twintails, blue dress, full body, standing in a garden');assert.deepEqual(queued.params,{steps:24});assert.equal(queued.user,'4');assert.equal(queued.id,'1');assert.equal(queued.channel,'3');
+ const system=f.model[0].systemInstruction.parts[0].text;assert.match(system,/粉色|pink hair/);assert.match(system,/不无故改成眼睛/);assert(!JSON.stringify(f.model).includes('secret-never-in-prompt'));
+ assert.deepEqual(f.model[0].contents,[{role:'user',parts:[{text:'请画图：画红小豆穿蓝裙站在花园里，全身，20步'}]}]);
+});
+test('slash preparation failure never falls back to raw description or queues an image',async t=>{
+ const f=fixture(t,'not a structured image response');
+ f.env.TABLES.get=n=>({async fetch(url,o){const p=JSON.parse(o.body);f.rpc.push({name:n,p});assert.equal(p.action,'查看');return Response.json({defaults:{enabled:true},preferences:{}});}});
+ const i={id:'1',guild_id:'2',channel_id:'3',member:{user:{id:'4'}},data:{options:[{name:'生图',options:[{name:'绘制',options:[{name:'描述',value:'一只猫'}]}]}]}};
+ const r=await handleAiCommand(f.env,i);assert.match(r.data.content,/整理失败/);assert.equal(f.model.length,1);assert.equal(f.rpc.length,1);
+});
+test('closed generation and invalid explicit parameters stop before the text model; trial remains developer-only',async t=>{
+ const f=fixture(t,{reply:'整理中。',image:{prompt:'a cat',evidence:'请画图'}});
+ let enabled=false;f.env.TABLES.get=()=>({async fetch(){return Response.json({defaults:{enabled},preferences:{}});}});
+ const i={id:'1',guild_id:'2',channel_id:'3',member:{user:{id:'4'}},data:{options:[{name:'生图',options:[{name:'绘制',options:[{name:'描述',value:'猫'}]}]}]}};
+ assert.match((await handleAiCommand(f.env,i)).data.content,/未开放/);
+ enabled=true;i.data.options[0].options[0].options.push({name:'步数',value:51});assert.match((await handleAiCommand(f.env,i)).data.content,/超出/);
+ i.data.options[0].options[0].name='试画';assert.match((await handleAiCommand(f.env,i)).data.content,/只有开发者/);assert.equal(f.model.length,0);
+});

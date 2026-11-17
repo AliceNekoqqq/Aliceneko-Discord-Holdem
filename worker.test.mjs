@@ -579,3 +579,32 @@ test('persona-only deployment restarts stale gateway without deleting persistent
  await assert.rejects(host.dispatch(await request.json()),/restart/);assert.equal(aborted,true);
  assert.equal(await ctx.storage.get('saved-history'),'preserve');
 });
+
+test('signed slash drawing defers immediately and prepares in the durable object, deduplicating slow model work',async t=>{
+ const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);
+ const doCtx=context(),env={DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex'),BOT_TOKEN:'bot-secret',NOVELAI_API_KEY:'image-secret',GEMINI_API_KEY:'text-secret',AI_REQUEST_LOG_ENABLED:'false'};
+ const host=new PokerTable(doCtx,env),calls=[],patches=[];let modelCalls=0,release;
+ const pending=new Promise(resolve=>{release=resolve;});
+ env.TABLES={idFromName:n=>n,get:n=>({async fetch(url,o){assert.equal(n,NOVELAI_OBJECT);calls.push(JSON.parse(o.body));return host.fetch(new Request(url,o));}})};
+ t.mock.method(globalThis,'fetch',async(url,o)=>{
+  if(String(url).includes('generativelanguage')){modelCalls++;await pending;return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({reply:'整理中。',image:{prompt:'a cat sitting beside a window, full body',evidence:'请画图'}})}]}}]});}
+  assert.match(String(url),/webhooks\/123\/private-image-token\/messages\/@original$/);assert.equal(o.method,'PATCH');patches.push(JSON.parse(o.body));return Response.json({});
+ });
+ const i={type:2,application_id:'123',id:'989',token:'private-image-token',guild_id:'3',channel_id:'2',member:{user:{id:'1'}},data:{name:'ai',options:[{name:'生图',options:[{name:'绘制',options:[{name:'描述',value:'窗边坐着一只猫，全身'}]}]}]}};
+ const body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');
+ const send=async()=>{const ctx=context();const response=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);assert.deepEqual(await response.json(),{type:5,data:{flags:64}});await Promise.all(ctx.tasks);};
+ await send();await new Promise(resolve=>setImmediate(resolve));assert.equal(modelCalls,1);assert.equal(patches.length,0);assert.equal(doCtx.tasks.length,1);
+ await send();assert.equal(doCtx.tasks.length,1);assert.equal(modelCalls,1);
+ release();await Promise.all(doCtx.tasks);
+ const state=doCtx.map.get('novelaiState');assert.equal(state.queue.length,1);assert.match(state.queue[0].request.input,/, a cat sitting beside a window, full body, /);assert.equal(state.queue[0].user,'1');assert.equal(state.queue[0].channel,'2');assert.equal(state.queue[0].id,'989');
+ assert.equal(patches.length,1);assert.equal(patches[0].flags,64);assert.deepEqual(patches[0].allowed_mentions,{parse:[]});assert.match(patches[0].content,/已加入生图队列/);assert(!doCtx.map.has('table'));assert(!JSON.stringify([...doCtx.map]).includes('private-image-token'));
+ assert.deepEqual(calls.map(c=>c.op),['imageCommand','novelai','imageCommand','novelai']);
+});
+test('failed slash model preparation delivers a private error and never starts an image job',async t=>{
+ const ctx=context(),env={DISCORD_APPLICATION_ID:'123',NOVELAI_API_KEY:'image-secret',GEMINI_API_KEY:'text-secret',AI_REQUEST_LOG_ENABLED:'false'},host=new PokerTable(ctx,env),patches=[];
+ env.TABLES={idFromName:n=>n,get:()=>({fetch:(url,o)=>host.fetch(new Request(url,o))})};
+ t.mock.method(globalThis,'fetch',async(url,o)=>{if(String(url).includes('generativelanguage'))return Response.json({error:'unavailable'}, {status:400});patches.push(JSON.parse(o.body));return Response.json({});});
+ const i={type:2,id:'990',token:'transient',guild_id:'3',channel_id:'2',member:{user:{id:'1'}},data:{name:'ai',options:[{name:'生图',options:[{name:'绘制',options:[{name:'描述',value:'一只猫'}]}]}]}};
+ const response=await host.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'imageCommand',interaction:i})}));assert.deepEqual(await response.json(),{accepted:true});await Promise.all(ctx.tasks);
+ assert.match(patches[0].content,/整理失败/);assert.equal(patches[0].flags,64);assert(!ctx.map.get('novelaiState'));assert(!JSON.stringify(patches).includes('text-secret'));
+});

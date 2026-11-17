@@ -1,4 +1,4 @@
-import {NovelAIService,imageRpc,imagePreferencesInteraction,handleImagePreferencesInteraction} from './novelai.mjs';
+import {NovelAIService,NOVELAI_OBJECT,imageRpc,imagePreferencesInteraction,handleImagePreferencesInteraction} from './novelai.mjs';
 import {handleAuctionWebsite,AuctionWebAuth} from './auction-website.mjs';
 import {UGCSharedCatalog,syncSharedUgc} from './tavern-ugc-sharing.mjs';
 import {DuelRouletteController,matches as duelRouletteInteraction} from './duel-roulette-controller.mjs';
@@ -131,6 +131,18 @@ export class PokerTable extends DurableObject {
   }
   async fetch(request){
     const payload=await request.json();
+    if(payload.op==='imageCommand'){
+      const i=payload.interaction;
+      if(i?.type!==2||i.data?.name!=='ai'||i.data.options?.[0]?.name!=='生图'||!['绘制','试画'].includes(i.data.options[0].options?.[0]?.name)||!/^\d{1,20}$/.test(i.id||''))return json({error:'invalid_image_command'},400);
+      const accepted=await this.ctx.blockConcurrencyWhile(async()=>{
+        const ids=await this.ctx.storage.get('imageCommandIds')||[];
+        if(ids.includes(i.id))return false;
+        await this.ctx.storage.put('imageCommandIds',[...ids,i.id].slice(-500));return true;
+      });
+      // DO background I/O keeps slow model calls alive beyond the HTTP worker's 30s window.
+      if(accepted)this.ctx.waitUntil(finishImageCommand(this.env,i).catch(()=>console.warn('image_command_failed')));
+      return json({accepted});
+    }
     if(payload.op==='novelai')return this.ctx.blockConcurrencyWhile(async()=>{try{await this.ctx.storage.put('novelaiMode',true);return json(await this.novelai.dispatch(payload));}catch(e){return json({error:e.message},400);}});
     if(payload.op==='auctionWebAuth'){try{return json(await (this.auctionWebAuth??=new AuctionWebAuth(this.ctx.storage)).dispatch(payload));}catch(e){return json({error:e.message},400);}}
     if(['ugcCatalog','ugcCatalogStatus','ugcCatalogBootstrap','ugcShareExport','ugcRestoreStatus'].includes(payload.op)){
@@ -424,6 +436,15 @@ async function bindOriginal(env,stub,i,epoch){
 function rogueDeferredReply(i){
   return i.type===3&&(Number(i.message?.flags)&64)?{type:6}:{type:5,data:{flags:64}};
 }
+async function patchImageCommand(env,i,data){
+  const response=await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${encodeURIComponent(i.token)}/messages/@original`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),signal:AbortSignal.timeout(10000)});
+  if(!response.ok)console.warn('image_command_notice_failed',{status:response.status});
+}
+async function finishImageCommand(env,i){
+  let reply;
+  try{reply=await handleAiCommand(env,i);}catch{reply=privateReply('画面描述整理失败，请稍后重试；本次没有提交生图。');}
+  await patchImageCommand(env,i,reply.data);
+}
 async function finishRogue(env,i){
   try{
     const stub=env.TABLES.get(env.TABLES.idFromName(`tavern:${i.guild_id}`));
@@ -514,7 +535,16 @@ async function handle(request,env,ctx){
     ctx.waitUntil(completeMarriageInteraction(env,i).catch(error=>console.warn('marriage_interaction_failed',{reason:error?.name||'Error',status:error?.status})));
     return json({type:5,data:{content:'礼堂正在布置，请稍候片刻。',allowed_mentions:{parse:[]}}});
   }
-  if(i.type===2&&i.data?.name==='ai')return json(await handleAiCommand(env,i));
+  if(i.type===2&&i.data?.name==='ai'){
+    const group=i.data.options?.[0],action=group?.options?.[0];
+    if(group?.name==='生图'&&['绘制','试画'].includes(action?.name)){
+      if(!i.member?.user?.id||!i.token)return json(privateReply('请在服务器内使用。'));
+      if(!env.TABLES)return json(privateReply('生图服务尚未就绪。'));
+      ctx.waitUntil(env.TABLES.get(env.TABLES.idFromName(NOVELAI_OBJECT)).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'imageCommand',interaction:i})}).then(r=>{if(!r.ok)throw Error('image_command_start_failed');}).catch(()=>patchImageCommand(env,i,privateReply('画面描述整理未能启动，请稍后重试。').data)));
+      return json({type:5,data:{flags:64}});
+    }
+    return json(await handleAiCommand(env,i));
+  }
   const stub=env.TABLES.get(env.TABLES.idFromName(`table:${i.guild_id}:${i.channel_id}`));
   const response=await stub.fetch('https://internal',{method:'POST',body:JSON.stringify({op:'interaction',interaction:i})});
   const reply=await response.json();if(reply.bindEpoch){const epoch=reply.bindEpoch;delete reply.bindEpoch;ctx.waitUntil(bindOriginal(env,stub,i,epoch));}return json(reply);
