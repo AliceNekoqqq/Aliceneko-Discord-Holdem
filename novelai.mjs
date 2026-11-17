@@ -9,7 +9,7 @@ const RANGES={width:[64,1536],height:[64,1536],steps:[1,50],scale:[0,10],cfg_res
 const TEXTS=['prompt_prefix','prompt_suffix','negative_prompt'];
 const clean=s=>typeof s==='string'?s.trim():'';
 const validReply=s=>typeof s==='string'&&s.trim()&&s.length<=1700&&!/"(?:image|parameterEvidence|relationship)"\s*:/.test(s);
-const privateReply=content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
+const privateReply=content=>({type:4,data:{content:content.length>1950?content.slice(0,1900)+'\n（较长内容已截断）':content,flags:64,allowed_mentions:{parse:[]}}});
 export function imageParameters(input={},admin=false){
  if(!input||typeof input!=='object'||Array.isArray(input))throw Error('参数须为 JSON 对象。');
  const out={};
@@ -65,14 +65,28 @@ export async function imageRpc(env,payload){
  const r=await env.TABLES.get(env.TABLES.idFromName(NOVELAI_OBJECT)).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'novelai',...payload})});
  const data=await r.json();if(data.error)throw Error(data.error);return data;
 }
-const JSON_OPTION={type:3,name:'参数',description:'JSON参数，如 {"steps":28,"scale":5,"prompt_prefix":"watercolor"}',max_length:3500};
+const JSON_OPTION={type:3,name:'参数',description:'高级JSON参数（可选），如 {"cfg_rescale":0.2,"prompt_suffix":"soft lighting"}',max_length:3500};
+const settingOptions=[
+ {type:3,name:'模型',description:'生图模型',choices:MODELS.map(value=>({name:value.replace('nai-diffusion-','NovelAI '),value}))},
+ {type:3,name:'尺寸',description:'图片宽高',choices:[{name:'竖图 832×1216',value:'832x1216'},{name:'横图 1216×832',value:'1216x832'},{name:'方图 1024×1024',value:'1024x1024'},{name:'小方图 640×640',value:'640x640'}]},
+ {type:4,name:'步数',description:'生成步数，1–50',min_value:1,max_value:50},
+ {type:10,name:'引导强度',description:'CFG，引导模型遵循提示词的强度，0–10',min_value:0,max_value:10},
+ {type:4,name:'数量',description:'每批图片数量，1–4',min_value:1,max_value:4},
+ {type:3,name:'采样器',description:'生成算法',choices:SAMPLERS.map(value=>({name:value,value}))},
+ {type:4,name:'种子',description:'-1为随机；固定数字可辅助复现',min_value:-1,max_value:4294967295},
+ {type:5,name:'质量词',description:'自动追加默认画质提示词'},
+ {type:3,name:'风格前缀',description:'追加在画面描述前的英文风格词，空值可在高级参数中设置',max_length:1000},
+ {type:3,name:'反向提示',description:'不希望出现在图片中的内容，建议英文',max_length:1000},
+ JSON_OPTION
+];
+const directOptions={模型:'model',步数:'steps',引导强度:'scale',数量:'n_samples',采样器:'sampler',种子:'seed',质量词:'quality',风格前缀:'prompt_prefix',反向提示:'negative_prompt',开放:'enabled'};
 export const imageCommandGroup={type:2,name:'生图',description:'NovelAI 生图与个人偏好',options:[
  {type:1,name:'查看',description:'私密查看默认参数、我的偏好和队列状态'},
- {type:1,name:'偏好',description:'保存个人生图偏好，所有服务器共用',options:[{...JSON_OPTION,required:true}]},
+ {type:1,name:'偏好',description:'保存个人生图偏好，所有服务器共用',options:settingOptions},
  {type:1,name:'重置',description:'清除我的生图偏好，重新跟随默认值'},
- {type:1,name:'绘制',description:'使用默认参数或个人偏好生成图片',options:[{type:3,name:'描述',description:'画面提示词（建议英文，也可在聊天中请红小豆整理）',required:true,max_length:4000},JSON_OPTION]},
- {type:1,name:'默认',description:'开发者调整全局默认参数和开放开关',options:[{...JSON_OPTION,required:true}]},
- {type:1,name:'试画',description:'开发者在开放前用当前默认参数试画',options:[{type:3,name:'描述',description:'画面提示词',required:true,max_length:4000},JSON_OPTION]}
+ {type:1,name:'绘制',description:'使用默认参数或个人偏好生成图片',options:[{type:3,name:'描述',description:'画面提示词（建议英文，也可在聊天中请红小豆整理）',required:true,max_length:4000},...settingOptions]},
+ {type:1,name:'默认',description:'开发者调整全局默认参数和开放开关',options:[{type:5,name:'开放',description:'是否接受玩家生图请求'},...settingOptions]},
+ {type:1,name:'试画',description:'开发者在开放前用当前默认参数试画',options:[{type:3,name:'描述',description:'画面提示词',required:true,max_length:4000},...settingOptions]}
 ]};
 export async function handleImageCommand(env,i,action){
  try{
@@ -81,6 +95,8 @@ export async function handleImageCommand(env,i,action){
   if(['默认','试画'].includes(action.name)&&!admin)return privateReply('只有开发者可以调整默认参数或开放前试画。');
   const values=Object.fromEntries((action.options||[]).map(o=>[o.name,o.value]));
   const params=values.参数?JSON.parse(values.参数):{};
+  for(const [name,key]of Object.entries(directOptions))if(Object.hasOwn(values,name))params[key]=values[name];
+  if(values.尺寸){const [width,height]=values.尺寸.split('x').map(Number);params.width=width;params.height=height;}
   const result=await imageRpc(env,{action:action.name,user,admin,params,prompt:values.描述,id:String(i.id),channel:String(i.channel_id)});
   return privateReply(result.notice||JSON.stringify(result,null,2));
  }catch(e){return privateReply(e instanceof SyntaxError?'参数JSON格式有误。':e.message);}

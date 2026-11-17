@@ -29,6 +29,6 @@ test('pending defaults get an accurate notice without claiming an image exists',
 test('OpenAI-compatible tool request is structured and slash preferences work independently of chat D1',async()=>{
  const r=buildOpenAIChatRequest([{role:'user',parts:[{text:'画只猫'}]}],'','chat','test',[],'','',{imageGeneration:{source:'current_user_message_only'}});assert.deepEqual(r.response_format,{type:'json_object'});assert.equal(r.max_tokens,2048);
  const calls=[],env={TABLES:{idFromName:n=>n,get:n=>({async fetch(url,o){calls.push(JSON.parse(o.body));return Response.json({notice:'已保存'});}})}};
- const i={id:'1',guild_id:'2',channel_id:'3',member:{user:{id:'4'}},data:{options:[{name:'生图',options:[{name:'偏好',options:[{name:'参数',value:'{"scale":6}'}]}]}]}};
- const reply=await handleAiCommand(env,i);assert.equal(reply.data.flags,64);assert.equal(calls[0].user,'4');assert.equal(calls[0].admin,false);
+ const i={id:'1',guild_id:'2',channel_id:'3',member:{user:{id:'4'}},data:{options:[{name:'生图',options:[{name:'偏好',options:[{name:'参数',value:'{"scale":6}'},{name:'尺寸',value:'1024x1024'},{name:'步数',value:24}]}]}]}};
+ const reply=await handleAiCommand(env,i);assert.equal(reply.data.flags,64);assert.equal(calls[0].user,'4');assert.equal(calls[0].admin,false);assert.deepEqual(calls[0].params,{scale:6,width:1024,height:1024,steps:24});
 });
