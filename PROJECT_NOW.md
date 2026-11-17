@@ -1,9 +1,10 @@
-## NovelAI 单次参数与rescale默认值（2026-11-17，待发布）
+## NovelAI AI单次参数与rescale默认值（2026-11-17，已发布）
 
-- 按用户要求将默认cfg_rescale改为0.15；已有全局配置仅迁移一次，保留个人偏好与已受理批次冻结参数。后续开发者调参不会被反复重置。
-- 对话直接支持“我要一张猫图，1024*1024，24步，CFG 6”；补齐此类请求的触发识别，按用户纠正，撤回程序的关键词/正则提取，完全由同轮大模型理解意图、尺寸、口语参数和否定/改口，输出隐藏image/parameters/parameterEvidence；后台只核验本轮证据和参数合法性，只作用本次，不保存为个人偏好或默认。
-- 入队回执显示本次实际尺寸、步数、CFG、rescale和张数。仍保留默认关闭与35秒批次间隔，未调用真实生图或向真人频道发测试消息。文档已更新。
-- 最终AI语义方案本地聊天157项、Worker181项通过；GitHub同步和发布待核验。下一步发布后确认health中的cfg_rescale=0.15及聊天运行时novelai3，继续等待用户调参和试画。
+- 默认cfg_rescale=0.15；已有全局配置仅迁移一次，保留个人偏好与已受理批次冻结参数。后续开发者调参不会被反复重置。
+- 和红包一样，由同一轮聊天大模型判断生图意图、理解口语/中文数字/否定/改口，整理英文提示词并输出隐藏image/parameters/parameterEvidence。程序不使用关键词或正则提取意图、尺寸和数字；只核验本轮证据、参数字段/范围及身份。例“我要一张猫图，1024*1024，24步，CFG 6”由模型输出该次参数，后台合并个人偏好与默认值，不保存成新偏好。
+- 入队回执显示本次实际尺寸、步数、CFG、rescale和张数。35秒批次间隔、默认关闭、现有游戏/模型/人设配置保持。没有调用真实生图或向真人频道发测试消息，真实出图待用户调参后试画。
+- 本地聊天157项、Worker181项通过；main CI/部署44054597337全部成功，源码f79d640a455e89a5d503a25e2ad4bea80d26223b。Cloudflare部署1cf97c1b-ffe3-49e8-b4a6-45365a70936a / 版本4e505ef9-016a-43b0-837d-8b8093746cb0接收100%流量；发布前后settings哈希完全一致（排除发布注释）。
+- 线上cfg_rescale=0.15、enabled=false、queued=0、intervalSeconds=35；生图命令schema一致。最终health ready=true，Gateway connected/ready=true，actual/expectedRuntime均为chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity2-hongxiaodou-novelai3；模型识别版本已实际接管长连接。
 
 ## NovelAI 生图接入（2026-11-17，已发布，默认待调）
 
