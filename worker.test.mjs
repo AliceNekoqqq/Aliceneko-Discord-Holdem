@@ -15,7 +15,7 @@ const pokerState=t=>{const copy=structuredClone(t);delete copy.ownerSeenAt;delet
 test('NovelAI dedicated object persists preferences and alarms without creating a game table',async t=>{
  const ctx=context(),env={BOT_TOKEN:'fake',NOVELAI_API_KEY:'never-leak'},host=new PokerTable(ctx,env);
  const call=async p=>(await host.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'novelai',...p})}))).json();
- assert.equal((await call({action:'status'})).enabled,false);
+ assert.equal((await call({action:'status'})).enabled,true);
  await call({action:'偏好',user:'1',params:{scale:6}});
  assert.equal((await call({action:'查看',user:'2'})).preferences.scale,undefined);
  await call({action:'默认',admin:true,params:{enabled:true}});

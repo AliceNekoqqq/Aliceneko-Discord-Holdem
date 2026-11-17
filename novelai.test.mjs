@@ -52,7 +52,7 @@ test('persisted global templates migrate once, preserving personal templates, re
  const f=fixture();await f.enable();await f.request();
  const before=f.map.get('novelaiState');before.defaultsRevision=2;before.defaults.prompt_prefix='old';before.defaults.prompt_suffix='old suffix';before.defaults.negative_prompt='old negative';before.defaults.cfg_rescale=0.25;f.map.set('novelaiState',before);f.map.set('imagePreferences:10',{prompt_prefix:'mine'});
  const frozen=structuredClone(before.queue[0].request),s=await f.service.state();
- assert.equal(s.defaults.prompt_prefix,DEFAULT_POSITIVE_PREFIX);assert.equal(s.defaults.prompt_suffix,DEFAULT_POSITIVE_SUFFIX);assert.equal(s.defaults.negative_prompt,DEFAULT_NEGATIVE_PROMPT);assert.equal(s.defaults.cfg_rescale,0.25);assert.equal(s.defaultsRevision,3);assert.deepEqual(s.queue[0].request,frozen);assert.equal(f.map.get('imagePreferences:10').prompt_prefix,'mine');
+ assert.equal(s.defaults.prompt_prefix,DEFAULT_POSITIVE_PREFIX);assert.equal(s.defaults.prompt_suffix,DEFAULT_POSITIVE_SUFFIX);assert.equal(s.defaults.negative_prompt,DEFAULT_NEGATIVE_PROMPT);assert.equal(s.defaults.cfg_rescale,0.25);assert.equal(s.defaultsRevision,4);assert.deepEqual(s.queue[0].request,frozen);assert.equal(f.map.get('imagePreferences:10').prompt_prefix,'mine');
  await f.service.dispatch({action:'默认',admin:true,params:{prompt_prefix:'new custom'}});assert.equal((await f.service.state()).defaults.prompt_prefix,'new custom');
 });
 test('tool evidence is restricted to the current request and explicit numeric overrides',()=>{
@@ -84,8 +84,13 @@ test('new default and persisted defaults migrate to rescale .15 exactly once wit
  const state=await f.service.state();assert.equal(state.defaults.cfg_rescale,0.15);assert.equal(state.queue[0].request.parameters.cfg_rescale,0);assert.equal(f.map.get('imagePreferences:10').cfg_rescale,0.3);
  await f.service.dispatch({action:'默认',admin:true,params:{cfg_rescale:0.25}});assert.equal((await f.service.state()).defaults.cfg_rescale,0.25);
 });
-test('feature waits for default tuning; developer trial ignores personal preferences',async()=>{
- const f=fixture();assert.equal((await f.request()).accepted,false);assert.equal(f.calls.length,0);
+test('approved opening migrates once and later developer closure stays closed',async()=>{
+ const f=fixture(),s=await f.service.state();s.defaultsRevision=3;s.defaults.enabled=false;f.map.set('novelaiState',s);
+ assert.equal((await f.service.dispatch({action:'status'})).enabled,true);assert.equal(f.map.get('novelaiState').defaultsRevision,4);
+ await f.service.dispatch({action:'默认',admin:true,params:{enabled:false}});assert.equal((await f.service.dispatch({action:'status'})).enabled,false);
+});
+test('developer can close generation and trial ignores personal preferences',async()=>{
+ const f=fixture();await f.service.dispatch({action:'默认',admin:true,params:{enabled:false}});assert.equal((await f.request()).accepted,false);assert.equal(f.calls.length,0);
  await f.service.dispatch({action:'偏好',user:'10',params:{steps:20}});
  await assert.rejects(f.request('2','10',{action:'试画'}));
  await f.request('2','10',{action:'试画',admin:true});assert.equal(f.map.get('novelaiState').queue[0].request.parameters.steps,28);

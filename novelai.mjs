@@ -3,7 +3,7 @@ import {DEFAULT_POSITIVE_PREFIX,DEFAULT_POSITIVE_SUFFIX,DEFAULT_NEGATIVE_PROMPT}
 export const NOVELAI_OBJECT='system-novelai-images-v1';
 export const BATCH_INTERVAL=35000;
 const LEASE=150000;
-export const IMAGE_DEFAULTS=Object.freeze({enabled:false,model:'nai-diffusion-4-5-full',width:832,height:1216,steps:28,scale:5,sampler:'k_euler_ancestral',noise_schedule:'karras',cfg_rescale:0.15,seed:-1,n_samples:1,quality:false,prompt_prefix:DEFAULT_POSITIVE_PREFIX,prompt_suffix:DEFAULT_POSITIVE_SUFFIX,negative_prompt:DEFAULT_NEGATIVE_PROMPT});
+export const IMAGE_DEFAULTS=Object.freeze({enabled:true,model:'nai-diffusion-4-5-full',width:832,height:1216,steps:28,scale:5,sampler:'k_euler_ancestral',noise_schedule:'karras',cfg_rescale:0.15,seed:-1,n_samples:1,quality:false,prompt_prefix:DEFAULT_POSITIVE_PREFIX,prompt_suffix:DEFAULT_POSITIVE_SUFFIX,negative_prompt:DEFAULT_NEGATIVE_PROMPT});
 const MODELS=['nai-diffusion-4-5-full','nai-diffusion-4-5-curated','nai-diffusion-4-full','nai-diffusion-3'];
 const SAMPLERS=['k_euler','k_euler_ancestral','k_dpmpp_2m','k_dpmpp_2s_ancestral','k_dpmpp_sde'];
 const RANGES={width:[64,1536],height:[64,1536],steps:[1,50],scale:[0,10],cfg_rescale:[0,1],seed:[-1,4294967295],n_samples:[1,4]};
@@ -119,9 +119,10 @@ export class NovelAIService{
  constructor(host,fetcher=fetch,now=()=>Date.now()){this.host=host;this.storage=host.ctx.storage;this.env=host.env;this.fetcher=fetcher;this.now=now;}
  async state(){
   const s=await this.storage.get('novelaiState');
-  if(!s)return {defaults:{...IMAGE_DEFAULTS},defaultsRevision:3,queue:[],recent:[],notBefore:0,inflight:null};
+  if(!s)return {defaults:{...IMAGE_DEFAULTS},defaultsRevision:4,queue:[],recent:[],notBefore:0,inflight:null};
   if((s.defaultsRevision||1)<2){s.defaults.cfg_rescale=0.15;s.defaultsRevision=2;await this.storage.put('novelaiState',s);}
   if(s.defaultsRevision<3){s.defaults={...s.defaults,prompt_prefix:DEFAULT_POSITIVE_PREFIX,prompt_suffix:DEFAULT_POSITIVE_SUFFIX,negative_prompt:DEFAULT_NEGATIVE_PROMPT,quality:false};s.defaultsRevision=3;await this.storage.put('novelaiState',s);}
+  if(s.defaultsRevision<4){s.defaults.enabled=true;s.defaultsRevision=4;await this.storage.put('novelaiState',s);}
   return s;
  }
  async save(s){await this.storage.put('novelaiState',s);if(s.inflight)await this.storage.setAlarm(s.inflight.expires);else if(s.queue.length)await this.storage.setAlarm(Math.max(this.now()+1,s.notBefore));else await this.storage.deleteAlarm();}
