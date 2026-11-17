@@ -127,6 +127,7 @@ export class NovelAIService{
   if((s.defaultsRevision||1)<2){s.defaults.cfg_rescale=0.15;s.defaultsRevision=2;await this.storage.put('novelaiState',s);}
   if(s.defaultsRevision<3){s.defaults={...s.defaults,prompt_prefix:DEFAULT_POSITIVE_PREFIX,prompt_suffix:DEFAULT_POSITIVE_SUFFIX,negative_prompt:DEFAULT_NEGATIVE_PROMPT,quality:false};s.defaultsRevision=3;await this.storage.put('novelaiState',s);}
   if(s.defaultsRevision<4){s.defaults.enabled=true;s.defaultsRevision=4;await this.storage.put('novelaiState',s);}
+  // Apply newly supplied global prompt templates once without altering personal preferences or active jobs.
   if(s.defaultsRevision<5){s.defaults={...s.defaults,prompt_prefix:DEFAULT_POSITIVE_PREFIX,prompt_suffix:DEFAULT_POSITIVE_SUFFIX,negative_prompt:DEFAULT_NEGATIVE_PROMPT};s.defaultsRevision=5;await this.storage.put('novelaiState',s);}
   return s;
  }

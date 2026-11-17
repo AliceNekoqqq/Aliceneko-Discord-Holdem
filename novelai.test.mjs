@@ -53,12 +53,15 @@ test('personal templates replace each selected section while missing fields inhe
  assert.equal(resolveImageParameters(IMAGE_DEFAULTS,prefs).prompt_suffix,DEFAULT_POSITIVE_SUFFIX);
  assert.equal(prefs.prompt_suffix,undefined);assert.equal(IMAGE_DEFAULTS.prompt_suffix,DEFAULT_POSITIVE_SUFFIX);
 });
-test('all three template controls and private full-text viewing support the supplied negative prompt over 1000 characters',()=>{
- assert(DEFAULT_NEGATIVE_PROMPT.length>1000);assert.equal(imageParameters({negative_prompt:DEFAULT_NEGATIVE_PROMPT}).negative_prompt,DEFAULT_NEGATIVE_PROMPT);
+test('all three template controls and private full-text viewing preserve supplied negative and long custom prompts',()=>{
+ assert(DEFAULT_NEGATIVE_PROMPT.length>800);assert.equal(imageParameters({negative_prompt:DEFAULT_NEGATIVE_PROMPT}).negative_prompt,DEFAULT_NEGATIVE_PROMPT);
  const names=imageCommandGroup.options.find(x=>x.name==='默认').options.map(x=>x.name);
  for(const name of ['前置正面','后置正面','负面提示'])assert(names.includes(name));assert(!names.includes('质量词'));
  const result={defaults:IMAGE_DEFAULTS,preferences:{prompt_prefix:'custom'},queued:0};
  const r=imageSettingsReply(result,{范围:'defaults',提示词:'negative_prompt'});assert.equal(r.data.flags,64);assert.equal(r.data.embeds[0].description,'```\n'+DEFAULT_NEGATIVE_PROMPT+'\n```');assert(r.data.embeds[0].description.length<4096);
+ const longNegative=DEFAULT_NEGATIVE_PROMPT+', '+DEFAULT_NEGATIVE_PROMPT;
+ const longView=imageSettingsReply({defaults:{...IMAGE_DEFAULTS,negative_prompt:longNegative},preferences:{},queued:0},{范围:'defaults',提示词:'negative_prompt'});
+ assert.equal(longView.data.embeds[0].description,'```\n'+longNegative+'\n```');
  const own=imageSettingsReply(result,{范围:'preferences',提示词:'prompt_suffix'});assert.match(own.data.embeds[0].description,/沿用默认/);
 });
 test('persisted global templates migrate once, preserving personal templates, rescale and frozen jobs',async()=>{

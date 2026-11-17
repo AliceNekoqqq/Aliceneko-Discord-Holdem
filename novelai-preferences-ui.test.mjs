@@ -38,7 +38,11 @@ test('numeric submit saves only edited group; blank values inherit; invalid save
 test('three template editors preserve full text, support explicit empty and per-section inheritance',async()=>{
  const f=fixture();
  const panel=await handleImagePreferences(f.click('templates'),f.rpc);assert.equal(panel.type,7);assert.equal(panel.data.components.length,4);
- const modal=await handleImagePreferences(f.click('edit_negative_prompt'),f.rpc);assert.equal(modal.type,9);assert.equal(modal.data.components[0].component.value,IMAGE_DEFAULTS.negative_prompt);assert(IMAGE_DEFAULTS.negative_prompt.length>1000);
+ const modal=await handleImagePreferences(f.click('edit_negative_prompt'),f.rpc);assert.equal(modal.type,9);assert.equal(modal.data.components[0].component.value,IMAGE_DEFAULTS.negative_prompt);assert(IMAGE_DEFAULTS.negative_prompt.length>800);
+ const longNegative=IMAGE_DEFAULTS.negative_prompt+', '+IMAGE_DEFAULTS.negative_prompt;
+ await f.rpc({action:'偏好',user:'1',params:{negative_prompt:longNegative}});
+ const longModal=await handleImagePreferences(f.click('edit_negative_prompt'),f.rpc);
+ assert.equal(longModal.data.components[0].component.value,longNegative);
  await handleImagePreferences(f.submit('save_prompt_prefix',{prompt_prefix:'  custom weights::  '}),f.rpc);assert.equal(f.map.get('imagePreferences:1').prompt_prefix,'  custom weights::  ');
  await handleImagePreferences(f.submit('save_prompt_suffix',{prompt_suffix:''},true),f.rpc);assert.equal(f.map.get('imagePreferences:1').prompt_suffix,'');
  await handleImagePreferences(f.click('inherit_prompt_prefix'),f.rpc);assert.equal(f.map.get('imagePreferences:1').prompt_prefix,undefined);assert.equal(f.map.get('imagePreferences:1').prompt_suffix,'');
