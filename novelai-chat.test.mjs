@@ -77,6 +77,40 @@ test('a repeated promise or invalid current-turn evidence results in no image an
  assert.equal(f.posts.length,1);
  assert.match(f.posts[0].content,/未提交生图/);
 });
+test('explicit tagged portraits repair both casual acknowledgements and missing current-turn evidence',async t=>{
+ const current='画一张 <@7> 娇小黑长直少女';
+ const image={prompt:'1girl, petite, long straight black hair',evidence:'画一张',appearanceSubjects:[{key:'member_1',useSaved:false}]};
+ for(const first of [
+  {reply:'好，这就把她画成娇小的黑长直少女送去队列～',image:null},
+  {reply:'好呀，黑长直美少女版安排上啦。',image:{...image,evidence:'画一张 惊蛰 娇小黑长直少女'}},
+  {reply:'好呀。',image:null},
+  {image:null}
+ ]){
+  const f=fixture(t,attempt=>attempt===1?first:{reply:'好。',image});
+  await replyToMention(f.env,{...message,content:'<@99> '+current,mentions:[{id:'99',bot:true},{id:'7',username:'惊蛰'}]},'99');
+  assert.equal(f.model.length,2);
+  assert.equal(f.rpc.filter(r=>r.p.action==='绘制').length,1);
+  assert.deepEqual(f.rpc.find(r=>r.p.action==='绘制').p.appearanceSubjects,[{id:'7',detail:'',useSaved:false}]);
+  assert.deepEqual(f.posts.map(p=>p.content),['已加入生图队列']);
+ }
+});
+test('no valid portrait after one extra model pass reports failure and a final cancellation never queues',async t=>{
+ const current='画一张 <@7> 黑长直少女';
+ const f=fixture(t,{reply:'黑长直美少女版安排上啦。',image:null});
+ await replyToMention(f.env,{...message,content:'<@99> '+current},'99');
+ assert.equal(f.model.length,2);assert.match(f.posts[0].content,/未提交生图/);
+ assert.equal(f.rpc.filter(r=>r.p.action==='绘制').length,0);
+ const cancelled=fixture(t,{reply:'安排上了。',image:{prompt:'portrait',evidence:'画一张'}});
+ await replyToMention(cancelled.env,{...message,content:'<@99> '+current+'\n算了'},'99');
+ assert.equal(cancelled.model.length,1);assert.equal(cancelled.posts[0].content,'好，这轮先不画。');
+ assert.equal(cancelled.rpc.filter(r=>r.p.action==='绘制').length,0);
+});
+test('discussion of image commands does not automatically trigger image repair',async t=>{
+ const f=fixture(t,{reply:'这条是示例。',image:null});
+ await replyToMention(f.env,{...message,content:'<@99> 画一张小猫，这是示例，怎么写才对？'},'99');
+ assert.equal(f.model.length,1);assert.equal(f.posts[0].content,'这条是示例。');
+ assert.equal(f.rpc.filter(r=>r.p.action==='绘制').length,0);
+});
 test('a text-model prompt block is reported without a second request or an image job',async t=>{
  const f=fixture(t,()=>Response.json({error:{code:'prompt_blocked'}},{status:400}));
  await replyToMention(f.env,{...message,content:'<@99> 请用这个外貌画一张图'},'99');
