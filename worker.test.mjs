@@ -623,6 +623,7 @@ test('ordinary members can request a private V5 quota lookup without a model or 
  const response=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);
  assert.deepEqual(await response.json(),{type:5,data:{flags:64}});await Promise.all(ctx.tasks);
  assert.deepEqual(calls.map(c=>[c.url,c.options.method]),[['https://image.novelai.net/user/subscription','GET'],['https://discord.com/api/v10/webhooks/123/transient/messages/@original','PATCH']]);
+ assert.equal(calls[0].options.redirect,'manual');
  const data=JSON.parse(calls[1].options.body);
  assert.equal(data.flags,64);assert.match(data.content,/剩余 120%/);assert.match(data.content,/额外额度 10%/);assert.match(data.content,/恢复 1% <t:\d+:R>/);assert.doesNotMatch(data.content,/never display|quota-key/);
 });

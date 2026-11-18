@@ -58,7 +58,7 @@ export async function readV5Quota(apiKey,fetcher=fetch) {
   try {
     const response=await fetcher(IMAGE_API+'/user/subscription',{
       method:'GET',headers:{Authorization:'Bearer '+apiKey,Accept:'application/json'},
-      redirect:'error',signal:AbortSignal.timeout(8000)
+      redirect:'manual',signal:AbortSignal.timeout(8000)
     });
     if(!response.ok)return `V5 额度查询失败（NovelAI HTTP ${response.status}）。`;
     const subscription=await response.json();

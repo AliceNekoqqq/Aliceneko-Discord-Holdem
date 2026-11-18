@@ -212,7 +212,8 @@ export class NovelAIService{
     form.append('request',new Blob([body],{type:'application/json'}));
     body=form;
    }else headers['Content-Type']='application/json';
-   const response=await this.fetcher(IMAGE_API+(streaming?'/ai/generate-image-stream':'/ai/generate-image'),{method:'POST',headers,body,redirect:'error',signal:AbortSignal.timeout(100000)});
+   // Workers supports manual redirects. The HTTP check below rejects 3xx without forwarding the token.
+   const response=await this.fetcher(IMAGE_API+(streaming?'/ai/generate-image-stream':'/ai/generate-image'),{method:'POST',headers,body,redirect:'manual',signal:AbortSignal.timeout(100000)});
    providerStatus=response.status;
    if(!response.ok){const e=Error('novelai_http');e.status=response.status;throw e;}
    stage='provider_decode';

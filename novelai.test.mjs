@@ -14,7 +14,7 @@ function fixture(fetcher){
 }
 test('runtime fetch is invoked without rebinding this to the service, for generation and upload',async()=>{
  const f=fixture(),calls=[];
- const fetcher=async function(url,o){assert.equal(this,undefined);calls.push(url);return url.includes('novelai.net')?Response.json({images:[{image:'iVBORw0KGgo='}]}):Response.json({id:'9'});};
+ const fetcher=async function(url,o){assert.equal(this,undefined);calls.push(url);if(url.includes('novelai.net')){assert.equal(o.redirect,'manual');return Response.json({images:[{image:'iVBORw0KGgo='}]});}return Response.json({id:'9'});};
  const service=new NovelAIService(f.host,fetcher,()=>100000);
  await service.dispatch({action:'绘制',user:'10',id:'1',channel:'20',prompt:'a cat'});await service.alarm();
  assert.equal(calls.length,2);assert.equal(f.map.get('novelaiState').recent[0].status,'sent');
@@ -182,6 +182,7 @@ test('V5 variants use multipart streaming and send only the final PNGs in sample
   const f=fixture(async(url,options)=>{
    if(url.includes('novelai.net')){
     assert.equal(url,'https://image.novelai.net/ai/generate-image-stream');
+    assert.equal(options.redirect,'manual');
     assert.equal(options.headers['Content-Type'],undefined);
     const request=JSON.parse(await options.body.get('request').text());
     assert.equal(request.model,model);assert.equal(request.use_new_shared_trial,true);

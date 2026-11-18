@@ -1,3 +1,8 @@
+## NovelAI 请求失败修复（2026-11-18，发布中）
+
+- 线上最近三次失败均停在 provider_request，未收到 NovelAI HTTP 状态。与 V5 同批新增的 fetch redirect:error 在 workerd 中直接报 TypeError。生图和额度请求统一改用 manual，已有 HTTP 检查拒绝 3xx，保护 Bearer 凭据。
+- 聊天 183 项、Worker 185 项通过，覆盖 V4.5、V5 流式和额度查询的重定向设置。没有重发历史请求。
+
 ## NovelAI V5 和共享额度查询（2026-11-18，已发布）
 
 - V5 Full 和 Curated 接入斜杠绘制、试画、个人偏好、开发者默认及自然语言单次指定；默认继续为 V4.5 Full。V5 用 multipart 流式请求和按长度切分的 MessagePack，只投递最终 PNG。
