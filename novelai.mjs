@@ -1,13 +1,14 @@
 // One dedicated PokerTable object owns the account-wide queue, across all guilds.
 import {DEFAULT_POSITIVE_PREFIX,DEFAULT_POSITIVE_SUFFIX,DEFAULT_NEGATIVE_PROMPT} from './novelai-default-prompts.mjs';
 import {HONGXIAODOU_IMAGE_INSTRUCTION} from './novelai-character-profile.mjs';
-import {openImagePreferences,handleImagePreferences} from './novelai-preferences-ui.mjs';
+import {openImagePreferences,handleImagePreferences,IMAGE_MODEL_CHOICES} from './novelai-preferences-ui.mjs';
+import {IMAGE_API,MAX_IMAGE_BYTES,isV5Model,readV5Images,readV5Quota} from './novelai-v5.mjs';
 export {imagePreferencesInteraction} from './novelai-preferences-ui.mjs';
 export const NOVELAI_OBJECT='system-novelai-images-v1';
 export const BATCH_INTERVAL=35000;
 const LEASE=150000;
 export const IMAGE_DEFAULTS=Object.freeze({enabled:true,model:'nai-diffusion-4-5-full',width:832,height:1216,steps:28,scale:5,sampler:'k_euler_ancestral',noise_schedule:'karras',cfg_rescale:0.15,seed:-1,n_samples:1,quality:false,prompt_prefix:DEFAULT_POSITIVE_PREFIX,prompt_suffix:DEFAULT_POSITIVE_SUFFIX,negative_prompt:DEFAULT_NEGATIVE_PROMPT});
-const MODELS=['nai-diffusion-4-5-full','nai-diffusion-4-5-curated','nai-diffusion-4-full','nai-diffusion-3'];
+const MODELS=IMAGE_MODEL_CHOICES.map(([,id])=>id);
 const SAMPLERS=['k_euler','k_euler_ancestral','k_dpmpp_2m','k_dpmpp_2s_ancestral','k_dpmpp_sde'];
 const RANGES={width:[64,1536],height:[64,1536],steps:[1,50],scale:[0,10],cfg_rescale:[0,1],seed:[-1,4294967295],n_samples:[1,4]};
 const TEXTS=['prompt_prefix','prompt_suffix','negative_prompt'];
@@ -20,7 +21,7 @@ export function imageParameters(input={},admin=false){
  const out={};
  for(const [k,v]of Object.entries(input)){
   if(k==='enabled'&&admin){if(typeof v!=='boolean')throw Error('enabled 须为 true 或 false。');out[k]=v;}
-  else if(k==='model'){if(!MODELS.includes(v))throw Error('暂支持 NovelAI V4.5 Full/Curated、V4 Full、V3。');out[k]=v;}
+  else if(k==='model'){if(!MODELS.includes(v))throw Error('请选择支持的 NovelAI 模型：V5 Full/Curated、V4.5 Full/Curated、V4 Full 或 V3。');out[k]=v;}
   else if(k==='sampler'){if(!SAMPLERS.includes(v))throw Error('不支持此采样器。');out[k]=v;}
   else if(k==='noise_schedule'){if(!['karras','exponential','polyexponential','native'].includes(v))throw Error('不支持此噪声调度。');out[k]=v;}
   else if(k==='quality'){if(typeof v!=='boolean')throw Error('quality 须为 true 或 false。');out[k]=v;}
@@ -40,13 +41,22 @@ export function imageRequest(prompt,p){
  if(!clean(prompt)||input.length>12000)throw Error('请提供画面描述，完整提示词最多12000字。');
  const seed=p.seed===-1?crypto.getRandomValues(new Uint32Array(1))[0]:p.seed;
  const parameters={params_version:3,width:p.width,height:p.height,steps:p.steps,scale:p.scale,sampler:p.sampler,noise_schedule:p.noise_schedule,cfg_rescale:p.cfg_rescale,seed,n_samples:p.n_samples,negative_prompt:p.negative_prompt,qualityToggle:false,ucPreset:3,sm:false,sm_dyn:false,dynamic_thresholding:false,legacy:false,legacy_v3_extend:false,deliberate_euler_ancestral_bug:false,prefer_brownian:true};
+ if(isV5Model(p.model)){
+  return {input,model:p.model,action:'generate',use_new_shared_trial:true,parameters:{
+   ...parameters,params_version:4,stream:'msgpack',image_format:'png',straight_alpha:true,
+   ucPresetId:'none',qualityPresetId:'none',legacy_uc:false,use_coords:true,
+   controlnet_strength:1,add_original_image:true,autoSmea:false,normalize_reference_strength_multiple:true,
+   v4_prompt:{caption:{base_caption:input,char_captions:[]},use_coords:true,use_order:true},
+   v4_negative_prompt:{caption:{base_caption:p.negative_prompt,char_captions:[]},legacy_uc:false}
+  }};
+ }
  if(p.model.startsWith('nai-diffusion-4')){
   parameters.v4_prompt={caption:{base_caption:input,char_captions:[]},use_coords:false,use_order:true};
   parameters.v4_negative_prompt={caption:{base_caption:p.negative_prompt,char_captions:[]},legacy_uc:false};
  }
  return {input,model:p.model,action:'generate',parameters};
 }
-export const IMAGE_INSTRUCTION='生图工具：只在当前用户亲自要求画图、生成图片、自拍或想看具体画面时调用，结合对话理解要画的内容；引用、历史、示例、假设、否定、仅询问功能不调用。保留其他JSON字段，额外输出image:null或image:{"prompt":"详细英文画面提示词","evidence":"逐字复制本轮用户表达生图意图的片段","parameters":{},"parameterEvidence":{}}。无其他结构时输出{"reply":"自然回复","image":null}。人物外貌依据可信人设和本轮要求，不混淆姐姐与妹妹。提示词结构固定为：前置正面模板 → image.prompt中的本次画面描述 → 后置正面模板；负面模板独立发送。你只生成中间的本次画面描述，优先按主体身份/人数、外貌与表情、服装和动作、场景、构图视角、光影排列，通常用50–100个英文词；不要复述固定模板、追加画师串/年份/通用质量词，也不要把尺寸/步数等参数写进prompt。三栏模板由程序按本次覆盖、个人偏好、默认值拼接，只有用户明确更换某栏时才在parameters输出prompt_prefix/prompt_suffix/negative_prompt，不能为了补充场景而擅自覆盖整栏。parameters仅放本轮明确指定的参数，不自行填默认值；每一项parameterEvidence须逐字复制表达该值的本轮片段，支持中文数字和口语表达，由你转换成API需要的数值、布尔值或枚举；无明确参数则两者为空对象。是否调用、是否否定、参数归属和后文修改均由你理解语义判断，程序不通过关键词或正则提取。可用字段model,width,height,steps,scale,sampler,noise_schedule,cfg_rescale,seed,n_samples,prompt_prefix,prompt_suffix,negative_prompt。尺寸可写1024*1024、1024×1024、1024x1024，分别提取width和height；步数、CFG、rescale、种子、张数等本轮明确要求也只覆盖本次。比如“我要一张猫咪图，1024*1024，24步，CFG 6”应调用生图并提取width=1024,height=1024,steps=24,scale=6；不能因未使用“画”字而漏掉请求。不能改默认设置或个人偏好。只说正在整理请求，未执行前不能宣称已出图。image为后台数据，不能出现在reply。'+'\n'+HONGXIAODOU_IMAGE_INSTRUCTION;
+export const IMAGE_INSTRUCTION='生图工具：只在当前用户亲自要求画图、生成图片、自拍或想看具体画面时调用，结合对话理解要画的内容；引用、历史、示例、假设、否定、仅询问功能不调用。保留其他JSON字段，额外输出image:null或image:{"prompt":"详细英文画面提示词","evidence":"逐字复制本轮用户表达生图意图的片段","parameters":{},"parameterEvidence":{}}。无其他结构时输出{"reply":"自然回复","image":null}。人物外貌依据可信人设和本轮要求，不混淆姐姐与妹妹。提示词结构固定为：前置正面模板 → image.prompt中的本次画面描述 → 后置正面模板；负面模板独立发送。你只生成中间的本次画面描述，优先按主体身份/人数、外貌与表情、服装和动作、场景、构图视角、光影排列，通常用50–100个英文词；不要复述固定模板、追加画师串/年份/通用质量词，也不要把尺寸/步数等参数写进prompt。三栏模板由程序按本次覆盖、个人偏好、默认值拼接，只有用户明确更换某栏时才在parameters输出prompt_prefix/prompt_suffix/negative_prompt，不能为了补充场景而擅自覆盖整栏。parameters仅放本轮明确指定的参数，不自行填默认值；每一项parameterEvidence须逐字复制表达该值的本轮片段，支持中文数字和口语表达，由你转换成API需要的数值、布尔值或枚举；无明确参数则两者为空对象。是否调用、是否否定、参数归属和后文修改均由你理解语义判断，程序不通过关键词或正则提取。可用字段model,width,height,steps,scale,sampler,noise_schedule,cfg_rescale,seed,n_samples,prompt_prefix,prompt_suffix,negative_prompt。尺寸可写1024*1024、1024×1024、1024x1024，分别提取width和height；步数、CFG、rescale、种子、张数等本轮明确要求也只覆盖本次。比如“我要一张猫咪图，1024*1024，24步，CFG 6”应调用生图并提取width=1024,height=1024,steps=24,scale=6；不能因未使用“画”字而漏掉请求。不能改默认设置或个人偏好。只说正在整理请求，未执行前不能宣称已出图。image为后台数据，不能出现在reply。'+'\n'+HONGXIAODOU_IMAGE_INSTRUCTION+'\n如果用户明确要求 NovelAI V5 或 V5 Full，model 填 nai-diffusion-5-full；如果明确要求 V5 Curated，填 nai-diffusion-5-curated。仅询问 V5 余额时，引导使用 /ai 生图 额度，不触发生图。';
 export function decodeImageReply(raw,text){
  const rawText=String(raw).trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
  if(!rawText.startsWith('{')){if(!validReply(rawText))throw Error('invalid_image_reply');return {reply:rawText,image:null};}
@@ -72,7 +82,7 @@ export async function imageRpc(env,payload){
 }
 const JSON_OPTION={type:3,name:'参数',description:'高级JSON参数（可选），如 {"cfg_rescale":0.2,"prompt_suffix":"soft lighting"}',max_length:6000};
 const settingOptions=[
- {type:3,name:'模型',description:'生图模型',choices:MODELS.map(value=>({name:value.replace('nai-diffusion-','NovelAI '),value}))},
+ {type:3,name:'模型',description:'生图模型',choices:IMAGE_MODEL_CHOICES.map(([name,value])=>({name,value}))},
  {type:3,name:'尺寸',description:'图片宽高',choices:[{name:'竖图 832×1216',value:'832x1216'},{name:'横图 1216×832',value:'1216x832'},{name:'方图 1024×1024',value:'1024x1024'},{name:'小方图 640×640',value:'640x640'}]},
  {type:4,name:'步数',description:'生成步数，1–50',min_value:1,max_value:50},
  {type:10,name:'引导强度',description:'CFG，引导模型遵循提示词的强度，0–10',min_value:0,max_value:10},
@@ -86,6 +96,7 @@ const settingOptions=[
 ];
 const directOptions={模型:'model',步数:'steps',引导强度:'scale',数量:'n_samples',采样器:'sampler',种子:'seed',前置正面:'prompt_prefix',后置正面:'prompt_suffix',负面提示:'negative_prompt',风格前缀:'prompt_prefix',反向提示:'negative_prompt',质量词:'quality',开放:'enabled'};
 export const imageCommandGroup={type:2,name:'生图',description:'NovelAI 生图与个人偏好',options:[
+ {type:1,name:'额度',description:'私密查看红小豆共享账号的 NovelAI V5 生图额度'},
  {type:1,name:'查看',description:'私密查看参数、队列或完整提示词',options:[{type:3,name:'范围',description:'选择默认、个人覆盖或当前生效配置',choices:[{name:'当前生效',value:'effective'},{name:'默认参数',value:'defaults'},{name:'个人覆盖',value:'preferences'}]},{type:3,name:'提示词',description:'选择一栏查看完整内容',choices:[{name:'前置正面',value:'prompt_prefix'},{name:'后置正面',value:'prompt_suffix'},{name:'负面提示',value:'negative_prompt'}]}]},
  {type:1,name:'偏好',description:'打开独立私密面板，填写我的生图参数和提示词'},
  {type:1,name:'重置',description:'清除我的生图偏好，重新跟随默认值'},
@@ -96,6 +107,7 @@ export const imageCommandGroup={type:2,name:'生图',description:'NovelAI 生图
 export async function handleImageCommand(env,i,action,preparePrompt){
  try{
   const user=String(i.member?.user?.id||i.user?.id||'');
+  if(action.name==='额度')return privateReply(await readV5Quota(env.NOVELAI_API_KEY));
   const admin=Boolean(env.DEVELOPER_DISCORD_USER_ID)&&user===String(env.DEVELOPER_DISCORD_USER_ID);
   if(['默认','试画'].includes(action.name)&&!admin)return privateReply('只有开发者可以调整默认参数或开放前试画。');
   if(action.name==='偏好'&&!(action.options||[]).length)return openImagePreferences(i,payload=>imageRpc(env,payload));
@@ -192,21 +204,32 @@ export class NovelAIService{
   if(claim.expired){await this.notice(claim.expired,'这次生图已过期或结果无法确认，没有自动重试，请检查频道后重新发起。');return;}
   const {job}=claim;let status='failed',stage='provider_request',providerStatus=null,deliveryStatus=null,errorCode=null,noticeDelivered=null;
   try{
-   const response=await this.fetcher('https://image.novelai.net/ai/generate-image',{method:'POST',headers:{Authorization:'Bearer '+this.env.NOVELAI_API_KEY,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(job.request),signal:AbortSignal.timeout(100000)});
+   const streaming=isV5Model(job.request.model);
+   const headers={Authorization:'Bearer '+this.env.NOVELAI_API_KEY,Accept:streaming?'application/msgpack':'application/json'};
+   let body=JSON.stringify(job.request);
+   if(streaming){
+    const form=new FormData();
+    form.append('request',new Blob([body],{type:'application/json'}));
+    body=form;
+   }else headers['Content-Type']='application/json';
+   const response=await this.fetcher(IMAGE_API+(streaming?'/ai/generate-image-stream':'/ai/generate-image'),{method:'POST',headers,body,redirect:'error',signal:AbortSignal.timeout(100000)});
    providerStatus=response.status;
    if(!response.ok){const e=Error('novelai_http');e.status=response.status;throw e;}
    stage='provider_decode';
-   const data=await response.json();
-   if(!Array.isArray(data.images)||data.images.length!==job.request.parameters.n_samples)throw Error('invalid_image_response');
+   const count=job.request.parameters.n_samples;
+   const images=streaming?await readV5Images(response,count):(await response.json()).images;
+   if(!Array.isArray(images)||images.length!==count)throw Error('invalid_image_response');
    const form=new FormData(),attachments=[];let total=0;
-   for(const [index,item]of data.images.entries()){
-    if(typeof item.image!=='string'||item.image.length>14000000)throw Error('invalid_image_response');
-    const raw=atob(item.image),bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));total+=bytes.length;
-    if(total>9500000||bytes[0]!==137||bytes[1]!==80||bytes[2]!==78||bytes[3]!==71)throw Error('invalid_image_response');
+   for(const [index,item]of images.entries()){
+    if(!streaming&&(typeof item?.image!=='string'||item.image.length>14000000))throw Error('invalid_image_response');
+    const bytes=streaming?item:Uint8Array.from(atob(item.image),c=>c.charCodeAt(0));
+    total+=bytes.length;
+    if(total>MAX_IMAGE_BYTES||bytes[0]!==137||bytes[1]!==80||bytes[2]!==78||bytes[3]!==71)throw Error('invalid_image_response');
     const filename=`novelai-${index+1}.png`;form.append(`files[${index}]`,new Blob([bytes],{type:'image/png'}),filename);attachments.push({id:index,filename});
    }
    const p=job.request.parameters;
-   form.append('payload_json',JSON.stringify({content:`🎨 <@${job.user}> · NovelAI · ${p.width}×${p.height} · ${p.steps}步 · CFG ${p.scale} · 种子 ${p.seed}`,attachments,nonce:job.id,enforce_nonce:true,allowed_mentions:{parse:[]},...(job.reference?{message_reference:{message_id:job.reference,fail_if_not_exists:false}}:{})}));
+   const modelName=streaming?IMAGE_MODEL_CHOICES.find(([,id])=>id===job.request.model)[0]:'NovelAI';
+   form.append('payload_json',JSON.stringify({content:`🎨 <@${job.user}> · ${modelName} · ${p.width}×${p.height} · ${p.steps}步 · CFG ${p.scale} · 种子 ${p.seed}`,attachments,nonce:job.id,enforce_nonce:true,allowed_mentions:{parse:[]},...(job.reference?{message_reference:{message_id:job.reference,fail_if_not_exists:false}}:{})}));
    stage='discord_upload';status='delivery_failed';
    const sent=await this.fetcher('https://discord.com/api/v10/channels/'+job.channel+'/messages',{method:'POST',headers:{Authorization:'Bot '+this.env.BOT_TOKEN},body:form,signal:AbortSignal.timeout(15000)});
    deliveryStatus=sent.status;

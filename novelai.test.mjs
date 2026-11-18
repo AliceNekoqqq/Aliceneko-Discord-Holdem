@@ -170,3 +170,43 @@ test('slash preferences are private; developer-only operations verify the actual
  for(const name of ['默认','试画']){const r=await handleImageCommand(env,i,{name});assert.equal(r.data.flags,64);assert.match(r.data.content,/只有开发者/);}
  const r=await handleImageCommand(env,i,{name:'偏好',options:[{name:'参数',value:'oops'}]});assert.match(r.data.content,/JSON格式/);
 });
+
+test('V5 variants use multipart streaming and send only the final PNGs in sample order',async()=>{
+ const {encode}=await import('@msgpack/msgpack');
+ const png=index=>Uint8Array.of(137,80,78,71,13,10,26,10,index);
+ const frame=event=>{
+  const data=encode(event),bytes=new Uint8Array(4+data.length);
+  new DataView(bytes.buffer).setUint32(0,data.length);bytes.set(data,4);return bytes;
+ };
+ for(const model of ['nai-diffusion-5-full','nai-diffusion-5-curated']){
+  const f=fixture(async(url,options)=>{
+   if(url.includes('novelai.net')){
+    assert.equal(url,'https://image.novelai.net/ai/generate-image-stream');
+    assert.equal(options.headers['Content-Type'],undefined);
+    const request=JSON.parse(await options.body.get('request').text());
+    assert.equal(request.model,model);assert.equal(request.use_new_shared_trial,true);
+    assert.equal(request.parameters.params_version,4);assert.equal(request.parameters.stream,'msgpack');
+    assert.equal(request.parameters.v4_prompt.caption.base_caption,request.input);
+    assert.equal(request.parameters.v4_negative_prompt.caption.base_caption,'my negative');
+    assert.equal(request.parameters.qualityPresetId,'none');
+    const frames=[frame({event_type:'intermediate',samp_ix:0,image:png(100)}),frame({event_type:'final',samp_ix:1,image:png(1)}),frame({event_type:'final',samp_ix:0,image:png(0)})];
+    return new Response(new ReadableStream({start(controller){for(const data of frames){controller.enqueue(data.subarray(0,2));controller.enqueue(data.subarray(2));}controller.close();}}));
+   }
+   for(const index of [0,1])assert.deepEqual(new Uint8Array(await options.body.get(`files[${index}]`).arrayBuffer()),png(index));
+   return Response.json({id:'9'});
+  });
+  await f.request('1','10',{params:{model,n_samples:2,negative_prompt:'my negative'}});await f.service.alarm();
+  assert.equal(f.calls.length,2);assert.equal(f.map.get('novelaiState').recent[0].status,'sent');
+ }
+});
+
+test('a partial V5 stream never uploads a preview or repeats a paid generation',async()=>{
+ const f=fixture(async(url,options)=>{
+  if(url.includes('novelai.net'))return new Response(Uint8Array.of(0,0,0,60,129));
+  assert(!(options.body instanceof FormData));return Response.json({id:'9'});
+ });
+ await f.request('1','10',{params:{model:'nai-diffusion-5-full'}});await f.service.alarm();
+ f.advance(BATCH_INTERVAL);await f.service.alarm();
+ const [last]=f.map.get('novelaiState').recent;
+ assert.equal(last.stage,'provider_decode');assert.equal(last.status,'failed');assert.equal(f.calls.filter(c=>c.url.includes('novelai.net')).length,1);
+});

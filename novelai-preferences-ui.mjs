@@ -1,9 +1,12 @@
 // Native Discord private settings; rpc is supplied by the transport module.
+import {V5_MODELS} from './novelai-v5.mjs';
+
+export const IMAGE_MODEL_CHOICES=[...V5_MODELS,['NovelAI V4.5 Full','nai-diffusion-4-5-full'],['NovelAI V4.5 Curated','nai-diffusion-4-5-curated'],['NovelAI V4 Full','nai-diffusion-4-full'],['NovelAI V3','nai-diffusion-3']];
 const PREFIX='nip';
 const LABELS={prompt_prefix:'前置正面',prompt_suffix:'后置正面',negative_prompt:'负面提示'};
 const GROUPS={basic:[['width','宽度（64的倍数）'],['height','高度（64的倍数）'],['steps','步数（1–50）'],['scale','引导强度 CFG（0–10）'],['n_samples','每批张数（1–4）']],advanced:[['seed','种子（-1为随机）'],['cfg_rescale','Rescale（0–1）']]};
 const SELECTS={
- model:{label:'模型',choices:[['NovelAI V4.5 Full','nai-diffusion-4-5-full'],['NovelAI V4.5 Curated','nai-diffusion-4-5-curated'],['NovelAI V4 Full','nai-diffusion-4-full'],['NovelAI V3','nai-diffusion-3']]},
+ model:{label:'模型',choices:IMAGE_MODEL_CHOICES},
  sampler:{label:'采样器',choices:[['Euler','k_euler'],['Euler Ancestral','k_euler_ancestral'],['DPM++ 2M','k_dpmpp_2m'],['DPM++ 2S Ancestral','k_dpmpp_2s_ancestral'],['DPM++ SDE','k_dpmpp_sde']]},
  noise_schedule:{label:'噪声调度',choices:[['Karras','karras'],['Exponential','exponential'],['Polyexponential','polyexponential'],['Native','native']]}
 };
