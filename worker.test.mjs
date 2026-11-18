@@ -31,20 +31,23 @@ test('signed image preferences command, private buttons and native modal submiss
 });
 test('signed appearance editor refines a private draft across turns and saves only on confirmation',async t=>{
  const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);
- const doCtx=context(),env={DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex'),GEMINI_API_KEY:'text-key'};
+ const doCtx=context(),env={DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex'),GEMINI_API_KEY:'text-key',GEMINI_API_BASE_URL:'https://text.example/v1',GEMINI_MODEL:'pggo-gemini-3.8-flash'};
  const host=new PokerTable(doCtx,env),calls=[],patches=[];
  env.TABLES={idFromName:n=>n,get:n=>({fetch:(url,o)=>{assert.equal(n,NOVELAI_OBJECT);return host.fetch(new Request(url,o));}})};
  let release,started;
  const waiting=new Promise(resolve=>{release=resolve;});
  const firstStart=new Promise(resolve=>{started=resolve;});
- const candidates=[{reply:'瞳色是什么？',tags:'ash blonde hair, elf ears'},null,{reply:'保留发色和耳朵。',tags:'ash blonde hair, elf ears, amber eyes'}];
+ const candidates=[{reply:'瞳色是什么？',tags:'ash blonde hair, elf ears'},{reply:'改好了。',tags:'amber eyes'},{reply:'保留发色和耳朵。',tags:'ash blonde hair, elf ears, amber eyes'}];
  t.mock.method(globalThis,'fetch',async(url,o)=>{
-  if(String(url).includes('generativelanguage')){
+  if(url==='https://text.example/v1/chat/completions'){
    const body=JSON.parse(o.body);
-   assert.equal(body.generationConfig.responseMimeType,'application/json');
-   const candidate=candidates[calls.length];calls.push(JSON.parse(body.contents[0].parts[0].text));
+   assert.equal(body.model,'gemini-3.1-pro-preview');
+   assert.equal(body.max_tokens,8192);
+   assert.equal(body.reasoning_effort,'low');
+   assert.equal(body.response_format.type,'json_object');
+   const candidate=candidates[calls.length];calls.push(JSON.parse(body.messages.at(-1).content));
    if(calls.length===1){started();await waiting;}
-   return candidate?Response.json({candidates:[{content:{parts:[{text:JSON.stringify(candidate)}]}}]}):Response.json({error:'unavailable'},{status:500});
+   return Response.json({choices:[{message:{content:JSON.stringify(candidate)},finish_reason:calls.length===2?'length':'stop'}]});
   }
   assert.match(String(url),/webhooks\/123\/appearance-token\/messages\/@original$/);
   assert.equal(o.method,'PATCH');patches.push(JSON.parse(o.body));return Response.json({});

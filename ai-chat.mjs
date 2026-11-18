@@ -23,6 +23,8 @@ export const MAX_PERSONA_CHARS = 5000;
 export const MAX_USER_CHARS = 1800;
 export const MAX_REPLY_CHARS = 1700;
 export const CHAT_MAX_OUTPUT_TOKENS = 1024;
+const APPEARANCE_MODEL = "gemini-3.1-pro-preview";
+const APPEARANCE_MAX_OUTPUT_TOKENS = 8192;
 
 const privateReply = content => ({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 const manageGuild = member => {
@@ -164,7 +166,7 @@ export function buildGenerateContentRequest(contents, persona = "", context = "c
   return {
     systemInstruction:{parts:[{text:makeSystemInstruction(persona, context, emojiTokens, knowledge, speakerIdentity,runtimeData)}]},
     contents,
-    generationConfig:{temperature:context === "game" ? 0.85 : ['ugc','appearance'].includes(context) ? 0.2 : 0.7,maxOutputTokens:context==='welcome'?256:context === 'ugc'?3072:context === "game" ? 512 : (runtimeData.imageGeneration||context==='appearance'?2048:CHAT_MAX_OUTPUT_TOKENS),...((context==='appearance'||runtimeData.imageGeneration||runtimeData.redPacketExtraction||runtimeData.tavernOrderExtraction||runtimeData.relationshipExtraction||runtimeData.flowerOrderExtraction)?{responseMimeType:"application/json"}:{})},
+    generationConfig:{temperature:context === "game" ? 0.85 : ['ugc','appearance'].includes(context) ? 0.2 : 0.7,maxOutputTokens:context==='appearance'?APPEARANCE_MAX_OUTPUT_TOKENS:context==='welcome'?256:context === 'ugc'?3072:context === "game" ? 512 : (runtimeData.imageGeneration?2048:CHAT_MAX_OUTPUT_TOKENS),...(context==='appearance'?{thinkingConfig:{thinkingLevel:"LOW"}}:{}),...((context==='appearance'||runtimeData.imageGeneration||runtimeData.redPacketExtraction||runtimeData.tavernOrderExtraction||runtimeData.relationshipExtraction||runtimeData.flowerOrderExtraction)?{responseMimeType:"application/json"}:{})},
     store:false
   };
 }
@@ -182,8 +184,9 @@ export function buildOpenAIChatRequest(contents, persona = "", context = "chat",
     model,
     messages,
     temperature:context === "game" ? 0.85 : ['ugc','appearance'].includes(context) ? 0.2 : 0.7,
-    max_tokens:context==='welcome'?256:context === 'ugc'?3072:context === "game" ? 512 : (runtimeData.imageGeneration||context==='appearance'?2048:CHAT_MAX_OUTPUT_TOKENS),
+    max_tokens:context==='appearance'?APPEARANCE_MAX_OUTPUT_TOKENS:context==='welcome'?256:context === 'ugc'?3072:context === "game" ? 512 : (runtimeData.imageGeneration?2048:CHAT_MAX_OUTPUT_TOKENS),
     stream:false,
+    ...(context==='appearance'?{reasoning_effort:"low"}:{}),
     ...((context==='appearance'||runtimeData.imageGeneration||runtimeData.redPacketExtraction||runtimeData.tavernOrderExtraction||runtimeData.relationshipExtraction||runtimeData.flowerOrderExtraction)?{response_format:{type:"json_object"}}:{})
   };
 }
@@ -319,7 +322,9 @@ function retryDelay(response,retry) {
 export async function generateGemini(env, contents, context = "chat", fetcher = fetch, emojiTokens = [], knowledge = "", wait = waitForRetry, speakerIdentity = "", runtimeData = {}) {
   if (!env.GEMINI_API_KEY) throw new Error("missing_gemini_key");
   const persona = clamp(personaValue([env.GEMINI_PERSONA, env.GEMINI_PERSONA_CONT].filter(value => value != null).join("")),MAX_PERSONA_CHARS);
-  const model = /^[A-Za-z0-9.-]{1,80}$/.test(env.GEMINI_MODEL || "") ? env.GEMINI_MODEL : "pggo-gemini-3.8-flash";
+  const configuredModel = context === "appearance" ? env.GEMINI_APPEARANCE_MODEL : env.GEMINI_MODEL;
+  const defaultModel = context === "appearance" ? APPEARANCE_MODEL : "pggo-gemini-3.8-flash";
+  const model = /^[A-Za-z0-9.-]{1,80}$/.test(configuredModel || "") ? configuredModel : defaultModel;
   const openAI=Boolean(env.GEMINI_API_BASE_URL);
   let retries=0;
   const retryLimit=runtimeData.imageReplyRepair||context==='appearance'?0:GEMINI_MAX_RETRIES;
@@ -390,6 +395,7 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
       if(needsReplyContinuation(answer)) answer=answer.trimEnd()+"…";
       break;
     }
+    if(context==='appearance'&&/^(length|max_tokens|max_output_tokens)$/i.test(result.finishReason))throw Error('appearance_output_truncated');
     if(runtimeData.redPacketExtraction||runtimeData.imageGeneration||context==='appearance'){if(result.answer.length>20000)throw Error('tool_output_too_large');return result.answer;}
     if(context==='ugc'){
       if(result.answer.length>20000)throw new Error('ugc_output_too_large');
