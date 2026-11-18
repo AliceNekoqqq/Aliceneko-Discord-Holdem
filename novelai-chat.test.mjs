@@ -7,7 +7,12 @@ function fixture(t,output,notice='已加入生图队列'){
  const rpc=[],posts=[],model=[];
  const env={BOT_TOKEN:'test',GEMINI_API_KEY:'test',NOVELAI_API_KEY:'secret-never-in-prompt',GEMINI_MAX_RETRIES:'0',AI_REQUEST_LOG_ENABLED:'false',TABLES:{idFromName:n=>n,get:name=>({async fetch(url,o){const p=JSON.parse(o.body);rpc.push({name,p});return Response.json(p.op==='novelai'?{accepted:true,notice}:{});}})}};
  t.mock.method(globalThis,'fetch',async(url,o)=>{
-  if(String(url).includes('generativelanguage')){model.push(JSON.parse(o.body));return Response.json({candidates:[{content:{parts:[{text:typeof output==='string'?output:JSON.stringify(output)}]}}]});}
+  if(String(url).includes('generativelanguage')){
+   model.push(JSON.parse(o.body));
+   const result=typeof output==='function'?output(model.length):output;
+   if(result instanceof Response)return result;
+   return Response.json({candidates:[{content:{parts:[{text:typeof result==='string'?result:JSON.stringify(result)}]}}]});
+  }
   if(String(url).endsWith('/messages')&&o?.method==='POST'){posts.push(JSON.parse(o.body));return Response.json({id:'8202'});}
   return Response.json({id:'821',guild_id:'820',type:0,permission_overwrites:[]});
  });return {env,rpc,posts,model};
@@ -27,6 +32,37 @@ test('plain reply, ordinary chat, negation and missing evidence never enqueue',a
  for(const [content,output]of [['你好','你好呀。'],['不要生图',{reply:'好的。',image:null}],['你好',{reply:'你好呀。',image:{prompt:'cat',evidence:'想看看你今天的穿搭'}}]]){
   const f=fixture(t,output);await replyToMention(f.env,{...message,content:'<@99> '+content},'99');assert.equal(f.rpc.filter(r=>r.p.op==='novelai').length,0);assert.equal(f.posts.length,1);
  }
+});
+test('an appearance follow-up with a text-only submission promise gets one repair before a single queue call',async t=>{
+ const promise='正在为你整理画面描述，这就提交生图~';
+ const current='外貌用粉色双马尾、酒红色眼睛，使用V5模型';
+ const image={prompt:'1girl, pink twintails, dark maroon eyes',evidence:'外貌用粉色双马尾',parameters:{model:'nai-diffusion-5-full'},parameterEvidence:{model:'使用V5模型'}};
+ const f=fixture(t,attempt=>attempt===1?promise:{reply:'好。',image});
+ await replyToMention(f.env,{...message,content:'<@99> '+current},'99');
+ const jobs=f.rpc.filter(c=>c.p.action==='绘制');
+ assert.equal(f.model.length,2);
+ assert.match(f.model[1].systemInstruction.parts[0].text,/上一次输出缺少可用的生图数据/);
+ assert.deepEqual(f.model[1].contents,f.model[0].contents);
+ assert.equal(jobs.length,1);
+ assert.equal(jobs[0].p.prompt,image.prompt);
+ assert.equal(jobs[0].p.params.model,'nai-diffusion-5-full');
+ assert.deepEqual(f.posts.map(p=>p.content),['已加入生图队列']);
+});
+test('a repeated promise or invalid current-turn evidence results in no image and a truthful reply',async t=>{
+ const promise='正在为你整理画面描述，这就提交生图~';
+ const f=fixture(t,attempt=>attempt===1?{reply:promise,image:null}:{reply:promise,image:{prompt:'1girl',evidence:'画我的照片'}});
+ await replyToMention(f.env,{...message,content:'<@99> 朋友说“画我的照片”，这怎么写？'},'99');
+ assert.equal(f.model.length,2);
+ assert.equal(f.rpc.filter(c=>c.p.action==='绘制').length,0);
+ assert.equal(f.posts.length,1);
+ assert.match(f.posts[0].content,/未提交生图/);
+});
+test('a text-model prompt block is reported without a second request or an image job',async t=>{
+ const f=fixture(t,()=>Response.json({error:{code:'prompt_blocked'}},{status:400}));
+ await replyToMention(f.env,{...message,content:'<@99> 请用这个外貌画一张图'},'99');
+ assert.equal(f.model.length,1);
+ assert.equal(f.rpc.filter(c=>c.p.action==='绘制').length,0);
+ assert.equal(f.posts[0].content,'文字模型拦截了这轮请求，未提交生图。');
 });
 test('pending defaults get an accurate notice without claiming an image exists',async t=>{
  const f=fixture(t,{reply:'准备中。',image:{prompt:'cat',evidence:'画只猫'}},'生图功能已接入，正在等待开发者调整默认参数后开放。');await replyToMention(f.env,{...message,content:'<@99> 画只猫'},'99');assert.match(f.posts[0].content,/等待开发者/);
