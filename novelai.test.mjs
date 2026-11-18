@@ -153,13 +153,55 @@ test('in-flight requests remain serialized while other users enqueue',async()=>{
  const alarm=f.service.alarm();await new Promise(r=>setImmediate(r));await f.request('2','11');await f.service.alarm();assert.equal(f.calls.length,1);assert.equal(f.map.get('novelaiState').queue.length,1);
  release(Response.json({images:[{image:'iVBORw0KGgo='}]}));await alarm;assert.equal(f.map.get('novelaiState').inflight,null);assert(f.map.get('alarm')>=135000);
 });
-test('429, auth errors, invalid image data and delivery errors never retry generation',async()=>{
- for(const status of [401,402,429,500]){
+test('auth errors, invalid image data and delivery errors never retry generation',async()=>{
+ for(const status of [401,402,500]){
   const f=fixture(async(url)=>url.includes('novelai.net')?Response.json({}, {status}):Response.json({id:'9'}));await f.enable();await f.request();await f.service.alarm();f.advance(200000);await f.service.alarm();assert.equal(f.calls.filter(c=>c.url.includes('novelai.net')).length,1);assert(!JSON.stringify(f.calls.filter(c=>c.url.includes('discord')).map(c=>c.o.body)).includes('test-secret'));
  }
  const f=fixture(async(url,o)=>url.includes('novelai.net')?Response.json({images:[{image:'invalid'}]}):Response.json({id:'9'}));await f.enable();await f.request();await f.service.alarm();assert.equal(f.map.get('novelaiState').recent[0].status,'failed');assert(!f.calls.some(c=>c.o.body instanceof FormData));
  const g=fixture(async(url,o)=>url.includes('novelai.net')?Response.json({images:[{image:'iVBORw0KGgo='}]}):o.body instanceof FormData?Response.json({}, {status:403}):Response.json({id:'9'}));await g.enable();await g.request();await g.service.alarm();assert.equal(g.map.get('novelaiState').recent[0].status,'delivery_failed');
  const h=fixture(async(url,o)=>{if(url.includes('novelai.net'))return Response.json({images:[{image:'iVBORw0KGgo='}]});if(o.body instanceof FormData)throw Error('network_failed');return Response.json({id:'9'});});await h.request();await h.service.alarm();const last=h.map.get('novelaiState').recent[0];assert.equal(last.status,'delivery_failed');assert.equal(last.stage,'discord_upload');assert.equal(last.noticeDelivered,true);assert.equal(h.calls.filter(c=>c.url.includes('novelai.net')).length,1);
+});
+test('a 429 holds the whole queue until Retry-After and preserves the original request for one retry',async()=>{
+ let requests=0;
+ const f=fixture(async url=>url.includes('novelai.net')&&++requests===1
+  ?Response.json({}, {status:429,headers:{'Retry-After':'90'}})
+  :url.includes('novelai.net')?Response.json({images:[{image:'iVBORw0KGgo='}]}):Response.json({id:'9'}));
+ await f.request('1','10');await f.request('2','11');
+ await f.service.alarm();
+ assert.deepEqual(f.map.get('novelaiState').queue.map(job=>job.id),['1','2']);
+ assert.equal(f.map.get('alarm'),190000);
+ assert.equal(f.map.get('novelaiState').recent.length,0);
+ assert.equal(f.calls.length,1);
+ assert.equal((await f.request('1','10')).accepted,false);
+ await assert.rejects(f.request('3','10'));
+ f.advance(89999);await f.service.alarm();assert.equal(requests,1);
+ f.advance(1);
+ const reopened=new NovelAIService(f.host,f.service.fetcher,()=>190000);
+ await reopened.alarm();
+ assert.equal(requests,2);
+ assert.deepEqual(JSON.parse(f.calls[0].o.body),JSON.parse(f.calls[1].o.body));
+ assert.equal(JSON.parse(f.calls[2].o.body.get('payload_json')).nonce,'1');
+ assert.equal(f.map.get('novelaiState').recent[0].status,'sent');
+ assert.equal(f.map.get('alarm'),190000+BATCH_INTERVAL);
+});
+test('a second 429 ends the job and holds the next user; a long cooldown expires queued jobs',async()=>{
+ const f=fixture(async url=>url.includes('novelai.net')?Response.json({}, {status:429}):Response.json({id:'9'}));
+ await f.request('1','10');await f.request('2','11');await f.service.alarm();
+ assert.equal(f.map.get('alarm'),165000);
+ f.advance(65000);await f.service.alarm();
+ assert.equal(f.calls.filter(c=>c.url.includes('novelai.net')).length,2);
+ assert.match(JSON.parse(f.calls.at(-1).o.body).content,/限流.*<t:230:R>/);
+ assert.equal(f.map.get('novelaiState').recent[0].providerStatus,429);
+ assert.equal(f.map.get('alarm'),230000);
+ const long=fixture(async url=>url.includes('novelai.net')
+  ?Response.json({}, {status:429,headers:{'Retry-After':new Date(3700000).toUTCString()}}):Response.json({id:'9'}));
+ await long.request('1','10');await long.request('2','11');await long.service.alarm();
+ assert.equal(long.map.get('novelaiState').notBefore,3700000);
+ assert.equal(long.map.get('novelaiState').recent[0].providerStatus,429);
+ assert.equal(long.map.get('alarm'),1900000);
+ long.advance(1800000);await long.service.alarm();
+ assert.equal(long.calls.filter(c=>c.url.includes('novelai.net')).length,1);
+ assert.equal(long.map.get('novelaiState').recent.at(-1).status,'expired');
 });
 test('persisted unknown in-flight job is not regenerated after eviction',async()=>{
  const f=fixture();await f.enable();await f.request();await f.service.claim();f.advance(150001);await f.service.alarm();assert.equal(f.calls.filter(c=>c.url.includes('novelai.net')).length,0);assert.equal(f.map.get('novelaiState').recent[0].status,'unknown');assert.equal((await f.request()).accepted,false);
