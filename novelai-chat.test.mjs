@@ -28,6 +28,26 @@ test('chat inline size, steps and guidance are supplied by the AI and override o
  await replyToMention(f.env,{...message,content:'<@99> 我要一张猫图，1024*1024，24步，CFG 6'},'99');
  const calls=f.rpc.filter(c=>c.p.op==='novelai');assert.equal(calls.length,1);assert.equal(calls[0].p.action,'绘制');assert.deepEqual(calls[0].p.params,{width:1024,height:1024,steps:24,scale:6});assert(!f.rpc.some(c=>['默认','偏好'].includes(c.p.action)));
 });
+test('a shared portrait binds the speaker and only the pictured Discord mention',async t=>{
+ const f=fixture(t,{reply:'整理中。',image:{prompt:'two people in a garden',evidence:'画我和<@7>',appearanceSubjects:[
+  {key:'current_user',detail:'blue coat'},{key:'member_1',detail:'yellow scarf'},
+  {key:'member_2',detail:'extra person'},{key:'15',detail:'made-up user'}
+ ]}});
+ await replyToMention(f.env,{...message,content:'<@99> 画我和<@7>',mentions:[{id:'99',bot:true},{id:'7',username:'Twin'},{id:'9',username:'Twin'}]},'99');
+ const queued=f.rpc.find(x=>x.p.action==='绘制').p;
+ assert.equal(queued.guild,'820');assert.equal(queued.user,'1');
+ assert.deepEqual(queued.appearanceSubjects,[{id:'1',detail:'blue coat',useSaved:true},{id:'7',detail:'yellow scarf',useSaved:true}]);
+ assert.match(f.model[0].systemInstruction.parts[0].text,/appearanceTargets/);
+ assert(!f.rpc.some(x=>x.p.action==='外貌'));
+});
+test('a portrait can explicitly select the verified author of the replied-to message',async t=>{
+ const f=fixture(t,{reply:'整理中。',image:{prompt:'portrait, outdoors',evidence:'画这条消息的作者',appearanceSubjects:[{key:'member_1'}]}});
+ await replyToMention(f.env,{...message,content:'<@99> 画这条消息的作者',message_reference:{message_id:'8101',channel_id:'821'},
+  referenced_message:{id:'8101',channel_id:'821',guild_id:'820',content:'下午好',author:{id:'7',username:'Twin'}}},'99');
+ const queued=f.rpc.find(x=>x.p.action==='绘制').p;
+ assert.deepEqual(queued.appearanceSubjects,[{id:'7',detail:'',useSaved:true}]);
+ assert.match(f.model[0].systemInstruction.parts[0].text,/"quotedAuthor":true/);
+});
 test('plain reply, ordinary chat, negation and missing evidence never enqueue',async t=>{
  for(const [content,output]of [['你好','你好呀。'],['不要生图',{reply:'好的。',image:null}],['你好',{reply:'你好呀。',image:{prompt:'cat',evidence:'想看看你今天的穿搭'}}]]){
   const f=fixture(t,output);await replyToMention(f.env,{...message,content:'<@99> '+content},'99');assert.equal(f.rpc.filter(r=>r.p.op==='novelai').length,0);assert.equal(f.posts.length,1);
@@ -89,6 +109,28 @@ test('slash preparation failure never falls back to raw description or queues an
  f.env.TABLES.get=n=>({async fetch(url,o){const p=JSON.parse(o.body);f.rpc.push({name:n,p});assert.equal(p.action,'查看');return Response.json({defaults:{enabled:true},preferences:{}});}});
  const i={id:'1',guild_id:'2',channel_id:'3',member:{user:{id:'4'}},data:{options:[{name:'生图',options:[{name:'绘制',options:[{name:'描述',value:'一只猫'}]}]}]}};
  const r=await handleAiCommand(f.env,i);assert.match(r.data.content,/整理失败/);assert.equal(f.model.length,1);assert.equal(f.rpc.length,1);
+});
+test('slash person picker binds the verified user when the model omits the subject',async t=>{
+ const f=fixture(t,{reply:'整理中。',image:{prompt:'portrait in the rain',evidence:'请画图'}});
+ const original=f.env.TABLES.get;
+ f.env.TABLES.get=n=>({async fetch(url,o){const p=JSON.parse(o.body);if(p.action==='查看')return Response.json({defaults:{enabled:true},preferences:{}});return original(n).fetch(url,o);}});
+ const i={id:'1',guild_id:'2',channel_id:'3',member:{user:{id:'4'}},data:{resolved:{users:{'7':{id:'7'}}},options:[{name:'生图',options:[{name:'绘制',options:[{name:'描述',value:'雨中撑伞'},{name:'人物',value:'7'}]}]}]}};
+ const reply=await handleAiCommand(f.env,i),queued=f.rpc.find(x=>x.p.action==='绘制').p;
+ assert.equal(reply.data.flags,64);assert.equal(queued.guild,'2');assert.equal(queued.user,'4');
+ assert.deepEqual(queued.appearanceSubjects,[{id:'7',detail:'',useSaved:true}]);
+ i.data.resolved.users['7'].bot=true;
+ assert.match((await handleAiCommand(f.env,i)).data.content,/真人成员/);
+ assert.equal(f.model.length,1);
+});
+test('ordinary members set and read their own appearance privately without a model call',async t=>{
+ const f=fixture(t,{},'已保存');
+ const i={id:'1',guild_id:'2',channel_id:'3',member:{user:{id:'4'}},data:{options:[{name:'生图',options:[{name:'外貌',options:[{name:'提示词',value:'blonde hair'},{name:'人物',value:'7'}]}]}]}};
+ assert.equal((await handleAiCommand(f.env,i)).data.flags,64);
+ assert.deepEqual(f.rpc[0].p,{op:'novelai',action:'外貌',guild:'2',user:'4',appearance:'blonde hair'});
+ i.data.options[0].options[0].options=[];
+ assert.equal((await handleAiCommand(f.env,i)).data.flags,64);
+ assert.deepEqual(f.rpc[1].p,{op:'novelai',action:'外貌',guild:'2',user:'4'});
+ assert.equal(f.model.length,0);
 });
 test('closed generation and invalid explicit parameters stop before the text model; trial remains developer-only',async t=>{
  const f=fixture(t,{reply:'整理中。',image:{prompt:'a cat',evidence:'请画图'}});

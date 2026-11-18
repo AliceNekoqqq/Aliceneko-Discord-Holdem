@@ -36,6 +36,34 @@ test('one-turn > per-user > global defaults; request supports v4 captions and ra
  assert(!imageRequest('a cat',{...p,model:'nai-diffusion-3'}).parameters.v4_prompt);
  assert(imageRequest('a cat',{...p,seed:-1}).parameters.seed>=0);
 });
+test('queued portraits use each member’s saved appearance from the current server',async()=>{
+ const f=fixture();
+ const save=(guild,user,appearance)=>f.service.dispatch({action:'外貌',guild,user,appearance});
+ await save('800','10','{ash blonde hair}, elf ears');
+ await save('800','11','{black hair}, amber eyes');
+ await save('801','10','green hair');
+ assert.match((await f.service.dispatch({action:'外貌',guild:'800',user:'10'})).notice,/\{ash blonde hair\}, elf ears/);
+ await f.request('1','12',{guild:'800',prompt:'two people, garden',params:{model:'nai-diffusion-5-full'},appearanceSubjects:[{id:'10',detail:'blue coat'},{id:'11',detail:'yellow scarf'}]});
+ const queued=f.map.get('novelaiState').queue[0].request;
+ assert.equal(queued.model,'nai-diffusion-5-full');
+ assert.deepEqual(queued.parameters.v4_prompt.caption.char_captions,[
+  {char_caption:'{ash blonde hair}, elf ears, blue coat',centers:[{x:0.25,y:0.5}]},
+  {char_caption:'{black hair}, amber eyes, yellow scarf',centers:[{x:0.75,y:0.5}]}
+ ]);
+ assert.doesNotMatch(JSON.stringify(queued),/green hair|"id"/);
+ assert.doesNotMatch(queued.input,/ash blonde hair|black hair/);
+ await f.service.dispatch({action:'外貌',guild:'800',user:'10',clear:true});
+ assert.match((await f.service.dispatch({action:'外貌',guild:'800',user:'10'})).notice,/还没有/);
+ assert.deepEqual(f.map.get('novelaiState').queue[0].request,queued);
+ await f.request('2','13',{guild:'800',appearanceSubjects:[{id:'10'},{id:'11',useSaved:false}]});
+ assert.deepEqual(f.map.get('novelaiState').queue[1].request.parameters.v4_prompt.caption.char_captions,[]);
+ await f.request('3','11',{guild:'800'});
+ assert.deepEqual(f.map.get('novelaiState').queue[2].request.parameters.v4_prompt.caption.char_captions,[]);
+ await f.request('4','14',{guild:'800',appearanceSubjects:[{id:'11',useSaved:false,detail:'white fox ears'}]});
+ assert.equal(f.map.get('novelaiState').queue[3].request.parameters.v4_prompt.caption.char_captions[0].char_caption,'white fox ears');
+ await f.request('5','15',{guild:'800',params:{model:'nai-diffusion-3'},appearanceSubjects:[{id:'11'}]});
+ assert.match(f.map.get('novelaiState').queue[4].request.input,/\{black hair\}, amber eyes/);
+});
 test('default templates bracket the AI body exactly, with a separate negative and no automatic fourth segment',()=>{
  const body='1girl, pink hair, sitting at a cafe, soft window light';
  const request=imageRequest(body,resolveImageParameters(IMAGE_DEFAULTS));

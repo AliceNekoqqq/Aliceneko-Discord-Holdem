@@ -3,6 +3,7 @@ import {DEFAULT_POSITIVE_PREFIX,DEFAULT_POSITIVE_SUFFIX,DEFAULT_NEGATIVE_PROMPT}
 import {HONGXIAODOU_IMAGE_INSTRUCTION} from './novelai-character-profile.mjs';
 import {openImagePreferences,handleImagePreferences,IMAGE_MODEL_CHOICES} from './novelai-preferences-ui.mjs';
 import {IMAGE_API,MAX_IMAGE_BYTES,isV5Model,readV5Images,readV5Quota} from './novelai-v5.mjs';
+import {APPEARANCE_MAX_LENGTH,loadAppearanceCaptions,manageAppearance} from './novelai-appearance.mjs';
 export {imagePreferencesInteraction} from './novelai-preferences-ui.mjs';
 export const NOVELAI_OBJECT='system-novelai-images-v1';
 export const BATCH_INTERVAL=35000;
@@ -45,23 +46,27 @@ export function resolveImageParameters(defaults,prefs={},once={}){
  if(p.width*p.height>1048576)throw Error('单张最多1048576像素，请调小宽高。');
  return p;
 }
-export function imageRequest(prompt,p){
- const input=[p.prompt_prefix,clean(prompt),p.prompt_suffix].filter(Boolean).join(', ');
+export function imageRequest(prompt,p,appearanceCaptions=[]){
+ const v5=isV5Model(p.model),v4=p.model.startsWith('nai-diffusion-4');
+ const input=[p.prompt_prefix,clean(prompt),...(!v4&&!v5?appearanceCaptions:[]),p.prompt_suffix].filter(Boolean).join(', ');
  if(!clean(prompt)||input.length>12000)throw Error('请提供画面描述，完整提示词最多12000字。');
  const seed=p.seed===-1?crypto.getRandomValues(new Uint32Array(1))[0]:p.seed;
  const parameters={params_version:3,width:p.width,height:p.height,steps:p.steps,scale:p.scale,sampler:p.sampler,noise_schedule:p.noise_schedule,cfg_rescale:p.cfg_rescale,seed,n_samples:p.n_samples,negative_prompt:p.negative_prompt,qualityToggle:false,ucPreset:3,sm:false,sm_dyn:false,dynamic_thresholding:false,legacy:false,legacy_v3_extend:false,deliberate_euler_ancestral_bug:false,prefer_brownian:true};
- if(isV5Model(p.model)){
+ if(v5||v4){
+  const charCaptions=appearanceCaptions.map((char_caption,index)=>({
+   char_caption,centers:[{x:(index+0.5)/appearanceCaptions.length,y:0.5}]
+  }));
+  const negativeCaptions=charCaptions.map(({centers})=>({char_caption:'',centers}));
+  const useCoords=v5||charCaptions.length>1;
+  parameters.v4_prompt={caption:{base_caption:input,char_captions:charCaptions},use_coords:useCoords,use_order:true};
+  parameters.v4_negative_prompt={caption:{base_caption:p.negative_prompt,char_captions:negativeCaptions},legacy_uc:false};
+ }
+ if(v5){
   return {input,model:p.model,action:'generate',use_new_shared_trial:true,parameters:{
    ...parameters,params_version:4,stream:'msgpack',image_format:'png',straight_alpha:true,
    ucPresetId:'none',qualityPresetId:'none',legacy_uc:false,use_coords:true,
-   controlnet_strength:1,add_original_image:true,autoSmea:false,normalize_reference_strength_multiple:true,
-   v4_prompt:{caption:{base_caption:input,char_captions:[]},use_coords:true,use_order:true},
-   v4_negative_prompt:{caption:{base_caption:p.negative_prompt,char_captions:[]},legacy_uc:false}
+   controlnet_strength:1,add_original_image:true,autoSmea:false,normalize_reference_strength_multiple:true
   }};
- }
- if(p.model.startsWith('nai-diffusion-4')){
-  parameters.v4_prompt={caption:{base_caption:input,char_captions:[]},use_coords:false,use_order:true};
-  parameters.v4_negative_prompt={caption:{base_caption:p.negative_prompt,char_captions:[]},legacy_uc:false};
  }
  return {input,model:p.model,action:'generate',parameters};
 }
@@ -85,7 +90,7 @@ export function decodeImageReply(raw,text){
  const prompt=clean(i.prompt);if(!prompt||prompt.length>4000)return {reply:parsed.reply,image:null};
  const parameters={};
  for(const [k,value]of Object.entries(i.parameters||{})){const evidence=clean(i.parameterEvidence?.[k]);if(evidence&&direct.includes(evidence))parameters[k]=value;}
- try{return {reply:parsed.reply,image:{prompt,parameters:imageParameters(parameters)}};}
+ try{return {reply:parsed.reply,image:{prompt,parameters:imageParameters(parameters),...(Array.isArray(i.appearanceSubjects)?{appearanceSubjects:i.appearanceSubjects}: {})}};}
  catch(e){return {reply:'生图参数有误：'+e.message,image:null};}
 }
 export async function imageRpc(env,payload){
@@ -108,27 +113,37 @@ const settingOptions=[
  JSON_OPTION
 ];
 const directOptions={模型:'model',步数:'steps',引导强度:'scale',数量:'n_samples',采样器:'sampler',种子:'seed',前置正面:'prompt_prefix',后置正面:'prompt_suffix',负面提示:'negative_prompt',风格前缀:'prompt_prefix',反向提示:'negative_prompt',质量词:'quality',开放:'enabled'};
+const personOption={type:6,name:'人物',description:'选择要画的本人或同服成员，使用对方的生图外貌'};
 export const imageCommandGroup={type:2,name:'生图',description:'NovelAI 生图与个人偏好',options:[
  {type:1,name:'额度',description:'私密查看红小豆共享账号的 NovelAI V5 生图额度'},
+ {type:1,name:'外貌',description:'设置、查看或清除你在本服务器的生图外貌',options:[
+  {type:3,name:'提示词',description:'你或本服成员请红小豆画你时使用。不填可查看。',min_length:1,max_length:APPEARANCE_MAX_LENGTH},
+  {type:5,name:'清除',description:'清除自己保存的本服外貌'}
+ ]},
  {type:1,name:'查看',description:'私密查看参数、队列或完整提示词',options:[{type:3,name:'范围',description:'选择默认、个人覆盖或当前生效配置',choices:[{name:'当前生效',value:'effective'},{name:'默认参数',value:'defaults'},{name:'个人覆盖',value:'preferences'}]},{type:3,name:'提示词',description:'选择一栏查看完整内容',choices:[{name:'前置正面',value:'prompt_prefix'},{name:'后置正面',value:'prompt_suffix'},{name:'负面提示',value:'negative_prompt'}]}]},
  {type:1,name:'偏好',description:'打开独立私密面板，填写我的生图参数和提示词'},
  {type:1,name:'重置',description:'清除我的生图偏好，重新跟随默认值'},
- {type:1,name:'绘制',description:'使用默认参数或个人偏好生成图片',options:[{type:3,name:'描述',description:'画面提示词（建议英文，也可在聊天中请红小豆整理）',required:true,max_length:4000},...settingOptions]},
+ {type:1,name:'绘制',description:'使用默认参数或个人偏好生成图片',options:[{type:3,name:'描述',description:'画面提示词（建议英文，也可在聊天中请红小豆整理）',required:true,max_length:4000},personOption,...settingOptions]},
  {type:1,name:'默认',description:'开发者调整全局默认参数和开放开关',options:[{type:5,name:'开放',description:'是否接受玩家生图请求'},...settingOptions]},
  {type:1,name:'试画',description:'开发者在开放前用当前默认参数试画',options:[{type:3,name:'描述',description:'画面提示词',required:true,max_length:4000},...settingOptions]}
 ]};
 export async function handleImageCommand(env,i,action,preparePrompt){
  try{
   const user=String(i.member?.user?.id||i.user?.id||'');
+  const guild=String(i.guild_id||i.guild?.id||'');
   if(action.name==='额度')return privateReply(await readV5Quota(env.NOVELAI_API_KEY));
   const admin=Boolean(env.DEVELOPER_DISCORD_USER_ID)&&user===String(env.DEVELOPER_DISCORD_USER_ID);
   if(['默认','试画'].includes(action.name)&&!admin)return privateReply('只有开发者可以调整默认参数或开放前试画。');
   if(action.name==='偏好'&&!(action.options||[]).length)return openImagePreferences(i,payload=>imageRpc(env,payload));
   const values=Object.fromEntries((action.options||[]).map(o=>[o.name,o.value]));
+  if(action.name==='外貌'){
+   const result=await imageRpc(env,{action:'外貌',guild,user,appearance:values.提示词,clear:values.清除});
+   return privateReply(result.notice);
+  }
   const params=values.参数?JSON.parse(values.参数):{};
   for(const [name,key]of Object.entries(directOptions))if(Object.hasOwn(values,name))params[key]=values[name];
   if(values.尺寸){const [width,height]=values.尺寸.split('x').map(Number);params.width=width;params.height=height;}
-  let prompt=values.描述,once=params;
+  let prompt=values.描述,once=params,appearanceSubjects;
   if(['绘制','试画'].includes(action.name)){
    if(!clean(prompt))throw Error('请提供画面描述。');
    if(!env.NOVELAI_API_KEY)throw Error('NovelAI 密钥尚未配置。');
@@ -136,10 +151,13 @@ export async function handleImageCommand(env,i,action,preparePrompt){
    if(!settings.defaults.enabled&&action.name!=='试画')return privateReply('生图功能当前未开放。');
    resolveImageParameters(settings.defaults,action.name==='试画'?{}:settings.preferences,params);
    if(!preparePrompt)throw Error('画面描述整理服务尚未就绪。');
-   const prepared=await preparePrompt(prompt);
-   prompt=prepared.prompt;once={...prepared.parameters,...params};
+   const person=values.人物;
+   const chosen=person&&i.data?.resolved?.users?.[person];
+   if(person&&(chosen?.id!==person||chosen.bot))throw Error('请选择本服务器内要画的真人成员。');
+   const prepared=await preparePrompt(prompt,person);
+   prompt=prepared.prompt;once={...prepared.parameters,...params};appearanceSubjects=prepared.appearanceSubjects;
   }
-  const result=await imageRpc(env,{action:action.name,user,admin,params:once,prompt,id:String(i.id),channel:String(i.channel_id)});
+  const result=await imageRpc(env,{action:action.name,user,admin,params:once,prompt,id:String(i.id),channel:String(i.channel_id),...(appearanceSubjects?.length?{guild,appearanceSubjects}:{})});
   if(action.name==='查看')return imageSettingsReply(result,values);
   return privateReply(result.notice||JSON.stringify(result,null,2));
  }catch(e){return privateReply(e instanceof SyntaxError?'参数JSON格式有误。':e.message);}
@@ -177,6 +195,7 @@ export class NovelAIService{
   }else await this.storage.deleteAlarm();
  }
  async dispatch(p){
+  if(p.action==='外貌')return manageAppearance(this.storage,p);
   const s=await this.state(),key='imagePreferences:'+p.user;
   if(p.action==='status')return {configured:Boolean(this.env.NOVELAI_API_KEY),enabled:s.defaults.enabled,model:s.defaults.model,cfg_rescale:s.defaults.cfg_rescale,promptStructure:'prefix-ai-body-suffix',defaultsRevision:s.defaultsRevision,defaultPromptLengths:TEXTS.map(k=>({field:k,length:s.defaults[k].length})),queued:s.queue.length,busy:!!s.inflight,intervalSeconds:35,rateLimitRetries:RATE_LIMIT_RETRIES,transport:'fetch-wrapper-v1',preferencesUi:'native-panel-v1',recent:s.recent.slice(-5).map(({status,at,stage,errorCode,providerStatus,deliveryStatus,noticeDelivered})=>({status,at,stage,errorCode,providerStatus,deliveryStatus,noticeDelivered}))};
   if(p.action==='查看')return {defaults:s.defaults,preferences:await this.storage.get(key)||{},queued:s.queue.length,busy:!!s.inflight,intervalSeconds:35};
@@ -203,7 +222,9 @@ export class NovelAIService{
   if(s.queue.length+(s.inflight?1:0)>=20)throw Error('生图队列已满，请稍后再试。');
   if(s.queue.some(x=>x.user===p.user)||s.inflight?.job.user===p.user)throw Error('你还有生图请求在排队或生成，请等完成后再发起。');
   const prefs=p.action==='试画'?{}:await this.storage.get(key)||{};
-  const params=resolveImageParameters(s.defaults,prefs,p.params||{}),request=imageRequest(p.prompt,params);
+  const params=resolveImageParameters(s.defaults,prefs,p.params||{});
+  const appearanceCaptions=await loadAppearanceCaptions(this.storage,p.guild,p.appearanceSubjects);
+  const request=imageRequest(p.prompt,params,appearanceCaptions);
   s.queue.push({id:p.id,user:p.user,channel:p.channel,reference:p.reference||null,request,created:this.now()});
   await this.save(s);return {accepted:true,notice:`已加入生图队列：${params.width}×${params.height}，${params.steps}步，CFG ${params.scale}，rescale ${params.cfg_rescale}，${params.n_samples}张。前面有${s.queue.length-1+(s.inflight?1:0)}批。触发限流时可能延后，完成后会发到本频道。`};
  }
