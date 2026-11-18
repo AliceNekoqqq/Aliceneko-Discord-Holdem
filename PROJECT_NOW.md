@@ -1,7 +1,8 @@
-## NovelAI 请求失败修复（2026-11-18，发布中）
+## NovelAI 请求失败修复（2026-11-18，已发布）
 
 - 线上最近三次失败均停在 provider_request，未收到 NovelAI HTTP 状态。与 V5 同批新增的 fetch redirect:error 在 workerd 中直接报 TypeError。生图和额度请求统一改用 manual，已有 HTTP 检查拒绝 3xx，保护 Bearer 凭据。
-- 聊天 183 项、Worker 185 项通过，覆盖 V4.5、V5 流式和额度查询的重定向设置。没有重发历史请求。
+- 聊天 183 项、Worker 185 项通过，覆盖 V4.5、V5 流式和额度查询的重定向设置。没有重发历史请求。以相同兼容日期在 workerd 复现 error 模式发出前抛 TypeError，并验证 manual 模式返回 302 给调用方。
+- 源码 0259053dbc83f4281862157252ee7939637c9941，CI/部署 44271659706 通过。Cloudflare 部署 75ebfee6-18a1-4961-86e2-6d430c0b4aec，版本 e134c47e-5d95-4af5-b201-7ddd11ff9bfc 接收 100%。生产脚本两条请求均为 manual，settings/Cron 一致，health ready、Gateway 及指令一致。上线后尚无真实出图回包。
 
 ## NovelAI V5 和共享额度查询（2026-11-18，已发布）
 
