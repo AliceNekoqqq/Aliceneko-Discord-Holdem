@@ -29,6 +29,81 @@ test('signed image preferences command, private buttons and native modal submiss
  const publicClick=await send({type:3,message:{flags:0},data:{custom_id:'nip:3:1:reset_confirm'}});assert.equal(publicClick.data.flags,64);assert.equal(rpc.length,before);
  assert(!ctx.map.has('table'));assert(rpc.every(p=>!['绘制','试画','默认'].includes(p.action)));
 });
+test('signed appearance editor refines a private draft across turns and saves only on confirmation',async t=>{
+ const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);
+ const doCtx=context(),env={DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex'),GEMINI_API_KEY:'text-key'};
+ const host=new PokerTable(doCtx,env),calls=[],patches=[];
+ env.TABLES={idFromName:n=>n,get:n=>({fetch:(url,o)=>{assert.equal(n,NOVELAI_OBJECT);return host.fetch(new Request(url,o));}})};
+ let release,started;
+ const waiting=new Promise(resolve=>{release=resolve;});
+ const firstStart=new Promise(resolve=>{started=resolve;});
+ const candidates=[{reply:'瞳色是什么？',tags:'ash blonde hair, elf ears'},null,{reply:'保留发色和耳朵。',tags:'ash blonde hair, elf ears, amber eyes'}];
+ t.mock.method(globalThis,'fetch',async(url,o)=>{
+  if(String(url).includes('generativelanguage')){
+   const body=JSON.parse(o.body);
+   assert.equal(body.generationConfig.responseMimeType,'application/json');
+   const candidate=candidates[calls.length];calls.push(JSON.parse(body.contents[0].parts[0].text));
+   if(calls.length===1){started();await waiting;}
+   return candidate?Response.json({candidates:[{content:{parts:[{text:JSON.stringify(candidate)}]}}]}):Response.json({error:'unavailable'},{status:500});
+  }
+  assert.match(String(url),/webhooks\/123\/appearance-token\/messages\/@original$/);
+  assert.equal(o.method,'PATCH');patches.push(JSON.parse(o.body));return Response.json({});
+ });
+ let serial=100;
+ const send=async extra=>{
+  const body=JSON.stringify({id:String(++serial),application_id:'123',guild_id:'3',channel_id:'2',member:{user:{id:'1'}},token:'appearance-token',message:{flags:64},...extra});
+  const ts=String(Math.floor(Date.now()/1000));
+  const signature=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');
+  const ctx=context();
+  const response=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':signature,'X-Signature-Timestamp':ts}}),env,ctx);
+  return {reply:await response.json(),finished:Promise.all(ctx.tasks)};
+ };
+ const click=(custom_id,extra)=>send({type:3,data:{custom_id},...extra});
+ const control=(data,label)=>data.components.flatMap(r=>r.components).find(c=>c.label===label);
+ const opened=await send({type:2,data:{name:'ai',options:[{name:'生图',options:[{name:'外貌'}]}]}});
+ assert.equal(opened.reply.data.flags,64);
+ const entry=control(opened.reply.data,'AI 生成标签').custom_id;
+ assert.equal((await click(entry,{member:{user:{id:'2'}}})).reply.data.flags,64);
+ assert.equal((await click(entry,{message:{flags:0}})).reply.data.flags,64);
+ assert(!doCtx.map.has('imageAppearanceDraft:3:1'));
+ const panel=(await click(entry)).reply.data;
+ assert.equal(control(panel,'确认保存').disabled,true);
+ const submit=async(data,label,text,id)=>{
+  const modal=(await click(control(data,label).custom_id)).reply;
+  assert.equal(modal.type,9);
+  return send({type:5,id,data:{custom_id:modal.data.custom_id,components:[{type:18,component:{type:4,custom_id:'description',value:text}}]}});
+ };
+ const first=await submit(panel,'描述我的外貌','灰金色头发，精灵耳','211');
+ assert.deepEqual(first.reply,{type:6});
+ await first.finished;
+ await firstStart;
+ const duplicate=await submit(panel,'描述我的外貌','灰金色头发，精灵耳','211');
+ const finishTurn=async submission=>{await submission.finished;await doCtx.tasks.at(-1);};
+ await finishTurn(duplicate);
+ assert.equal(calls.length,1);assert.equal(patches.length,0);
+ release();await doCtx.tasks[0];
+ assert.match(patches[0].embeds[0].description,/ash blonde hair, elf ears/);
+ assert.match(patches[0].embeds[0].description,/瞳色是什么/);
+ assert(!doCtx.map.has('imageAppearance:3:1'));
+ const second=await submit(patches[0],'继续修改','其他不动，瞳色改琥珀色','212');
+ await finishTurn(second);
+ assert.match(patches[1].content,/草稿已保留/);
+ assert.match(patches[1].embeds[0].description,/ash blonde hair, elf ears/);
+ const retry=await click(control(patches[1],'重试上一轮').custom_id);
+ await finishTurn(retry);
+ assert.deepEqual(calls[2],calls[1]);
+ assert.deepEqual(calls[2].recent_turns,[{text:'灰金色头发，精灵耳',reply:'瞳色是什么？'}]);
+ assert.equal(calls[2].draft_tags,'ash blonde hair, elf ears');
+ assert(!doCtx.map.has('imageAppearance:3:1'));
+ const saveId=control(patches[2],'确认保存').custom_id;
+ const saved=(await click(saveId)).reply;
+ assert.equal(saved.type,7);assert.match(saved.data.content,/已保存/);
+ assert.equal(doCtx.map.get('imageAppearance:3:1'),'ash blonde hair, elf ears, amber eyes');
+ assert(!doCtx.map.has('imageAppearanceDraft:3:1'));
+ assert.equal((await click(saveId)).reply.data.flags,64);
+ assert(!doCtx.map.has('novelaiState'));
+ assert(!JSON.stringify([...doCtx.map]).includes('appearance-token'));
+});
 test('NovelAI dedicated object persists preferences and alarms without creating a game table',async t=>{
  const ctx=context(),env={BOT_TOKEN:'fake',NOVELAI_API_KEY:'never-leak'},host=new PokerTable(ctx,env);
  const call=async p=>(await host.fetch(new Request('https://internal',{method:'POST',body:JSON.stringify({op:'novelai',...p})}))).json();

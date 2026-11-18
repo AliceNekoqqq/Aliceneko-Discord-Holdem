@@ -64,6 +64,27 @@ test('queued portraits use each member’s saved appearance from the current ser
  await f.request('5','15',{guild:'800',params:{model:'nai-diffusion-3'},appearanceSubjects:[{id:'11'}]});
  assert.match(f.map.get('novelaiState').queue[4].request.input,/\{black hair\}, amber eyes/);
 });
+test('appearance draft recovery, isolation and manual replacement preserve the confirmed profile',async()=>{
+ const f=fixture();
+ const base={action:'appearanceDraft',guild:'800',user:'10'};
+ const edit=(operation,more)=>f.service.dispatch({...base,operation,...more});
+ await f.service.dispatch({action:'外貌',guild:'800',user:'10',appearance:'blue eyes'});
+ const draft=await edit('open');
+ assert.equal(draft.tags,'blue eyes');assert.equal(draft.canSave,false);
+ const other=await edit('open',{user:'12'});assert.equal(other.tags,'');
+ const server=await edit('open',{guild:'801'});assert.equal(server.tags,'');
+ await edit('begin',{revision:draft.revision,id:'101',text:'把瞳色改为琥珀色'});
+ f.advance(121000);
+ const expired=await edit('open');
+ assert.equal(expired.canRetry,true);assert.equal(expired.busy,false);
+ assert.notEqual(expired.revision,draft.revision);
+ const next=await edit('begin',{revision:expired.revision,id:'102',retry:true});
+ assert.equal(next.text,'把瞳色改为琥珀色');
+ await assert.rejects(edit('finish',{revision:draft.revision,id:'101',result:{reply:'好了',tags:'amber eyes'}}),/已更新/);
+ await f.service.dispatch({action:'外貌',guild:'800',user:'10',appearance:'green eyes'});
+ await assert.rejects(edit('finish',{revision:expired.revision,id:'102',result:{reply:'好了',tags:'amber eyes'}}),/已更新/);
+ assert.equal((await edit('open')).tags,'green eyes');
+});
 test('default templates bracket the AI body exactly, with a separate negative and no automatic fourth segment',()=>{
  const body='1girl, pink hair, sitting at a cafe, soft window light';
  const request=imageRequest(body,resolveImageParameters(IMAGE_DEFAULTS));

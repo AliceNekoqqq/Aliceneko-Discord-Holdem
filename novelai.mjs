@@ -3,7 +3,8 @@ import {DEFAULT_POSITIVE_PREFIX,DEFAULT_POSITIVE_SUFFIX,DEFAULT_NEGATIVE_PROMPT}
 import {HONGXIAODOU_IMAGE_INSTRUCTION} from './novelai-character-profile.mjs';
 import {openImagePreferences,handleImagePreferences,IMAGE_MODEL_CHOICES} from './novelai-preferences-ui.mjs';
 import {IMAGE_API,MAX_IMAGE_BYTES,isV5Model,readV5Images,readV5Quota} from './novelai-v5.mjs';
-import {APPEARANCE_MAX_LENGTH,loadAppearanceCaptions,manageAppearance} from './novelai-appearance.mjs';
+import {APPEARANCE_MAX_LENGTH,loadAppearanceCaptions,manageAppearance,manageAppearanceDraft} from './novelai-appearance.mjs';
+import {appearanceEditorEntry} from './novelai-appearance-ui.mjs';
 export {imagePreferencesInteraction} from './novelai-preferences-ui.mjs';
 export const NOVELAI_OBJECT='system-novelai-images-v1';
 export const BATCH_INTERVAL=35000;
@@ -116,8 +117,8 @@ const directOptions={模型:'model',步数:'steps',引导强度:'scale',数量:'
 const personOption={type:6,name:'人物',description:'选择要画的本人或同服成员，使用对方的生图外貌'};
 export const imageCommandGroup={type:2,name:'生图',description:'NovelAI 生图与个人偏好',options:[
  {type:1,name:'额度',description:'私密查看红小豆共享账号的 NovelAI V5 生图额度'},
- {type:1,name:'外貌',description:'设置、查看或清除你在本服务器的生图外貌',options:[
-  {type:3,name:'提示词',description:'你或本服成员请红小豆画你时使用。不填可查看。',min_length:1,max_length:APPEARANCE_MAX_LENGTH},
+ {type:1,name:'外貌',description:'查看我的生图外貌，或打开 AI 标签助手',options:[
+  {type:3,name:'提示词',description:'直接保存英文标签。不填可打开私密外貌面板。',min_length:1,max_length:APPEARANCE_MAX_LENGTH},
   {type:5,name:'清除',description:'清除自己保存的本服外貌'}
  ]},
  {type:1,name:'查看',description:'私密查看参数、队列或完整提示词',options:[{type:3,name:'范围',description:'选择默认、个人覆盖或当前生效配置',choices:[{name:'当前生效',value:'effective'},{name:'默认参数',value:'defaults'},{name:'个人覆盖',value:'preferences'}]},{type:3,name:'提示词',description:'选择一栏查看完整内容',choices:[{name:'前置正面',value:'prompt_prefix'},{name:'后置正面',value:'prompt_suffix'},{name:'负面提示',value:'negative_prompt'}]}]},
@@ -138,7 +139,9 @@ export async function handleImageCommand(env,i,action,preparePrompt){
   const values=Object.fromEntries((action.options||[]).map(o=>[o.name,o.value]));
   if(action.name==='外貌'){
    const result=await imageRpc(env,{action:'外貌',guild,user,appearance:values.提示词,clear:values.清除});
-   return privateReply(result.notice);
+   const reply=privateReply(result.notice);
+   if(values.提示词===undefined&&values.清除!==true)reply.data.components=[appearanceEditorEntry(guild,user)];
+   return reply;
   }
   const params=values.参数?JSON.parse(values.参数):{};
   for(const [name,key]of Object.entries(directOptions))if(Object.hasOwn(values,name))params[key]=values[name];
@@ -196,6 +199,7 @@ export class NovelAIService{
  }
  async dispatch(p){
   if(p.action==='外貌')return manageAppearance(this.storage,p);
+  if(p.action==='appearanceDraft')return manageAppearanceDraft(this.storage,p,this.now());
   const s=await this.state(),key='imagePreferences:'+p.user;
   if(p.action==='status')return {configured:Boolean(this.env.NOVELAI_API_KEY),enabled:s.defaults.enabled,model:s.defaults.model,cfg_rescale:s.defaults.cfg_rescale,promptStructure:'prefix-ai-body-suffix',defaultsRevision:s.defaultsRevision,defaultPromptLengths:TEXTS.map(k=>({field:k,length:s.defaults[k].length})),queued:s.queue.length,busy:!!s.inflight,intervalSeconds:35,rateLimitRetries:RATE_LIMIT_RETRIES,transport:'fetch-wrapper-v1',preferencesUi:'native-panel-v1',recent:s.recent.slice(-5).map(({status,at,stage,errorCode,providerStatus,deliveryStatus,noticeDelivered})=>({status,at,stage,errorCode,providerStatus,deliveryStatus,noticeDelivered}))};
   if(p.action==='查看')return {defaults:s.defaults,preferences:await this.storage.get(key)||{},queued:s.queue.length,busy:!!s.inflight,intervalSeconds:35};
