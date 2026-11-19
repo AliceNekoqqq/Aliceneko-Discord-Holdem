@@ -40,6 +40,29 @@ test('a shared portrait binds the speaker and only the pictured Discord mention'
  assert.match(f.model[0].systemInstruction.parts[0].text,/appearanceTargets/);
  assert(!f.rpc.some(x=>x.p.action==='外貌'));
 });
+test('a verified sister selfie keeps the two subjects distinct and a same-name speaker keeps their own appearance',async t=>{
+ const developer='123456789012345678';
+ const current='画我和你穿同款睡衣';
+ const f=fixture(t,{reply:'好。',image:{prompt:'2girls, a shared bedroom',evidence:current,appearanceSubjects:[
+  {key:'current_user',detail:'silk pajamas'},
+  {key:'hongdoufen',detail:'duplicate subject'},
+  {key:'hongxiaodou',detail:'silk pajamas'}
+ ]}});
+ f.env.DEVELOPER_DISCORD_USER_ID=developer;
+ await replyToMention(f.env,{...message,author:{id:developer,username:'A'},content:'<@99> '+current},'99');
+ const queued=f.rpc.find(x=>x.p.action==='绘制').p;
+ assert.deepEqual(queued.appearanceSubjects,[
+  {id:'hongdoufen',detail:'silk pajamas',useSaved:true},
+  {id:'hongxiaodou',detail:'silk pajamas',useSaved:true}
+ ]);
+ assert.match(f.model[0].systemInstruction.parts[0].text,/"key":"current_user","character":"hongdoufen"/);
+ assert.doesNotMatch(JSON.stringify(f.model),new RegExp(developer));
+
+ const namesake=fixture(t,{reply:'好。',image:{prompt:'portrait',evidence:'画我',appearanceSubjects:[{key:'current_user'}]}});
+ namesake.env.DEVELOPER_DISCORD_USER_ID=developer;
+ await replyToMention(namesake.env,{...message,author:{id:'1',username:'红豆粉'},content:'<@99> 画我'},'99');
+ assert.deepEqual(namesake.rpc.find(x=>x.p.action==='绘制').p.appearanceSubjects,[{id:'1',detail:'',useSaved:true}]);
+});
 test('a portrait can explicitly select the verified author of the replied-to message',async t=>{
  const f=fixture(t,{reply:'整理中。',image:{prompt:'portrait, outdoors',evidence:'画这条消息的作者',appearanceSubjects:[{key:'member_1'}]}});
  await replyToMention(f.env,{...message,content:'<@99> 画这条消息的作者',message_reference:{message_id:'8101',channel_id:'821'},
@@ -129,12 +152,13 @@ test('OpenAI-compatible tool request is structured and slash preferences work in
 });
 
 test('slash drawing prepares the English body through the current model; explicit options win over extracted values',async t=>{
- const f=fixture(t,{reply:'正在整理。',image:{prompt:'1girl, pink twintails, blue dress, full body, standing in a garden',evidence:'请画图',parameters:{steps:20},parameterEvidence:{steps:'20步'}}});
+ const f=fixture(t,{reply:'正在整理。',image:{prompt:'1girl, full body, standing in a garden',evidence:'请画图',parameters:{steps:20},parameterEvidence:{steps:'20步'},appearanceSubjects:[{key:'hongxiaodou',detail:'blue dress'}]}});
  const original=f.env.TABLES.get;
  f.env.TABLES.get=n=>({async fetch(url,o){const p=JSON.parse(o.body);if(p.action==='查看')return Response.json({defaults:{enabled:true},preferences:{scale:6}});return original(n).fetch(url,o);}});
  const i={id:'1',guild_id:'2',channel_id:'3',member:{user:{id:'4'}},data:{options:[{name:'生图',options:[{name:'绘制',options:[{name:'描述',value:'画红小豆穿蓝裙站在花园里，全身，20步'},{name:'步数',value:24}]}]}]}};
  const r=await handleAiCommand(f.env,i),queued=f.rpc.find(x=>x.p.action==='绘制').p;
- assert.equal(r.data.flags,64);assert.equal(f.model.length,1);assert.equal(queued.prompt,'1girl, pink twintails, blue dress, full body, standing in a garden');assert.deepEqual(queued.params,{steps:24});assert.equal(queued.user,'4');assert.equal(queued.id,'1');assert.equal(queued.channel,'3');
+ assert.equal(r.data.flags,64);assert.equal(f.model.length,1);assert.equal(queued.prompt,'1girl, full body, standing in a garden');assert.deepEqual(queued.params,{steps:24});assert.equal(queued.user,'4');assert.equal(queued.id,'1');assert.equal(queued.channel,'3');
+ assert.deepEqual(queued.appearanceSubjects,[{id:'hongxiaodou',detail:'blue dress',useSaved:true}]);
  const system=f.model[0].systemInstruction.parts[0].text;assert.match(system,/粉色|pink hair/);assert.match(system,/不无故改成眼睛/);assert(!JSON.stringify(f.model).includes('secret-never-in-prompt'));
  assert.deepEqual(f.model[0].contents,[{role:'user',parts:[{text:'请画图：画红小豆穿蓝裙站在花园里，全身，20步'}]}]);
 });

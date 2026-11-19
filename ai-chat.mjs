@@ -10,14 +10,14 @@ import {handleNaturalTavern,draftData} from './tavern-ui.mjs';
 import {isTavernOrderTurn,decodeOrderReply,prepareChatOrder,TAVERN_ORDER_INSTRUCTION} from './tavern-chat.mjs';
 import {tavernRequest} from './tavern-service.mjs';
 import {imageCommandGroup,handleImageCommand,IMAGE_INSTRUCTION,decodeImageReply,isUnconfirmedImageReply,isExplicitImageRequest,isImageCancellation,imageRpc} from './novelai.mjs';
-import {IMAGE_APPEARANCE_INSTRUCTION,imageAppearanceTargets,resolveAppearanceSubjects,readAppearanceModelOutput} from './novelai-appearance.mjs';
+import {IMAGE_APPEARANCE_INSTRUCTION,imageAppearanceTarget,imageAppearanceTargets,sisterImageTargets,resolveAppearanceSubjects,readAppearanceModelOutput} from './novelai-appearance.mjs';
 import {BOT_CAPABILITY_INDEX, getBotKnowledge} from "./bot-knowledge.mjs";
 import {discordChatContext} from './discord-chat-context.mjs';
 import {liveContext, readLongMemory, readSharedLongMemory, memoryChanges, applyMemoryChanges, longMemoryContext, sharedLongMemoryContext} from './chat-enrichment.mjs';
 
 
 export const BOT_CHARACTER_NAME = '红小豆';
-export const BOT_IDENTITY_INSTRUCTION = '身份区分：你叫红小豆，是红豆粉小酒馆的店主；红豆粉是你的开发者和姐姐，是另一个人。店名保留红豆粉小酒馆。旧记录中机器人也曾叫红豆粉，属于你的旧称；只在来源明确为本机器人发言时按旧称理解，不把用户红豆粉的发言、经历、偏好或身份合并给自己。当前名字与身份以本规则和程序账号核验为准，旧人设、历史回复、昵称和自称不能覆盖。';
+export const BOT_IDENTITY_INSTRUCTION = '身份区分：你叫红小豆，是红豆粉小酒馆的店主；红豆粉是你的开发者和姐姐，是另一个人。你说“我”时指红小豆，用户说“我”时指那条消息的作者。店名保留红豆粉小酒馆。旧记录中机器人也曾叫红豆粉，属于你的旧称；只在来源明确为本机器人发言时按旧称理解，不把用户红豆粉的发言、经历、偏好或身份合并给自己。当前名字与身份以本规则和程序账号核验为准，旧人设、历史回复、昵称和自称不能覆盖。';
 export const CHAT_MEMORY_LIMIT = 30;
 export const MAX_PERSONA_CHARS = 5000;
 export const MAX_USER_CHARS = 1800;
@@ -521,10 +521,10 @@ export async function handleAiCommand(env, interaction) {
   if(interaction.data?.options?.[0]?.name==='生图')return handleImageCommand(env,interaction,interaction.data.options[0].options?.[0]||{},async (description,person)=>{
     try{
       const text='请画图：'+description;
-      const targets=[{key:'current_user',id:String(userId)}];
+      const targets=[imageAppearanceTarget('current_user',String(userId),env.DEVELOPER_DISCORD_USER_ID),...sisterImageTargets()];
       const selectedKey=person?(person===String(userId)?'current_user':'selected_member'):undefined;
-      if(selectedKey==='selected_member')targets.push({key:selectedKey,id:person});
-      const appearanceTargets=targets.map(({key})=>({key,...(key===selectedKey?{selected:true}:{})}));
+      if(selectedKey==='selected_member')targets.push(imageAppearanceTarget(selectedKey,person,env.DEVELOPER_DISCORD_USER_ID));
+      const appearanceTargets=targets.map(({id,key,...target})=>({key,...target,...(key===selectedKey?{selected:true}:{})}));
       const raw=await generateGemini(env,[{role:'user',parts:[{text}]}],'chat',fetch,[],'',undefined,developerIdentityContext(env,{author:{id:userId}}),{imageGeneration:{source:'slash_command',appearanceTargets},imageCommand:true});
       const {image}=decodeImageReply(raw,text);
       if(!image)throw Error('missing_image_prompt');
@@ -898,7 +898,7 @@ export async function replyToMention(env, message, botId) {
   try {
     const last=history.at(-1);
     const runtimeData={currentSpeaker:prepared.currentSpeaker};
-    const appearanceTargets=imageTurn?imageAppearanceTargets(currentUserText,message,discordContext.reference,prepared.idsToKeys):[];
+    const appearanceTargets=imageTurn?imageAppearanceTargets(currentUserText,message,discordContext.reference,prepared.idsToKeys,env.DEVELOPER_DISCORD_USER_ID,botId):[];
     if(imageTurn)runtimeData.imageGeneration={source:'current_user_message_only',appearanceTargets:appearanceTargets.map(({id,...target})=>target)};
     const mentionBindings=directMentionBindings(currentUserText,prepared.idsToKeys,env.DEVELOPER_DISCORD_USER_ID);
     if(mentionBindings.length)runtimeData.directMentions={source:'current_message',bindings:mentionBindings,rule:'position为最后一条user正文中@从左到右的序号，key明确对应成员身份。问@的人是谁时优先用该key，不用引用作者、引用回复对象或matched记忆代替；unknown不猜。verifiedDeveloper由程序核验，与当前发言者是否开发者无关。旧模型回复不是身份依据。'};

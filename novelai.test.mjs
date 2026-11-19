@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {IMAGE_DEFAULTS,BATCH_INTERVAL,NovelAIService,imageParameters,resolveImageParameters,imageRequest,decodeImageReply,handleImageCommand,imageSettingsReply,imageCommandGroup} from './novelai.mjs';
 import {DEFAULT_POSITIVE_PREFIX,DEFAULT_POSITIVE_SUFFIX,DEFAULT_NEGATIVE_PROMPT} from './novelai-default-prompts.mjs';
+import {HONGDOUFEN_APPEARANCE,HONGXIAODOU_APPEARANCE} from './novelai-character-profile.mjs';
 
 function fixture(fetcher){
  const map=new Map();let now=100000,lock=Promise.resolve();
@@ -35,6 +36,21 @@ test('one-turn > per-user > global defaults; request supports v4 captions and ra
  const r=imageRequest('a cat',p);assert.equal(r.parameters.scale,6);assert.equal(r.parameters.steps,20);assert.equal(r.parameters.seed,123);assert.equal(r.parameters.v4_prompt.caption.base_caption,r.input);assert.match(r.input,/watercolor, a cat/);assert.equal(r.parameters.v4_negative_prompt.caption.base_caption,p.negative_prompt);
  assert(!imageRequest('a cat',{...p,model:'nai-diffusion-3'}).parameters.v4_prompt);
  assert(imageRequest('a cat',{...p,seed:-1}).parameters.seed>=0);
+});
+test('queued sisters use separate NovelAI captions and can override one character for a single drawing',async()=>{
+ const f=fixture();
+ const subjects=[{id:'hongdoufen',detail:'silk pajamas'},{id:'hongxiaodou',detail:'silk pajamas'}];
+ for(const [index,model] of ['nai-diffusion-4-5-full','nai-diffusion-5-full'].entries()){
+  await f.request(String(index+1),String(10+index),{guild:'800',prompt:'2girls, shared bedroom',params:{model},appearanceSubjects:subjects});
+  const {request}=f.map.get('novelaiState').queue[index];
+  assert.deepEqual(request.parameters.v4_prompt.caption.char_captions,[
+   {char_caption:HONGDOUFEN_APPEARANCE+', silk pajamas',centers:[{x:0.25,y:0.5}]},
+   {char_caption:HONGXIAODOU_APPEARANCE+', silk pajamas',centers:[{x:0.75,y:0.5}]}
+  ]);
+  assert.doesNotMatch(request.input,/twintails|pupils|silk pajamas/);
+ }
+ await f.request('3','12',{guild:'800',prompt:'1girl, portrait',appearanceSubjects:[{id:'hongxiaodou',useSaved:false,detail:'short brown hair'}]});
+ assert.equal(f.map.get('novelaiState').queue[2].request.parameters.v4_prompt.caption.char_captions[0].char_caption,'short brown hair');
 });
 test('queued portraits use each member’s saved appearance from the current server',async()=>{
  const f=fixture();

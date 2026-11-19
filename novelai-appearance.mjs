@@ -1,24 +1,39 @@
+import {SISTER_IMAGE_PROFILES} from './novelai-character-profile.mjs';
+
 export const APPEARANCE_MAX_LENGTH=1600;
 export const APPEARANCE_TURN_MAX_LENGTH=1000;
 const MAX_SUBJECTS=6;
 const TURN_LEASE_MS=120000;
 const isId=value=>typeof value==='string'&&/^\d{1,20}$/.test(value);
+const isSisterId=value=>typeof value==='string'&&Object.hasOwn(SISTER_IMAGE_PROFILES,value);
 const appearanceKey=(guild,user)=>`imageAppearance:${guild}:${user}`;
 const draftKey=(guild,user)=>`imageAppearanceDraft:${guild}:${user}`;
 
 export const IMAGE_APPEARANCE_INSTRUCTION=[
- '生图主体身份：image 可额外返回 appearanceSubjects:[{"key":"current_user","detail":"English per-person visual details"}]。仅当本轮真正要求画某位 Discord 成员时选择 appearanceTargets 中的对应 key。',
- '用户说“画我”或“我和某人”时用 current_user；画本轮 @ 的真人时用对应 token 的 key；若明确要画被回复的真人作者，用标注 quotedAuthor 的 key。斜杠人物选择由程序明确指定 selected key。',
+ '生图主体身份：画以下角色或 Discord 成员时，image 必须返回 appearanceSubjects:[{"key":"current_user","detail":"English per-person visual details"}]。从 appearanceTargets 选择真正入画的主体。',
+ '用户说“画我”或“我和某人”时用 current_user，由程序按发言账号取外貌。画本轮 @ 的成员时用对应 token 的 key；明确要画被回复的作者时用 quotedAuthor 的 key。斜杠人物选择由程序指定 selected key。带 character 的账号 key 和同名角色 key 指同一人，只选其中一个。',
+ '“画你”、让你发自拍、明确画“红小豆”使用 hongxiaodou；明确画“红豆粉”或在姐妹关系中说“你姐姐”使用 hongdoufen。两人的全名是角色名；若本轮 @ 了同名但不同账号的成员，按该 @ 的 key。普通对话里红小豆自称“我”时指自己。仅把红小豆当作称呼或 @ 她来发指令时，她不自动入画。比如“红小豆，画我和你”按 current_user、hongxiaodou 分别填。',
  'image.prompt 保留人物数量、整体场景与构图。按画面从左到右排列各主体，detail 只写这个人的动作、神情、穿搭或临时指定外观，不要猜测未提供的外貌。不要因某人被提到就把他画进去，也不使用历史艾特、未列出的 key 或数字ID。',
  '若本轮明确要求不使用设定或提供替代外貌，给该主体填 useSaved:false，并在 detail 或主体描述中写本次所需的外貌。程序会在生成时自动加入已保存的外貌词，聊天回复不得声称自己读到了这些词。'
 ].join(' ');
 
-export function imageAppearanceTargets(text,message,reference,idsToKeys){
+export function imageAppearanceTarget(key,id,developerId){
+ const configuredId=String(developerId||'').trim();
+ return /^\d{17,20}$/.test(configuredId)&&id===configuredId
+  ? {key,id:'hongdoufen',character:'hongdoufen'}
+  : {key,id};
+}
+
+export function sisterImageTargets(){
+ return Object.keys(SISTER_IMAGE_PROFILES).map(key=>({key,id:key}));
+}
+
+export function imageAppearanceTargets(text,message,reference,idsToKeys,developerId,botId){
  const ids=new Map();
  const add=(user,extra)=>{
   const id=String(user?.id||'');
   const key=idsToKeys.get(id);
-  if(key&&isId(id)&&!user.bot)ids.set(id,{...ids.get(id),id,key,...extra});
+  if(key&&isId(id)&&!user.bot)ids.set(id,{...ids.get(id),...imageAppearanceTarget(key,id,developerId),...extra});
  };
  add(message.author,{});
  const direct=new Map([...text.matchAll(/<@!?(\d{1,20})>/g)].map(match=>[match[1],match[0]]));
@@ -27,7 +42,9 @@ export function imageAppearanceTargets(text,message,reference,idsToKeys){
   if(token)add(user,{token});
  }
  add(reference?.author,{quotedAuthor:true});
- return [...ids.values()].slice(0,MAX_SUBJECTS+1);
+ const sisters=sisterImageTargets();
+ if(botId&&reference?.author?.id===botId)sisters.find(target=>target.key==='hongxiaodou').quotedAuthor=true;
+ return [...ids.values()].slice(0,MAX_SUBJECTS+1).concat(sisters);
 }
 
 export function resolveAppearanceSubjects(image,targets,selectedKey){
@@ -130,9 +147,13 @@ export async function manageAppearanceDraft(storage,p,now){
 }
 
 export async function loadAppearanceCaptions(storage,guild,appearanceSubjects){
- if(!isId(guild)||!Array.isArray(appearanceSubjects)||!appearanceSubjects.length)return [];
- const subjects=[...new Map(appearanceSubjects.slice(0,MAX_SUBJECTS).filter(subject=>isId(subject?.id)).map(subject=>[subject.id,subject])).values()];
- const profiles=await Promise.all(subjects.map(subject=>subject.useSaved===false?'':storage.get(appearanceKey(guild,subject.id))));
+ if(!Array.isArray(appearanceSubjects)||!appearanceSubjects.length)return [];
+ const subjects=[...new Map(appearanceSubjects.slice(0,MAX_SUBJECTS).filter(subject=>isSisterId(subject?.id)||(isId(guild)&&isId(subject?.id))).map(subject=>[subject.id,subject])).values()];
+ const profiles=await Promise.all(subjects.map(subject=>{
+  if(subject.useSaved===false)return '';
+  if(isSisterId(subject.id))return SISTER_IMAGE_PROFILES[subject.id];
+  return storage.get(appearanceKey(guild,subject.id));
+ }));
  const captions=subjects.map((subject,index)=>[
   profiles[index],typeof subject.detail==='string'?subject.detail.trim().slice(0,500):''
  ].filter(Boolean).join(', '));
