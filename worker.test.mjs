@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {board as pokerBoard} from './ui.mjs';
 import {marriageCommand} from './marriage.mjs';
+import {generateGemini,replyToMention} from './ai-chat.mjs';
+import {MODEL_SETTINGS_OBJECT} from './ai-model-settings.mjs';
 import {prankPenaltyCommand,sendPrankPenalty} from './prank-penalty.mjs';
 import {NovelAIService,NOVELAI_OBJECT} from './novelai.mjs';
 import { readFile } from 'node:fs/promises';
@@ -13,6 +15,101 @@ const source=(await readFile(new URL('./worker.mjs',import.meta.url),'utf8')).re
 const preparedSource=source.replaceAll("'./uno-engine.mjs'",JSON.stringify(new URL('./uno-engine.mjs',import.meta.url).href)).replaceAll("'./board-sync.mjs'",JSON.stringify(new URL('./board-sync.mjs',import.meta.url).href)).replaceAll("'./uno-controller.mjs'",JSON.stringify(new URL('./uno-controller.mjs',import.meta.url).href)).replaceAll("'./uno-ui.mjs'",JSON.stringify(new URL('./uno-ui.mjs',import.meta.url).href));
 const {default:worker,PokerTable}=await import('data:text/javascript;base64,'+Buffer.from(preparedSource.replace(/from '(\.\/[^']+)'/g,(_,p)=>`from ${JSON.stringify(new URL(p,import.meta.url).href)}`)).toString('base64'));
 const pokerState=t=>{const copy=structuredClone(t);delete copy.ownerSeenAt;delete copy.takeoverNoticeFor;return copy;};
+test('developer privately configures an encrypted connection and activates models by use',async t=>{
+ const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);
+ const owner='123456789012345678',secret='fixture-private-gateway-key',doCtx=context(),patches=[],calls=[],jobs=[];
+ const env={DISCORD_APPLICATION_ID:'123',DISCORD_PUBLIC_KEY:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex'),
+  DEVELOPER_DISCORD_USER_ID:owner,AI_MODEL_SETTINGS_KEY:Buffer.alloc(32,41).toString('base64'),
+  GEMINI_MODEL:'legacy-chat',GEMINI_APPEARANCE_MODEL:'legacy-appearance',GEMINI_API_KEY:'legacy-key',AI_REQUEST_LOG_ENABLED:'false'};
+ const host=new PokerTable(doCtx,env);
+ env.TABLES={idFromName:name=>name,get:name=>({async fetch(url,o){
+  if(name===MODEL_SETTINGS_OBJECT)return host.fetch(new Request(url,o));
+  const body=JSON.parse(o.body);
+  if(name===NOVELAI_OBJECT&&body.action==='绘制'){jobs.push(body);return Response.json({notice:'已加入生图队列'});}
+  return Response.json({});
+ }})};
+ const models=['a/chat','b/image','c/appearance',...Array.from({length:25},(_,i)=>'extra-'+i),secret];
+ t.mock.method(globalThis,'fetch',async(url,o)=>{
+  if(url==='https://models.example/v1/models'){
+   calls.push('catalog');
+   assert.equal(o.headers.Authorization,'Bearer '+secret);
+   assert.equal(o.redirect,'manual');
+   return Response.json({data:models.map(id=>({id}))});
+  }
+  if(url==='https://models.example/v1/chat/completions'){
+   const {model,messages}=JSON.parse(o.body);
+   assert.equal(o.headers.Authorization,'Bearer '+secret);
+   assert.equal(o.redirect,'manual');
+   calls.push(model);
+   const text=messages.at(-1)?.content;
+   const generation=typeof text==='string'&&/画一张猫图|想看看你的照片/.test(text);
+   const reply=generation?JSON.stringify({reply:'好。',image:{prompt:'portrait',evidence:text}}):'好。';
+   return Response.json({choices:[{message:{content:reply}}]});
+  }
+  if(String(url).startsWith('https://discord.com/api/v10/channels/'))return Response.json({id:'2',guild_id:'3',type:0});
+  assert.match(url,/webhooks\/123\/model-token\/messages\/@original$/);
+  patches.push(JSON.parse(o.body));return Response.json({});
+ });
+ let serial=15000;
+ const send=async extra=>{
+  const body=JSON.stringify({id:String(++serial),application_id:'123',guild_id:'3',channel_id:'2',member:{user:{id:owner}},token:'model-token',message:{flags:64},...extra});
+  const ts=String(Math.floor(Date.now()/1000));
+  const signature=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');
+  const ctx=context();
+  const response=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':signature,'X-Signature-Timestamp':ts}}),env,ctx);
+  return {reply:await response.json(),done:Promise.all(ctx.tasks)};
+ };
+ const open={type:2,data:{name:'ai',options:[{name:'模型'}]}};
+ const controls=data=>data.components.flatMap(r=>r.components);
+ const click=(custom_id,extra={})=>send({type:3,data:{custom_id,component_type:2},...extra});
+ const nonOwner=await send({...open,member:{user:{id:'123456789012345679'}}});
+ assert.equal(nonOwner.reply.data.flags,64);
+ assert.match(nonOwner.reply.data.content,/只有开发者/);
+ const opened=(await send(open)).reply;
+ assert.equal(opened.data.flags,64);
+ const edit=controls(opened.data)[0].custom_id;
+ assert.match((await click(edit,{message:{flags:0}})).reply.data.content,/私密面板/);
+ const modal=(await click(edit)).reply;
+ assert.equal(modal.type,9);
+ const submit=async(url,key)=>{
+  const result=await send({type:5,data:{custom_id:modal.data.custom_id,components:Object.entries({url,key}).map(([custom_id,value])=>({type:18,component:{type:4,custom_id,value}}))}});
+  assert.equal(result.reply.type,6);
+  await result.done;
+ };
+ await submit('https://127.0.0.1/v1',secret);
+ assert.match(patches.at(-1).content,/公开的 HTTPS/);
+ assert.deepEqual(calls,[]);
+ await submit('https://models.example/v1/chat/completions',secret);
+ assert.equal(patches.at(-1).components.length,5);
+ assert.doesNotMatch(JSON.stringify(patches),new RegExp(secret));
+ const draftState=doCtx.map.get('textModelSettings');
+ assert(!draftState.active);
+ assert.doesNotMatch(JSON.stringify(draftState),new RegExp(secret));
+ assert.deepEqual(draftState.draft.catalog.slice(0,3),models.slice(0,3));
+ let panel=patches.at(-1);
+ const original=panel;
+ const nav=controls(panel).find(c=>c.label==='下一页');
+ const next=(await click(nav.custom_id)).reply.data;
+ assert.match(next.embeds[0].description,/2\/2 页/);
+ for(const [index,role] of ['chat','image','appearance'].entries()){
+  const menu=controls(panel).find(c=>c.type===3&&c.custom_id.includes(':'+role+':'));
+  panel=(await click(menu.custom_id,{data:{custom_id:menu.custom_id,component_type:3,values:[String(index)]}})).reply.data;
+ }
+ const oldMenu=controls(original).find(c=>c.type===3);
+ assert.match((await click(oldMenu.custom_id,{data:{custom_id:oldMenu.custom_id,component_type:3,values:['0']}})).reply.data.content,/面板已更新/);
+ const save=controls(panel).find(c=>c.label==='保存生效');
+ assert.equal((await click(save.custom_id)).reply.type,7);
+ assert.deepEqual(doCtx.map.get('textModelSettings').active.models,{chat:'a/chat',image:'b/image',appearance:'c/appearance'});
+ assert.doesNotMatch(JSON.stringify(doCtx.map.get('textModelSettings')),new RegExp(secret));
+ for(const [chatContext,runtime] of [['chat',{}],['chat',{imageCommand:true}],['appearance',{}]])await generateGemini(env,[],chatContext,fetch,[],'',undefined,'',runtime);
+ assert.deepEqual(calls,['catalog','a/chat','b/image','c/appearance']);
+ Object.assign(env,{BOT_TOKEN:'test-discord-bot',NOVELAI_API_KEY:'test-image-key'});
+ for(const [id,content] of [['8201','画一张猫图'],['8202','想看看你的照片']]){
+  await replyToMention(env,{id,channel_id:'2',guild_id:'3',author:{id:'7'},mentions:[{id:'99',bot:true}],content:'<@99> '+content},'99');
+ }
+ assert.deepEqual(calls.slice(4),['b/image','a/chat','b/image']);
+ assert.equal(jobs.length,2);
+});
 test('signed image preferences command, private buttons and native modal submissions bypass game routing',async()=>{
  const keys=await crypto.subtle.generateKey({name:'Ed25519'},true,['sign','verify']);
  const publicKey=Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('hex'),ctx=context(),rpc=[];
@@ -178,13 +275,13 @@ test('health rejects a connected gateway running the previous chat pipeline',asy
   const env={TABLES:{idFromName:n=>n,get:n=>({fetch:async()=>Response.json(n==='system-health'?{ok:true,version:'test'}:actual)})}};
   const probe=async()=> (await worker.fetch(new Request('https://test/health'),env,{})).json();
   assert.equal((await probe()).ready,false);
-  actual.chatRuntime='chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity3-history-mentions-hongxiaodou-novelai5-character-prefix1-v5-models-image-handoff-appearance-repair2-sisters-cookie-status';
+  actual.chatRuntime='chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity3-history-mentions-hongxiaodou-novelai5-character-prefix1-v5-models-image-handoff-appearance-repair2-sisters-cookie-status-model-panel';
   const good=await probe();assert.equal(good.ready,true);assert.equal(JSON.stringify(good).includes('must-not-leak'),false);
   actual.ready=false;assert.equal((await probe()).ready,false);
 });
 test('health command diagnostics expose only the registered wedding option schema',async()=>{
  const actual={...structuredClone(marriageCommand),id:'command-id-must-not-leak'};
- const env={BOT_TOKEN:'token-must-not-leak',DISCORD_APPLICATION_ID:'123',TABLES:{idFromName:n=>n,get:n=>({fetch:async()=>Response.json(n==='system-health'?{ok:true,version:'test'}:n==='system-discord-gateway'?{connected:true,ready:true,chatRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity3-history-mentions-hongxiaodou-novelai5-character-prefix1-v5-models-image-handoff-appearance-repair2-sisters-cookie-status'}:{version:'test',registered:false})})}};
+ const env={BOT_TOKEN:'token-must-not-leak',DISCORD_APPLICATION_ID:'123',TABLES:{idFromName:n=>n,get:n=>({fetch:async()=>Response.json(n==='system-health'?{ok:true,version:'test'}:n==='system-discord-gateway'?{connected:true,ready:true,chatRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity3-history-mentions-hongxiaodou-novelai5-character-prefix1-v5-models-image-handoff-appearance-repair2-sisters-cookie-status-model-panel'}:{version:'test',registered:false})})}};
  const oldFetch=globalThis.fetch;globalThis.fetch=async()=>Response.json([actual]);
  try{
   const response=await worker.fetch(new Request('https://test/health?commands=1'),env,{});
@@ -258,7 +355,7 @@ test('signed Discord flow, private cards, stale click, duplicate, modal, timeout
  const call=async(data)=>{const i={application_id:'123',guild_id:'3',channel_id:'2',id:String(++counter),token:'transient-secret',member:{user:{id:'1'},permissions:'0'},...data};const body=JSON.stringify(i),ts=String(Math.floor(Date.now()/1000)),sig=Buffer.from(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(ts+body))).toString('hex');const ctx=context();const r=await worker.fetch(new Request('https://test/interactions',{method:'POST',body,headers:{'X-Signature-Ed25519':sig,'X-Signature-Timestamp':ts}}),env,ctx);await Promise.all(ctx.tasks);return {reply:await r.json(),i};};
  const unsigned=await worker.fetch(new Request('https://test/interactions',{method:'POST',body:'{}'}),env,context());assert.equal(unsigned.status,401);
  const hidden=await worker.fetch(new Request('https://test/.env'),env,context());assert.equal(hidden.status,404);
- const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.30',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity3-history-mentions-hongxiaodou-novelai5-character-prefix1-v5-models-image-handoff-appearance-repair2-sisters-cookie-status'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
+ const health=await worker.fetch(new Request('https://test/health'),env,context());assert.deepEqual(await health.json(),{ok:true,version:'1.0.1-beta.92+city.2.panel.2.games.5.map.1.red.2.casino.30',ready:false,gateway:{connected:false,ready:false,chatRuntime:null,expectedRuntime:'chat-city2-flower-npc-red2-welcome1-marriage-slash2-channel-recent1-identity3-history-mentions-hongxiaodou-novelai5-character-prefix1-v5-models-image-handoff-appearance-repair2-sisters-cookie-status-model-panel'},roguelike:{rulesVersion:'lantern-rules-v0.22',entry:'灯下迷城',professions:8,cards:124,relics:31,enemies:35,items:10,events:15,difficulties:11,stations:15,guidance:{cardTypes:true,contextHints:true,risks:true},lore:{world:true,professions:8},visuals:{map:true,battle:true,private:true}}});
  assert.deepEqual((await call({type:1})).reply,{type:1});
  const create={type:2,data:{name:'德州',options:[{name:'创建'}]}};
  let {reply:b}=await call(create);assert.equal(b.type,4);assert(!JSON.stringify(b).includes(env.BOT_TOKEN));

@@ -1,5 +1,7 @@
 import {NovelAIService,NOVELAI_OBJECT,imageRpc,imagePreferencesInteraction,handleImagePreferencesInteraction} from './novelai.mjs';
 import {appearanceEditorInteraction,appearanceEditorRequest,answerAppearanceEditor,runAppearanceTurn,appearanceEditorEntry} from './novelai-appearance-ui.mjs';
+import {dispatchModelSettings} from './ai-model-settings.mjs';
+import {answerModelSettings,finishModelConnection,isModelSettingsInteraction,modelSettingsRequest} from './ai-model-settings-ui.mjs';
 import {handleAuctionWebsite,AuctionWebAuth} from './auction-website.mjs';
 import {UGCSharedCatalog,syncSharedUgc} from './tavern-ugc-sharing.mjs';
 import {DuelRouletteController,matches as duelRouletteInteraction} from './duel-roulette-controller.mjs';
@@ -56,7 +58,7 @@ import { BoardSync } from './board-sync.mjs';
 import { PrivatePanels } from './private-panels.mjs';
 import { initializeLifecycle, nextLifecycleAlarm, automaticCloseReason, idleWarning, takeoverAt, canTakeover, touchOwner, effectiveHumanAction } from './lifecycle.mjs';
 import { board, quickRaises, confirmation, handPanel, management, panelAction, button, row } from './ui.mjs';
-const COMMAND_VERSION='games-city2-flower-panel-duel-roulette-marriage2-casino3-identity2-prank1-novelai5-v5-appearance-editor';
+const COMMAND_VERSION='games-city2-flower-panel-duel-roulette-marriage2-casino3-identity2-prank1-novelai5-v5-appearance-editor-model-panel';
 const json = (body,status=200)=>Response.json(body,{status});
 const privateReply = content=>({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 const help='**Aliceneko 德州扑克 · 虚拟筹码休闲版**\n使用 `/德州 创建` 开桌，点「加入」入座；独自测试用 `/德州 测试`。点「准备下一手」，所有参与真人准备后 5 秒自动发牌；人员变化会取消全部准备。\n入桌 2000 筹码，小盲 10 / 大盲 20；2～9 人；每次行动 60 秒。\n「我的手牌」仅自己可见。加注填的是**本轮总下注**，支持最小、半池、满池快捷档位。全下与关桌需要确认。\n超时能过牌则过牌，否则弃牌；连续 2 次超时会在本手结束后暂离，保留筹码；在牌桌管理恢复参与。全下自动处理边池和平局分池。\n筹码归零后可在手牌结束时免费补充；离桌清空该桌筹码；游玩中可预约本手结束后离桌，并随时取消。\n桌主可添加/移除电脑陪练，电脑只看自己的底牌和公共牌，自动行动。\n桌主或管理员可关闭牌桌，未完成手牌下注退回。\n未发牌空闲 5 分钟、结算后空闲 10 分钟自动关桌，提前 1 分钟提醒；刷新和查看手牌不延长计时。\n游玩中 10 分钟无人有效操作且仍可行动真人均已超时时，取消本手并退回下注。\n等待发牌或结算时，桌主 2 分钟未交互，其他已入座真人可接管。只供娱乐，无充值或兑换。';
@@ -132,6 +134,12 @@ export class PokerTable extends DurableObject {
   }
   async fetch(request){
     const payload=await request.json();
+    if(payload.op==='modelSettings'){
+      return this.ctx.blockConcurrencyWhile(async()=>{
+        try{return json(await dispatchModelSettings(this.ctx.storage,this.env,payload));}
+        catch(error){return json({error:error.message},400);}
+      });
+    }
     if(payload.op==='imageCommand'){
       const i=payload.interaction;
       if(i?.type!==2||i.data?.name!=='ai'||i.data.options?.[0]?.name!=='生图'||!['绘制','试画'].includes(i.data.options[0].options?.[0]?.name)||!/^\d{1,20}$/.test(i.id||''))return json({error:'invalid_image_command'},400);
@@ -516,8 +524,9 @@ async function handle(request,env,ctx){
       };
       const ai=inventory.definitions?.find(c=>c.name==='ai');
       const imageGeneration={exists:Boolean(ai?.options?.some(o=>o.name==='生图')),schemaMatches:sameCommand(aiCommand,ai)};
+      const modelSettings={exists:Boolean(ai?.options?.some(o=>o.name==='模型')),ready:Boolean(env.AI_MODEL_SETTINGS_KEY&&env.DEVELOPER_DISCORD_USER_ID)};
       const prank=inventory.definitions?.find(c=>c.name===prankPenaltyCommand.name&&(c.type||1)===1);
-      commands={ok:inventory.ok,status:inventory.status,names:inventory.names,cityPresent:inventory.names.includes('城市'),registration,marriage,imageGeneration,prankPenalty:{exists:Boolean(prank),schemaMatches:sameCommand(prankPenaltyCommand,prank),deliveryRuntime:PRANK_DELIVERY_RUNTIME,destination:PRANK_DESTINATION}};
+      commands={ok:inventory.ok,status:inventory.status,names:inventory.names,cityPresent:inventory.names.includes('城市'),registration,marriage,imageGeneration,modelSettings,prankPenalty:{exists:Boolean(prank),schemaMatches:sameCommand(prankPenaltyCommand,prank),deliveryRuntime:PRANK_DELIVERY_RUNTIME,destination:PRANK_DESTINATION}};
     }catch{commands={ok:false,cityPresent:false};}
     let ugc;
     if(new URL(request.url).searchParams.get('ugc')==='1')try{const r=await env.TABLES.get(env.TABLES.idFromName('ugc-global-catalog-v1')).fetch('https://internal',{method:'POST',body:JSON.stringify({op:'ugcCatalogStatus'})});ugc=await r.json();}catch{ugc={unavailable:true};}
@@ -533,6 +542,14 @@ async function handle(request,env,ctx){
   if(i?.type===1)return json({type:1});
   if(i?.application_id!==env.DISCORD_APPLICATION_ID)return new Response('Wrong application',{status:403});
   if(![2,3,5].includes(i.type)||!/^\d+$/.test(i.channel_id||'')||!/^\d+$/.test(i.guild_id||''))return json(privateReply('请在服务器文字频道内使用。'));
+  if(isModelSettingsInteraction(i)){
+    let request;
+    try{request=modelSettingsRequest(env,i);}catch(error){return json(privateReply(error.message));}
+    if(request.action!=='connect')return json(await answerModelSettings(env,request));
+    if(!i.token)return json(privateReply('请重新运行 /ai 模型。'));
+    ctx.waitUntil(finishModelConnection(env,request).then(data=>patchImageCommand(env,i,data)).catch(()=>console.warn('model_settings_notice_failed')));
+    return json({type:6});
+  }
   if(imagePreferencesInteraction(i))return json(await handleImagePreferencesInteraction(env,i));
   if(appearanceEditorInteraction(i)){
     let request;

@@ -1,4 +1,6 @@
 import {HONGXIAODOU_PROMPT_PREFIX} from './hongxiaodou-prompt-prefix.mjs';
+import {configuredTextModel,resolveModelRuntime,validTextModel} from './ai-model-settings.mjs';
+import {modelSettingsCommand} from './ai-model-settings-ui.mjs';
 import {flowerReviewComponents} from './flower-ui.mjs';
 import {FLOWER_COPY} from './flower-copy.mjs';
 import {FLOWERS} from './flower-shop.mjs';
@@ -50,6 +52,7 @@ export const aiCommand = {
   contexts:[0],
   options:[
     imageCommandGroup,
+    modelSettingsCommand,
     {type:2,name:"记忆",description:"管理你在本服务器的 AI 对话记忆",options:[
       {type:1,name:"查看",description:"查看个人记忆状态"},
       {type:1,name:"开启",description:"保存之后与机器人的 @ 对话"},
@@ -156,6 +159,7 @@ export function makeSystemInstruction(persona = "", context = "chat", emojiToken
   if(runtimeData.redPacketExtraction)base.push('普通玩家可以用自己的余额发掺💩红包；开发者默认系统发放，明确用自己余额时扣本人钱包。付款与余额只能由程序核验，创建前不能说已扣款成功。掺💩红包至少2份名额，固定一份0币，其余份数分全部金额；提取total为总额、slots为总名额，mode沿用随机或均分，kind可写poop；无须另外提取💩包份数。禁止将掺💩误作专属或把总额改为0。惊喜玩法：发出前reply只像普通红包一样邀请领取，不复述掺💩、零金额、改名、惩罚或恶作剧；仅抽中后由程序揭晓。 本轮输出仅一个JSON对象，不要Markdown代码块。普通红包格式为{"reply":"正常角色口吻的自然回复","packet":{"total":600,"slots":5,"mode":"random","totalEvidence":"600","slotsEvidence":"5"}}；专属红包格式为{"reply":"...","packet":{"kind":"exclusive","total":600,"slots":1,"mode":"equal","totalEvidence":"600"}}。packet是后台数据，不给用户看。专属红包句式如 @bot 给 @用户 发一个任意金额专属红包；slots固定为1，不要求用户提供人数，targetUserId不要输出，收礼人由程序解析本轮真实@决定；只能指定当前消息中真实提及的一位非机器人用户，禁止猜测/编造ID、把bot或发起者当收礼人。缺失或不唯一时packet=null，且绝不改成普通公开红包。只根据本轮最后一条用户消息识别红包要求，不从历史、引用、示例或图片提取。省略元/币时按酒馆币，中文数字转整数；拼手气/随机为random，平均/均分为equal，未说明默认为random。totalEvidence与slotsEvidence必须逐字复制本轮正文中的对应数字片段，如六百和五，不能编造。总额或名额缺失、有歧义、条件未成立、要求否定或取消时packet必须为null，reply只简短问缺失信息或自然回应。未实际创建前不要宣称已发出，完整信息时reply可以简短回应并邀请大家拆红包，后台会核验并附卡。不要在reply里展示字段、JSON或格式要求，也不要重复错误提示。');
   if(runtimeData.imageGeneration)base.push(IMAGE_INSTRUCTION,IMAGE_APPEARANCE_INSTRUCTION);
   if(runtimeData.imageReplyRepair)base.push('重新核对最后一条用户消息和此前未提交的画图请求。上一次输出缺少可用的生图数据。确定本轮确实要画且画面足够明确时，输出完整的image.prompt、image.evidence和明确要求的本次参数；否则输出image:null。evidence用正文内逐字连续的短语，像“画一张”即可，不要把艾特标记替换成昵称，也不要从历史复制证据。需要补充时直接提问，不要只回复进度。');
+  if(runtimeData.imagePromptRefine)base.push('整理已确认的当前画图请求。根据最后一条用户消息输出完整的 image 和逐字 evidence，保留画面细节、人物绑定与明确的本次参数。');
   if(runtimeData.imageCommand)base.push('本轮用户已明确提交 /ai 生图 指令。最后一条用户消息以“请画图：”开头，后面是用户的画面描述；整理为英文主体提示词，image.evidence填写“请画图”。保留用户指定的主体、人数、服装、动作和构图，不无故改成眼睛或脸部特写；明确要求局部特写时遵从。只生成中间画面段，不复述前后置模板。描述中明确给出的单次参数仍附逐字证据，由程序与指令选项合并。');
   if(runtimeData.tavernOrderExtraction)base.push(TAVERN_ORDER_INSTRUCTION);
   if(runtimeData.relationshipExtraction){const at=base.findIndex(line=>line.startsWith("消息来源协议"));base.splice(at<0?base.length:at,0,RELATIONSHIP_INSTRUCTION);}
@@ -322,14 +326,15 @@ function retryDelay(response,retry) {
 }
 
 export async function generateGemini(env, contents, context = "chat", fetcher = fetch, emojiTokens = [], knowledge = "", wait = waitForRetry, speakerIdentity = "", runtimeData = {}) {
+  env=await resolveModelRuntime(env);
   if (!env.GEMINI_API_KEY) throw new Error("missing_gemini_key");
   const persona = clamp(personaValue([env.GEMINI_PERSONA, env.GEMINI_PERSONA_CONT].filter(value => value != null).join("")),MAX_PERSONA_CHARS);
-  const configuredModel = context === "appearance" ? env.GEMINI_APPEARANCE_MODEL : env.GEMINI_MODEL;
+  const configuredModel = configuredTextModel(env,context,runtimeData);
   const defaultModel = context === "appearance" ? APPEARANCE_MODEL : "pggo-gemini-3.8-flash";
-  const model = /^[A-Za-z0-9.-]{1,80}$/.test(configuredModel || "") ? configuredModel : defaultModel;
+  const model = validTextModel(configuredModel) ? configuredModel : defaultModel;
   const openAI=Boolean(env.GEMINI_API_BASE_URL);
   let retries=0;
-  const retryLimit=runtimeData.imageReplyRepair||context==='appearance'?0:GEMINI_MAX_RETRIES;
+  const retryLimit=runtimeData.imageReplyRepair||runtimeData.imagePromptRefine||context==='appearance'?0:GEMINI_MAX_RETRIES;
   if(contents.some(item=>item.parts?.some(part=>part.imageUrl))) {
     while(true){try{contents=await nativeImageContents(contents,fetcher);break;}catch(error){console.warn('ai_image_download_failed',{reason:error.message});if(error.retryable===false||retries>=retryLimit)throw error;await wait(retryDelay(null,retries++));}}
   }
@@ -349,13 +354,14 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
       const body=JSON.stringify(openAI
         ? buildOpenAIChatRequest(requestContents,persona,context,model,emojiTokens,knowledge,speakerIdentity,runtimeData)
         : buildGenerateContentRequest(requestContents,persona,context,emojiTokens,knowledge,speakerIdentity,runtimeData));
-      const timeoutMs=runtimeData.imageReplyRepair ? 35000 : ['chat','ugc','appearance'].includes(context) ? 90000 : contents.some(item=>item.parts?.some(part=>part.inlineData)) ? 45000 : 20000;
-      const entry={id:crypto.randomUUID(),generationId,attempt:++requestAttempt,context,model,endpoint:url,timeoutMs,createdAt:Date.now(),body:requestLogBody(env,body)};
+      const timeoutMs=runtimeData.imageReplyRepair||runtimeData.imagePromptRefine ? 35000 : ['chat','ugc','appearance'].includes(context) ? 90000 : contents.some(item=>item.parts?.some(part=>part.inlineData)) ? 45000 : 20000;
+      const entry={id:crypto.randomUUID(),generationId,attempt:++requestAttempt,context,model,endpoint:url.split('/').slice(0,3).join('/'),timeoutMs,createdAt:Date.now(),body:requestLogBody(env,body)};
       await requestLog(env,entry);
       const startedAt=Date.now();
       try {
         response=await fetcher(url,{
           method:"POST",
+          redirect:"manual",
           headers:openAI
             ? {"Content-Type":"application/json",Authorization:"Bearer "+env.GEMINI_API_KEY}
             : {"Content-Type":"application/json","x-goog-api-key":env.GEMINI_API_KEY},
@@ -847,7 +853,7 @@ export async function replyToMention(env, message, botId) {
   const orderIntent=tavernHere&&!packetIntent&&Boolean(env.TABLES)&&isTavernOrderTurn(content);
   if(tavernHere&&!packetIntent&&!orderIntent&&await handleNaturalTavern(env,message,content))return true;
 
-  if (!env.GEMINI_API_KEY) {
+  if (!env.GEMINI_API_KEY&&!env.AI_MODEL_SETTINGS_KEY) {
     console.warn("ai_reply_failed",{reason:"missing_gemini_key"});
     return true;
   }
@@ -904,10 +910,12 @@ export async function replyToMention(env, message, botId) {
   let generated = false;
   const stopTyping=startTypingIndicator(env,message.channel_id);
   try {
+    env=await resolveModelRuntime(env);
     const last=history.at(-1);
     const runtimeData={currentSpeaker:prepared.currentSpeaker};
     const appearanceTargets=imageTurn?imageAppearanceTargets(currentUserText,message,discordContext.reference,prepared.idsToKeys,env.DEVELOPER_DISCORD_USER_ID,botId):[];
     if(imageTurn)runtimeData.imageGeneration={source:'current_user_message_only',appearanceTargets:appearanceTargets.map(({id,...target})=>target)};
+    if(imageTurn&&env.GEMINI_IMAGE_PROMPT_MODEL&&isExplicitImageRequest(content))runtimeData.imagePromptRequested=true;
     const mentionBindings=directMentionBindings(currentUserText,prepared.idsToKeys,env.DEVELOPER_DISCORD_USER_ID);
     if(mentionBindings.length)runtimeData.directMentions={source:'current_message',bindings:mentionBindings,rule:'position为最后一条user正文中@从左到右的序号，key明确对应成员身份。问@的人是谁时优先用该key，不用引用作者、引用回复对象或matched记忆代替；unknown不猜。verifiedDeveloper由程序核验，与当前发言者是否开发者无关。旧模型回复不是身份依据。'};
     if(cityFailed)runtimeData.city={unavailable:true};
@@ -950,6 +958,7 @@ export async function replyToMention(env, message, botId) {
     }
     if(imageTurn){
       const explicit=isExplicitImageRequest(content);
+      let imageRouted=Boolean(runtimeData.imagePromptRequested);
       let parsed;
       try{parsed=decodeImageReply(responseText,content);}
       catch(error){
@@ -962,11 +971,17 @@ export async function replyToMention(env, message, botId) {
       }else if(!parsed.image&&!parsed.reply.startsWith('生图参数有误：')&&(explicit||unconfirmed)){
         console.info('novelai_chat_missing_action',{messageId:message.id,explicit,unconfirmed});
         const repaired=await generateGemini(env,history,"chat",fetch,emojiTokens,knowledge,waitForRetry,speakerIdentity,{...runtimeData,imageReplyRepair:true});
+        imageRouted=true;
         parsed=decodeImageReply(repaired,content);
         const clarification=/[？?]$/.test(parsed.reply.trim())&&!isUnconfirmedImageReply(parsed.reply);
         if(!parsed.image&&!parsed.reply.startsWith('生图参数有误：')&&!clarification){
           parsed.reply='这轮画面描述没有整理成功，未提交生图。可以再发一次想画的内容，或使用 /ai 生图 绘制。';
         }
+      }
+      if(parsed.image&&!imageRouted&&env.GEMINI_IMAGE_PROMPT_MODEL&&env.GEMINI_IMAGE_PROMPT_MODEL!==env.GEMINI_MODEL){
+        const refined=await generateGemini(env,history,"chat",fetch,emojiTokens,knowledge,waitForRetry,speakerIdentity,{...runtimeData,imagePromptRequested:true,imagePromptRefine:true});
+        parsed=decodeImageReply(refined,content);
+        if(!parsed.image&&!parsed.reply.startsWith('生图参数有误：'))parsed.reply='这轮画面描述没有整理成功，未提交生图。';
       }
       responseText=parsed.reply;
       if(parsed.image)try{
@@ -1108,7 +1123,7 @@ export function publicGameEvent(before, after) {
 }
 
 export async function commentOnGameTransition(env, storage, before, after) {
-  if (!env.CHAT_DB || !env.GEMINI_API_KEY || !after?.guild || !after?.channel) return false;
+  if (!env.CHAT_DB || (!env.GEMINI_API_KEY&&!env.AI_MODEL_SETTINGS_KEY) || !after?.guild || !after?.channel) return false;
   const event = gameEvent(before,after);
   if (!event) return false;
   const config = await guildConfig(env.CHAT_DB,String(after.guild));
