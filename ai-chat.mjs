@@ -311,6 +311,8 @@ async function requestLog(env,entry,complete=false) {
   }
 }
 const retryableStatus=status=>status===408||status===425||status===429||status>=500;
+const AI_STUDIO_COOKIE_MISSING='ai_studio_cookie_missing';
+const IMAGE_TEXT_MODEL_COOKIE_NOTICE='文字模型的 AI Studio 登录状态尚未同步，需管理员恢复。这次生图未提交。';
 const waitForRetry=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 function retryDelay(response,retry) {
@@ -365,6 +367,10 @@ export async function generateGemini(env, contents, context = "chat", fetcher = 
           error.status=response.status;
           error.retryable=retryableStatus(response.status);
           try { error.providerMessage=redactRequestLog(env,(await response.text()).slice(0,2000)); } catch {}
+          if(response.status===503&&error.providerMessage?.includes('尚未推送 AI Studio Cookie')){
+            error.code=AI_STUDIO_COOKIE_MISSING;
+            error.retryable=false;
+          }
           throw error;
         }
         const data=await response.json();
@@ -529,7 +535,9 @@ export async function handleAiCommand(env, interaction) {
       const {image}=decodeImageReply(raw,text);
       if(!image)throw Error('missing_image_prompt');
       return {...image,appearanceSubjects:resolveAppearanceSubjects(image,targets,selectedKey)};
-    }catch{throw Error('画面描述整理失败，请稍后重试；本次没有提交生图。');}
+    }catch(error){
+      throw Error(error?.code===AI_STUDIO_COOKIE_MISSING?IMAGE_TEXT_MODEL_COOKIE_NOTICE:'画面描述整理失败，请稍后重试；本次没有提交生图。');
+    }
   });
   const db = env.CHAT_DB;
   if (!guildId || !userId) return privateReply("请在服务器文字频道内使用。");
@@ -969,9 +977,10 @@ export async function replyToMention(env, message, botId) {
     }
     generated = true;
   } catch(error) {
-    console.warn("ai_reply_failed",{reason:error?.message||error?.name||"Error",status:error?.status,maxRetries:GEMINI_MAX_RETRIES});
+    console.warn("ai_reply_failed",{reason:error?.code||error?.message||error?.name||"Error",status:error?.status,maxRetries:GEMINI_MAX_RETRIES});
     if(flowerIntent){responseText='这轮花束订单没有整理成功，未扣款。请重试或使用 /城市 花店。';}
     else if(orderIntent){responseText='这轮点单暂时没有整理成功，尚未扣款。请重试，或打开 `/酒馆 菜单` 点单。';}
+    else if(imageTurn&&error?.code===AI_STUDIO_COOKIE_MISSING){responseText=IMAGE_TEXT_MODEL_COOKIE_NOTICE;}
     else if(imageTurn){responseText=/prompt_blocked/i.test(error?.providerMessage||'')
       ? '文字模型拦截了这轮请求，未提交生图。'
       : '这轮生图需求没有整理成功，未提交生图。请重试或使用 /ai 生图 绘制。';}

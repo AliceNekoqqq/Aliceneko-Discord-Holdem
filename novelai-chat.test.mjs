@@ -141,6 +141,25 @@ test('a text-model prompt block is reported without a second request or an image
  assert.equal(f.rpc.filter(c=>c.p.action==='绘制').length,0);
  assert.equal(f.posts[0].content,'文字模型拦截了这轮请求，未提交生图。');
 });
+test('missing AI Studio login state is reported without retries for both chat and slash drawing',async t=>{
+ const f=fixture(t,()=>Response.json({detail:'尚未推送 AI Studio Cookie：请在 AI Studio 页面用油猴脚本推送 Cookie'},{status:503}));
+ const notice='文字模型的 AI Studio 登录状态尚未同步，需管理员恢复。这次生图未提交。';
+ await replyToMention(f.env,{...message,content:'<@99> 画我和你穿同款睡衣'},'99');
+ assert.equal(f.model.length,1);
+ assert.equal(f.posts[0].content,notice);
+ const original=f.env.TABLES.get;
+ f.env.TABLES.get=n=>({async fetch(url,o){
+  const p=JSON.parse(o.body);
+  return p.action==='查看'?Response.json({defaults:{enabled:true},preferences:{}}):original(n).fetch(url,o);
+ }});
+ const interaction={id:'1',guild_id:'820',channel_id:'821',member:{user:{id:'1'}},data:{options:[
+  {name:'生图',options:[{name:'绘制',options:[{name:'描述',value:'画红小豆穿睡衣'}]}]}
+ ]}};
+ const reply=await handleAiCommand(f.env,interaction);
+ assert.equal(reply.data.content,notice);
+ assert.equal(f.model.length,2);
+ assert.equal(f.rpc.filter(entry=>entry.p.action==='绘制').length,0);
+});
 test('pending defaults get an accurate notice without claiming an image exists',async t=>{
  const f=fixture(t,{reply:'准备中。',image:{prompt:'cat',evidence:'画只猫'}},'生图功能已接入，正在等待开发者调整默认参数后开放。');await replyToMention(f.env,{...message,content:'<@99> 画只猫'},'99');assert.match(f.posts[0].content,/等待开发者/);
 });
