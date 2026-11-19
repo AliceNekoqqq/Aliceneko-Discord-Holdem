@@ -81,7 +81,10 @@ export function isUnconfirmedImageReply(reply){
 // A clear imperative can request one more model pass, but cannot authorize a queue entry by itself.
 export function isExplicitImageRequest(text){
  const direct=directImageText(text).trim();
- return /^(?:(?:请(?:你)?|帮我|给我|麻烦你?)[ \t]*)*(?:(?:画|生成)(?:一?[张幅组]|一个|一下)\s*\S|画(?:我|你|<@!?\d{1,20}>))/u.test(direct)&&!/[?？]|(?:举例|示例|怎么|写法|如果)/u.test(direct);
+ if (/[?？]|(?:举例|示例|怎么|写法|如果)/u.test(direct)) return false;
+ const request=direct.replace(/^(?:(?:请(?:你)?|帮我|给我|麻烦你?)[ \t]*)*/u,'');
+ return /^(?:用(?:这个|这些|这段|这套|我的|你的)?(?:外貌|描述|提示词|设定)[ \t]*)?(?:(?:画|生成)(?:一?[张幅组]|一个|一下)\s*\S|画(?:我|你|<@!?\d{1,20}>))/u.test(request)
+  || /^(?:我想要|我要|我想看)[ \t]*一?[张幅组][^，。！？!?；;\n]{0,30}(?:图(?:片|像)?|照(?:片)?|画)(?=$|[，。！!；;、\s])/u.test(request);
 }
 
 export function isImageCancellation(text){

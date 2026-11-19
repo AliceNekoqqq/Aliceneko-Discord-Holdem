@@ -316,7 +316,8 @@ async function requestLog(env,entry,complete=false) {
 }
 const retryableStatus=status=>status===408||status===425||status===429||status>=500;
 const AI_STUDIO_COOKIE_MISSING='ai_studio_cookie_missing';
-const IMAGE_TEXT_MODEL_COOKIE_NOTICE='文字模型的 AI Studio 登录状态尚未同步，需管理员恢复。这次生图未提交。';
+const TEXT_MODEL_COOKIE_NOTICE='文字模型的 AI Studio 登录状态尚未同步，需管理员恢复。';
+const IMAGE_TEXT_MODEL_COOKIE_NOTICE=TEXT_MODEL_COOKIE_NOTICE+'这次生图未提交。';
 const waitForRetry=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 function retryDelay(response,retry) {
@@ -888,7 +889,9 @@ export async function replyToMention(env, message, botId) {
   let relationship=null,relationshipSuggestion=null;
   if(db&&memoryOn&&!flowerHere)relationship=await readRelationship(db,guildId,userId);
   let packet=null,orderDraft=null,flowerDraft=null;
-  const imageTurn=Boolean(env.NOVELAI_API_KEY&&env.TABLES&&!flowerHere&&!packetIntent&&!orderIntent);
+  const imageEnabled=Boolean(env.NOVELAI_API_KEY&&env.TABLES&&!flowerHere&&!packetIntent&&!orderIntent);
+  const explicitImageRequest=imageEnabled&&isExplicitImageRequest(content);
+  let imageRequested=explicitImageRequest&&!isImageCancellation(content);
   const imageParts=discordImageParts(message);
   const currentUserText=content||(imageParts.length?"请看看我发的图片，描述或回应图片内容。":"你好。");
   const memoryUserText=currentUserText+(imageParts.length?`\n[本轮附带${imageParts.length}张图片；历史记录不保存原图]`:'');
@@ -913,9 +916,9 @@ export async function replyToMention(env, message, botId) {
     env=await resolveModelRuntime(env);
     const last=history.at(-1);
     const runtimeData={currentSpeaker:prepared.currentSpeaker};
-    const appearanceTargets=imageTurn?imageAppearanceTargets(currentUserText,message,discordContext.reference,prepared.idsToKeys,env.DEVELOPER_DISCORD_USER_ID,botId):[];
-    if(imageTurn)runtimeData.imageGeneration={source:'current_user_message_only',appearanceTargets:appearanceTargets.map(({id,...target})=>target)};
-    if(imageTurn&&env.GEMINI_IMAGE_PROMPT_MODEL&&isExplicitImageRequest(content))runtimeData.imagePromptRequested=true;
+    const appearanceTargets=imageEnabled?imageAppearanceTargets(currentUserText,message,discordContext.reference,prepared.idsToKeys,env.DEVELOPER_DISCORD_USER_ID,botId):[];
+    if(imageEnabled)runtimeData.imageGeneration={source:'current_user_message_only',appearanceTargets:appearanceTargets.map(({id,...target})=>target)};
+    if(imageRequested&&env.GEMINI_IMAGE_PROMPT_MODEL)runtimeData.imagePromptRequested=true;
     const mentionBindings=directMentionBindings(currentUserText,prepared.idsToKeys,env.DEVELOPER_DISCORD_USER_ID);
     if(mentionBindings.length)runtimeData.directMentions={source:'current_message',bindings:mentionBindings,rule:'position为最后一条user正文中@从左到右的序号，key明确对应成员身份。问@的人是谁时优先用该key，不用引用作者、引用回复对象或matched记忆代替；unknown不猜。verifiedDeveloper由程序核验，与当前发言者是否开发者无关。旧模型回复不是身份依据。'};
     if(cityFailed)runtimeData.city={unavailable:true};
@@ -944,7 +947,7 @@ export async function replyToMention(env, message, botId) {
     responseText=await generateGemini(env,history,"chat",fetch,emojiTokens,knowledge,waitForRetry,speakerIdentity,runtimeData);
     if(relationship){
       const parsed=decodeRelationshipReply(responseText);relationshipSuggestion=parsed.suggestion;
-      responseText=(packetIntent||orderIntent||imageTurn)&&parsed.envelope?JSON.stringify(parsed.envelope):parsed.reply;
+      responseText=(packetIntent||orderIntent||imageEnabled)&&parsed.envelope?JSON.stringify(parsed.envelope):parsed.reply;
     }
     if(packetIntent){
       const parsed=decodePacketReply(responseText);
@@ -956,8 +959,8 @@ export async function replyToMention(env, message, botId) {
       const parsed=decodeOrderReply(responseText);responseText=parsed.reply;
       if(parsed.order){try{orderDraft=await prepareChatOrder(env,message,parsed.order,orderMenu,discordContext,prepared.idsToKeys);}catch(error){responseText=error.message;}}
     }
-    if(imageTurn){
-      const explicit=isExplicitImageRequest(content);
+    if(imageEnabled){
+      const explicit=explicitImageRequest;
       let imageRouted=Boolean(runtimeData.imagePromptRequested);
       let parsed;
       try{parsed=decodeImageReply(responseText,content);}
@@ -979,6 +982,7 @@ export async function replyToMention(env, message, botId) {
         }
       }
       if(parsed.image&&!imageRouted&&env.GEMINI_IMAGE_PROMPT_MODEL&&env.GEMINI_IMAGE_PROMPT_MODEL!==env.GEMINI_MODEL){
+        imageRequested=true;
         const refined=await generateGemini(env,history,"chat",fetch,emojiTokens,knowledge,waitForRetry,speakerIdentity,{...runtimeData,imagePromptRequested:true,imagePromptRefine:true});
         parsed=decodeImageReply(refined,content);
         if(!parsed.image&&!parsed.reply.startsWith('生图参数有误：'))parsed.reply='这轮画面描述没有整理成功，未提交生图。';
@@ -993,17 +997,20 @@ export async function replyToMention(env, message, botId) {
     generated = true;
   } catch(error) {
     console.warn("ai_reply_failed",{reason:error?.code||error?.message||error?.name||"Error",status:error?.status,maxRetries:GEMINI_MAX_RETRIES});
+    const loginMissing=error?.code===AI_STUDIO_COOKIE_MISSING;
+    const promptBlocked=/prompt_blocked/i.test(error?.providerMessage||'');
     if(flowerIntent){responseText='这轮花束订单没有整理成功，未扣款。请重试或使用 /城市 花店。';}
     else if(orderIntent){responseText='这轮点单暂时没有整理成功，尚未扣款。请重试，或打开 `/酒馆 菜单` 点单。';}
-    else if(imageTurn&&error?.code===AI_STUDIO_COOKIE_MISSING){responseText=IMAGE_TEXT_MODEL_COOKIE_NOTICE;}
-    else if(imageTurn){responseText=/prompt_blocked/i.test(error?.providerMessage||'')
+    else if(imageRequested){responseText=loginMissing ? IMAGE_TEXT_MODEL_COOKIE_NOTICE : promptBlocked
       ? '文字模型拦截了这轮请求，未提交生图。'
       : '这轮生图需求没有整理成功，未提交生图。请重试或使用 /ai 生图 绘制。';}
-    else if(!packetIntent)return true;
-    if(packetIntent){
-    packet=await prepareRedPacket(env,message,botId);
-    responseText=packet?.error?packet.error:'';
-    }
+    else if(packetIntent){
+      packet=await prepareRedPacket(env,message,botId);
+      responseText=packet?.error?packet.error:'';
+    }else if(imageEnabled){responseText=loginMissing ? TEXT_MODEL_COOKIE_NOTICE : promptBlocked
+      ? '文字模型拦截了这轮聊天请求。'
+      : '这轮聊天回复没能生成，请稍后重试。';}
+    else return true;
   } finally {
     stopTyping();
   }

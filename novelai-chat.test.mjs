@@ -141,7 +141,32 @@ test('a text-model prompt block is reported without a second request or an image
  assert.equal(f.rpc.filter(c=>c.p.action==='绘制').length,0);
  assert.equal(f.posts[0].content,'文字模型拦截了这轮请求，未提交生图。');
 });
-test('missing AI Studio login state is reported without retries for both chat and slash drawing',async t=>{
+test('ordinary chat gets a chat failure notice even when drawing is available',async t=>{
+ for(const content of ['今天过得怎么样？','画一张小猫，这句话怎么写？','画一张小猫，算了']){
+  const f=fixture(t,()=>Response.json({error:{code:'invalid_api_key'}},{status:401}));
+  await replyToMention(f.env,{...message,content:'<@99> '+content},'99');
+  assert.deepEqual(f.posts.map(post=>post.content),['这轮聊天回复没能生成，请稍后重试。']);
+  assert.equal(f.model.length,1);
+  assert.equal(f.rpc.filter(entry=>entry.p.action==='绘制').length,0);
+ }
+});
+test('a drawing request that fails before any model reply still gets a drawing notice',async t=>{
+ const f=fixture(t,()=>Response.json({error:{code:'invalid_api_key'}},{status:401}));
+ await replyToMention(f.env,{...message,content:'<@99> 我要一张猫咪图'},'99');
+ assert.deepEqual(f.posts.map(post=>post.content),['这轮生图需求没有整理成功，未提交生图。请重试或使用 /ai 生图 绘制。']);
+ assert.equal(f.rpc.filter(entry=>entry.p.action==='绘制').length,0);
+});
+test('a confirmed drawing that fails during refinement still gets a drawing notice',async t=>{
+ const f=fixture(t,attempt=>attempt===1
+  ? {reply:'好。',image:{prompt:'1girl, casual clothes',evidence:'想看看你今天的穿搭'}}
+  : Response.json({error:{code:'invalid_api_key'}},{status:401}));
+ f.env.GEMINI_IMAGE_PROMPT_MODEL='image-refiner';
+ await replyToMention(f.env,message,'99');
+ assert.equal(f.model.length,2);
+ assert.match(f.posts[0].content,/未提交生图/);
+ assert.equal(f.rpc.filter(entry=>entry.p.action==='绘制').length,0);
+});
+test('missing AI Studio login state gets context-specific notices without retries',async t=>{
  const f=fixture(t,()=>Response.json({detail:'尚未推送 AI Studio Cookie：请在 AI Studio 页面用油猴脚本推送 Cookie'},{status:503}));
  const notice='文字模型的 AI Studio 登录状态尚未同步，需管理员恢复。这次生图未提交。';
  await replyToMention(f.env,{...message,content:'<@99> 画我和你穿同款睡衣'},'99');
@@ -158,6 +183,9 @@ test('missing AI Studio login state is reported without retries for both chat an
  const reply=await handleAiCommand(f.env,interaction);
  assert.equal(reply.data.content,notice);
  assert.equal(f.model.length,2);
+ await replyToMention(f.env,{...message,content:'<@99> 你好'},'99');
+ assert.equal(f.posts[1].content,'文字模型的 AI Studio 登录状态尚未同步，需管理员恢复。');
+ assert.equal(f.model.length,3);
  assert.equal(f.rpc.filter(entry=>entry.p.action==='绘制').length,0);
 });
 test('pending defaults get an accurate notice without claiming an image exists',async t=>{
