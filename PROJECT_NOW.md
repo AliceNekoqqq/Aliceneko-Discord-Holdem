@@ -1,3 +1,10 @@
+## Discord 开发者模型配置面板（2026-11-19，已发布）
+
+- `/ai 模型` 仅向配置的开发者账号开放私密面板。填入 HTTPS OpenAI 兼容地址与 API Key 后读取 `/models`，分页分配聊天默认、生图提示词和个人外貌标签模型。草稿确认保存后全局生效。
+- URL 与 API Key 使用 Worker Secret `AI_MODEL_SETTINGS_KEY` 做 AES-GCM 加密后存放在同一个 Durable Object。面板仅显示域名及模型，对新连接不跟随 HTTP 跳转。项目现有配置作为未保存时的启动默认。
+- 本地聊天 200 项、Worker 187 项通过，覆盖签名交互、开发者权限、私密表单、Key 脱敏、分页、过期版本拒绝以及按用途调用的 `/chat/completions`。源码 `ba00cbc53720c35b1f8dbc6a4ee1f546ce317a58`，CI/部署 `44485876594` 成功。
+- Cloudflare `dddc5bab-e87f-425f-a6a9-6bc26a24c0f0` 接收全部流量，部署 `152f3f0a-4613-41aa-b5d2-0e0cede76006` 即时激活 Gateway。线上 health ready，Discord Gateway 和 `/ai` 指令均已同步，模型面板配置 ready。部署设置与 Cron 核对一致，发布注释有变化；用户的新 API Key 与真实模型列表尚待用户填写测试。
+
 ## AI Studio 登录状态丢失导致生图未提交（2026-11-19）
 
 - 北京时间 15:17 和 15:25 的两轮文字模型请求各尝试四次，均收到 HTTP 503。生产网关响应明确为「尚未推送 AI Studio Cookie」。两轮均停在文字模型调用，未提交 NovelAI。最近日志尚无恢复后的成功请求。
