@@ -18,12 +18,13 @@ function fixture(t,output,notice='已加入生图队列'){
  });return {env,rpc,posts,model};
 }
 test('natural-language visual request uses one LLM call and only the current speaker owns the queued job',async t=>{
- const artistNote='我选了宽松一点的衣服，想画得像刚收拾完店、准备坐下来歇一会儿。';
+ const artistNote='我选了宽松一点的衣服，这样更像刚收拾完店、能坐下来歇一会儿的样子。';
  const f=fixture(t,{reply:'我整理一下画面。',image:{prompt:'1girl, pink hair, casual clothes',artistNote,evidence:'想看看你今天的穿搭',parameters:{},parameterEvidence:{}}});
  await replyToMention(f.env,message,'99');
  const calls=f.rpc.filter(r=>r.p.op==='novelai');assert.equal(calls.length,1);assert.equal(calls[0].name,NOVELAI_OBJECT);assert.equal(calls[0].p.user,'1');assert.equal(calls[0].p.reference,'8201');assert.equal(f.model.length,1);assert.equal(f.model[0].generationConfig.responseMimeType,'application/json');
  assert.equal(calls[0].p.artistNote,artistNote);
  assert.match(f.model[0].systemInstruction.parts[0].text,/artistNote/);
+ assert.match(f.model[0].systemInstruction.parts[0].text,/直接说选了什么、为什么这么处理/);
  assert(!JSON.stringify(f.posts).includes(artistNote));
  assert.match(f.posts[0].content,/已加入/);assert.doesNotMatch(JSON.stringify(f.posts),/parameterEvidence|"image"|secret-never/);assert(!JSON.stringify(f.model).includes('secret-never'));
 });
@@ -203,7 +204,7 @@ test('OpenAI-compatible tool request is structured and slash preferences work in
 });
 
 test('slash drawing prepares the English body through the current model; explicit options win over extracted values',async t=>{
- const artistNote='我想让蓝裙子在花园里显眼一点，所以给周围的花留了些空。';
+ const artistNote='周围的花我排得疏了一点，这样蓝裙子在花园里更显眼。';
  const f=fixture(t,{reply:'正在整理。',image:{prompt:'1girl, full body, standing in a garden',artistNote,evidence:'请画图',parameters:{steps:20},parameterEvidence:{steps:'20步'},appearanceSubjects:[{key:'hongxiaodou',detail:'blue dress'}]}});
  const original=f.env.TABLES.get;
  f.env.TABLES.get=n=>({async fetch(url,o){const p=JSON.parse(o.body);if(p.action==='查看')return Response.json({defaults:{enabled:true},preferences:{scale:6}});return original(n).fetch(url,o);}});
