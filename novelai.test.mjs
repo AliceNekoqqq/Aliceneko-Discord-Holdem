@@ -26,6 +26,41 @@ test('provider and notice failures retain safe stage/status diagnostics without 
  assert.equal(status.transport,'fetch-wrapper-v1');assert.equal(last.stage,'provider_request');assert.equal(last.providerStatus,500);assert.equal(last.errorCode,'http');assert.equal(last.noticeDelivered,false);
  for(const text of ['test-secret','bot-secret','pink hair','"id"','"channel"'])assert(!JSON.stringify(status).includes(text));
 });
+test('artist note replies once to the uploaded batch, outside the image request',async()=>{
+ const f=fixture();
+ const artistNote='我想留一盏暖灯，画出雨夜里有人等你回来的感觉。';
+ await f.request('1','10',{reference:'22',artistNote});
+ const reloaded=new NovelAIService(f.host,f.service.fetcher,f.service.now);
+ await reloaded.alarm();
+ await reloaded.alarm();
+ assert.equal(f.calls.length,3);
+ const [provider,upload,note]=f.calls;
+ assert(!provider.o.body.includes(artistNote));
+ const uploaded=JSON.parse(upload.o.body.get('payload_json'));
+ assert.equal(uploaded.message_reference.message_id,'22');
+ assert(!uploaded.content.includes(artistNote));
+ assert.deepEqual(JSON.parse(note.o.body),{
+  content:artistNote,allowed_mentions:{parse:[]},nonce:'note-1',enforce_nonce:true,
+  message_reference:{message_id:'999',fail_if_not_exists:true}
+ });
+ assert.equal(f.map.get('novelaiState').recent[0].status,'sent');
+});
+test('a failed image or note send never retries generation',async()=>{
+ for(const uploadOk of [false,true]){
+  const f=fixture(async(url,options)=>{
+   if(url.includes('novelai.net'))return Response.json({images:[{image:'iVBORw0KGgo='}]});
+   if(options.body instanceof FormData)return Response.json({id:'999'},{status:uploadOk?200:403});
+   return Response.json({}, {status:403});
+  });
+  const artistNote='我想画得像傍晚散步时碰巧看到的一幕。';
+  await f.request('1','10',{artistNote});
+  await f.service.alarm();
+  await f.service.alarm();
+  assert.equal(f.calls.length,3);
+  assert.equal(JSON.parse(f.calls[2].o.body).content.includes(artistNote),uploadOk);
+  assert.equal(f.map.get('novelaiState').recent[0].status,uploadOk?'sent':'delivery_failed');
+ }
+});
 test('parameters strictly validate bounds, types, dimensions and keys',()=>{
  for(const p of [{width:833},{width:0},{steps:51},{scale:'5'},{n_samples:5},{seed:1.1},{model:'unknown'},{quality:'true'},{prompt_prefix:'x'.repeat(4001)},{url:'https://evil.invalid'},{enabled:true}])assert.throws(()=>imageParameters(p));
  assert.throws(()=>resolveImageParameters({...IMAGE_DEFAULTS,width:1536,height:1536}));
@@ -144,6 +179,14 @@ test('tool evidence is restricted to the current request and explicit numeric ov
  assert.equal(decodeImageReply('今天过得怎么样？','你好').image,null);
  assert.deepEqual(decodeImageReply('{"reply":"好的","image":{','画只猫'),{reply:'好的',image:null});
  assert.throws(()=>decodeImageReply('{"image":{','画只猫'));
+});
+test('missing or malformed artist notes use a short fallback without rejecting the drawing',()=>{
+ for(const artistNote of [undefined,{},'@everyone 看图','<@123> 看图','https://example.com','{"test":true}','太'.repeat(161)]){
+  const raw=JSON.stringify({reply:'好呀。',image:{prompt:'a cat',evidence:'画只猫',artistNote}});
+  const {image}=decodeImageReply(raw,'画只猫');
+  assert.equal(image.prompt,'a cat');
+  assert.match(image.artistNote,/画好啦/);
+ }
 });
 test('AI supplies per-image parameters and evidence, including colloquial numbers without numeric substrings',()=>{
  const raw=JSON.stringify({reply:'正在整理。',image:{prompt:'a cat',evidence:'我要一张猫图',parameters:{width:1024,height:1024,steps:24,scale:6},parameterEvidence:{width:'一千零二十四见方',height:'一千零二十四见方',steps:'二十四步',scale:'CFG六'}}});

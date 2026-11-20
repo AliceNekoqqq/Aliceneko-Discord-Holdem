@@ -19,7 +19,14 @@ const RANGES={width:[64,1536],height:[64,1536],steps:[1,50],scale:[0,10],cfg_res
 const TEXTS=['prompt_prefix','prompt_suffix','negative_prompt'];
 const clean=s=>typeof s==='string'?s.trim():'';
 const directImageText=s=>clean(s).replace(/```[\s\S]*?```|“[^”]*”|「[^」]*」|"[^"]*"|^>.*$/gm,' ');
-const validReply=s=>typeof s==='string'&&s.trim()&&s.length<=1700&&!/"(?:image|parameterEvidence|relationship)"\s*:/.test(s);
+const validReply=s=>typeof s==='string'&&s.trim()&&s.length<=1700&&!/"(?:image|artistNote|parameterEvidence|relationship)"\s*:/.test(s);
+const DEFAULT_ARTIST_NOTE='画好啦～我照着你给的方向画了一版，你看看是不是你想象中的感觉？';
+
+function cleanArtistNote(value){
+ const note=clean(value).replace(/\s+/gu,' ');
+ if(!note||note.length>160||/^[{\[]|[<>`]|https?:\/\/|@(?:everyone|here)\b/iu.test(note))return '';
+ return note;
+}
 function rateLimitDeadline(response,now){
  const header=response.headers.get('Retry-After')?.trim();
  const supplied=/^\d+$/.test(header||'')?now+Number(header)*1000:Date.parse(header||'');
@@ -72,6 +79,7 @@ export function imageRequest(prompt,p,appearanceCaptions=[]){
  return {input,model:p.model,action:'generate',parameters};
 }
 export const IMAGE_INSTRUCTION='生图工具：只在当前用户亲自要求画图、生成图片、自拍或想看具体画面时调用，结合对话理解要画的内容；引用、历史、示例、假设、否定、仅询问功能不调用。保留其他JSON字段，额外输出image:null或image:{"prompt":"详细英文画面提示词","evidence":"逐字复制本轮用户表达生图意图的片段","parameters":{},"parameterEvidence":{}}。无其他结构时输出{"reply":"自然回复","image":null}。人物外貌依据可信人设和本轮要求，不混淆姐姐与妹妹。提示词结构固定为：前置正面模板 → image.prompt中的本次画面描述 → 后置正面模板；负面模板独立发送。你只生成中间的本次画面描述，优先按主体身份/人数、外貌与表情、服装和动作、场景、构图视角、光影排列，通常用50–100个英文词；不要复述固定模板、追加画师串/年份/通用质量词，也不要把尺寸/步数等参数写进prompt。三栏模板由程序按本次覆盖、个人偏好、默认值拼接，只有用户明确更换某栏时才在parameters输出prompt_prefix/prompt_suffix/negative_prompt，不能为了补充场景而擅自覆盖整栏。parameters仅放本轮明确指定的参数，不自行填默认值；每一项parameterEvidence须逐字复制表达该值的本轮片段，支持中文数字和口语表达，由你转换成API需要的数值、布尔值或枚举；无明确参数则两者为空对象。是否调用、是否否定、参数归属和后文修改均由你理解语义判断，程序不通过关键词或正则提取。可用字段model,width,height,steps,scale,sampler,noise_schedule,cfg_rescale,seed,n_samples,prompt_prefix,prompt_suffix,negative_prompt。尺寸可写1024*1024、1024×1024、1024x1024，分别提取width和height；步数、CFG、rescale、种子、张数等本轮明确要求也只覆盖本次。比如“我要一张猫咪图，1024*1024，24步，CFG 6”应调用生图并提取width=1024,height=1024,steps=24,scale=6；不能因未使用“画”字而漏掉请求。不能改默认设置或个人偏好。本轮提供的新外貌词写进对应主体的 appearanceSubjects.detail；未使用分角色描述时写进 image.prompt。若同一用户正在回应上一轮对尚未提交的画图请求所询问的外貌或画面细节，补充说明本身就是本轮证据，即使没有重复说“画图”。逐字复制本轮说明中未置于引号或代码块内的一段；仅分享外貌、介绍角色或请求保存外貌时不调用。信息齐全时必须输出完整image对象，reply只写简短应答，勿承诺正在整理、即将提交、已排队或已出图。需要补充时直接问缺少的信息。image为后台数据，不能出现在reply。'+'\n'+HONGXIAODOU_IMAGE_INSTRUCTION+'\n如果用户明确要求 NovelAI V5 或 V5 Full，model 填 nai-diffusion-5-full；如果明确要求 V5 Curated，填 nai-diffusion-5-curated。仅询问 V5 余额时，引导使用 /ai 生图 额度，不触发生图。';
+export const ARTIST_NOTE_INSTRUCTION='image 有值时，在其中增加 "artistNote"。用红小豆的第一人称写一小段中文，1–2句，最多120字。挑本次画面设计里一个具体的选择，聊聊为什么用这种光线、动作、构图或颜色，或者想让人感觉到什么。口吻像画完后随口和客人聊两句。只说这次画面本来想怎么设计，用“我想……”“本来想……”这类措辞，别假装看过成图或保证某个细节已经画出来。仅使用这次请求和 image.prompt 的画面细节，别提聊天记忆、个人外貌标签原文、英文关键词、参数、链接或艾特。artistNote 由程序在发图成功后另发，别写进 reply。';
 export function isUnconfirmedImageReply(reply){
  const drawing=/(?:正在|这就|马上|现在|稍后|已经|已|立刻|接下来)[^。！？!?\n]{0,60}(?:整理(?:你的)?(?:画面描述|生图提示词)|提交(?:这次|本次)?生图|开始(?:生图|生成图片)|生成(?:好|完)?(?:一张|图片|画面)|出图)/u;
  const queued=/(?:送|放|加|排)(?:进|到|入|去)生图队列|画[^。！？!?\n]{0,40}(?:送|放|加|排)(?:进|到|入|去)队列|生图[^。！？!?\n]{0,12}(?:已排队|排队[了啦])|(?:画像|照片|合照|生图|画作)[^。！？!?\n]{0,28}安排上/u;
@@ -105,7 +113,7 @@ export function decodeImageReply(raw,text){
  const prompt=clean(i.prompt);if(!prompt||prompt.length>4000)return {reply:parsed.reply,image:null};
  const parameters={};
  for(const [k,value]of Object.entries(i.parameters||{})){const evidence=clean(i.parameterEvidence?.[k]);if(evidence&&direct.includes(evidence))parameters[k]=value;}
- try{return {reply:parsed.reply,image:{prompt,parameters:imageParameters(parameters),...(Array.isArray(i.appearanceSubjects)?{appearanceSubjects:i.appearanceSubjects}: {})}};}
+ try{return {reply:parsed.reply,image:{prompt,parameters:imageParameters(parameters),artistNote:cleanArtistNote(i.artistNote)||DEFAULT_ARTIST_NOTE,...(Array.isArray(i.appearanceSubjects)?{appearanceSubjects:i.appearanceSubjects}: {})}};}
  catch(e){return {reply:'生图参数有误：'+e.message,image:null};}
 }
 export async function imageRpc(env,payload){
@@ -160,7 +168,7 @@ export async function handleImageCommand(env,i,action,preparePrompt){
   const params=values.参数?JSON.parse(values.参数):{};
   for(const [name,key]of Object.entries(directOptions))if(Object.hasOwn(values,name))params[key]=values[name];
   if(values.尺寸){const [width,height]=values.尺寸.split('x').map(Number);params.width=width;params.height=height;}
-  let prompt=values.描述,once=params,appearanceSubjects;
+  let prompt=values.描述,once=params,appearanceSubjects,artistNote;
   if(['绘制','试画'].includes(action.name)){
    if(!clean(prompt))throw Error('请提供画面描述。');
    if(!env.NOVELAI_API_KEY)throw Error('NovelAI 密钥尚未配置。');
@@ -172,9 +180,9 @@ export async function handleImageCommand(env,i,action,preparePrompt){
    const chosen=person&&i.data?.resolved?.users?.[person];
    if(person&&(chosen?.id!==person||chosen.bot))throw Error('请选择本服务器内要画的真人成员。');
    const prepared=await preparePrompt(prompt,person);
-   prompt=prepared.prompt;once={...prepared.parameters,...params};appearanceSubjects=prepared.appearanceSubjects;
+   prompt=prepared.prompt;once={...prepared.parameters,...params};appearanceSubjects=prepared.appearanceSubjects;artistNote=prepared.artistNote;
   }
-  const result=await imageRpc(env,{action:action.name,user,admin,params:once,prompt,id:String(i.id),channel:String(i.channel_id),...(appearanceSubjects?.length?{guild,appearanceSubjects}:{})});
+  const result=await imageRpc(env,{action:action.name,user,admin,params:once,prompt,artistNote,id:String(i.id),channel:String(i.channel_id),...(appearanceSubjects?.length?{guild,appearanceSubjects}:{})});
   if(action.name==='查看')return imageSettingsReply(result,values);
   return privateReply(result.notice||JSON.stringify(result,null,2));
  }catch(e){return privateReply(e instanceof SyntaxError?'参数JSON格式有误。':e.message);}
@@ -243,7 +251,8 @@ export class NovelAIService{
   const params=resolveImageParameters(s.defaults,prefs,p.params||{});
   const appearanceCaptions=await loadAppearanceCaptions(this.storage,p.guild,p.appearanceSubjects);
   const request=imageRequest(p.prompt,params,appearanceCaptions);
-  s.queue.push({id:p.id,user:p.user,channel:p.channel,reference:p.reference||null,request,created:this.now()});
+  const artistNote=cleanArtistNote(p.artistNote);
+  s.queue.push({id:p.id,user:p.user,channel:p.channel,reference:p.reference||null,request,created:this.now(),...(artistNote?{artistNote}:{})});
   await this.save(s);return {accepted:true,notice:`已加入生图队列：${params.width}×${params.height}，${params.steps}步，CFG ${params.scale}，rescale ${params.cfg_rescale}，${params.n_samples}张。前面有${s.queue.length-1+(s.inflight?1:0)}批。触发限流时可能延后，完成后会发到本频道。`};
  }
  async claim(){
@@ -264,7 +273,7 @@ export class NovelAIService{
   if(!claim)return;
   if(claim.expired){await this.notice(claim.expired,'这次生图已过期或结果无法确认，没有自动重试，请检查频道后重新发起。');return;}
   const {job}=claim;let status='failed',stage='provider_request',providerStatus=null,deliveryStatus=null,errorCode=null,noticeDelivered=null;
-  let limitUntil=0,retryRateLimit=false;
+  let limitUntil=0,retryRateLimit=false,sentImage;
   try{
    const streaming=isV5Model(job.request.model);
    const headers={Authorization:'Bearer '+this.env.NOVELAI_API_KEY,Accept:streaming?'application/msgpack':'application/json'};
@@ -300,7 +309,9 @@ export class NovelAIService{
    stage='discord_upload';status='delivery_failed';
    const sent=await this.fetcher('https://discord.com/api/v10/channels/'+job.channel+'/messages',{method:'POST',headers:{Authorization:'Bot '+this.env.BOT_TOKEN},body:form,signal:AbortSignal.timeout(15000)});
    deliveryStatus=sent.status;
-   if(!sent.ok){status='delivery_failed';throw Error('image_delivery_failed');}status='sent';
+   if(!sent.ok)throw Error('image_delivery_failed');
+   status='sent';
+   sentImage=sent;
   }catch(e){
    if(retryRateLimit){
     console.info('novelai_job_rate_limit_wait',{providerStatus,retryAt:limitUntil});
@@ -325,6 +336,23 @@ export class NovelAIService{
     await this.save(s);
    });
   }
+  if(sentImage&&job.artistNote){
+   const message=await sentImage.json().catch(()=>null);
+   const reference=message?.id;
+   if(typeof reference==='string'&&/^\d{1,20}$/.test(reference)){
+    const delivered=await this.notice(job,job.artistNote,{reference,nonce:'note-'+job.id,failIfNotExists:true});
+    if(!delivered)console.warn('novelai_artist_note_delivery_failed');
+   }
+  }
  }
- async notice(job,content){try{const response=await this.fetcher('https://discord.com/api/v10/channels/'+job.channel+'/messages',{method:'POST',headers:{Authorization:'Bot '+this.env.BOT_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({content,allowed_mentions:{parse:[]},nonce:job.id,enforce_nonce:true,...(job.reference?{message_reference:{message_id:job.reference,fail_if_not_exists:false}}:{})}),signal:AbortSignal.timeout(8000)});return response.ok;}catch{return false;}}
+ async notice(job,content,{reference=job.reference,nonce=job.id,failIfNotExists=false}={}){
+  try{
+   const response=await this.fetcher('https://discord.com/api/v10/channels/'+job.channel+'/messages',{
+    method:'POST',headers:{Authorization:'Bot '+this.env.BOT_TOKEN,'Content-Type':'application/json'},
+    body:JSON.stringify({content,allowed_mentions:{parse:[]},nonce,enforce_nonce:true,...(reference?{message_reference:{message_id:reference,fail_if_not_exists:failIfNotExists}}:{})}),
+    signal:AbortSignal.timeout(8000)
+   });
+   return response.ok;
+  }catch{return false;}
+ }
 }

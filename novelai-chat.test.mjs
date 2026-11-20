@@ -18,9 +18,13 @@ function fixture(t,output,notice='已加入生图队列'){
  });return {env,rpc,posts,model};
 }
 test('natural-language visual request uses one LLM call and only the current speaker owns the queued job',async t=>{
- const f=fixture(t,{reply:'我整理一下画面。',image:{prompt:'1girl, pink hair, casual clothes',evidence:'想看看你今天的穿搭',parameters:{},parameterEvidence:{}}});
+ const artistNote='我选了宽松一点的衣服，想画得像刚收拾完店、准备坐下来歇一会儿。';
+ const f=fixture(t,{reply:'我整理一下画面。',image:{prompt:'1girl, pink hair, casual clothes',artistNote,evidence:'想看看你今天的穿搭',parameters:{},parameterEvidence:{}}});
  await replyToMention(f.env,message,'99');
  const calls=f.rpc.filter(r=>r.p.op==='novelai');assert.equal(calls.length,1);assert.equal(calls[0].name,NOVELAI_OBJECT);assert.equal(calls[0].p.user,'1');assert.equal(calls[0].p.reference,'8201');assert.equal(f.model.length,1);assert.equal(f.model[0].generationConfig.responseMimeType,'application/json');
+ assert.equal(calls[0].p.artistNote,artistNote);
+ assert.match(f.model[0].systemInstruction.parts[0].text,/artistNote/);
+ assert(!JSON.stringify(f.posts).includes(artistNote));
  assert.match(f.posts[0].content,/已加入/);assert.doesNotMatch(JSON.stringify(f.posts),/parameterEvidence|"image"|secret-never/);assert(!JSON.stringify(f.model).includes('secret-never'));
 });
 test('chat inline size, steps and guidance are supplied by the AI and override only the current job',async t=>{
@@ -199,12 +203,15 @@ test('OpenAI-compatible tool request is structured and slash preferences work in
 });
 
 test('slash drawing prepares the English body through the current model; explicit options win over extracted values',async t=>{
- const f=fixture(t,{reply:'正在整理。',image:{prompt:'1girl, full body, standing in a garden',evidence:'请画图',parameters:{steps:20},parameterEvidence:{steps:'20步'},appearanceSubjects:[{key:'hongxiaodou',detail:'blue dress'}]}});
+ const artistNote='我想让蓝裙子在花园里显眼一点，所以给周围的花留了些空。';
+ const f=fixture(t,{reply:'正在整理。',image:{prompt:'1girl, full body, standing in a garden',artistNote,evidence:'请画图',parameters:{steps:20},parameterEvidence:{steps:'20步'},appearanceSubjects:[{key:'hongxiaodou',detail:'blue dress'}]}});
  const original=f.env.TABLES.get;
  f.env.TABLES.get=n=>({async fetch(url,o){const p=JSON.parse(o.body);if(p.action==='查看')return Response.json({defaults:{enabled:true},preferences:{scale:6}});return original(n).fetch(url,o);}});
  const i={id:'1',guild_id:'2',channel_id:'3',member:{user:{id:'4'}},data:{options:[{name:'生图',options:[{name:'绘制',options:[{name:'描述',value:'画红小豆穿蓝裙站在花园里，全身，20步'},{name:'步数',value:24}]}]}]}};
  const r=await handleAiCommand(f.env,i),queued=f.rpc.find(x=>x.p.action==='绘制').p;
  assert.equal(r.data.flags,64);assert.equal(f.model.length,1);assert.equal(queued.prompt,'1girl, full body, standing in a garden');assert.deepEqual(queued.params,{steps:24});assert.equal(queued.user,'4');assert.equal(queued.id,'1');assert.equal(queued.channel,'3');
+ assert.equal(queued.artistNote,artistNote);
+ assert(!r.data.content.includes(artistNote));
  assert.deepEqual(queued.appearanceSubjects,[{id:'hongxiaodou',detail:'blue dress',useSaved:true}]);
  const system=f.model[0].systemInstruction.parts[0].text;assert.match(system,/粉色|pink hair/);assert.match(system,/不无故改成眼睛/);assert(!JSON.stringify(f.model).includes('secret-never-in-prompt'));
  assert.deepEqual(f.model[0].contents,[{role:'user',parts:[{text:'请画图：画红小豆穿蓝裙站在花园里，全身，20步'}]}]);
